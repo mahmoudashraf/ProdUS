@@ -47,6 +47,9 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Signed provider-neutral payment and e-signature webhook endpoints with HMAC verification, bad-signature 401 behavior, idempotent provider event records, invoice status updates, contract status updates, and signed-at capture.
 - Workspace dispute cases with assigned team visibility, owner/team/admin status updates, response due dates, resolution notes, and explicit DTO responses.
 - Frontend workspace dispute panel with create, severity/status controls, resolution updates, and typed payment/signature/dispute records.
+- Evidence attachment backend with workspace, deliverable, and dispute scopes, multipart upload/list/delete API, file type/size validation, and role-aware workspace/dispute authorization.
+- Frontend workspace evidence, dispute evidence, and deliverable evidence upload/listing using the shared file picker and one stable attachment query per workspace.
+- S3-compatible storage hardening for sanitized keys, configurable public URLs, missing-object handling, and Docker MinIO credential alignment.
 - HTTP exception handling now preserves controller-level `ResponseStatusException` codes instead of collapsing callback auth failures into 500 responses.
 - Local development auth now auto-seeds an admin mock session, stabilizes the mock auth provider boundary, and allows both `localhost` and `127.0.0.1` frontend origins.
 
@@ -77,6 +80,9 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Railway deployment readiness: backend/frontend Dockerfiles are configured for Railway service roots, per-service Railway config files exist, variable templates map Railway Postgres references into Spring JDBC settings, and the production deployment sequence is documented.
 - Local UI recovery: `npm run type-check`, `npm test -- --runInBand`, `mvn -DskipTests package`, targeted backend workflow test, backend health check, CORS preflight from `127.0.0.1:3001`, and headless Chrome dashboard smoke all passed. The verified dashboard URL is `http://127.0.0.1:3001/dashboard`.
 - Docker image readiness: backend and frontend images build as `produs-backend:local` and `produs-frontend:local`; backend container passed `/api/health` and mock admin login; frontend standalone container served `/dashboard`; Compose files now pass current Spring datasource, storage, health-check, and frontend build-arg contracts.
+- Evidence attachments: `mvn test` passed with mocked multipart upload/list/delete, signed-download permission coverage, private storage metadata response checks, and PostgreSQL Liquibase validation for `evidence_attachments`; `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after frontend evidence UI wiring.
+- Live evidence attachment smoke: dev backend on `http://127.0.0.1:8080`, frontend on `http://127.0.0.1:3001`, and local MinIO accepted a workspace evidence upload through `/api/attachments`, returned an attachment ID, listed one attachment for the workspace, and returned an authenticated short-lived download URL. Headless Chrome rendered `/workspaces` successfully.
+- Docker evidence attachment readiness: `docker build -t produs-backend:local ./backend` and `docker build -t produs-frontend:local ./frontend` passed after the attachment slice.
 
 ## Notes
 
@@ -89,4 +95,4 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 ## Remaining Production Hardening Queue
 
 - None from the current 2026-05-11 implementation plan.
-- Future production integrations can add provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters, dispute evidence attachments, support SLA automation, notification fan-out, and full CI enforcement for the Testcontainers profile.
+- Future production integrations can add provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters, support SLA automation, notification fan-out, and full CI enforcement for the Testcontainers profile.

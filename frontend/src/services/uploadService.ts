@@ -1,4 +1,6 @@
 import axios from 'axios';
+import apiClient from '@/lib/api-client';
+import type { AttachmentScope, EvidenceAttachment } from '@/features/platform/types';
 
 export interface UploadProgress {
   fileName: string;
@@ -34,6 +36,35 @@ class UploadService {
     );
 
     await Promise.all(uploads);
+  }
+
+  async uploadEvidenceAttachment(
+    input: {
+      scopeType: AttachmentScope;
+      scopeId: string;
+      file: File;
+      label?: string | undefined;
+    },
+    onProgress?: (progress: number) => void
+  ): Promise<EvidenceAttachment> {
+    const formData = new FormData();
+    formData.append('scopeType', input.scopeType);
+    formData.append('scopeId', input.scopeId);
+    formData.append('file', input.file);
+    if (input.label) {
+      formData.append('label', input.label);
+    }
+
+    const response = await apiClient.post<EvidenceAttachment>('/attachments', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress?.(percentCompleted);
+        }
+      }
+    });
+    return response.data;
   }
 }
 

@@ -10,15 +10,19 @@ import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
 import com.produs.entity.User;
 import com.produs.repository.UserRepository;
+import com.produs.service.S3Service;
 import com.produs.teams.Team;
 import com.produs.teams.TeamCapability;
 import com.produs.teams.TeamCapabilityRepository;
 import com.produs.teams.TeamRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
@@ -33,11 +37,17 @@ import java.util.List;
 import java.util.HexFormat;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -72,6 +82,20 @@ class ProductizationWorkflowIntegrationTest {
 
     @Autowired
     private TeamCapabilityRepository capabilityRepository;
+
+    @MockBean
+    private S3Service s3Service;
+
+    @BeforeEach
+    void mockObjectStorage() {
+        when(s3Service.generateFileKey(anyString(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0, String.class) + "/" + UUID.randomUUID() + ".txt");
+        when(s3Service.uploadFile(anyString(), any(byte[].class), anyString()))
+                .thenAnswer(invocation -> "https://storage.produs.test/produs/" + invocation.getArgument(0, String.class));
+        when(s3Service.generatePresignedDownloadUrl(anyString()))
+                .thenAnswer(invocation -> "https://storage.produs.test/signed/" + invocation.getArgument(0, String.class));
+        doNothing().when(s3Service).deleteFile(anyString());
+    }
 
     @Test
     void ownerCanRunProductizationWorkflowWithMockedPlatformData() throws Exception {
@@ -380,6 +404,23 @@ class ProductizationWorkflowIntegrationTest {
                 .andReturn();
         UUID disputeId = readId(disputeResult);
 
+        MockMultipartFile disputeEvidence = new MockMultipartFile(
+                "file",
+                "dispute-response.txt",
+                "text/plain",
+                "Team response evidence for the dispute review".getBytes(StandardCharsets.UTF_8)
+        );
+        mockMvc.perform(multipart("/api/attachments")
+                        .file(disputeEvidence)
+                        .param("scopeType", "DISPUTE")
+                        .param("scopeId", disputeId.toString())
+                        .param("label", "Team response")
+                        .with(auth(teamManager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scopeType").value("DISPUTE"))
+                .andExpect(jsonPath("$.fileName").value("dispute-response.txt"))
+                .andExpect(jsonPath("$.uploadedBy.email").value(teamManager.getEmail()));
+
         mockMvc.perform(get("/api/commerce/workspaces/{id}/disputes", workspaceId).with(auth(teamManager)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
@@ -432,7 +473,7 @@ class ProductizationWorkflowIntegrationTest {
                                 """))
                 .andExpect(status().isForbidden());
 
-        mockMvc.perform(post("/api/workspaces/milestones/{id}/deliverables", milestoneId)
+        MvcResult deliverableResult = mockMvc.perform(post("/api/workspaces/milestones/{id}/deliverables", milestoneId)
                         .with(auth(specialist))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -443,7 +484,59 @@ class ProductizationWorkflowIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SUBMITTED"));
+                .andExpect(jsonPath("$.status").value("SUBMITTED"))
+                .andReturn();
+        UUID deliverableId = readId(deliverableResult);
+
+        MockMultipartFile deliverableEvidence = new MockMultipartFile(
+                "file",
+                "launch-evidence.txt",
+                "text/plain",
+                "Launch readiness evidence pack contents".getBytes(StandardCharsets.UTF_8)
+        );
+        MvcResult attachmentResult = mockMvc.perform(multipart("/api/attachments")
+                        .file(deliverableEvidence)
+                        .param("scopeType", "DELIVERABLE")
+                        .param("scopeId", deliverableId.toString())
+                        .param("label", "Acceptance proof")
+                        .with(auth(specialist)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scopeType").value("DELIVERABLE"))
+                .andExpect(jsonPath("$.scopeId").value(deliverableId.toString()))
+                .andExpect(jsonPath("$.fileName").value("launch-evidence.txt"))
+                .andExpect(jsonPath("$.storageKey").doesNotExist())
+                .andExpect(jsonPath("$.fileUrl").doesNotExist())
+                .andReturn();
+        UUID attachmentId = readId(attachmentResult);
+
+        mockMvc.perform(get("/api/attachments")
+                        .param("workspaceId", workspaceId.toString())
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
+
+        mockMvc.perform(get("/api/attachments/{id}/download-url", attachmentId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.downloadUrl").value(containsString("https://storage.produs.test/signed/evidence/deliverable")))
+                .andExpect(jsonPath("$.expiresInSeconds").value(900));
+
+        mockMvc.perform(get("/api/attachments/{id}/download-url", attachmentId).with(auth(anotherOwner)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/attachments")
+                        .param("scopeType", "DELIVERABLE")
+                        .param("scopeId", deliverableId.toString())
+                        .with(auth(anotherOwner)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/attachments/{id}", attachmentId).with(auth(specialist)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/attachments")
+                        .param("workspaceId", workspaceId.toString())
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
 
         mockMvc.perform(get("/api/workspaces/milestones/{id}/deliverables", milestoneId).with(auth(owner)))
                 .andExpect(status().isOk())

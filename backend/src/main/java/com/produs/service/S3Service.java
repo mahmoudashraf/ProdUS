@@ -7,12 +7,15 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Slf4j
@@ -25,6 +28,15 @@ public class S3Service {
 
     @Value("${aws.s3.bucket:produs}")
     private String bucketName;
+
+    @Value("${aws.s3.endpoint:http://localhost:9000}")
+    private String endpoint;
+
+    @Value("${aws.s3.public-url:}")
+    private String publicUrl;
+
+    @Value("${aws.s3.create-bucket-if-missing:false}")
+    private boolean createBucketIfMissing;
 
     @Value("${aws.s3.presigned-url-duration:900}")
     private int presignedUrlDurationSeconds;
@@ -57,14 +69,44 @@ public class S3Service {
     }
 
     /**
+     * Generate a presigned URL for downloading a private file.
+     */
+    public String generatePresignedDownloadUrl(String key) {
+        try {
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
+
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofSeconds(presignedUrlDurationSeconds))
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+
+            PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+            String url = presignedRequest.url().toString();
+
+            log.debug("Generated presigned download URL for key: {} with expiration: {} seconds", key, presignedUrlDurationSeconds);
+            return url;
+        } catch (Exception e) {
+            log.error("Failed to generate presigned download URL for key: {}", key, e);
+            throw new RuntimeException("Failed to generate presigned download URL", e);
+        }
+    }
+
+    /**
      * Generate a unique key for file upload
      */
     public String generateFileKey(String prefix, String originalFileName) {
         String extension = "";
         if (originalFileName != null && originalFileName.contains(".")) {
-            extension = originalFileName.substring(originalFileName.lastIndexOf("."));
+            String candidate = originalFileName.substring(originalFileName.lastIndexOf(".")).toLowerCase(Locale.ROOT);
+            if (candidate.matches("\\.[a-z0-9]{1,12}")) {
+                extension = candidate;
+            }
         }
-        return prefix + "/" + UUID.randomUUID() + extension;
+        String normalizedPrefix = normalizePrefix(prefix);
+        return normalizedPrefix + "/" + UUID.randomUUID() + extension;
     }
 
     /**
@@ -72,6 +114,9 @@ public class S3Service {
      */
     public String uploadFile(String key, byte[] fileContent, String contentType) {
         try {
+            if (createBucketIfMissing) {
+                createBucketIfNotExists();
+            }
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
                     .key(key)
@@ -141,10 +186,9 @@ public class S3Service {
      * Get the public URL of a file
      */
     public String getFileUrl(String key) {
-        // For MinIO/S3, construct the public URL
-        // Note: This assumes the bucket is publicly readable
-        // Use the endpoint from configuration since serviceClientConfiguration is not available
-        return String.format("http://localhost:9000/%s/%s", bucketName, key);
+        String baseUrl = publicUrl == null || publicUrl.isBlank() ? endpoint : publicUrl;
+        String normalizedBase = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        return String.format("%s/%s/%s", normalizedBase, bucketName, key);
     }
 
     /**
@@ -161,6 +205,12 @@ public class S3Service {
             return true;
         } catch (NoSuchKeyException e) {
             return false;
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404 || "NoSuchKey".equals(e.awsErrorDetails().errorCode())) {
+                return false;
+            }
+            log.error("Failed to check if file exists with key: {}", key, e);
+            throw new RuntimeException("Failed to check file existence", e);
         } catch (Exception e) {
             log.error("Failed to check if file exists with key: {}", key, e);
             throw new RuntimeException("Failed to check file existence", e);
@@ -211,5 +261,20 @@ public class S3Service {
             log.error("Failed to check bucket existence: {}", bucketName, e);
             throw new RuntimeException("Failed to check S3 bucket", e);
         }
+    }
+
+    private String normalizePrefix(String prefix) {
+        String value = prefix == null || prefix.isBlank() ? "uploads" : prefix.trim();
+        value = value.replace('\\', '/')
+                .replaceAll("\\.\\.", "")
+                .replaceAll("[^A-Za-z0-9/_-]", "-")
+                .replaceAll("/{2,}", "/");
+        while (value.startsWith("/")) {
+            value = value.substring(1);
+        }
+        while (value.endsWith("/")) {
+            value = value.substring(0, value.length() - 1);
+        }
+        return value.isBlank() ? "uploads" : value;
     }
 }

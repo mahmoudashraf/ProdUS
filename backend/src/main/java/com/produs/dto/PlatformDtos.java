@@ -1,6 +1,7 @@
 package com.produs.dto;
 
 import com.produs.ai.AIRecommendation;
+import com.produs.attachments.EvidenceAttachment;
 import com.produs.catalog.ServiceCategory;
 import com.produs.catalog.ServiceDependency;
 import com.produs.catalog.ServiceModule;
@@ -327,6 +328,22 @@ public final class PlatformDtos {
             String resolution
     ) {}
 
+    public record EvidenceAttachmentResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            ProjectWorkspaceResponse workspace,
+            DeliverableResponse deliverable,
+            DisputeCaseResponse dispute,
+            CurrentUserSummary uploadedBy,
+            EvidenceAttachment.AttachmentScope scopeType,
+            UUID scopeId,
+            String fileName,
+            String contentType,
+            long sizeBytes,
+            String label
+    ) {}
+
     public record AIRecommendationResponse(
             UUID id,
             LocalDateTime createdAt,
@@ -381,6 +398,11 @@ public final class PlatformDtos {
             Long contentLength,
             String lastModified,
             String etag
+    ) {}
+
+    public record AttachmentDownloadUrlResponse(
+            String downloadUrl,
+            int expiresInSeconds
     ) {}
 
     public record ErrorMessageResponse(String error) {}
@@ -795,6 +817,27 @@ public final class PlatformDtos {
                 disputeCase.getStatus(),
                 disputeCase.getResponseDueOn(),
                 disputeCase.getResolution()
+        );
+    }
+
+    public static EvidenceAttachmentResponse toEvidenceAttachmentResponse(EvidenceAttachment attachment) {
+        if (attachment == null) {
+            return null;
+        }
+        return new EvidenceAttachmentResponse(
+                attachment.getId(),
+                attachment.getCreatedAt(),
+                attachment.getUpdatedAt(),
+                toProjectWorkspaceResponse(attachment.getWorkspace()),
+                toDeliverableResponse(attachment.getDeliverable()),
+                toDisputeCaseResponse(attachment.getDispute()),
+                toCurrentUserSummary(attachment.getUploadedBy()),
+                attachment.getScopeType(),
+                attachment.getScopeId(),
+                attachment.getFileName(),
+                attachment.getContentType(),
+                attachment.getSizeBytes(),
+                attachment.getLabel()
         );
     }
 

@@ -72,6 +72,7 @@ LoomAI is treated as an optional assistant/runtime provider for diagnosis, recom
    - Update invoice and contract state from provider-neutral callback payloads.
    - Keep bad signatures as explicit 401 responses.
    - Let owners/admins and assigned team managers handle workspace dispute cases with due dates and resolution notes.
+   - Let workspace contributors and assigned dispute parties attach evidence files to workspaces, deliverables, and disputes.
 
 9. AI/LoomAI integration path
    - Keep `/api/ai/recommendations` as the audit ledger.
@@ -136,6 +137,7 @@ Completed implementation pass:
 - Add optional LoomAI package-governance adapter with timeouts, request ID propagation, audit logging, and deterministic rules fallback.
 - Add signed provider-neutral payment and e-signature callbacks with HMAC verification, idempotent event records, bad-signature 401 handling, invoice status updates, contract status updates, and signed-at capture.
 - Add workspace dispute cases with owner/team/admin status updates, assigned team visibility, due dates, resolution notes, DTO responses, and workspace UI controls.
+- Add evidence attachments for workspace, deliverable, and dispute scopes with secure multipart upload, S3-compatible storage metadata, frontend listing, and upload controls.
 
 Verification:
 
@@ -158,8 +160,11 @@ Verification:
 - `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after frontend dispute UI additions.
 - Live API callback/dispute smoke passed on `http://127.0.0.1:8080` with HMAC e-signature callback to `SIGNED`, invalid payment signature to `401`, signed payment callback to `PAID`, replay idempotency, active support subscription, assigned-team dispute visibility, resolved dispute, and submitted specialist deliverable.
 - Live UI route smoke passed for `http://127.0.0.1:3001/packages`, `/workspaces`, `/teams`, and `/admin/recommendations` after dispute UI changes.
+- `mvn test`, `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after evidence attachment API/UI implementation.
+- Live evidence attachment smoke passed with local dev backend, frontend, and MinIO: workspace attachment upload returned an attachment ID, workspace attachment listing returned one record, authenticated signed download URL generation returned a MinIO URL, and headless Chrome rendered `/workspaces`.
+- Docker images rebuilt successfully as `produs-backend:local` and `produs-frontend:local` after evidence attachment implementation.
 
 ## Next Production Hardening After MVP
 
 - Current hardening list is complete.
-- Future production expansion: provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters, dispute evidence attachments, richer support SLA automation, notification fan-out, and CI enforcement for the Testcontainers path.
+- Future production expansion: provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters, richer support SLA automation, notification fan-out, and CI enforcement for the Testcontainers path.

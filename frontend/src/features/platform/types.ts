@@ -249,6 +249,26 @@ export interface DisputeCase extends BaseRecord {
   resolution?: string;
 }
 
+export type AttachmentScope = 'WORKSPACE' | 'DELIVERABLE' | 'DISPUTE';
+
+export interface EvidenceAttachment extends BaseRecord {
+  workspace?: ProjectWorkspace;
+  deliverable?: Deliverable;
+  dispute?: DisputeCase;
+  uploadedBy?: CurrentUserSummary;
+  scopeType: AttachmentScope;
+  scopeId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  label?: string;
+}
+
+export interface AttachmentDownloadUrl {
+  downloadUrl: string;
+  expiresInSeconds: number;
+}
+
 export interface AIRecommendation extends BaseRecord {
   recommendationType: string;
   sourceEntityType?: string;

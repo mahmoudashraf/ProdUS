@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef } from 'react';
-import { Box, Button, Typography, IconButton, LinearProgress } from '@mui/material';
+import React, { useRef, useState } from 'react';
+import { Box, Button, Typography, IconButton, LinearProgress, Alert } from '@mui/material';
 import { IconUpload, IconX } from '@tabler/icons-react';
 import AttachmentTwoToneIcon from '@mui/icons-material/AttachmentTwoTone';
 
@@ -14,6 +14,8 @@ interface FileUploadProps {
   selectedFile?: File | null | undefined;
   onClear?: () => void;
   maxSize?: number; // in MB
+  error?: string | undefined;
+  helperText?: string | undefined;
 }
 
 const FileUpload: React.FC<FileUploadProps> = ({
@@ -25,8 +27,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
   selectedFile = null,
   onClear,
   maxSize = 10,
+  error,
+  helperText,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [localError, setLocalError] = useState('');
 
   const handleClick = () => {
     fileInputRef.current?.click();
@@ -38,9 +43,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
       // Check file size
       const fileSizeMB = file.size / (1024 * 1024);
       if (fileSizeMB > maxSize) {
-        alert(`File size must be less than ${maxSize}MB`);
+        setLocalError(`File size must be less than ${maxSize}MB`);
+        event.target.value = '';
         return;
       }
+      setLocalError('');
       onFileSelect(file);
     }
   };
@@ -49,6 +56,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    setLocalError('');
     onClear?.();
   };
 
@@ -108,6 +116,16 @@ const FileUpload: React.FC<FileUploadProps> = ({
         <Box sx={{ mt: 1 }}>
           <LinearProgress />
         </Box>
+      )}
+      {(error || localError) && (
+        <Alert severity="error" sx={{ mt: 1 }}>
+          {error || localError}
+        </Alert>
+      )}
+      {helperText && !error && !localError && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+          {helperText}
+        </Typography>
       )}
     </Box>
   );

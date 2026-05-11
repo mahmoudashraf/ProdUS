@@ -1,14 +1,28 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Box, Button, LinearProgress, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, LinearProgress, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
+import FileUpload from '@/components/ui-component/FileUpload';
+import { uploadService } from '@/services/uploadService';
 import { getJson, postJson, putJson } from './api';
 import { EmptyState, PageHeader, QueryState, StatusChip, Surface } from './PlatformComponents';
-import { Deliverable, DisputeCase, Milestone, PackageInstance, ProjectWorkspace, SupportSubscription, Team, WorkspaceParticipant } from './types';
+import {
+  AttachmentScope,
+  AttachmentDownloadUrl,
+  Deliverable,
+  DisputeCase,
+  EvidenceAttachment,
+  Milestone,
+  PackageInstance,
+  ProjectWorkspace,
+  SupportSubscription,
+  Team,
+  WorkspaceParticipant,
+} from './types';
 
 const participantRoles: WorkspaceParticipant['role'][] = ['COORDINATOR', 'TEAM_LEAD', 'SPECIALIST', 'ADVISOR', 'VIEWER'];
 const disputeSeverities: DisputeCase['severity'][] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -110,12 +124,76 @@ const initialDisputeValues: DisputePayload = {
 const formatMoney = (amountCents: number, currency: string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format((amountCents || 0) / 100);
 
+const attachmentKey = (scopeType: AttachmentScope, scopeId: string) => `${scopeType}:${scopeId}`;
+
+const formatFileSize = (sizeBytes: number) => {
+  if (sizeBytes >= 1024 * 1024) {
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${Math.max(1, Math.round(sizeBytes / 1024))} KB`;
+};
+
+const uploadErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return 'Attachment upload failed';
+};
+
+const AttachmentList = ({
+  attachments,
+  onOpenAttachment,
+}: {
+  attachments: EvidenceAttachment[];
+  onOpenAttachment: (attachment: EvidenceAttachment) => void;
+}) => (
+  <Stack spacing={0.75} sx={{ mt: attachments.length ? 1 : 0 }}>
+    {attachments.map((attachment) => (
+      <Box
+        key={attachment.id}
+        sx={{
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 1,
+          px: 1.25,
+          py: 1,
+        }}
+      >
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} justifyContent="space-between">
+          <Box>
+            <Link
+              component="button"
+              type="button"
+              underline="hover"
+              variant="body2"
+              onClick={() => onOpenAttachment(attachment)}
+              sx={{ cursor: 'pointer', textAlign: 'left' }}
+            >
+              {attachment.label || attachment.fileName}
+            </Link>
+            {attachment.label && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                {attachment.fileName}
+              </Typography>
+            )}
+          </Box>
+          <Typography variant="caption" color="text.secondary">
+            {formatFileSize(attachment.sizeBytes)}
+            {attachment.uploadedBy?.email ? ` · ${attachment.uploadedBy.email}` : ''}
+          </Typography>
+        </Stack>
+      </Box>
+    ))}
+  </Stack>
+);
+
 export default function WorkspacesPage() {
   const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const canInviteParticipants = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
   const canManageSupport = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
   const canManageDisputes = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
+  const canAttachEvidence = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER, UserRole.SPECIALIST]);
   const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const teams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
@@ -127,6 +205,12 @@ export default function WorkspacesPage() {
   const [selectedMilestoneId, setSelectedMilestoneId] = useState('');
   const [disputeStatusById, setDisputeStatusById] = useState<Record<string, DisputeCase['status']>>({});
   const [disputeResolutionById, setDisputeResolutionById] = useState<Record<string, string>>({});
+  const [attachmentFilesByKey, setAttachmentFilesByKey] = useState<Record<string, File | null>>({});
+  const [attachmentLabelsByKey, setAttachmentLabelsByKey] = useState<Record<string, string>>({});
+  const [attachmentProgressByKey, setAttachmentProgressByKey] = useState<Record<string, number>>({});
+  const [attachmentErrorsByKey, setAttachmentErrorsByKey] = useState<Record<string, string>>({});
+  const [attachmentOpenError, setAttachmentOpenError] = useState('');
+  const [uploadingAttachmentKey, setUploadingAttachmentKey] = useState('');
 
   const workspaceForm = useAdvancedForm<WorkspacePayload>({
     initialValues: initialWorkspaceValues,
@@ -224,6 +308,20 @@ export default function WorkspacesPage() {
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<DisputeCase[]>(`/commerce/workspaces/${selectedWorkspace?.id}/disputes`),
   });
+  const attachments = useQuery({
+    queryKey: ['attachments', selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () => getJson<EvidenceAttachment[]>(`/attachments?workspaceId=${selectedWorkspace?.id}`),
+  });
+  const attachmentsByScope = useMemo(
+    () =>
+      (attachments.data || []).reduce<Record<string, EvidenceAttachment[]>>((grouped, attachment) => {
+        const key = attachmentKey(attachment.scopeType, attachment.scopeId);
+        grouped[key] = [...(grouped[key] || []), attachment];
+        return grouped;
+      }, {}),
+    [attachments.data]
+  );
   const selectedSupportSubscriptions = (supportSubscriptions.data || []).filter(
     (subscription) => subscription.workspace?.id === selectedWorkspace?.id
   );
@@ -274,6 +372,33 @@ export default function WorkspacesPage() {
       await queryClient.invalidateQueries({ queryKey: ['commerce-disputes', selectedWorkspace?.id] });
     },
   });
+  const uploadAttachment = useMutation({
+    mutationFn: (input: { key: string; scopeType: AttachmentScope; scopeId: string; file: File; label?: string | undefined }) => {
+      setUploadingAttachmentKey(input.key);
+      setAttachmentErrorsByKey((current) => ({ ...current, [input.key]: '' }));
+      return uploadService.uploadEvidenceAttachment(
+        {
+          scopeType: input.scopeType,
+          scopeId: input.scopeId,
+          file: input.file,
+          label: input.label,
+        },
+        (progress) => setAttachmentProgressByKey((current) => ({ ...current, [input.key]: progress }))
+      );
+    },
+    onSuccess: async (_attachment, input) => {
+      setAttachmentFilesByKey((current) => ({ ...current, [input.key]: null }));
+      setAttachmentLabelsByKey((current) => ({ ...current, [input.key]: '' }));
+      setAttachmentProgressByKey((current) => ({ ...current, [input.key]: 0 }));
+      await queryClient.invalidateQueries({ queryKey: ['attachments', selectedWorkspace?.id] });
+    },
+    onError: (error, input) => {
+      setAttachmentErrorsByKey((current) => ({ ...current, [input.key]: uploadErrorMessage(error) }));
+    },
+    onSettled: () => {
+      setUploadingAttachmentKey('');
+    },
+  });
 
   const submit = workspaceForm.handleSubmit(() => {
     createWorkspace.mutate();
@@ -312,14 +437,103 @@ export default function WorkspacesPage() {
       },
     });
   };
+  const scopeAttachments = (scopeType: AttachmentScope, scopeId: string) =>
+    attachmentsByScope[attachmentKey(scopeType, scopeId)] || [];
+  const selectAttachmentFile = (scopeType: AttachmentScope, scopeId: string, file: File | null) => {
+    const key = attachmentKey(scopeType, scopeId);
+    setAttachmentFilesByKey((current) => ({ ...current, [key]: file }));
+    setAttachmentErrorsByKey((current) => ({ ...current, [key]: '' }));
+  };
+  const submitAttachment = (scopeType: AttachmentScope, scopeId: string) => {
+    const key = attachmentKey(scopeType, scopeId);
+    const file = attachmentFilesByKey[key];
+    if (!file) {
+      setAttachmentErrorsByKey((current) => ({ ...current, [key]: 'Choose a file before uploading evidence.' }));
+      return;
+    }
+    uploadAttachment.mutate({
+      key,
+      scopeType,
+      scopeId,
+      file,
+      label: attachmentLabelsByKey[key] || undefined,
+    });
+  };
+  const openAttachment = async (attachment: EvidenceAttachment) => {
+    setAttachmentOpenError('');
+    const popup = window.open('about:blank', '_blank');
+    try {
+      const response = await getJson<AttachmentDownloadUrl>(`/attachments/${attachment.id}/download-url`);
+      if (popup) {
+        popup.opener = null;
+        popup.location.href = response.downloadUrl;
+      } else {
+        window.location.assign(response.downloadUrl);
+      }
+    } catch (error) {
+      popup?.close();
+      setAttachmentOpenError(uploadErrorMessage(error));
+    }
+  };
+  const renderAttachmentControls = (scopeType: AttachmentScope, scopeId: string) => {
+    const key = attachmentKey(scopeType, scopeId);
+    const isUploading = uploadingAttachmentKey === key && uploadAttachment.isPending;
+    const selectedFile = attachmentFilesByKey[key] || null;
+
+    return (
+      <Stack spacing={1} sx={{ mt: 1.25 }}>
+        <AttachmentList attachments={scopeAttachments(scopeType, scopeId)} onOpenAttachment={openAttachment} />
+        {canAttachEvidence && (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: selectedFile ? 'minmax(220px, 1fr) 220px auto' : 'minmax(220px, 1fr)' },
+              gap: 1,
+              alignItems: 'start',
+            }}
+          >
+            <FileUpload
+              label="Attach evidence"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md,.csv,.json,.zip,.docx,.xlsx,.pptx"
+              maxSize={10}
+              selectedFile={selectedFile}
+              loading={isUploading}
+              error={attachmentErrorsByKey[key]}
+              helperText={attachmentProgressByKey[key] ? `${attachmentProgressByKey[key]}% uploaded` : undefined}
+              onFileSelect={(file) => selectAttachmentFile(scopeType, scopeId, file)}
+              onClear={() => selectAttachmentFile(scopeType, scopeId, null)}
+            />
+            {selectedFile && (
+              <>
+                <TextField
+                  size="small"
+                  label="Evidence label"
+                  value={attachmentLabelsByKey[key] || ''}
+                  onChange={(event) => setAttachmentLabelsByKey((current) => ({ ...current, [key]: event.target.value }))}
+                />
+                <Button variant="contained" onClick={() => submitAttachment(scopeType, scopeId)} disabled={isUploading}>
+                  Upload
+                </Button>
+              </>
+            )}
+          </Box>
+        )}
+      </Stack>
+    );
+  };
 
   return (
     <>
       <PageHeader title="Workspaces" description="Coordinate package execution through milestones, deliverables, decisions, and handoff." />
       <QueryState
-        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || supportSubscriptions.isLoading || disputes.isLoading}
-        error={packages.error || workspaces.error || teams.error || supportSubscriptions.error || milestones.error || deliverables.error || participants.error || disputes.error || createWorkspace.error || createMilestone.error || createDeliverable.error || addParticipant.error || createSupportSubscription.error || createDispute.error || updateDisputeStatus.error}
+        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || supportSubscriptions.isLoading || disputes.isLoading || attachments.isLoading}
+        error={packages.error || workspaces.error || teams.error || supportSubscriptions.error || milestones.error || deliverables.error || participants.error || disputes.error || attachments.error || createWorkspace.error || createMilestone.error || createDeliverable.error || addParticipant.error || createSupportSubscription.error || createDispute.error || updateDisputeStatus.error || uploadAttachment.error}
       />
+      {attachmentOpenError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setAttachmentOpenError('')}>
+          {attachmentOpenError}
+        </Alert>
+      )}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '380px 1fr' }, gap: 2 }}>
         <Stack spacing={1.5}>
           <Surface>
@@ -383,7 +597,11 @@ export default function WorkspacesPage() {
                   <StatusChip label={selectedWorkspace.status} />
                 </Stack>
               </Box>
-              {(milestones.isFetching || deliverables.isFetching || disputes.isFetching) && <LinearProgress />}
+              {(milestones.isFetching || deliverables.isFetching || disputes.isFetching || attachments.isFetching) && <LinearProgress />}
+              <Box>
+                <Typography variant="h4">Workspace evidence</Typography>
+                {renderAttachmentControls('WORKSPACE', selectedWorkspace.id)}
+              </Box>
               <Box>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between">
                   <Typography variant="h4">Participants</Typography>
@@ -619,6 +837,7 @@ export default function WorkspacesPage() {
                             </Button>
                           </Stack>
                         )}
+                        {renderAttachmentControls('DISPUTE', dispute.id)}
                       </Box>
                     ))
                   ) : (
@@ -706,6 +925,7 @@ export default function WorkspacesPage() {
                             {deliverable.evidence}
                           </Typography>
                         )}
+                        {renderAttachmentControls('DELIVERABLE', deliverable.id)}
                       </Box>
                     ))
                   ) : (
