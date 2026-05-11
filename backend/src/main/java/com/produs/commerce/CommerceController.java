@@ -5,6 +5,7 @@ import com.produs.dto.PlatformDtos.DisputeCaseResponse;
 import com.produs.dto.PlatformDtos.InvoiceRecordResponse;
 import com.produs.dto.PlatformDtos.QuoteProposalResponse;
 import com.produs.dto.PlatformDtos.SupportRequestResponse;
+import com.produs.dto.PlatformDtos.SupportSlaRunResponse;
 import com.produs.dto.PlatformDtos.SupportSubscriptionResponse;
 import com.produs.dto.PlatformDtos.TeamReputationEventResponse;
 import com.produs.entity.User;
@@ -71,6 +72,7 @@ public class CommerceController {
     private final TeamMemberRepository teamMemberRepository;
     private final ProjectWorkspaceRepository workspaceRepository;
     private final NotificationService notificationService;
+    private final SupportSlaService supportSlaService;
 
     @GetMapping("/proposals")
     public List<QuoteProposalResponse> proposals(@AuthenticationPrincipal User user) {
@@ -412,6 +414,7 @@ public class CommerceController {
         supportRequest.setPriority(request.priority() == null ? SupportRequest.SupportPriority.MEDIUM : request.priority());
         supportRequest.setStatus(request.status() == null ? SupportRequest.SupportStatus.OPEN : request.status());
         supportRequest.setDueOn(request.dueOn());
+        supportSlaService.applyPassiveSlaState(supportRequest);
         SupportRequest saved = supportRequestRepository.save(supportRequest);
         notifySupportRequestOpened(saved, user);
         return toSupportRequestResponse(saved);
@@ -436,9 +439,24 @@ public class CommerceController {
         if (request.status() != SupportRequest.SupportStatus.RESOLVED) {
             supportRequest.setResolvedAt(null);
         }
+        supportSlaService.applyPassiveSlaState(supportRequest);
         SupportRequest saved = supportRequestRepository.save(supportRequest);
         notifySupportRequestUpdated(saved, user);
         return toSupportRequestResponse(saved);
+    }
+
+    @PostMapping("/support-requests/sla/run")
+    public SupportSlaRunResponse runSupportSlaScan(@AuthenticationPrincipal User user) {
+        if (!isAdmin(user)) {
+            throw new AccessDeniedException("Only admins can run support SLA scans");
+        }
+        SupportSlaService.SupportSlaRunResult result = supportSlaService.runSlaScan();
+        return new SupportSlaRunResponse(
+                result.scannedCount(),
+                result.dueSoonCount(),
+                result.escalatedCount(),
+                result.updatedCount()
+        );
     }
 
     @GetMapping("/teams/{teamId}/reputation")

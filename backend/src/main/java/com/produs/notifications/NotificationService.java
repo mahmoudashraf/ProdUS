@@ -18,6 +18,7 @@ import java.util.UUID;
 public class NotificationService {
 
     private final PlatformNotificationRepository notificationRepository;
+    private final NotificationDeliveryService deliveryService;
 
     @Transactional(readOnly = true)
     public List<PlatformNotification> list(User user, PlatformNotification.NotificationStatus status) {
@@ -68,7 +69,9 @@ public class NotificationService {
         notification.setSourceType(sourceType);
         notification.setSourceId(sourceId);
         notification.setWorkspace(workspace);
-        return notificationRepository.save(notification);
+        PlatformNotification saved = notificationRepository.save(notification);
+        deliveryService.enqueue(saved);
+        return saved;
     }
 
     @Transactional

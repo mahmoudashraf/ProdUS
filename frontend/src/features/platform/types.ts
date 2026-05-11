@@ -215,8 +215,12 @@ export interface SupportRequest extends BaseRecord {
   description?: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   status: 'OPEN' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'WAITING_ON_OWNER' | 'RESOLVED' | 'CANCELLED';
+  slaStatus: 'ON_TRACK' | 'DUE_SOON' | 'OVERDUE' | 'ESCALATED' | 'RESOLVED';
   dueOn?: string;
   resolvedAt?: string;
+  escalatedAt?: string;
+  lastSlaCheckAt?: string;
+  escalationCount: number;
   resolution?: string;
 }
 
@@ -300,6 +304,8 @@ export interface PlatformNotification extends BaseRecord {
     | 'SUPPORT_SUBSCRIPTION_STATUS_CHANGED'
     | 'SUPPORT_REQUEST_OPENED'
     | 'SUPPORT_REQUEST_UPDATED'
+    | 'SUPPORT_REQUEST_SLA_DUE_SOON'
+    | 'SUPPORT_REQUEST_SLA_ESCALATED'
     | 'DISPUTE_OPENED'
     | 'DISPUTE_UPDATED'
     | 'EVIDENCE_ATTACHED'
@@ -318,6 +324,36 @@ export interface PlatformNotification extends BaseRecord {
 export interface NotificationSummary {
   unreadCount: number;
   latest: PlatformNotification[];
+}
+
+export interface NotificationDelivery extends BaseRecord {
+  notificationId: string;
+  notificationType: PlatformNotification['type'];
+  notificationTitle: string;
+  recipient?: CurrentUserSummary;
+  channel: 'EMAIL' | 'PUSH';
+  status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED';
+  destination: string;
+  provider?: string;
+  providerMessageId?: string;
+  attemptCount: number;
+  nextAttemptAt?: string;
+  deliveredAt?: string;
+  lastError?: string;
+}
+
+export interface NotificationDeliveryRun {
+  scannedCount: number;
+  sentCount: number;
+  failedCount: number;
+  skippedCount: number;
+}
+
+export interface SupportSlaRun {
+  scannedCount: number;
+  dueSoonCount: number;
+  escalatedCount: number;
+  updatedCount: number;
 }
 
 export interface AIRecommendation extends BaseRecord {

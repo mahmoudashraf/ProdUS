@@ -27,6 +27,17 @@ supabase:
 app:
   mock-auth:
     enabled: true
+  notifications:
+    delivery:
+      enabled: true
+      scheduler-enabled: false
+      email-enabled: true
+      push-enabled: false
+  support:
+    sla:
+      enabled: true
+      scheduler-enabled: false
+      due-soon-days: 1
   security:
     rate-limit:
       enabled: false

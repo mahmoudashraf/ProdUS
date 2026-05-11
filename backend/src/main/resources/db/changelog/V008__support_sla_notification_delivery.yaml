@@ -1,0 +1,84 @@
+databaseChangeLog:
+  - changeSet:
+      id: 700
+      author: produs
+      changes:
+        - addColumn:
+            tableName: support_requests
+            columns:
+              - column:
+                  name: sla_status
+                  type: VARCHAR(40)
+                  defaultValue: ON_TRACK
+                  constraints:
+                    nullable: false
+              - column:
+                  name: escalated_at
+                  type: TIMESTAMP
+              - column:
+                  name: last_sla_check_at
+                  type: TIMESTAMP
+              - column:
+                  name: escalation_count
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: support_requests
+            indexName: idx_support_requests_sla_status
+            columns:
+              - column: { name: sla_status }
+              - column: { name: due_on }
+
+  - changeSet:
+      id: 701
+      author: produs
+      changes:
+        - createTable:
+            tableName: notification_deliveries
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: notification_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: recipient_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: channel, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: destination, type: VARCHAR(500), constraints: { nullable: false } }
+              - column: { name: provider, type: VARCHAR(80) }
+              - column: { name: provider_message_id, type: VARCHAR(120) }
+              - column: { name: attempt_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: next_attempt_at, type: TIMESTAMP }
+              - column: { name: delivered_at, type: TIMESTAMP }
+              - column: { name: last_error, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: notification_deliveries
+            baseColumnNames: notification_id
+            constraintName: fk_notification_deliveries_notification
+            referencedTableName: platform_notifications
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: notification_deliveries
+            baseColumnNames: recipient_id
+            constraintName: fk_notification_deliveries_recipient
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: notification_deliveries
+            indexName: idx_notification_deliveries_status
+            columns:
+              - column: { name: status }
+              - column: { name: next_attempt_at }
+              - column: { name: created_at }
+        - createIndex:
+            tableName: notification_deliveries
+            indexName: idx_notification_deliveries_notification
+            columns:
+              - column: { name: notification_id }
+        - createIndex:
+            tableName: notification_deliveries
+            indexName: idx_notification_deliveries_recipient
+            columns:
+              - column: { name: recipient_id }
+              - column: { name: created_at }

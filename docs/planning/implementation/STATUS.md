@@ -51,6 +51,9 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Frontend workspace evidence, dispute evidence, and deliverable evidence upload/listing using the shared file picker and one stable attachment query per workspace.
 - Platform notification center with recipient-scoped unread/read records, API-backed header dropdown, dashboard action summary, and mark-read/read-all flows.
 - Support request operations tied to workspaces, support subscriptions, assigned teams, due dates, priority, status, resolution notes, and owner/team notification fan-out.
+- Support SLA tracking with due-soon, overdue, escalated, resolved states; scheduled/admin-triggered SLA scans; and owner/team escalation notifications.
+- Notification delivery outbox for email/push dispatch attempts with admin dispatch and delivery audit APIs.
+- GitHub verification workflows now run ProdUS backend tests, frontend type-check/tests/build, and Docker image builds instead of stale template jobs.
 - S3-compatible storage hardening for sanitized keys, configurable public URLs, missing-object handling, and Docker MinIO credential alignment.
 - HTTP exception handling now preserves controller-level `ResponseStatusException` codes instead of collapsing callback auth failures into 500 responses.
 - Local development auth now auto-seeds an admin mock session, stabilizes the mock auth provider boundary, and allows both `localhost` and `127.0.0.1` frontend origins.
@@ -88,6 +91,9 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Notifications/support requests: `mvn -DskipTests compile`, `mvn test`, `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after adding `platform_notifications`, `support_requests`, notification fan-out, support request lifecycle APIs, the API-backed header notification dropdown, dashboard action center, and workspace support request UI.
 - Live notifications/support smoke: dev backend/frontend created a mock package/workspace, proposal, support subscription, and support request; verified owner/team notification fan-out and read-all behavior; and served `/dashboard`.
 - Docker notifications/support readiness: backend and frontend images rebuilt successfully as `produs-backend:local` and `produs-frontend:local` after the notifications/support request implementation.
+- Support SLA/delivery/CI: `mvn -DskipTests compile`, `mvn test`, `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after adding support SLA state/scans, notification delivery outbox, admin operations UI, and ProdUS CI workflows.
+- Live support SLA/delivery smoke: fresh dev backend and frontend passed mock-auth admin catalog setup, product/requirement/package/workspace creation, support subscription creation, overdue support request passive `OVERDUE` state, owner-forbidden SLA/dispatch operations, admin SLA escalation to `ESCALATED`, team escalation notifications, admin email delivery dispatch, and sent delivery lookup.
+- Docker support SLA/delivery readiness: `docker build -t produs-backend:local ./backend` and `docker build -t produs-frontend:local ./frontend` passed after the SLA/outbox/CI slice.
 
 ## Notes
 
@@ -100,4 +106,4 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 ## Remaining Production Hardening Queue
 
 - None from the current 2026-05-11 implementation plan.
-- Future production integrations can add provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters, SLA escalation scheduling, email/push fan-out, and full CI enforcement for the Testcontainers profile.
+- Future production integrations can add provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters plus provider-specific email/push sender adapters.

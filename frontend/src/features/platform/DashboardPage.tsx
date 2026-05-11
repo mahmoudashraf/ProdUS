@@ -1,16 +1,21 @@
 'use client';
 
-import { Box, Stack, Typography } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import { getJson } from './api';
+import { Box, Button, Stack, Typography } from '@mui/material';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import useAuth from '@/hooks/useAuth';
+import { UserRole } from '@/types/auth';
+import { getJson, postJson } from './api';
 import { EmptyState, PageHeader, QueryState, StatusChip, Surface } from './PlatformComponents';
 import {
   AIRecommendation,
+  NotificationDelivery,
+  NotificationDeliveryRun,
   NotificationSummary,
   PackageInstance,
   ProductProfile,
   ProjectWorkspace,
   RequirementIntake,
+  SupportSlaRun,
   Team,
 } from './types';
 
@@ -23,6 +28,9 @@ const metrics = [
 ];
 
 export default function DashboardPage() {
+  const queryClient = useQueryClient();
+  const { hasRole } = useAuth();
+  const canManageOperations = hasRole(UserRole.ADMIN);
   const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const requirements = useQuery({ queryKey: ['requirements'], queryFn: () => getJson<RequirementIntake[]>('/requirements') });
   const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
@@ -38,10 +46,29 @@ export default function DashboardPage() {
     queryFn: () => getJson<NotificationSummary>('/notifications/summary'),
     retry: false,
   });
+  const deliveries = useQuery({
+    queryKey: ['notification-deliveries'],
+    queryFn: () => getJson<NotificationDelivery[]>('/notifications/deliveries'),
+    enabled: canManageOperations,
+    retry: false,
+  });
+  const runSlaScan = useMutation({
+    mutationFn: () => postJson<SupportSlaRun, Record<string, never>>('/commerce/support-requests/sla/run', {}),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['notification-summary'] });
+      await queryClient.invalidateQueries({ queryKey: ['notification-deliveries'] });
+    },
+  });
+  const dispatchDeliveries = useMutation({
+    mutationFn: () => postJson<NotificationDeliveryRun, Record<string, never>>('/notifications/deliveries/dispatch', {}),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['notification-deliveries'] });
+    },
+  });
 
   const counts = [products.data, requirements.data, packages.data, teams.data, workspaces.data];
   const loading = [products, requirements, packages, teams, workspaces].some((query) => query.isLoading);
-  const error = [products, requirements, packages, teams, workspaces].find((query) => query.error)?.error;
+  const error = [products, requirements, packages, teams, workspaces, deliveries].find((query) => query.error)?.error;
 
   return (
     <>
@@ -130,6 +157,50 @@ export default function DashboardPage() {
             <EmptyState label="No AI recommendation events have been recorded." />
           )}
         </Surface>
+        {canManageOperations && (
+          <Surface>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" sx={{ mb: 2 }}>
+              <Typography variant="h4">Operations</Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Button variant="outlined" size="small" onClick={() => runSlaScan.mutate()} disabled={runSlaScan.isPending}>
+                  Run SLA
+                </Button>
+                <Button variant="outlined" size="small" onClick={() => dispatchDeliveries.mutate()} disabled={dispatchDeliveries.isPending}>
+                  Dispatch
+                </Button>
+              </Stack>
+            </Stack>
+            <Stack spacing={1.5}>
+              {runSlaScan.data && (
+                <Typography variant="body2" color="text.secondary">
+                  SLA: {runSlaScan.data.scannedCount} scanned · {runSlaScan.data.escalatedCount} escalated
+                </Typography>
+              )}
+              {dispatchDeliveries.data && (
+                <Typography variant="body2" color="text.secondary">
+                  Delivery: {dispatchDeliveries.data.sentCount} sent · {dispatchDeliveries.data.failedCount} failed
+                </Typography>
+              )}
+              {deliveries.data?.length ? (
+                deliveries.data.slice(0, 5).map((delivery) => (
+                  <Box key={delivery.id}>
+                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                      <Typography>{delivery.notificationTitle}</Typography>
+                      <StatusChip label={delivery.status} />
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      {delivery.channel.toLowerCase()} · {delivery.recipient?.email || delivery.destination}
+                    </Typography>
+                  </Box>
+                ))
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No notification deliveries have been queued.
+                </Typography>
+              )}
+            </Stack>
+          </Surface>
+        )}
       </Box>
     </>
   );

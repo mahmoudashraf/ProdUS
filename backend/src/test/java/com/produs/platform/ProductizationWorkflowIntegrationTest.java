@@ -33,6 +33,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.HexFormat;
 import java.util.UUID;
@@ -103,6 +104,7 @@ class ProductizationWorkflowIntegrationTest {
         User anotherOwner = saveUser("other-owner@produs.test", User.UserRole.PRODUCT_OWNER);
         User teamManager = saveUser("team-manager@produs.test", User.UserRole.TEAM_MANAGER);
         User specialist = saveUser("specialist@produs.test", User.UserRole.SPECIALIST);
+        User admin = saveUser("admin-workflow@produs.test", User.UserRole.ADMIN);
         PlatformCatalog catalog = saveCatalog();
         Team recommendedTeam = saveRecommendedTeam(teamManager, catalog);
 
@@ -421,6 +423,53 @@ class ProductizationWorkflowIntegrationTest {
         mockMvc.perform(get("/api/notifications").with(auth(owner)).param("status", "UNREAD"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.type == 'SUPPORT_REQUEST_UPDATED')]", hasSize(greaterThan(0))));
+
+        String overdueDate = LocalDate.now().minusDays(1).toString();
+        mockMvc.perform(post("/api/commerce/workspaces/{id}/support-requests", workspaceId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "supportSubscriptionId": "%s",
+                                  "title": "Escalate missed launch report",
+                                  "description": "The weekly owner report is past the response due date.",
+                                  "priority": "URGENT",
+                                  "dueOn": "%s"
+                                }
+                                """.formatted(supportSubscriptionId, overdueDate)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slaStatus").value("OVERDUE"))
+                .andExpect(jsonPath("$.escalationCount").value(0));
+
+        mockMvc.perform(post("/api/commerce/support-requests/sla/run").with(auth(owner)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/commerce/support-requests/sla/run").with(auth(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scannedCount").value(greaterThan(0)))
+                .andExpect(jsonPath("$.escalatedCount").value(greaterThan(0)))
+                .andExpect(jsonPath("$.updatedCount").value(greaterThan(0)));
+
+        mockMvc.perform(get("/api/commerce/workspaces/{id}/support-requests", workspaceId).with(auth(teamManager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.title == 'Escalate missed launch report' && @.slaStatus == 'ESCALATED')]", hasSize(1)))
+                .andExpect(jsonPath("$[?(@.title == 'Escalate missed launch report' && @.escalationCount == 1)]", hasSize(1)));
+
+        mockMvc.perform(get("/api/notifications").with(auth(teamManager)).param("status", "UNREAD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.type == 'SUPPORT_REQUEST_SLA_ESCALATED')]", hasSize(greaterThan(0))));
+
+        mockMvc.perform(post("/api/notifications/deliveries/dispatch").with(auth(owner)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/notifications/deliveries/dispatch").with(auth(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scannedCount").value(greaterThan(0)))
+                .andExpect(jsonPath("$.sentCount").value(greaterThan(0)));
+
+        mockMvc.perform(get("/api/notifications/deliveries").with(auth(admin)).param("status", "SENT"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.channel == 'EMAIL' && @.status == 'SENT')]", hasSize(greaterThan(0))));
 
         mockMvc.perform(put("/api/notifications/read-all").with(auth(owner)))
                 .andExpect(status().isOk())

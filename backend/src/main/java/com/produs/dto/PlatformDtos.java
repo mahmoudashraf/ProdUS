@@ -15,6 +15,7 @@ import com.produs.commerce.SupportRequest;
 import com.produs.commerce.SupportSubscription;
 import com.produs.commerce.TeamReputationEvent;
 import com.produs.entity.User;
+import com.produs.notifications.NotificationDelivery;
 import com.produs.notifications.PlatformNotification;
 import com.produs.packages.PackageInstance;
 import com.produs.packages.PackageModule;
@@ -287,8 +288,12 @@ public final class PlatformDtos {
             String description,
             SupportRequest.SupportPriority priority,
             SupportRequest.SupportStatus status,
+            SupportRequest.SlaStatus slaStatus,
             LocalDate dueOn,
             LocalDateTime resolvedAt,
+            LocalDateTime escalatedAt,
+            LocalDateTime lastSlaCheckAt,
+            int escalationCount,
             String resolution
     ) {}
 
@@ -443,9 +448,42 @@ public final class PlatformDtos {
             LocalDateTime expiresAt
     ) {}
 
+    public record NotificationDeliveryResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            UUID notificationId,
+            PlatformNotification.NotificationType notificationType,
+            String notificationTitle,
+            CurrentUserSummary recipient,
+            NotificationDelivery.DeliveryChannel channel,
+            NotificationDelivery.DeliveryStatus status,
+            String destination,
+            String provider,
+            String providerMessageId,
+            int attemptCount,
+            LocalDateTime nextAttemptAt,
+            LocalDateTime deliveredAt,
+            String lastError
+    ) {}
+
     public record NotificationSummaryResponse(
             long unreadCount,
             List<PlatformNotificationResponse> latest
+    ) {}
+
+    public record NotificationDeliveryRunResponse(
+            int scannedCount,
+            int sentCount,
+            int failedCount,
+            int skippedCount
+    ) {}
+
+    public record SupportSlaRunResponse(
+            int scannedCount,
+            int dueSoonCount,
+            int escalatedCount,
+            int updatedCount
     ) {}
 
     public record ErrorMessageResponse(String error) {}
@@ -804,8 +842,12 @@ public final class PlatformDtos {
                 request.getDescription(),
                 request.getPriority(),
                 request.getStatus(),
+                request.getSlaStatus(),
                 request.getDueOn(),
                 request.getResolvedAt(),
+                request.getEscalatedAt(),
+                request.getLastSlaCheckAt(),
+                request.getEscalationCount(),
                 request.getResolution()
         );
     }
@@ -946,6 +988,31 @@ public final class PlatformDtos {
                 notification.getSourceId(),
                 notification.getReadAt(),
                 notification.getExpiresAt()
+        );
+    }
+
+    public static NotificationDeliveryResponse toNotificationDeliveryResponse(NotificationDelivery delivery) {
+        if (delivery == null) {
+            return null;
+        }
+        PlatformNotification notification = delivery.getNotification();
+        return new NotificationDeliveryResponse(
+                delivery.getId(),
+                delivery.getCreatedAt(),
+                delivery.getUpdatedAt(),
+                notification == null ? null : notification.getId(),
+                notification == null ? null : notification.getType(),
+                notification == null ? null : notification.getTitle(),
+                toCurrentUserSummary(delivery.getRecipient()),
+                delivery.getChannel(),
+                delivery.getStatus(),
+                delivery.getDestination(),
+                delivery.getProvider(),
+                delivery.getProviderMessageId(),
+                delivery.getAttemptCount(),
+                delivery.getNextAttemptAt(),
+                delivery.getDeliveredAt(),
+                delivery.getLastError()
         );
     }
 }

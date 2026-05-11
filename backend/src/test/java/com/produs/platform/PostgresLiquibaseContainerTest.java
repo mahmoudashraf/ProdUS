@@ -62,6 +62,9 @@ class PostgresLiquibaseContainerTest {
         assertTableExists("evidence_attachments");
         assertTableExists("platform_notifications");
         assertTableExists("support_requests");
+        assertTableExists("notification_deliveries");
+        assertColumnExists("support_requests", "sla_status");
+        assertColumnExists("support_requests", "escalation_count");
 
         Integer serviceCategoryCount = jdbcTemplate.queryForObject("select count(*) from service_categories", Integer.class);
         Integer serviceModuleCount = jdbcTemplate.queryForObject("select count(*) from service_modules", Integer.class);
@@ -79,6 +82,20 @@ class PostgresLiquibaseContainerTest {
                 """,
                 Integer.class,
                 tableName
+        );
+        assertThat(count).isEqualTo(1);
+    }
+
+    private void assertColumnExists(String tableName, String columnName) {
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                select count(*)
+                from information_schema.columns
+                where table_schema = 'public' and table_name = ? and column_name = ?
+                """,
+                Integer.class,
+                tableName,
+                columnName
         );
         assertThat(count).isEqualTo(1);
     }

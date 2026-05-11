@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/V006__evidence_attachments.yaml
   - include:
       file: db/changelog/V007__notifications_support_requests.yaml
+  - include:
+      file: db/changelog/V008__support_sla_notification_delivery.yaml

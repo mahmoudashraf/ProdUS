@@ -899,9 +899,13 @@ export default function WorkspacesPage() {
                               <Typography variant="caption" color="text.secondary">
                                 {request.team.name} · {request.priority.toLowerCase()}
                                 {request.dueOn ? ` · due ${request.dueOn}` : ''}
+                                {request.escalationCount ? ` · escalations ${request.escalationCount}` : ''}
                               </Typography>
                             </Box>
-                            <StatusChip label={request.status} />
+                            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                              <StatusChip label={request.status} />
+                              <StatusChip label={request.slaStatus} />
+                            </Stack>
                           </Stack>
                           {request.description && (
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>

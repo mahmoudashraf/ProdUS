@@ -75,6 +75,7 @@ LoomAI is treated as an optional assistant/runtime provider for diagnosis, recom
    - Let workspace contributors and assigned dispute parties attach evidence files to workspaces, deliverables, and disputes.
    - Generate recipient-scoped platform notifications for commerce, support, dispute, and evidence events.
    - Track support requests against workspaces/support subscriptions with priority, due dates, status, and resolution notes.
+   - Escalate support requests from SLA due dates and persist notification delivery attempts through the outbox.
 
 9. AI/LoomAI integration path
    - Keep `/api/ai/recommendations` as the audit ledger.
@@ -94,6 +95,7 @@ LoomAI is treated as an optional assistant/runtime provider for diagnosis, recom
    - Team recommendation panel.
    - Workspace creation, participant management, support handoff, disputes, and milestone/deliverable management.
    - Header notifications, dashboard action center, and workspace support request operations.
+   - Admin operations for support SLA scans and notification delivery dispatch.
 
 3. Team/admin flow
    - Team profile form.
@@ -142,6 +144,7 @@ Completed implementation pass:
 - Add workspace dispute cases with owner/team/admin status updates, assigned team visibility, due dates, resolution notes, DTO responses, and workspace UI controls.
 - Add evidence attachments for workspace, deliverable, and dispute scopes with secure multipart upload, S3-compatible storage metadata, frontend listing, and upload controls.
 - Add platform notifications and support request operations with API-backed header/dashboard UI and workspace support controls.
+- Add support SLA escalation, notification delivery outbox, admin operations UI, and ProdUS CI workflow enforcement.
 
 Verification:
 
@@ -170,8 +173,11 @@ Verification:
 - `mvn -DskipTests compile`, `mvn test`, `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after notifications/support request API and UI implementation.
 - Live notifications/support smoke passed with mock package/workspace creation, proposal notification, support subscription, support request open/update, owner/team notification fan-out, read-all behavior, and `/dashboard` rendering.
 - Docker images rebuilt successfully as `produs-backend:local` and `produs-frontend:local` after the notifications/support request implementation.
+- `mvn -DskipTests compile`, `mvn test`, `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after support SLA escalation, notification delivery outbox, admin operations UI, and CI workflow enforcement.
+- Live support SLA/delivery smoke passed on fresh dev servers with mock-auth admin catalog setup, owner product/requirement/package/workspace flow, active support subscription, overdue support request passive `OVERDUE` state, owner-forbidden admin SLA/dispatch operations, admin SLA escalation to `ESCALATED`, team escalation notification fan-out, admin delivery dispatch, and sent email delivery lookup.
+- Docker images rebuilt successfully as `produs-backend:local` and `produs-frontend:local` after the support SLA/delivery/CI slice.
 
 ## Next Production Hardening After MVP
 
 - Current hardening list is complete.
-- Future production expansion: provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters, scheduled SLA escalation, email/push notification channels, and CI enforcement for the Testcontainers path.
+- Future production expansion: provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters plus provider-specific email/push sender adapters.

@@ -67,11 +67,24 @@ public class SupportRequest extends BaseEntity {
     @Column(nullable = false)
     private SupportStatus status = SupportStatus.OPEN;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sla_status", nullable = false)
+    private SlaStatus slaStatus = SlaStatus.ON_TRACK;
+
     @Column(name = "due_on")
     private LocalDate dueOn;
 
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
+
+    @Column(name = "escalated_at")
+    private LocalDateTime escalatedAt;
+
+    @Column(name = "last_sla_check_at")
+    private LocalDateTime lastSlaCheckAt;
+
+    @Column(name = "escalation_count", nullable = false)
+    private int escalationCount = 0;
 
     @Column(columnDefinition = "TEXT")
     private String resolution;
@@ -90,5 +103,13 @@ public class SupportRequest extends BaseEntity {
         WAITING_ON_OWNER,
         RESOLVED,
         CANCELLED
+    }
+
+    public enum SlaStatus {
+        ON_TRACK,
+        DUE_SOON,
+        OVERDUE,
+        ESCALATED,
+        RESOLVED
     }
 }
