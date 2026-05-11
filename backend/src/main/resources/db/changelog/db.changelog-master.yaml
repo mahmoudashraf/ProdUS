@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/V003__collaboration_access.yaml
   - include:
       file: db/changelog/V004__commerce_trust.yaml
+  - include:
+      file: db/changelog/V005__provider_callbacks_disputes.yaml

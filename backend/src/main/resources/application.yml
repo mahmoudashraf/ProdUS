@@ -50,6 +50,12 @@ app:
     rate-limit:
       enabled: ${APP_RATE_LIMIT_ENABLED:true}
       requests-per-minute: ${APP_RATE_LIMIT_REQUESTS_PER_MINUTE:300}
+  integrations:
+    webhooks:
+      payments:
+        secret: ${APP_PAYMENT_WEBHOOK_SECRET:dev-payment-webhook-secret}
+      signatures:
+        secret: ${APP_SIGNATURE_WEBHOOK_SECRET:dev-signature-webhook-secret}
 
 aws:
   s3:

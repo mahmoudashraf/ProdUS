@@ -56,6 +56,9 @@ class PostgresLiquibaseContainerTest {
         assertTableExists("invoice_records");
         assertTableExists("support_subscriptions");
         assertTableExists("team_reputation_events");
+        assertTableExists("payment_webhook_events");
+        assertTableExists("signature_webhook_events");
+        assertTableExists("dispute_cases");
 
         Integer serviceCategoryCount = jdbcTemplate.queryForObject("select count(*) from service_categories", Integer.class);
         Integer serviceModuleCount = jdbcTemplate.queryForObject("select count(*) from service_modules", Integer.class);

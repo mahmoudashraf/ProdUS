@@ -44,6 +44,10 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Frontend workspace support subscription panel.
 - Frontend team reputation panel backed by workspace-verified owner reviews.
 - Optional LoomAI provider adapter for package governance with outbound timeout, request ID propagation, audit persistence, and deterministic rules fallback when disabled or unavailable.
+- Signed provider-neutral payment and e-signature webhook endpoints with HMAC verification, bad-signature 401 behavior, idempotent provider event records, invoice status updates, contract status updates, and signed-at capture.
+- Workspace dispute cases with assigned team visibility, owner/team/admin status updates, response due dates, resolution notes, and explicit DTO responses.
+- Frontend workspace dispute panel with create, severity/status controls, resolution updates, and typed payment/signature/dispute records.
+- HTTP exception handling now preserves controller-level `ResponseStatusException` codes instead of collapsing callback auth failures into 500 responses.
 
 ## Verification Results
 
@@ -65,6 +69,10 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Live commerce/trust API smoke: backend dev server passed package rules fallback audit, team proposal, owner proposal acceptance, signed contract, paid invoice, active support subscription, verified reputation review, and specialist deliverable submission.
 - Live UI smoke: frontend dev server on `http://127.0.0.1:3001` returned `200 OK` for `/packages`, `/workspaces`, `/teams`, and `/admin/recommendations`.
 - Live API security smoke: backend dev server returned the supplied `X-Request-ID`, `X-RateLimit-Limit: 300`, and completed the authenticated workflow after security filters were active.
+- Backend callback/dispute tests: `mvn clean test` passed with PostgreSQL Testcontainers migration validation for `payment_webhook_events`, `signature_webhook_events`, and `dispute_cases`, invalid webhook signatures returning 401, callback replay idempotency, signed contract updates, paid invoice updates, and team-manager dispute resolution.
+- Frontend callback/dispute UI: `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed.
+- Live callback/dispute API smoke: backend dev server passed HMAC e-signature callback to `SIGNED`, invalid payment signature to `401`, signed payment callback to `PAID`, replay idempotency, active support subscription, assigned-team dispute visibility, dispute resolution, and specialist deliverable submission.
+- Live callback/dispute UI smoke: frontend dev server returned `200 OK` for `/packages`, `/workspaces`, `/teams`, and `/admin/recommendations` after the workspace dispute UI was added.
 
 ## Notes
 
@@ -76,4 +84,4 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 ## Remaining Production Hardening Queue
 
 - None from the current 2026-05-11 implementation plan.
-- Future production integrations can add payment provider webhooks, e-signature provider callbacks, richer dispute handling, and full CI wiring for the Testcontainers profile.
+- Future production integrations can add provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters, dispute evidence attachments, support SLA automation, notification fan-out, and full CI enforcement for the Testcontainers profile.

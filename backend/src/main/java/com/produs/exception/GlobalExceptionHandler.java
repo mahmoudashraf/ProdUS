@@ -7,6 +7,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -16,8 +17,8 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ProblemDetail handleResourceNotFoundException(ResourceNotFoundException ex) {
+    @ExceptionHandler(com.produs.exception.ResourceNotFoundException.class)
+    public ProblemDetail handleResourceNotFoundException(com.produs.exception.ResourceNotFoundException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.NOT_FOUND, 
                 ex.getMessage()
@@ -27,8 +28,8 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
-    @ExceptionHandler(DuplicateResourceException.class)
-    public ProblemDetail handleDuplicateResourceException(DuplicateResourceException ex) {
+    @ExceptionHandler(com.produs.exception.DuplicateResourceException.class)
+    public ProblemDetail handleDuplicateResourceException(com.produs.exception.DuplicateResourceException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.CONFLICT, 
                 ex.getMessage()
@@ -74,6 +75,15 @@ public class GlobalExceptionHandler {
         );
         problemDetail.setType(URI.create("https://api.produs.com/errors/bad-request"));
         problemDetail.setTitle("Bad Request");
+        return problemDetail;
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ProblemDetail handleResponseStatusException(ResponseStatusException ex) {
+        String detail = ex.getReason() == null ? "Request failed" : ex.getReason();
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(ex.getStatusCode(), detail);
+        problemDetail.setType(URI.create("https://api.produs.com/errors/http-status"));
+        problemDetail.setTitle(ex.getStatusCode().toString());
         return problemDetail;
     }
 

@@ -28,6 +28,12 @@ app:
   security:
     rate-limit:
       enabled: false
+  integrations:
+    webhooks:
+      payments:
+        secret: test-payment-webhook-secret
+      signatures:
+        secret: test-signature-webhook-secret
 
 aws:
   s3:

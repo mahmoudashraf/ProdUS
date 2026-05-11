@@ -66,7 +66,14 @@ LoomAI is treated as an optional assistant/runtime provider for diagnosis, recom
    - Support manual milestones and deliverables.
    - Track status for workspace, milestones, and deliverables.
 
-8. AI/LoomAI integration path
+8. Provider callbacks and disputes
+   - Accept payment and e-signature provider callbacks only through signed HMAC webhooks.
+   - Persist provider event IDs for idempotent replay handling.
+   - Update invoice and contract state from provider-neutral callback payloads.
+   - Keep bad signatures as explicit 401 responses.
+   - Let owners/admins and assigned team managers handle workspace dispute cases with due dates and resolution notes.
+
+9. AI/LoomAI integration path
    - Keep `/api/ai/recommendations` as the audit ledger.
    - Later add provider adapters for LoomAI diagnosis/governance/search.
    - Never make LoomAI a hard dependency for owner workflow completion.
@@ -82,12 +89,13 @@ LoomAI is treated as an optional assistant/runtime provider for diagnosis, recom
    - Requirement intake form.
    - Package builder with module detail and rationale.
    - Team recommendation panel.
-   - Workspace creation and milestone/deliverable management.
+   - Workspace creation, participant management, support handoff, disputes, and milestone/deliverable management.
 
 3. Team/admin flow
    - Team profile form.
    - Catalog administration form.
    - Recommendation audit review.
+   - Assigned dispute review and resolution updates.
 
 4. UI quality
    - Use MUI surfaces, chips, segmented/status controls, clear empty states, and React Query state handling.
@@ -126,6 +134,8 @@ Completed implementation pass:
 - Add quote/proposal, contract, invoice, support subscription, and verified reputation modules.
 - Expose commerce/trust UI in packages, workspaces, and teams.
 - Add optional LoomAI package-governance adapter with timeouts, request ID propagation, audit logging, and deterministic rules fallback.
+- Add signed provider-neutral payment and e-signature callbacks with HMAC verification, idempotent event records, bad-signature 401 handling, invoice status updates, contract status updates, and signed-at capture.
+- Add workspace dispute cases with owner/team/admin status updates, assigned team visibility, due dates, resolution notes, DTO responses, and workspace UI controls.
 
 Verification:
 
@@ -144,8 +154,12 @@ Verification:
 - `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after commerce/trust UI additions.
 - Live API commerce/trust smoke passed with rules fallback audit, proposal acceptance, signed contract, paid invoice, active support subscription, verified reputation, and submitted specialist deliverable.
 - Live UI route smoke passed for `http://127.0.0.1:3001/packages`, `/workspaces`, `/teams`, and `/admin/recommendations`.
+- `mvn clean test` passed after callback/dispute implementation, including Testcontainers migration validation for callback/dispute tables, invalid webhook signature 401 behavior, idempotent payment replay, signed contract callback, paid invoice callback, and dispute resolution.
+- `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after frontend dispute UI additions.
+- Live API callback/dispute smoke passed on `http://127.0.0.1:8080` with HMAC e-signature callback to `SIGNED`, invalid payment signature to `401`, signed payment callback to `PAID`, replay idempotency, active support subscription, assigned-team dispute visibility, resolved dispute, and submitted specialist deliverable.
+- Live UI route smoke passed for `http://127.0.0.1:3001/packages`, `/workspaces`, `/teams`, and `/admin/recommendations` after dispute UI changes.
 
 ## Next Production Hardening After MVP
 
 - Current hardening list is complete.
-- Future production expansion: payment provider webhooks, e-signature callbacks, dispute workflows, richer support SLA automation, and CI enforcement for the Testcontainers path.
+- Future production expansion: provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters, dispute evidence attachments, richer support SLA automation, notification fan-out, and CI enforcement for the Testcontainers path.

@@ -1,0 +1,98 @@
+databaseChangeLog:
+  - changeSet:
+      id: 400
+      author: produs
+      changes:
+        - createTable:
+            tableName: payment_webhook_events
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: invoice_id, type: UUID }
+              - column: { name: provider, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: event_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: event_type, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: payload_json, type: TEXT }
+              - column: { name: signature_valid, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: processed, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: processed_at, type: TIMESTAMP }
+              - column: { name: error_message, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: payment_webhook_events
+            columnNames: provider,event_id
+            constraintName: uk_payment_webhook_provider_event
+        - addForeignKeyConstraint:
+            baseTableName: payment_webhook_events
+            baseColumnNames: invoice_id
+            constraintName: fk_payment_webhook_events_invoice
+            referencedTableName: invoice_records
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 401
+      author: produs
+      changes:
+        - createTable:
+            tableName: signature_webhook_events
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: contract_id, type: UUID }
+              - column: { name: provider, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: event_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: event_type, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: payload_json, type: TEXT }
+              - column: { name: signature_valid, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: processed, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: processed_at, type: TIMESTAMP }
+              - column: { name: error_message, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: signature_webhook_events
+            columnNames: provider,event_id
+            constraintName: uk_signature_webhook_provider_event
+        - addForeignKeyConstraint:
+            baseTableName: signature_webhook_events
+            baseColumnNames: contract_id
+            constraintName: fk_signature_webhook_events_contract
+            referencedTableName: contract_agreements
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 402
+      author: produs
+      changes:
+        - createTable:
+            tableName: dispute_cases
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: workspace_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: team_id, type: UUID }
+              - column: { name: opened_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: severity, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: response_due_on, type: DATE }
+              - column: { name: resolution, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: dispute_cases
+            baseColumnNames: workspace_id
+            constraintName: fk_dispute_cases_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: dispute_cases
+            baseColumnNames: team_id
+            constraintName: fk_dispute_cases_team
+            referencedTableName: teams
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: dispute_cases
+            baseColumnNames: opened_by
+            constraintName: fk_dispute_cases_opened_by
+            referencedTableName: users
+            referencedColumnNames: id

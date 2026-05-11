@@ -5,8 +5,11 @@ import com.produs.catalog.ServiceCategory;
 import com.produs.catalog.ServiceDependency;
 import com.produs.catalog.ServiceModule;
 import com.produs.commerce.ContractAgreement;
+import com.produs.commerce.DisputeCase;
 import com.produs.commerce.InvoiceRecord;
+import com.produs.commerce.PaymentWebhookEvent;
 import com.produs.commerce.QuoteProposal;
+import com.produs.commerce.SignatureWebhookEvent;
 import com.produs.commerce.SupportSubscription;
 import com.produs.commerce.TeamReputationEvent;
 import com.produs.entity.User;
@@ -279,6 +282,49 @@ public final class PlatformDtos {
             Integer rating,
             boolean verified,
             String notes
+    ) {}
+
+    public record PaymentWebhookEventResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            InvoiceRecordResponse invoice,
+            String provider,
+            String eventId,
+            String eventType,
+            boolean signatureValid,
+            boolean processed,
+            LocalDateTime processedAt,
+            String errorMessage
+    ) {}
+
+    public record SignatureWebhookEventResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            ContractAgreementResponse contractAgreement,
+            String provider,
+            String eventId,
+            String eventType,
+            boolean signatureValid,
+            boolean processed,
+            LocalDateTime processedAt,
+            String errorMessage
+    ) {}
+
+    public record DisputeCaseResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            ProjectWorkspaceResponse workspace,
+            TeamResponse team,
+            CurrentUserSummary openedBy,
+            String title,
+            String description,
+            DisputeCase.DisputeSeverity severity,
+            DisputeCase.DisputeStatus status,
+            LocalDate responseDueOn,
+            String resolution
     ) {}
 
     public record AIRecommendationResponse(
@@ -691,6 +737,64 @@ public final class PlatformDtos {
                 event.getRating(),
                 event.isVerified(),
                 event.getNotes()
+        );
+    }
+
+    public static PaymentWebhookEventResponse toPaymentWebhookEventResponse(PaymentWebhookEvent event) {
+        if (event == null) {
+            return null;
+        }
+        return new PaymentWebhookEventResponse(
+                event.getId(),
+                event.getCreatedAt(),
+                event.getUpdatedAt(),
+                toInvoiceRecordResponse(event.getInvoice()),
+                event.getProvider(),
+                event.getEventId(),
+                event.getEventType(),
+                event.isSignatureValid(),
+                event.isProcessed(),
+                event.getProcessedAt(),
+                event.getErrorMessage()
+        );
+    }
+
+    public static SignatureWebhookEventResponse toSignatureWebhookEventResponse(SignatureWebhookEvent event) {
+        if (event == null) {
+            return null;
+        }
+        return new SignatureWebhookEventResponse(
+                event.getId(),
+                event.getCreatedAt(),
+                event.getUpdatedAt(),
+                toContractAgreementResponse(event.getContractAgreement()),
+                event.getProvider(),
+                event.getEventId(),
+                event.getEventType(),
+                event.isSignatureValid(),
+                event.isProcessed(),
+                event.getProcessedAt(),
+                event.getErrorMessage()
+        );
+    }
+
+    public static DisputeCaseResponse toDisputeCaseResponse(DisputeCase disputeCase) {
+        if (disputeCase == null) {
+            return null;
+        }
+        return new DisputeCaseResponse(
+                disputeCase.getId(),
+                disputeCase.getCreatedAt(),
+                disputeCase.getUpdatedAt(),
+                toProjectWorkspaceResponse(disputeCase.getWorkspace()),
+                toTeamResponse(disputeCase.getTeam()),
+                toCurrentUserSummary(disputeCase.getOpenedBy()),
+                disputeCase.getTitle(),
+                disputeCase.getDescription(),
+                disputeCase.getSeverity(),
+                disputeCase.getStatus(),
+                disputeCase.getResponseDueOn(),
+                disputeCase.getResolution()
         );
     }
 

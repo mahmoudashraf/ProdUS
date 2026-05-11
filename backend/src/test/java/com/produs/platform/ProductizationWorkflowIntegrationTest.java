@@ -26,7 +26,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.HexFormat;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
@@ -239,14 +243,31 @@ class ProductizationWorkflowIntegrationTest {
                                   "title": "Inventory OS launch delivery agreement",
                                   "terms": "Milestones require evidence-backed owner acceptance before payment release.",
                                   "effectiveOn": "2026-05-15",
-                                  "status": "SIGNED"
+                                  "status": "SENT"
                                 }
                                 """.formatted(workspaceId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SIGNED"))
-                .andExpect(jsonPath("$.signedAt").exists())
+                .andExpect(jsonPath("$.status").value("SENT"))
                 .andReturn();
         UUID contractId = readId(contractResult);
+
+        String signaturePayload = """
+                {
+                  "provider": "mock-sign",
+                  "eventId": "sig-event-001",
+                  "eventType": "contract.completed",
+                  "contractId": "%s",
+                  "contractStatus": "SIGNED"
+                }
+                """.formatted(contractId);
+        mockMvc.perform(post("/api/integrations/signatures/webhook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-ProdUS-Signature", hmac(signaturePayload, "test-signature-webhook-secret"))
+                        .content(signaturePayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.processed").value(true))
+                .andExpect(jsonPath("$.contractAgreement.status").value("SIGNED"))
+                .andExpect(jsonPath("$.contractAgreement.signedAt").exists());
 
         MvcResult invoiceResult = mockMvc.perform(post("/api/commerce/contracts/{id}/invoices", contractId)
                         .with(auth(teamManager))
@@ -271,14 +292,38 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].invoiceNumber").value("INV-MOCK-001"));
 
-        mockMvc.perform(put("/api/commerce/invoices/{id}/status", invoiceId)
-                        .with(auth(owner))
+        String paymentPayload = """
+                {
+                  "provider": "mock-pay",
+                  "eventId": "pay-event-001",
+                  "eventType": "invoice.payment_succeeded",
+                  "invoiceNumber": "INV-MOCK-001",
+                  "amountCents": 625000,
+                  "currency": "USD",
+                  "invoiceStatus": "PAID"
+                }
+                """;
+        mockMvc.perform(post("/api/integrations/payments/webhook")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                { "status": "PAID" }
-                                """))
+                        .header("X-ProdUS-Signature", "sha256=bad")
+                        .content(paymentPayload))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/integrations/payments/webhook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-ProdUS-Signature", hmac(paymentPayload, "test-payment-webhook-secret"))
+                        .content(paymentPayload))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PAID"));
+                .andExpect(jsonPath("$.processed").value(true))
+                .andExpect(jsonPath("$.invoice.status").value("PAID"));
+
+        mockMvc.perform(post("/api/integrations/payments/webhook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-ProdUS-Signature", hmac(paymentPayload, "test-payment-webhook-secret"))
+                        .content(paymentPayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.processed").value(true))
+                .andExpect(jsonPath("$.eventId").value("pay-event-001"));
 
         mockMvc.perform(post("/api/commerce/workspaces/{id}/support-subscriptions", workspaceId)
                         .with(auth(owner))
@@ -316,6 +361,41 @@ class ProductizationWorkflowIntegrationTest {
         mockMvc.perform(get("/api/commerce/teams/{id}/reputation", recommendedTeam.getId()).with(auth(teamManager)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
+
+        MvcResult disputeResult = mockMvc.perform(post("/api/commerce/workspaces/{id}/disputes", workspaceId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "teamId": "%s",
+                                  "title": "Milestone evidence needs review",
+                                  "description": "Owner needs clearer acceptance evidence before release.",
+                                  "severity": "HIGH",
+                                  "responseDueOn": "2026-05-25"
+                                }
+                                """.formatted(recommendedTeam.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.severity").value("HIGH"))
+                .andReturn();
+        UUID disputeId = readId(disputeResult);
+
+        mockMvc.perform(get("/api/commerce/workspaces/{id}/disputes", workspaceId).with(auth(teamManager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+
+        mockMvc.perform(put("/api/commerce/disputes/{id}/status", disputeId)
+                        .with(auth(teamManager))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "RESOLVED",
+                                  "resolution": "Team attached clearer evidence and owner accepted the remediation path."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RESOLVED"))
+                .andExpect(jsonPath("$.resolution").value(containsString("owner accepted")));
 
         mockMvc.perform(post("/api/workspaces/{id}/participants", workspaceId)
                         .with(auth(owner))
@@ -439,6 +519,12 @@ class ProductizationWorkflowIntegrationTest {
     private UUID readId(MvcResult result) throws Exception {
         JsonNode node = objectMapper.readTree(result.getResponse().getContentAsString());
         return UUID.fromString(node.get("id").asText());
+    }
+
+    private String hmac(String payload, String secret) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return "sha256=" + HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
     }
 
     private RequestPostProcessor auth(User user) {

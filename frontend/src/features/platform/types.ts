@@ -215,6 +215,40 @@ export interface TeamReputationEvent extends BaseRecord {
   notes?: string;
 }
 
+export interface PaymentWebhookEvent extends BaseRecord {
+  invoice?: InvoiceRecord;
+  provider: string;
+  eventId: string;
+  eventType: string;
+  signatureValid: boolean;
+  processed: boolean;
+  processedAt?: string;
+  errorMessage?: string;
+}
+
+export interface SignatureWebhookEvent extends BaseRecord {
+  contractAgreement?: ContractAgreement;
+  provider: string;
+  eventId: string;
+  eventType: string;
+  signatureValid: boolean;
+  processed: boolean;
+  processedAt?: string;
+  errorMessage?: string;
+}
+
+export interface DisputeCase extends BaseRecord {
+  workspace?: ProjectWorkspace;
+  team?: Team;
+  openedBy?: CurrentUserSummary;
+  title: string;
+  description?: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  status: 'OPEN' | 'UNDER_REVIEW' | 'OWNER_RESPONSE_NEEDED' | 'TEAM_RESPONSE_NEEDED' | 'RESOLVED' | 'CANCELLED';
+  responseDueOn?: string;
+  resolution?: string;
+}
+
 export interface AIRecommendation extends BaseRecord {
   recommendationType: string;
   sourceEntityType?: string;

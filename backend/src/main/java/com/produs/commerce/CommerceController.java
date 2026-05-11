@@ -1,6 +1,7 @@
 package com.produs.commerce;
 
 import com.produs.dto.PlatformDtos.ContractAgreementResponse;
+import com.produs.dto.PlatformDtos.DisputeCaseResponse;
 import com.produs.dto.PlatformDtos.InvoiceRecordResponse;
 import com.produs.dto.PlatformDtos.QuoteProposalResponse;
 import com.produs.dto.PlatformDtos.SupportSubscriptionResponse;
@@ -10,6 +11,7 @@ import com.produs.packages.PackageInstance;
 import com.produs.packages.PackageInstanceRepository;
 import com.produs.shared.BaseEntity;
 import com.produs.teams.Team;
+import com.produs.teams.TeamMember;
 import com.produs.teams.TeamMemberRepository;
 import com.produs.teams.TeamRepository;
 import com.produs.workspace.ProjectWorkspace;
@@ -36,10 +38,12 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
 import static com.produs.dto.PlatformDtos.toContractAgreementResponse;
+import static com.produs.dto.PlatformDtos.toDisputeCaseResponse;
 import static com.produs.dto.PlatformDtos.toInvoiceRecordResponse;
 import static com.produs.dto.PlatformDtos.toQuoteProposalResponse;
 import static com.produs.dto.PlatformDtos.toSupportSubscriptionResponse;
@@ -55,6 +59,7 @@ public class CommerceController {
     private final InvoiceRecordRepository invoiceRepository;
     private final SupportSubscriptionRepository subscriptionRepository;
     private final TeamReputationEventRepository reputationRepository;
+    private final DisputeCaseRepository disputeRepository;
     private final PackageInstanceRepository packageRepository;
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
@@ -352,6 +357,72 @@ public class CommerceController {
         return toTeamReputationEventResponse(reputationRepository.save(event));
     }
 
+    @GetMapping("/disputes")
+    public List<DisputeCaseResponse> disputes(@AuthenticationPrincipal User user) {
+        Stream<DisputeCase> disputes = switch (user.getRole()) {
+            case ADMIN -> disputeRepository.findAll().stream();
+            case PRODUCT_OWNER -> disputeRepository.findByWorkspaceOwnerIdOrderByCreatedAtDesc(user.getId()).stream();
+            case TEAM_MANAGER -> disputeRepository.findByTeamManagerIdOrderByCreatedAtDesc(user.getId()).stream();
+            case SPECIALIST, ADVISOR -> teamMemberRepository.findByUserIdAndActiveTrueOrderByCreatedAtDesc(user.getId()).stream()
+                    .flatMap(member -> disputeRepository.findByTeamIdOrderByCreatedAtDesc(member.getTeam().getId()).stream());
+        };
+        return sortDistinct(disputes).stream()
+                .map(dispute -> toDisputeCaseResponse(dispute))
+                .toList();
+    }
+
+    @GetMapping("/workspaces/{workspaceId}/disputes")
+    public List<DisputeCaseResponse> workspaceDisputes(@AuthenticationPrincipal User user, @PathVariable UUID workspaceId) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceDisputeViewer(user, workspace);
+        return disputeRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
+                .map(dispute -> toDisputeCaseResponse(dispute))
+                .toList();
+    }
+
+    @PostMapping("/workspaces/{workspaceId}/disputes")
+    public DisputeCaseResponse createDispute(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody DisputeRequest request
+    ) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        Team team = request.teamId() == null
+                ? null
+                : teamRepository.findById(request.teamId())
+                        .orElseThrow(() -> new IllegalArgumentException("Team not found"));
+        requireDisputeCreator(user, workspace, team);
+
+        DisputeCase dispute = new DisputeCase();
+        dispute.setWorkspace(workspace);
+        dispute.setTeam(team);
+        dispute.setOpenedBy(user);
+        dispute.setTitle(request.title());
+        dispute.setDescription(request.description());
+        dispute.setSeverity(request.severity() == null ? DisputeCase.DisputeSeverity.MEDIUM : request.severity());
+        dispute.setStatus(request.status() == null ? DisputeCase.DisputeStatus.OPEN : request.status());
+        dispute.setResponseDueOn(request.responseDueOn());
+        return toDisputeCaseResponse(disputeRepository.save(dispute));
+    }
+
+    @PutMapping("/disputes/{disputeId}/status")
+    public DisputeCaseResponse updateDisputeStatus(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID disputeId,
+            @Valid @RequestBody DisputeStatusRequest request
+    ) {
+        DisputeCase dispute = disputeRepository.findById(disputeId)
+                .orElseThrow(() -> new IllegalArgumentException("Dispute not found"));
+        requireDisputeManager(user, dispute);
+        dispute.setStatus(request.status());
+        if (request.resolution() != null) {
+            dispute.setResolution(request.resolution());
+        }
+        return toDisputeCaseResponse(disputeRepository.save(dispute));
+    }
+
     private <T extends BaseEntity> List<T> sortDistinct(Stream<T> records) {
         Map<UUID, T> unique = new LinkedHashMap<>();
         records.forEach(record -> unique.putIfAbsent(record.getId(), record));
@@ -409,6 +480,48 @@ public class CommerceController {
             return;
         }
         throw new AccessDeniedException("Invoice is not available to this user");
+    }
+
+    private void requireWorkspaceDisputeViewer(User user, ProjectWorkspace workspace) {
+        if (isAdmin(user) || isWorkspaceOwner(user, workspace)) {
+            return;
+        }
+        List<DisputeCase> workspaceDisputes = disputeRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId());
+        boolean managesAssignedTeam = workspaceDisputes.stream()
+                .anyMatch(dispute -> dispute.getTeam() != null && isTeamManager(user, dispute.getTeam()));
+        if (managesAssignedTeam) {
+            return;
+        }
+        Set<UUID> memberTeamIds = teamMemberRepository.findByUserIdAndActiveTrueOrderByCreatedAtDesc(user.getId()).stream()
+                .map(TeamMember::getTeam)
+                .map(Team::getId)
+                .collect(java.util.stream.Collectors.toSet());
+        boolean memberOfAssignedTeam = workspaceDisputes.stream()
+                .anyMatch(dispute -> dispute.getTeam() != null && memberTeamIds.contains(dispute.getTeam().getId()));
+        if (memberOfAssignedTeam) {
+            return;
+        }
+        throw new AccessDeniedException("Workspace disputes are not available to this user");
+    }
+
+    private void requireDisputeCreator(User user, ProjectWorkspace workspace, Team team) {
+        if (isAdmin(user) || isWorkspaceOwner(user, workspace)) {
+            return;
+        }
+        if (team != null && isTeamManager(user, team)) {
+            return;
+        }
+        throw new AccessDeniedException("Dispute cannot be opened by this user");
+    }
+
+    private void requireDisputeManager(User user, DisputeCase dispute) {
+        if (isAdmin(user) || isWorkspaceOwner(user, dispute.getWorkspace())) {
+            return;
+        }
+        if (dispute.getTeam() != null && isTeamManager(user, dispute.getTeam())) {
+            return;
+        }
+        throw new AccessDeniedException("Dispute cannot be changed by this user");
     }
 
     private ProjectWorkspace resolveWorkspace(UUID workspaceId) {
@@ -511,5 +624,21 @@ public class CommerceController {
             @Max(value = 5, message = "Rating must be at most 5")
             Integer rating,
             String notes
+    ) {}
+
+    public record DisputeRequest(
+            UUID teamId,
+            @NotBlank(message = "Dispute title is required")
+            String title,
+            String description,
+            DisputeCase.DisputeSeverity severity,
+            DisputeCase.DisputeStatus status,
+            LocalDate responseDueOn
+    ) {}
+
+    public record DisputeStatusRequest(
+            @NotNull(message = "Dispute status is required")
+            DisputeCase.DisputeStatus status,
+            String resolution
     ) {}
 }

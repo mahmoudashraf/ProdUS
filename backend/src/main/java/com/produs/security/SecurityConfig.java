@@ -46,6 +46,10 @@ public class SecurityConfig {
                         
                         // Mock endpoints (for testing)
                         .requestMatchers("/api/mock/**").permitAll()
+
+                        // Signed provider webhooks; authentication is the HMAC signature.
+                        .requestMatchers(HttpMethod.POST, "/api/integrations/payments/webhook").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/integrations/signatures/webhook").permitAll()
                         
                         // Admin endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -77,7 +81,7 @@ public class SecurityConfig {
                 .filter(origin -> !origin.isBlank())
                 .toList());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-ID", "X-Requested-With", "Accept"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-ID", "X-ProdUS-Signature", "X-Requested-With", "Accept"));
         configuration.setExposedHeaders(List.of(
                 "X-Request-ID",
                 "X-RateLimit-Limit",

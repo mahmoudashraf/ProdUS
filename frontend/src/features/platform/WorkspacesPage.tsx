@@ -6,11 +6,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
-import { getJson, postJson } from './api';
+import { getJson, postJson, putJson } from './api';
 import { EmptyState, PageHeader, QueryState, StatusChip, Surface } from './PlatformComponents';
-import { Deliverable, Milestone, PackageInstance, ProjectWorkspace, SupportSubscription, Team, WorkspaceParticipant } from './types';
+import { Deliverable, DisputeCase, Milestone, PackageInstance, ProjectWorkspace, SupportSubscription, Team, WorkspaceParticipant } from './types';
 
 const participantRoles: WorkspaceParticipant['role'][] = ['COORDINATOR', 'TEAM_LEAD', 'SPECIALIST', 'ADVISOR', 'VIEWER'];
+const disputeSeverities: DisputeCase['severity'][] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+const disputeStatuses: DisputeCase['status'][] = ['OPEN', 'UNDER_REVIEW', 'OWNER_RESPONSE_NEEDED', 'TEAM_RESPONSE_NEEDED', 'RESOLVED', 'CANCELLED'];
 
 interface WorkspacePayload {
   packageInstanceId: string;
@@ -46,6 +48,19 @@ interface SupportSubscriptionPayload {
   startsOn: string | null;
   renewsOn: string | null;
   status: SupportSubscription['status'];
+}
+
+interface DisputePayload {
+  teamId: string | null;
+  title: string;
+  description: string;
+  severity: DisputeCase['severity'];
+  responseDueOn: string | null;
+}
+
+interface DisputeStatusPayload {
+  status: DisputeCase['status'];
+  resolution: string;
 }
 
 const initialWorkspaceValues: WorkspacePayload = {
@@ -84,6 +99,14 @@ const initialSupportValues: SupportSubscriptionPayload = {
   status: 'PROPOSED',
 };
 
+const initialDisputeValues: DisputePayload = {
+  teamId: null,
+  title: '',
+  description: '',
+  severity: 'MEDIUM',
+  responseDueOn: null,
+};
+
 const formatMoney = (amountCents: number, currency: string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format((amountCents || 0) / 100);
 
@@ -92,6 +115,7 @@ export default function WorkspacesPage() {
   const { hasRole } = useAuth();
   const canInviteParticipants = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
   const canManageSupport = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
+  const canManageDisputes = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
   const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const teams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
@@ -101,6 +125,8 @@ export default function WorkspacesPage() {
   });
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
   const [selectedMilestoneId, setSelectedMilestoneId] = useState('');
+  const [disputeStatusById, setDisputeStatusById] = useState<Record<string, DisputeCase['status']>>({});
+  const [disputeResolutionById, setDisputeResolutionById] = useState<Record<string, string>>({});
 
   const workspaceForm = useAdvancedForm<WorkspacePayload>({
     initialValues: initialWorkspaceValues,
@@ -134,6 +160,13 @@ export default function WorkspacesPage() {
     validationRules: {
       teamId: [{ type: 'required', message: 'Team is required' }],
       planName: [{ type: 'required', message: 'Plan name is required' }],
+    },
+  });
+  const disputeForm = useAdvancedForm<DisputePayload>({
+    initialValues: initialDisputeValues,
+    validationRules: {
+      title: [{ type: 'required', message: 'Dispute title is required' }],
+      description: [{ type: 'required', message: 'Dispute context is required' }],
     },
   });
 
@@ -186,6 +219,11 @@ export default function WorkspacesPage() {
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<WorkspaceParticipant[]>(`/workspaces/${selectedWorkspace?.id}/participants`),
   });
+  const disputes = useQuery({
+    queryKey: ['commerce-disputes', selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () => getJson<DisputeCase[]>(`/commerce/workspaces/${selectedWorkspace?.id}/disputes`),
+  });
   const selectedSupportSubscriptions = (supportSubscriptions.data || []).filter(
     (subscription) => subscription.workspace?.id === selectedWorkspace?.id
   );
@@ -221,6 +259,21 @@ export default function WorkspacesPage() {
       await queryClient.invalidateQueries({ queryKey: ['commerce-support-subscriptions'] });
     },
   });
+  const createDispute = useMutation({
+    mutationFn: () => postJson<DisputeCase, DisputePayload>(`/commerce/workspaces/${selectedWorkspace?.id}/disputes`, disputeForm.values),
+    onSuccess: async () => {
+      disputeForm.resetForm();
+      await queryClient.invalidateQueries({ queryKey: ['commerce-disputes', selectedWorkspace?.id] });
+    },
+  });
+  const updateDisputeStatus = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: DisputeStatusPayload }) => putJson<DisputeCase, DisputeStatusPayload>(`/commerce/disputes/${id}/status`, payload),
+    onSuccess: async (dispute) => {
+      setDisputeStatusById((current) => ({ ...current, [dispute.id]: dispute.status }));
+      setDisputeResolutionById((current) => ({ ...current, [dispute.id]: dispute.resolution || '' }));
+      await queryClient.invalidateQueries({ queryKey: ['commerce-disputes', selectedWorkspace?.id] });
+    },
+  });
 
   const submit = workspaceForm.handleSubmit(() => {
     createWorkspace.mutate();
@@ -245,13 +298,27 @@ export default function WorkspacesPage() {
       createSupportSubscription.mutate();
     }
   });
+  const submitDispute = disputeForm.handleSubmit(() => {
+    if (selectedWorkspace?.id) {
+      createDispute.mutate();
+    }
+  });
+  const submitDisputeStatus = (dispute: DisputeCase) => {
+    updateDisputeStatus.mutate({
+      id: dispute.id,
+      payload: {
+        status: disputeStatusById[dispute.id] || dispute.status,
+        resolution: disputeResolutionById[dispute.id] || dispute.resolution || '',
+      },
+    });
+  };
 
   return (
     <>
       <PageHeader title="Workspaces" description="Coordinate package execution through milestones, deliverables, decisions, and handoff." />
       <QueryState
-        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || supportSubscriptions.isLoading}
-        error={packages.error || workspaces.error || teams.error || supportSubscriptions.error || milestones.error || deliverables.error || participants.error || createWorkspace.error || createMilestone.error || createDeliverable.error || addParticipant.error || createSupportSubscription.error}
+        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || supportSubscriptions.isLoading || disputes.isLoading}
+        error={packages.error || workspaces.error || teams.error || supportSubscriptions.error || milestones.error || deliverables.error || participants.error || disputes.error || createWorkspace.error || createMilestone.error || createDeliverable.error || addParticipant.error || createSupportSubscription.error || createDispute.error || updateDisputeStatus.error}
       />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '380px 1fr' }, gap: 2 }}>
         <Stack spacing={1.5}>
@@ -316,7 +383,7 @@ export default function WorkspacesPage() {
                   <StatusChip label={selectedWorkspace.status} />
                 </Stack>
               </Box>
-              {(milestones.isFetching || deliverables.isFetching) && <LinearProgress />}
+              {(milestones.isFetching || deliverables.isFetching || disputes.isFetching) && <LinearProgress />}
               <Box>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between">
                   <Typography variant="h4">Participants</Typography>
@@ -432,6 +499,131 @@ export default function WorkspacesPage() {
                   ) : (
                     <Typography variant="body2" color="text.secondary">
                       Add a support subscription when the workspace moves into handoff or ongoing operations.
+                    </Typography>
+                  )}
+                </Stack>
+              </Box>
+              <Box>
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between">
+                  <Typography variant="h4">Disputes</Typography>
+                  {canManageDisputes && (
+                    <Box component="form" onSubmit={submitDispute} sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      <TextField
+                        select
+                        size="small"
+                        label="Team"
+                        value={disputeForm.values.teamId || ''}
+                        onChange={(event) => disputeForm.setValue('teamId', event.target.value || null)}
+                        sx={{ minWidth: 180 }}
+                      >
+                        <MenuItem value="">Unassigned</MenuItem>
+                        {(teams.data || []).map((team) => (
+                          <MenuItem key={team.id} value={team.id}>
+                            {team.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        size="small"
+                        label="Title"
+                        value={disputeForm.values.title}
+                        onChange={(event) => disputeForm.setValue('title', event.target.value)}
+                      />
+                      <TextField
+                        select
+                        size="small"
+                        label="Severity"
+                        value={disputeForm.values.severity}
+                        onChange={(event) => disputeForm.setValue('severity', event.target.value as DisputeCase['severity'])}
+                        sx={{ minWidth: 140 }}
+                      >
+                        {disputeSeverities.map((severity) => (
+                          <MenuItem key={severity} value={severity}>
+                            {severity.toLowerCase()}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        size="small"
+                        type="date"
+                        label="Response due"
+                        value={disputeForm.values.responseDueOn || ''}
+                        onChange={(event) => disputeForm.setValue('responseDueOn', event.target.value || null)}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                      <TextField
+                        size="small"
+                        label="Context"
+                        value={disputeForm.values.description}
+                        onChange={(event) => disputeForm.setValue('description', event.target.value)}
+                        sx={{ minWidth: { xs: '100%', sm: 260 } }}
+                      />
+                      <Button type="submit" variant="outlined" disabled={!disputeForm.values.title || !disputeForm.values.description || createDispute.isPending}>
+                        Open
+                      </Button>
+                    </Box>
+                  )}
+                </Stack>
+                <Stack spacing={1.5} sx={{ mt: 1.5 }}>
+                  {disputes.data?.length ? (
+                    disputes.data.map((dispute) => (
+                      <Box key={dispute.id} sx={{ borderTop: 1, borderColor: 'divider', pt: 1.5 }}>
+                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between">
+                          <Box>
+                            <Typography variant="subtitle1">{dispute.title}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {dispute.team?.name || 'Unassigned'} · {dispute.severity.toLowerCase()}
+                              {dispute.responseDueOn ? ` · due ${dispute.responseDueOn}` : ''}
+                            </Typography>
+                          </Box>
+                          <StatusChip label={dispute.status} />
+                        </Stack>
+                        {dispute.description && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+                            {dispute.description}
+                          </Typography>
+                        )}
+                        {canManageDisputes && (
+                          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} sx={{ mt: 1 }}>
+                            <TextField
+                              select
+                              size="small"
+                              label="Status"
+                              value={disputeStatusById[dispute.id] || dispute.status}
+                              onChange={(event) =>
+                                setDisputeStatusById((current) => ({ ...current, [dispute.id]: event.target.value as DisputeCase['status'] }))
+                              }
+                              sx={{ minWidth: 210 }}
+                            >
+                              {disputeStatuses.map((statusOption) => (
+                                <MenuItem key={statusOption} value={statusOption}>
+                                  {statusOption.replaceAll('_', ' ').toLowerCase()}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                            <TextField
+                              size="small"
+                              label="Resolution note"
+                              value={disputeResolutionById[dispute.id] ?? dispute.resolution ?? ''}
+                              onChange={(event) =>
+                                setDisputeResolutionById((current) => ({ ...current, [dispute.id]: event.target.value }))
+                              }
+                              sx={{ minWidth: { xs: '100%', md: 320 } }}
+                            />
+                            <Button
+                              variant="outlined"
+                              onClick={() => submitDisputeStatus(dispute)}
+                              disabled={updateDisputeStatus.isPending}
+                            >
+                              Update
+                            </Button>
+                          </Stack>
+                        )}
+                      </Box>
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No disputes are open for this workspace.
                     </Typography>
                   )}
                 </Stack>
