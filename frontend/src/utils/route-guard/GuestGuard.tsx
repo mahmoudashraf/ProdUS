@@ -19,17 +19,17 @@ import { GuardProps } from 'types';
  */
 
 const GuestGuard = ({ children }: GuardProps) => {
-  const { isLoggedIn } = useAuth();
+  const { isLoading, isLoggedIn } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoggedIn) {
+    if (!isLoading && isLoggedIn) {
       router.push(DASHBOARD_PATH);
     }
     // eslint-disable-next-line
-  }, [isLoggedIn]);
+  }, [isLoading, isLoggedIn]);
 
-  if (isLoggedIn) return <Loader />;
+  if (isLoading || isLoggedIn) return <Loader />;
 
   return children;
 };

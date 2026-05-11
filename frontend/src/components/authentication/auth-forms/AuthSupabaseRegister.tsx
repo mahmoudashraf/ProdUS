@@ -21,11 +21,13 @@ import {
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { DASHBOARD_PATH } from '@/config';
+import { authConfig } from '@/config/authConfig';
 import SocialLoginButtons from './SocialLoginButtons';
 
 const AuthSupabaseRegister = () => {
   const router = useRouter();
   const { signUp } = useSupabaseAuth();
+  const shouldUseMockAuth = authConfig.shouldUseMockAuth();
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -225,19 +227,21 @@ const AuthSupabaseRegister = () => {
           </Button>
         </Box>
 
-        <Box sx={{ mt: 3 }}>
-          <Typography
-            variant="body2"
-            color="textSecondary"
-            sx={{ textAlign: 'center', mb: 2 }}
-          >
-            Or continue with
-          </Typography>
-          <SocialLoginButtons
-            onError={(error) => setErrors({ general: error })}
-            onSuccess={() => router.push(DASHBOARD_PATH)}
-          />
-        </Box>
+        {!shouldUseMockAuth && (
+          <Box sx={{ mt: 3 }}>
+            <Typography
+              variant="body2"
+              color="textSecondary"
+              sx={{ textAlign: 'center', mb: 2 }}
+            >
+              Or continue with
+            </Typography>
+            <SocialLoginButtons
+              onError={(error) => setErrors({ general: error })}
+              onSuccess={() => router.push(DASHBOARD_PATH)}
+            />
+          </Box>
+        )}
       </Stack>
     </form>
   );
