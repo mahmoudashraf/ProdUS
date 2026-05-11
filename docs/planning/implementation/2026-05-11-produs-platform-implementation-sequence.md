@@ -184,5 +184,5 @@ Verification:
 
 ## Next Production Hardening After MVP
 
-- Current hardening list is complete.
+- Pending production readiness plan: `docs/planning/implementation/2026-05-11-pending-production-readiness.md`.
 - Future production expansion: provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters plus vendor-specific email/push payload mappers on top of the signed notification webhook adapter.

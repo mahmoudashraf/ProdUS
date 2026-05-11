@@ -109,5 +109,5 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 
 ## Remaining Production Hardening Queue
 
-- None from the current 2026-05-11 implementation plan.
+- Pending production readiness plan: `docs/planning/implementation/2026-05-11-pending-production-readiness.md`.
 - Future production integrations can add provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters plus vendor-specific email/push payload mappers on top of the signed notification webhook adapter.
