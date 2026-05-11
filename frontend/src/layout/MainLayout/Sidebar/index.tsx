@@ -1,5 +1,5 @@
 // material-ui
-import { Box, Drawer, Stack, useMediaQuery } from '@mui/material';
+import { Box, Drawer, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { memo, useMemo } from 'react';
 
@@ -11,7 +11,6 @@ import PerfectScrollbar from 'react-perfect-scrollbar';
 import { LAYOUT_CONST } from 'constant';
 import useConfig from 'hooks/useConfig';
 import { drawerWidth } from 'constants/index';
-import Chip from 'ui-component/extended/Chip';
 
 // Using Context API
 import { useMenuState, useMenuActions } from 'contexts/MenuContext';
@@ -19,7 +18,6 @@ import { useMenuState, useMenuActions } from 'contexts/MenuContext';
 import LogoSection from '../LogoSection';
 import MenuList from '../MenuList';
 
-import MenuCard from './MenuCard';
 import MiniDrawerStyled from './MiniDrawerStyled';
 
 // ==============================|| SIDEBAR DRAWER ||============================== //
@@ -33,7 +31,7 @@ const Sidebar = () => {
   const { drawerOpen } = useMenuState();
   const { setDrawerOpen } = useMenuActions();
 
-  const { layout, drawerType } = useConfig();
+  const { drawerType } = useConfig();
 
   const logo = useMemo(
     () => (
@@ -47,18 +45,6 @@ const Sidebar = () => {
   const drawerContent = (
     <>
       <MenuList />
-      {layout === LAYOUT_CONST.VERTICAL_LAYOUT && drawerOpen && <MenuCard />}
-      {layout === LAYOUT_CONST.VERTICAL_LAYOUT && drawerOpen && (
-        <Stack direction="row" justifyContent="center" sx={{ mb: 2 }}>
-          <Chip
-            label={String(process.env.REACT_APP_VERSION ?? '')}
-            disabled
-            chipcolor="secondary"
-            size="small"
-            sx={{ cursor: 'pointer' }}
-          />
-        </Stack>
-      )}
     </>
   );
 
@@ -107,9 +93,9 @@ const Sidebar = () => {
               mt: matchDownMd ? 0 : 11,
               zIndex: 1099,
               width: drawerWidth,
-              background: theme.palette.background.default,
+              background: '#fff',
               color: theme.palette.text.primary,
-              borderRight: 'none',
+              borderRight: '1px solid #dbe4f0',
             },
           }}
           ModalProps={{ keepMounted: true }}

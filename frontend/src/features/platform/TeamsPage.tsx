@@ -1,14 +1,45 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import {
+  BookmarkBorderOutlined,
+  ManageAccountsOutlined,
+  TuneOutlined,
+  VerifiedOutlined,
+} from '@mui/icons-material';
 import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson } from './api';
-import { EmptyState, PageHeader, QueryState, SaveButton, StatusChip, Surface, TextInput } from './PlatformComponents';
-import { ProjectWorkspace, ServiceCategory, ServiceModule, Team, TeamCapability, TeamMember, TeamReputationEvent } from './types';
+import {
+  DotLabel,
+  EmptyState,
+  PageHeader,
+  PastelChip,
+  ProgressRing,
+  QueryState,
+  SaveButton,
+  SectionTitle,
+  StatusChip,
+  Surface,
+  TextInput,
+  appleColors,
+  categoryPalette,
+  formatLabel,
+} from './PlatformComponents';
+import {
+  PackageInstance,
+  ProjectWorkspace,
+  ServiceCategory,
+  ServiceModule,
+  Team,
+  TeamCapability,
+  TeamMember,
+  TeamRecommendation,
+  TeamReputationEvent,
+} from './types';
 
 const statuses: Team['verificationStatus'][] = ['APPLIED', 'VERIFIED', 'CERTIFIED', 'SPECIALIST', 'OPERATIONS_READY'];
 const memberRoles: TeamMember['role'][] = ['LEAD', 'DELIVERY_MANAGER', 'SPECIALIST', 'ADVISOR', 'QUALITY_REVIEWER'];
@@ -73,16 +104,31 @@ const initialReputationValues: ReputationPayload = {
   notes: '',
 };
 
+const verificationScore = (team: Team) => {
+  const scoreByStatus = {
+    APPLIED: 48,
+    VERIFIED: 74,
+    CERTIFIED: 84,
+    SPECIALIST: 91,
+    OPERATIONS_READY: 96,
+    SUSPENDED: 20,
+  };
+  return scoreByStatus[team.verificationStatus] || 60;
+};
+
 export default function TeamsPage() {
   const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const canManageTeamRoster = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
   const canCreateReputation = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER]);
   const teams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
+  const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
   const categories = useQuery({ queryKey: ['catalog-categories'], queryFn: () => getJson<ServiceCategory[]>('/catalog/categories') });
   const modules = useQuery({ queryKey: ['catalog-modules'], queryFn: () => getJson<ServiceModule[]>('/catalog/modules') });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [selectedPackageId, setSelectedPackageId] = useState('');
+
   const teamForm = useAdvancedForm<TeamPayload>({
     initialValues: initialTeamValues,
     validationRules: {
@@ -111,6 +157,13 @@ export default function TeamsPage() {
     },
   });
 
+  const packageList = packages.data || [];
+  useEffect(() => {
+    if (!selectedPackageId && packageList[0]) {
+      setSelectedPackageId(packageList[0].id);
+    }
+  }, [packageList, selectedPackageId]);
+
   const createTeam = useMutation({
     mutationFn: () => postJson<Team, TeamPayload>('/teams', teamForm.values),
     onSuccess: async (team) => {
@@ -132,6 +185,11 @@ export default function TeamsPage() {
     }
   }, [selectedTeamId, teamList]);
 
+  const recommendations = useQuery({
+    queryKey: ['packages', selectedPackageId, 'team-recommendations'],
+    enabled: !!selectedPackageId,
+    queryFn: () => getJson<TeamRecommendation[]>(`/packages/${selectedPackageId}/team-recommendations`),
+  });
   const capabilities = useQuery({
     queryKey: ['teams', selectedTeam?.id, 'capabilities'],
     enabled: !!selectedTeam?.id,
@@ -190,255 +248,278 @@ export default function TeamsPage() {
     }
   });
 
+  const matchedTeams = recommendations.data?.length
+    ? recommendations.data
+    : teamList.map((team) => ({ team, score: verificationScore(team) / 100, reasons: [team.capabilitiesSummary || team.description || 'Verified profile available'] }));
+  const avgMatch = matchedTeams.length
+    ? Math.round((matchedTeams.reduce((total, item) => total + item.score, 0) / matchedTeams.length) * 100)
+    : 0;
+
   return (
     <>
-      <PageHeader title="Teams" description="Represent independent productization teams and their verified capability areas." />
-      <QueryState
-        isLoading={teams.isLoading || categories.isLoading || modules.isLoading || workspaces.isLoading}
-        error={teams.error || categories.error || modules.error || workspaces.error || capabilities.error || reputation.error || (canManageTeamRoster ? members.error : null) || createTeam.error || createCapability.error || addMember.error || addReputation.error}
+      <PageHeader
+        title="Matched Teams"
+        description="Rank verified specialist teams against package needs, maintain capability evidence, and capture workspace-backed reputation."
       />
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '380px 1fr' }, gap: 2 }}>
-        <Stack spacing={1.5}>
+      <QueryState
+        isLoading={teams.isLoading || packages.isLoading || categories.isLoading || modules.isLoading || workspaces.isLoading}
+        error={teams.error || packages.error || categories.error || modules.error || workspaces.error || recommendations.error || capabilities.error || reputation.error || (canManageTeamRoster ? members.error : null) || createTeam.error || createCapability.error || addMember.error || addReputation.error}
+      />
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 330px' }, gap: 2.5 }}>
+        <Stack spacing={2.5}>
           <Surface>
-            <Box component="form" onSubmit={submit}>
-              <Stack spacing={2}>
-                <TextInput label="Team name" value={teamForm.values.name} onChange={(name) => teamForm.setValue('name', name)} />
-                <TextInput label="Description" value={teamForm.values.description} onChange={(description) => teamForm.setValue('description', description)} multiline />
-                <TextInput label="Timezone" value={teamForm.values.timezone} onChange={(timezone) => teamForm.setValue('timezone', timezone)} />
-                <TextInput label="Capabilities" value={teamForm.values.capabilitiesSummary} onChange={(capabilitiesSummary) => teamForm.setValue('capabilitiesSummary', capabilitiesSummary)} multiline />
-                <TextInput label="Typical project size" value={teamForm.values.typicalProjectSize} onChange={(typicalProjectSize) => teamForm.setValue('typicalProjectSize', typicalProjectSize)} />
-                <TextField
-                  select
-                  fullWidth
-                  label="Verification"
-                  value={teamForm.values.verificationStatus}
-                  onChange={(event) => teamForm.setValue('verificationStatus', event.target.value as Team['verificationStatus'])}
-                >
-                  {statuses.map((status) => (
-                    <MenuItem key={status} value={status}>
-                      {status.replaceAll('_', ' ').toLowerCase()}
-                    </MenuItem>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ md: 'center' }}>
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ md: 'center' }}>
+                <Typography color="text.secondary" sx={{ fontWeight: 800 }}>Top teams matched for</Typography>
+                <TextField select size="small" value={selectedPackageId} onChange={(event) => setSelectedPackageId(event.target.value)} sx={{ minWidth: 280 }}>
+                  {packageList.map((item) => (
+                    <MenuItem key={item.id} value={item.id}>{item.productProfile?.name || item.name}</MenuItem>
                   ))}
                 </TextField>
-                <SaveButton disabled={!teamForm.values.name || createTeam.isPending} label="Create team" />
               </Stack>
-            </Box>
+              <PastelChip label="Adjust requirements" accent={appleColors.purple} />
+            </Stack>
           </Surface>
-          {teamList.length ? (
+
+          <Surface>
+            <Stack spacing={0}>
+              {matchedTeams.length ? (
+                matchedTeams.slice(0, 6).map((recommendation, index) => {
+                  const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
+                  const score = Math.round(recommendation.score * 100);
+
+                  return (
+                    <Box
+                      key={recommendation.team.id}
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', lg: '70px 92px 1.4fr 1.6fr auto' },
+                        gap: 1.5,
+                        alignItems: 'center',
+                        py: 2,
+                        borderTop: index === 0 ? 0 : '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <Typography sx={{ fontWeight: 900, color: 'text.secondary' }}>{index + 1}</Typography>
+                      <ProgressRing value={score} size={72} color={score >= 90 ? appleColors.green : score >= 75 ? appleColors.purple : appleColors.amber} label="match" />
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Box sx={{ width: 46, height: 46, borderRadius: 1, bgcolor: palette.bg, color: palette.accent, display: 'grid', placeItems: 'center', fontWeight: 900 }}>
+                          {recommendation.team.name.charAt(0)}
+                        </Box>
+                        <Box>
+                          <Typography variant="h4">{recommendation.team.name}</Typography>
+                          <Typography variant="body2" color="text.secondary">{recommendation.team.timezone || recommendation.team.typicalProjectSize}</Typography>
+                          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
+                            <PastelChip label={formatLabel(recommendation.team.verificationStatus)} accent={palette.accent} bg={palette.bg} />
+                            <PastelChip label={recommendation.team.typicalProjectSize || 'Available'} accent={appleColors.green} />
+                          </Stack>
+                        </Box>
+                      </Stack>
+                      <Box>
+                        <Typography sx={{ fontWeight: 800, mb: 0.75 }}>Why this team?</Typography>
+                        <Stack spacing={0.5}>
+                          {recommendation.reasons.slice(0, 3).map((reason) => (
+                            <DotLabel key={reason} label={reason} color={appleColors.green} />
+                          ))}
+                        </Stack>
+                      </Box>
+                      <Stack spacing={1}>
+                        <Button variant="outlined" size="small" startIcon={<TuneOutlined />}>Compare</Button>
+                        <Button variant="outlined" size="small" startIcon={<BookmarkBorderOutlined />}>Shortlist</Button>
+                        <Button variant="contained" size="small" onClick={() => setSelectedTeamId(recommendation.team.id)}>Inspect</Button>
+                      </Stack>
+                    </Box>
+                  );
+                })
+              ) : (
+                <EmptyState label="No teams have been added yet." />
+              )}
+            </Stack>
+          </Surface>
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '380px 1fr' }, gap: 2.5 }}>
             <Surface>
-              <Stack spacing={1}>
-                {teamList.map((team) => (
-                  <Button
-                    key={team.id}
-                    variant={selectedTeam?.id === team.id ? 'contained' : 'outlined'}
-                    color={selectedTeam?.id === team.id ? 'primary' : 'inherit'}
-                    onClick={() => setSelectedTeamId(team.id)}
-                    sx={{ justifyContent: 'space-between', textAlign: 'left' }}
-                  >
-                    <span>{team.name}</span>
-                    <span>{team.verificationStatus.replaceAll('_', ' ').toLowerCase()}</span>
-                  </Button>
-                ))}
-              </Stack>
-            </Surface>
-          ) : (
-            <EmptyState label="No teams have been added yet." />
-          )}
-        </Stack>
-        <Surface>
-          {selectedTeam ? (
-            <Stack spacing={2.5}>
-              <Box>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between">
-                  <Typography variant="h3">{selectedTeam.name}</Typography>
-                  <StatusChip label={selectedTeam.verificationStatus} />
-                </Stack>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {selectedTeam.capabilitiesSummary || selectedTeam.description || 'No capabilities described yet.'}
-                </Typography>
-              </Box>
-              <Box component="form" onSubmit={submitCapability}>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Category"
-                    value={capabilityForm.values.serviceCategoryId}
-                    onChange={(event) => {
-                      capabilityForm.setValue('serviceCategoryId', event.target.value);
-                      capabilityForm.setValue('serviceModuleId', null);
-                    }}
-                  >
-                    {(categories.data || []).map((category) => (
-                      <MenuItem key={category.id} value={category.id}>
-                        {category.name}
-                      </MenuItem>
+              <SectionTitle title="Create Team" action={<ManageAccountsOutlined sx={{ color: appleColors.purple }} />} />
+              <Box component="form" onSubmit={submit}>
+                <Stack spacing={1.5}>
+                  <TextInput label="Team name" value={teamForm.values.name} onChange={(name) => teamForm.setValue('name', name)} />
+                  <TextInput label="Description" value={teamForm.values.description} onChange={(description) => teamForm.setValue('description', description)} multiline />
+                  <TextInput label="Location / timezone" value={teamForm.values.timezone} onChange={(timezone) => teamForm.setValue('timezone', timezone)} />
+                  <TextInput label="Capabilities" value={teamForm.values.capabilitiesSummary} onChange={(capabilitiesSummary) => teamForm.setValue('capabilitiesSummary', capabilitiesSummary)} multiline />
+                  <TextInput label="Typical project size" value={teamForm.values.typicalProjectSize} onChange={(typicalProjectSize) => teamForm.setValue('typicalProjectSize', typicalProjectSize)} />
+                  <TextField select fullWidth label="Verification" value={teamForm.values.verificationStatus} onChange={(event) => teamForm.setValue('verificationStatus', event.target.value as Team['verificationStatus'])}>
+                    {statuses.map((status) => (
+                      <MenuItem key={status} value={status}>{formatLabel(status)}</MenuItem>
                     ))}
                   </TextField>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Module"
-                    value={capabilityForm.values.serviceModuleId || ''}
-                    onChange={(event) => capabilityForm.setValue('serviceModuleId', event.target.value || null)}
-                  >
-                    <MenuItem value="">Category level</MenuItem>
-                    {(modules.data || [])
-                      .filter((module) => !capabilityForm.values.serviceCategoryId || module.category?.id === capabilityForm.values.serviceCategoryId)
-                      .map((module) => (
-                        <MenuItem key={module.id} value={module.id}>
-                          {module.name}
-                        </MenuItem>
-                      ))}
-                  </TextField>
-                  <Button type="submit" variant="outlined" disabled={!capabilityForm.values.serviceCategoryId || createCapability.isPending}>
-                    Add
-                  </Button>
+                  <SaveButton disabled={!teamForm.values.name || createTeam.isPending} label="Create team" />
                 </Stack>
               </Box>
-              <Stack spacing={1.5}>
-                {canManageTeamRoster && (
-                <Box>
-                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between">
-                    <Typography variant="h4">Members</Typography>
-                    <Box component="form" onSubmit={submitMember} sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      <TextField
-                        size="small"
-                        label="Email"
-                        value={memberForm.values.email}
-                        onChange={(event) => memberForm.setValue('email', event.target.value)}
-                      />
+            </Surface>
+
+            <Surface>
+              <SectionTitle title={selectedTeam?.name || 'Team Profile'} action={selectedTeam && <StatusChip label={selectedTeam.verificationStatus} color="success" />} />
+              {selectedTeam ? (
+                <Stack spacing={2.5}>
+                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+                    <ProgressRing value={verificationScore(selectedTeam)} size={88} color={appleColors.cyan} label="profile" />
+                    <Box>
+                      <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                        {selectedTeam.capabilitiesSummary || selectedTeam.description || 'No capabilities described yet.'}
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Box component="form" onSubmit={submitCapability}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr auto' }, gap: 1 }}>
                       <TextField
                         select
                         size="small"
-                        label="Role"
-                        value={memberForm.values.role}
-                        onChange={(event) => memberForm.setValue('role', event.target.value as TeamMember['role'])}
-                        sx={{ minWidth: 180 }}
+                        label="Category"
+                        value={capabilityForm.values.serviceCategoryId}
+                        onChange={(event) => {
+                          capabilityForm.setValue('serviceCategoryId', event.target.value);
+                          capabilityForm.setValue('serviceModuleId', null);
+                        }}
                       >
-                        {memberRoles.map((role) => (
-                          <MenuItem key={role} value={role}>
-                            {role.replaceAll('_', ' ').toLowerCase()}
-                          </MenuItem>
+                        {(categories.data || []).map((category) => (
+                          <MenuItem key={category.id} value={category.id}>{category.name}</MenuItem>
                         ))}
                       </TextField>
-                      <Button type="submit" variant="outlined" disabled={!memberForm.values.email || addMember.isPending}>
-                        Add
-                      </Button>
+                      <TextField select size="small" label="Module" value={capabilityForm.values.serviceModuleId || ''} onChange={(event) => capabilityForm.setValue('serviceModuleId', event.target.value || null)}>
+                        <MenuItem value="">Category level</MenuItem>
+                        {(modules.data || [])
+                          .filter((module) => !capabilityForm.values.serviceCategoryId || module.category?.id === capabilityForm.values.serviceCategoryId)
+                          .map((module) => (
+                            <MenuItem key={module.id} value={module.id}>{module.name}</MenuItem>
+                          ))}
+                      </TextField>
+                      <Button type="submit" variant="outlined" disabled={!capabilityForm.values.serviceCategoryId || createCapability.isPending}>Add</Button>
                     </Box>
-                  </Stack>
-                  <Stack spacing={1} sx={{ mt: 1.5 }}>
-                    {members.data?.length ? (
-                      members.data.map((member) => (
-                        <Stack
-                          key={member.id}
-                          direction={{ xs: 'column', md: 'row' }}
-                          spacing={1}
-                          justifyContent="space-between"
-                          sx={{ borderTop: 1, borderColor: 'divider', pt: 1 }}
-                        >
-                          <Typography variant="body2">{member.user.email}</Typography>
-                          <Typography variant="body2" color={member.active ? 'text.secondary' : 'error.main'}>
-                            {member.active ? member.role.replaceAll('_', ' ').toLowerCase() : 'inactive'}
-                          </Typography>
-                        </Stack>
-                      ))
+                  </Box>
+
+                  <Box>
+                    <SectionTitle title="Verified Capabilities" />
+                    {capabilities.data?.length ? (
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        {capabilities.data.map((capability) => (
+                          <PastelChip
+                            key={capability.id}
+                            label={capability.serviceModule?.name || capability.serviceCategory.name}
+                            accent={appleColors.cyan}
+                          />
+                        ))}
+                      </Stack>
                     ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        Add specialists and advisors so this team can be staffed into workspaces.
-                      </Typography>
+                      <Typography variant="body2" color="text.secondary">Add service capabilities so packages can recommend this team.</Typography>
                     )}
-                  </Stack>
-                </Box>
-                )}
-                <Box>
-                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between">
-                    <Typography variant="h4">Reputation</Typography>
-                    {canCreateReputation && (
-                      <Box component="form" onSubmit={submitReputation} sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        <TextField
-                          select
-                          size="small"
-                          label="Workspace"
-                          value={reputationForm.values.workspaceId}
-                          onChange={(event) => reputationForm.setValue('workspaceId', event.target.value)}
-                          sx={{ minWidth: 210 }}
-                        >
-                          {(workspaces.data || []).map((workspace) => (
-                            <MenuItem key={workspace.id} value={workspace.id}>
-                              {workspace.name}
-                            </MenuItem>
+                  </Box>
+
+                  {canManageTeamRoster && (
+                    <Box>
+                      <SectionTitle title="Members" />
+                      <Box component="form" onSubmit={submitMember} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 190px auto' }, gap: 1, mb: 1.5 }}>
+                        <TextField size="small" label="Email" value={memberForm.values.email} onChange={(event) => memberForm.setValue('email', event.target.value)} />
+                        <TextField select size="small" label="Role" value={memberForm.values.role} onChange={(event) => memberForm.setValue('role', event.target.value as TeamMember['role'])}>
+                          {memberRoles.map((role) => (
+                            <MenuItem key={role} value={role}>{formatLabel(role)}</MenuItem>
                           ))}
                         </TextField>
-                        <TextField
-                          size="small"
-                          type="number"
-                          label="Rating"
-                          value={reputationForm.values.rating}
-                          onChange={(event) => reputationForm.setValue('rating', Number(event.target.value))}
-                          inputProps={{ min: 1, max: 5 }}
-                          sx={{ width: 110 }}
-                        />
-                        <TextField
-                          size="small"
-                          label="Notes"
-                          value={reputationForm.values.notes}
-                          onChange={(event) => reputationForm.setValue('notes', event.target.value)}
-                        />
-                        <Button type="submit" variant="outlined" disabled={!reputationForm.values.workspaceId || addReputation.isPending}>
-                          Add
-                        </Button>
+                        <Button type="submit" variant="outlined" disabled={!memberForm.values.email || addMember.isPending}>Add</Button>
+                      </Box>
+                      <Stack spacing={1}>
+                        {members.data?.map((member) => (
+                          <Stack key={member.id} direction="row" justifyContent="space-between" sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
+                            <Typography variant="body2">{member.user.email}</Typography>
+                            <Typography variant="body2" color="text.secondary">{formatLabel(member.role)}</Typography>
+                          </Stack>
+                        ))}
+                      </Stack>
+                    </Box>
+                  )}
+
+                  <Box>
+                    <SectionTitle title="Reputation" />
+                    {canCreateReputation && (
+                      <Box component="form" onSubmit={submitReputation} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 110px 1fr auto' }, gap: 1, mb: 1.5 }}>
+                        <TextField select size="small" label="Workspace" value={reputationForm.values.workspaceId} onChange={(event) => reputationForm.setValue('workspaceId', event.target.value)}>
+                          {(workspaces.data || []).map((workspace) => (
+                            <MenuItem key={workspace.id} value={workspace.id}>{workspace.name}</MenuItem>
+                          ))}
+                        </TextField>
+                        <TextField size="small" type="number" label="Rating" value={reputationForm.values.rating} onChange={(event) => reputationForm.setValue('rating', Number(event.target.value))} inputProps={{ min: 1, max: 5 }} />
+                        <TextField size="small" label="Notes" value={reputationForm.values.notes} onChange={(event) => reputationForm.setValue('notes', event.target.value)} />
+                        <Button type="submit" variant="outlined" disabled={!reputationForm.values.workspaceId || addReputation.isPending}>Add</Button>
                       </Box>
                     )}
-                  </Stack>
-                  <Stack spacing={1} sx={{ mt: 1.5 }}>
-                    {reputation.data?.length ? (
-                      reputation.data.map((event) => (
-                        <Box key={event.id} sx={{ borderTop: 1, borderColor: 'divider', pt: 1 }}>
-                          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between">
-                            <Typography variant="body2">
-                              {event.rating}/5 · {event.eventType.replaceAll('_', ' ').toLowerCase()}
-                            </Typography>
-                            <Typography variant="caption" color={event.verified ? 'success.main' : 'text.secondary'}>
-                              {event.verified ? 'verified' : 'unverified'}
-                            </Typography>
+                    <Stack spacing={1}>
+                      {reputation.data?.length ? (
+                        reputation.data.map((event) => (
+                          <Stack key={event.id} direction="row" justifyContent="space-between" sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
+                            <Typography variant="body2">{event.rating}/5 · {formatLabel(event.eventType)}</Typography>
+                            <Typography variant="body2" color={event.verified ? 'success.main' : 'text.secondary'}>{event.verified ? 'Verified' : 'Unverified'}</Typography>
                           </Stack>
-                          {event.notes && (
-                            <Typography variant="caption" color="text.secondary">
-                              {event.notes}
-                            </Typography>
-                          )}
-                        </Box>
-                      ))
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        Reputation events appear after workspace-backed owner reviews.
-                      </Typography>
-                    )}
+                        ))
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">Reputation events appear after workspace-backed owner reviews.</Typography>
+                      )}
+                    </Stack>
+                  </Box>
+                </Stack>
+              ) : (
+                <EmptyState label="Create or select a team to manage capabilities." />
+              )}
+            </Surface>
+          </Box>
+        </Stack>
+
+        <Stack spacing={2.5}>
+          <Surface>
+            <SectionTitle title="Your Shortlist" action={<VerifiedOutlined sx={{ color: appleColors.purple }} />} />
+            <Stack spacing={1.5}>
+              {matchedTeams.slice(0, 3).map((item, index) => {
+                const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
+                return (
+                  <Stack key={item.team.id} direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+                    <Stack direction="row" spacing={1.25} alignItems="center">
+                      <Typography sx={{ fontWeight: 900 }}>{index + 1}</Typography>
+                      <Box sx={{ width: 34, height: 34, borderRadius: 1, bgcolor: `${palette.accent}14`, color: palette.accent, display: 'grid', placeItems: 'center', fontWeight: 900 }}>
+                        {item.team.name.charAt(0)}
+                      </Box>
+                      <Typography sx={{ fontWeight: 800 }}>{item.team.name}</Typography>
+                    </Stack>
+                    <Typography color="success.main" sx={{ fontWeight: 800 }}>{Math.round(item.score * 100)}%</Typography>
                   </Stack>
-                </Box>
-                {capabilities.data?.length ? (
-                  capabilities.data.map((capability) => (
-                    <Box key={capability.id} sx={{ borderTop: 1, borderColor: 'divider', pt: 1.5 }}>
-                      <Typography variant="subtitle1">
-                        {capability.serviceModule?.name || capability.serviceCategory.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {capability.notes || capability.evidenceUrl || 'Verified capability coverage.'}
-                      </Typography>
-                    </Box>
-                  ))
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    Add service capabilities so packages can recommend this team.
-                  </Typography>
-                )}
-              </Stack>
+                );
+              })}
             </Stack>
-          ) : (
-            <Typography color="text.secondary">Create or select a team to manage capabilities.</Typography>
-          )}
-        </Surface>
+          </Surface>
+
+          <Surface>
+            <SectionTitle title="Match Summary" />
+            <Stack direction="row" spacing={2} alignItems="center">
+              <ProgressRing value={avgMatch} size={92} color={appleColors.purple} label="avg" />
+              <Box>
+                <Typography variant="h4">Average Match</Typography>
+                <Typography color="text.secondary">Top teams average</Typography>
+              </Box>
+            </Stack>
+            <Stack spacing={1} sx={{ mt: 2 }}>
+              <DotLabel label="Excellent (90%+)" color={appleColors.green} />
+              <DotLabel label="Great (80-89%)" color={appleColors.purple} />
+              <DotLabel label="Fair (60-79%)" color={appleColors.amber} />
+            </Stack>
+          </Surface>
+
+          <Surface sx={{ background: '#f4fdfe' }}>
+            <SectionTitle title="How We Match" />
+            <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
+              Matching combines package modules, catalog categories, verification status, capability evidence, and workspace reputation.
+            </Typography>
+          </Surface>
+        </Stack>
       </Box>
     </>
   );

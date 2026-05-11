@@ -9,12 +9,9 @@ import { useEffect, useMemo, FC, ReactNode } from 'react';
 import { LAYOUT_CONST } from 'constant';
 import useConfig from 'hooks/useConfig';
 import { drawerWidth } from 'constants/index';
-import Breadcrumbs from 'ui-component/extended/Breadcrumbs';
 
 // Using Context API
 import { useMenuState, useMenuActions } from 'contexts/MenuContext';
-
-import Customization from '../Customization';
 
 import Header from './Header';
 import HorizontalBar from './HorizontalBar';
@@ -56,7 +53,7 @@ const Main = styled('main', {
     },
   }),
   [theme.breakpoints.down('md')]: {
-    marginLeft: '20px',
+    marginLeft: 0,
     padding: '16px',
     marginTop: 88,
     ...(!$open && {
@@ -64,8 +61,8 @@ const Main = styled('main', {
     }),
   },
   [theme.breakpoints.down('sm')]: {
-    marginLeft: '10px',
-    marginRight: '10px',
+    marginLeft: 0,
+    marginRight: 0,
     padding: '16px',
     marginTop: 88,
     ...(!$open && {
@@ -133,7 +130,11 @@ const MainLayout: FC<Props> = ({ children }) => {
         position="fixed"
         color="inherit"
         elevation={0}
-        sx={{ bgcolor: theme.palette.background.default }}
+        sx={{
+          bgcolor: 'rgba(255, 255, 255, 0.86)',
+          backdropFilter: 'blur(18px)',
+          borderBottom: '1px solid #dbe4f0',
+        }}
       >
         {header}
       </AppBar>
@@ -150,12 +151,9 @@ const MainLayout: FC<Props> = ({ children }) => {
           maxWidth={container ? 'lg' : false}
           {...(!container && { sx: { px: { xs: 0 } } })}
         >
-          {/* breadcrumb */}
-          <Breadcrumbs />
           {children}
         </Container>
       </Main>
-      <Customization />
     </Box>
   );
 };

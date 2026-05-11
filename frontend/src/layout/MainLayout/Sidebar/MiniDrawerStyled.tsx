@@ -7,9 +7,9 @@ import { drawerWidth } from 'constants/index';
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,
-  borderRight: 'none',
+  borderRight: '1px solid #dbe4f0',
   zIndex: 1099,
-  background: theme.palette.background.default,
+  background: '#fff',
   overflowX: 'hidden',
   boxShadow: theme.palette.mode === 'dark' ? theme.customShadows.z1 : 'none',
   transition: theme.transitions.create('width', {
@@ -21,7 +21,7 @@ const openedMixin = (theme: Theme): CSSObject => ({
 const closedMixin = (theme: Theme): CSSObject => ({
   borderRight: 'none',
   zIndex: 1099,
-  background: theme.palette.background.default,
+  background: '#fff',
   overflowX: 'hidden',
   width: 72,
   transition: theme.transitions.create('width', {

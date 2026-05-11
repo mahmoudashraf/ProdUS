@@ -70,12 +70,15 @@ public class UsersFeedService {
             Optional<User> existingUser = userRepository.findByEmail(email);
             if (existingUser.isPresent()) {
                 User user = existingUser.get();
-                // If UUID is different, delete and recreate (JPA doesn't allow changing primary key)
+                // Keep existing primary keys stable; mock auth resolves database users by email.
                 if (!user.getId().equals(deterministicId)) {
-                    log.debug("Recreating user {} with correct UUID (old: {}, new: {})", email, user.getId(), deterministicId);
-                    userRepository.delete(user);
-                    User newUser = createUserFromMockData(userData);
-                    userRepository.save(newUser);
+                    log.debug("Updating existing mock user {} without changing primary key {}", email, user.getId());
+                    user.setFirstName(userData.firstName);
+                    user.setLastName(userData.lastName);
+                    user.setRole(userData.role);
+                    user.setSupabaseId("mock-supabase-" + email.replace("@", "-").replace(".", "-"));
+                    user.setUpdatedAt(LocalDateTime.now());
+                    userRepository.save(user);
                     updatedCount++;
                 } else {
                     log.debug("User with email {} already exists with correct UUID, skipping", email);

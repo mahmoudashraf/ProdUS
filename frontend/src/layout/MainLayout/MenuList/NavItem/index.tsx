@@ -56,7 +56,7 @@ const NavItem = ({ item, level, parentId, isParents = false }: NavItemProps) => 
       stroke={1.5}
       size={drawerOpen ? '20px' : '24px'}
       style={{
-        color: isSelected ? theme.palette.secondary.main : theme.palette.text.primary,
+        color: isSelected ? theme.palette.primary.main : theme.palette.text.primary,
         ...(layout === LAYOUT_CONST.HORIZONTAL_LAYOUT &&
           isParents && { fontSize: 20, stroke: '1.5' }),
       }}
@@ -64,7 +64,7 @@ const NavItem = ({ item, level, parentId, isParents = false }: NavItemProps) => 
   ) : (
     <FiberManualRecordIcon
       sx={{
-        color: isSelected ? theme.palette.secondary.main : theme.palette.text.primary,
+        color: isSelected ? theme.palette.primary.main : theme.palette.text.primary,
         width: selectedItem.findIndex(id => id === item?.id) > -1 ? 8 : 6,
         height: selectedItem.findIndex(id => id === item?.id) > -1 ? 8 : 6,
       }}
@@ -93,7 +93,7 @@ const NavItem = ({ item, level, parentId, isParents = false }: NavItemProps) => 
 
   const textColor = theme.palette.mode === 'dark' ? 'grey.400' : 'text.primary';
   const iconSelectedColor =
-    theme.palette.mode === 'dark' && drawerOpen ? 'text.primary' : 'secondary.main';
+    theme.palette.mode === 'dark' && drawerOpen ? 'text.primary' : 'primary.main';
 
   return (
     <>
@@ -113,14 +113,14 @@ const NavItem = ({ item, level, parentId, isParents = false }: NavItemProps) => 
               level === 1 &&
               theme.palette.mode !== 'dark' && {
                 '&:hover': {
-                  background: theme.palette.secondary.light,
+                  background: '#f1efff',
                 },
                 '&.Mui-selected': {
-                  background: theme.palette.secondary.light,
+                  background: '#f1efff',
                   color: iconSelectedColor,
                   '&:hover': {
                     color: iconSelectedColor,
-                    background: theme.palette.secondary.light,
+                    background: '#f1efff',
                   },
                 },
               }),

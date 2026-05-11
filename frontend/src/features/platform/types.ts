@@ -54,6 +54,8 @@ export interface RequirementIntake extends BaseRecord {
 }
 
 export interface PackageInstance extends BaseRecord {
+  productProfile?: ProductProfile;
+  requirementIntake?: RequirementIntake;
   name: string;
   summary?: string;
   status:

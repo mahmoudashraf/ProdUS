@@ -1,6 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import {
+  CalendarMonthOutlined,
+  ErrorOutlineOutlined,
+  FactCheckOutlined,
+  TaskAltOutlined,
+} from '@mui/icons-material';
 import { Alert, Box, Button, LinearProgress, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
@@ -9,7 +15,19 @@ import { UserRole } from '@/types/auth';
 import FileUpload from '@/components/ui-component/FileUpload';
 import { uploadService } from '@/services/uploadService';
 import { getJson, postJson, putJson } from './api';
-import { EmptyState, PageHeader, QueryState, StatusChip, Surface } from './PlatformComponents';
+import {
+  DotLabel,
+  EmptyState,
+  MetricTile,
+  PageHeader,
+  PastelChip,
+  ProgressRing,
+  QueryState,
+  StatusChip,
+  Surface,
+  appleColors,
+  formatLabel,
+} from './PlatformComponents';
 import {
   AttachmentScope,
   AttachmentDownloadUrl,
@@ -153,6 +171,14 @@ const formatMoney = (amountCents: number, currency: string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format((amountCents || 0) / 100);
 
 const attachmentKey = (scopeType: AttachmentScope, scopeId: string) => `${scopeType}:${scopeId}`;
+
+const workspaceAccent = (status?: string) => {
+  if (!status) return appleColors.purple;
+  if (status.includes('BLOCK')) return appleColors.red;
+  if (status.includes('REVIEW') || status.includes('NEGOTIATION') || status.includes('AWAITING')) return appleColors.amber;
+  if (status.includes('ACTIVE') || status.includes('DELIVER') || status.includes('SUPPORT')) return appleColors.green;
+  return appleColors.purple;
+};
 
 const formatFileSize = (sizeBytes: number) => {
   if (sizeBytes >= 1024 * 1024) {
@@ -602,14 +628,51 @@ export default function WorkspacesPage() {
       </Stack>
     );
   };
+  const activeWorkspaceCount = workspaceList.filter((workspace) => workspace.status === 'ACTIVE_DELIVERY').length;
+  const blockedWorkspaceCount = workspaceList.filter((workspace) => workspace.status === 'BLOCKED').length;
+  const completedMilestones = milestoneList.filter((milestone) => milestone.status === 'ACCEPTED').length;
+  const blockedSupportCount = (supportRequests.data || []).filter(
+    (request) => request.priority === 'URGENT' || request.slaStatus === 'OVERDUE' || request.slaStatus === 'ESCALATED'
+  ).length;
+  const workspaceProgress = milestoneList.length
+    ? Math.round((completedMilestones / milestoneList.length) * 100)
+    : selectedWorkspace?.status === 'ACTIVE_DELIVERY'
+      ? 58
+      : 0;
 
   return (
     <>
-      <PageHeader title="Workspaces" description="Coordinate package execution through milestones, deliverables, decisions, and handoff." />
+      <PageHeader title="Active Deliveries" description="Track milestone progress, deadlines, blocked work, evidence, support, and handoff readiness across productization workspaces." />
       <QueryState
         isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || supportSubscriptions.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading}
         error={packages.error || workspaces.error || teams.error || supportSubscriptions.error || supportRequests.error || milestones.error || deliverables.error || participants.error || disputes.error || attachments.error || createWorkspace.error || createMilestone.error || createDeliverable.error || addParticipant.error || createSupportSubscription.error || createSupportRequest.error || updateSupportRequestStatus.error || createDispute.error || updateDisputeStatus.error || uploadAttachment.error}
       />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 2, mb: 2.5 }}>
+        <MetricTile label="Active projects" value={activeWorkspaceCount} detail={`${workspaceList.length} total workspaces`} accent={appleColors.cyan} icon={<FactCheckOutlined />} />
+        <MetricTile label="On-track milestones" value={completedMilestones} detail={`${milestoneList.length} in selected workspace`} accent={appleColors.green} icon={<TaskAltOutlined />} />
+        <MetricTile label="Blocked items" value={blockedWorkspaceCount + blockedSupportCount} detail="Workspace or SLA blockers" accent={appleColors.red} icon={<ErrorOutlineOutlined />} />
+        <MetricTile label="Upcoming deadlines" value={milestoneList.filter((milestone) => milestone.dueDate).length} detail="Dated milestones" accent={appleColors.purple} icon={<CalendarMonthOutlined />} />
+      </Box>
+      {selectedWorkspace && (
+        <Surface sx={{ mb: 2.5 }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }} justifyContent="space-between">
+            <Stack direction="row" spacing={2} alignItems="center">
+              <ProgressRing value={workspaceProgress} size={82} color={workspaceAccent(selectedWorkspace.status)} label="progress" />
+              <Box>
+                <Typography variant="h3">{selectedWorkspace.name}</Typography>
+                <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                  {selectedWorkspace.packageInstance?.name || 'Workspace package'} · {milestoneList.length} milestones · {deliverables.data?.length || 0} deliverables in focus
+                </Typography>
+              </Box>
+            </Stack>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <StatusChip label={selectedWorkspace.status} />
+              {selectedMilestone && <PastelChip label={`Next: ${selectedMilestone.title}`} accent={workspaceAccent(selectedMilestone.status)} />}
+              <DotLabel label={formatLabel(selectedWorkspace.status)} color={workspaceAccent(selectedWorkspace.status)} />
+            </Stack>
+          </Stack>
+        </Surface>
+      )}
       {attachmentOpenError && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setAttachmentOpenError('')}>
           {attachmentOpenError}

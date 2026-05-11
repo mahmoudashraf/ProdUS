@@ -100,15 +100,15 @@ const Palette = (navType: PaletteMode, presetColor: string) => {
         900: colors.darkPaper || '#121212',
       },
       text: {
-        primary: navType === 'dark' ? (colors.darkTextPrimary || '#ffffff') : (colors.grey700 || '#616161'),
-        secondary: navType === 'dark' ? (colors.darkTextSecondary || '#9e9e9e') : (colors.grey500 || '#9e9e9e'),
-        dark: navType === 'dark' ? (colors.darkTextPrimary || '#ffffff') : (colors.grey900 || '#212121'),
+        primary: navType === 'dark' ? (colors.darkTextPrimary || '#ffffff') : '#1f2937',
+        secondary: navType === 'dark' ? (colors.darkTextSecondary || '#9e9e9e') : '#64748b',
+        dark: navType === 'dark' ? (colors.darkTextPrimary || '#ffffff') : '#101828',
         hint: colors.grey100 || '#f5f5f5',
       },
-      divider: navType === 'dark' ? (colors.darkTextPrimary || '#424242') : (colors.grey200 || '#eeeeee'),
+      divider: navType === 'dark' ? (colors.darkTextPrimary || '#424242') : '#dbe4f0',
       background: {
         paper: navType === 'dark' ? (colors.darkLevel2 || '#1e1e1e') : (colors.paper || '#ffffff'),
-        default: navType === 'dark' ? (colors.darkPaper || '#121212') : (colors.paper || '#ffffff'),
+        default: navType === 'dark' ? (colors.darkPaper || '#121212') : '#f8fafc',
       },
     },
   });

@@ -3,7 +3,7 @@ import { Theme, TypographyVariantsOptions } from '@mui/material/styles';
 
 const Typography = (
   theme: Theme,
-  borderRadius: number,
+  _borderRadius: number,
   fontFamily: string
 ): TypographyVariantsOptions => ({
   fontFamily,
@@ -19,23 +19,25 @@ const Typography = (
   },
   h4: {
     fontSize: '1rem',
-    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : theme.palette.grey[900],
+    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#101828',
     fontWeight: 600,
   },
   h3: {
-    fontSize: '1.25rem',
-    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : theme.palette.grey[900],
-    fontWeight: 600,
+    fontSize: '1.375rem',
+    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#101828',
+    fontWeight: 700,
   },
   h2: {
-    fontSize: '1.5rem',
-    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : theme.palette.grey[900],
-    fontWeight: 700,
+    fontSize: '2rem',
+    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#101828',
+    fontWeight: 800,
+    lineHeight: 1.15,
   },
   h1: {
-    fontSize: '2.125rem',
-    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : theme.palette.grey[900],
-    fontWeight: 700,
+    fontSize: '2.75rem',
+    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#101828',
+    fontWeight: 800,
+    lineHeight: 1.08,
   },
   subtitle1: {
     fontSize: '0.875rem',
@@ -89,14 +91,14 @@ const Typography = (
   } as any,
   mainContent: {
     backgroundColor:
-      theme.palette.mode === 'dark' ? theme.palette.dark[800] : theme.palette.grey[100],
+      theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#f8fafc',
     width: '100%',
     minHeight: 'calc(100vh - 88px)',
     flexGrow: 1,
-    padding: '20px',
+    padding: '28px',
     marginTop: '88px',
-    marginRight: '20px',
-    borderRadius: `${borderRadius}px`,
+    marginRight: 0,
+    borderRadius: 0,
   },
   menuCaption: {
     fontSize: '0.875rem',

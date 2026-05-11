@@ -26,10 +26,20 @@ const PopperStyle = styled(Popper, { shouldForwardProp })(({ theme }) => ({
 }));
 
 const OutlineInputStyle = styled(OutlinedInput, { shouldForwardProp })(({ theme }) => ({
-  width: 434,
+  width: 540,
   marginLeft: 16,
   paddingLeft: 16,
   paddingRight: 16,
+  height: 48,
+  borderRadius: 8,
+  background: '#fff',
+  boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)',
+  '& .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#dbe4f0',
+  },
+  '&:hover .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#b9c8dc',
+  },
   '& input': {
     background: 'transparent !important',
     paddingLeft: '4px !important',
@@ -75,7 +85,7 @@ const MobileSearch = ({ value, setValue, popupState }: Props) => {
       id="input-search-header"
       value={value}
       onChange={e => setValue(e.target.value)}
-      placeholder="Search"
+      placeholder="Search products, packages, teams..."
       startAdornment={
         <InputAdornment position="start">
           <IconSearch stroke={1.5} size="16px" color={theme.palette.grey[500]} />
@@ -178,7 +188,7 @@ const SearchSection = () => {
           id="input-search-header"
           value={value}
           onChange={e => setValue(e.target.value)}
-          placeholder="Search"
+          placeholder="Search products, packages, teams..."
           startAdornment={
             <InputAdornment position="start">
               <IconSearch stroke={1.5} size="16px" color={theme.palette.grey[500]} />

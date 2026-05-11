@@ -7,7 +7,7 @@ import Logo from 'ui-component/Logo';
 // ==============================|| MAIN LOGO ||============================== //
 
 const LogoSection = () => (
-  <NextLink href={DASHBOARD_PATH} aria-label="theme logo">
+  <NextLink href={DASHBOARD_PATH} aria-label="ProdOps Network home" style={{ color: 'inherit', textDecoration: 'none' }}>
     <Logo />
   </NextLink>
 );

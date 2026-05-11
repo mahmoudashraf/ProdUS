@@ -1,10 +1,59 @@
 'use client';
 
+import {
+  CloudQueueOutlined,
+  CodeOutlined,
+  HeadsetMicOutlined,
+  RocketLaunchOutlined,
+  SecurityOutlined,
+  StorageOutlined,
+  TaskAltOutlined,
+  TrendingUpOutlined,
+} from '@mui/icons-material';
 import { Box, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getJson } from './api';
-import { EmptyState, PageHeader, QueryState, Surface } from './PlatformComponents';
+import {
+  DotLabel,
+  EmptyState,
+  PageHeader,
+  PastelChip,
+  QueryState,
+  Surface,
+  appleColors,
+  categoryPalette,
+} from './PlatformComponents';
 import { ServiceCategory, ServiceModule } from './types';
+
+const iconBySlug = {
+  validation: TaskAltOutlined,
+  'code-rewrite-refactor': CodeOutlined,
+  scaling: TrendingUpOutlined,
+  'cloud-devops': CloudQueueOutlined,
+  database: StorageOutlined,
+  security: SecurityOutlined,
+  'launch-gtm-readiness': RocketLaunchOutlined,
+  'operations-support': HeadsetMicOutlined,
+};
+
+const demandBySlug: Record<string, { label: string; color: string }> = {
+  validation: { label: 'High demand', color: appleColors.purple },
+  'code-rewrite-refactor': { label: 'High demand', color: appleColors.blue },
+  scaling: { label: 'High demand', color: appleColors.amber },
+  'cloud-devops': { label: 'High demand', color: appleColors.cyan },
+  database: { label: 'Medium demand', color: appleColors.cyan },
+  security: { label: 'High demand', color: appleColors.red },
+  'launch-gtm-readiness': { label: 'New demand', color: appleColors.green },
+  'operations-support': { label: 'Medium demand', color: '#7c3aed' },
+};
+
+const shortModuleName = (name: string) =>
+  name
+    .replace(' rewrite/refactor', '')
+    .replace(' readiness', '')
+    .replace(' review', '')
+    .replace(' setup', '')
+    .replace(' and ', ' & ');
 
 export default function CatalogPage() {
   const categories = useQuery({
@@ -16,42 +65,103 @@ export default function CatalogPage() {
     queryFn: () => getJson<ServiceModule[]>('/catalog/modules'),
   });
 
+  const modulesByCategory = (modules.data || []).reduce<Record<string, ServiceModule[]>>((grouped, module) => {
+    const categoryId = module.category?.id || 'unknown';
+    grouped[categoryId] = [...(grouped[categoryId] || []), module];
+    return grouped;
+  }, {});
+  const catalogCategories = (categories.data || []).filter(
+    (category) => category.slug.trim().length > 2 && category.name.trim().length > 2
+  );
+
   return (
     <>
       <PageHeader
-        title="Service Catalog"
-        description="Structured productization outcomes with inputs, deliverables, dependencies, and acceptance criteria."
+        title="Service Categories"
+        description="Specialist workstreams for production-ready products, powered by the live catalog API and dependency-aware package builder."
       />
       <QueryState isLoading={categories.isLoading || modules.isLoading} error={categories.error || modules.error} />
-      {categories.data?.length ? (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '300px 1fr' }, gap: 2 }}>
-          <Stack spacing={1.5}>
-            {categories.data.map((category) => (
-              <Surface key={category.id}>
-                <Typography variant="h4">{category.name}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {category.description}
-                </Typography>
-              </Surface>
-            ))}
+      {catalogCategories.length ? (
+        <>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                xl: 'repeat(4, minmax(0, 1fr))',
+              },
+              gap: 2.5,
+            }}
+          >
+            {catalogCategories.map((category, index) => {
+              const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
+              const Icon = iconBySlug[category.slug as keyof typeof iconBySlug] || TaskAltOutlined;
+              const categoryModules = modulesByCategory[category.id] || [];
+              const demand = demandBySlug[category.slug] || { label: 'Available', color: palette.accent };
+
+              return (
+                <Surface
+                  key={category.id}
+                  sx={{
+                    minHeight: 270,
+                    borderTop: `3px solid ${palette.accent}`,
+                    background: `linear-gradient(145deg, #fff 0%, ${palette.soft} 100%)`,
+                  }}
+                >
+                  <Stack spacing={2}>
+                    <Box
+                      sx={{
+                        width: 58,
+                        height: 58,
+                        borderRadius: 1,
+                        display: 'grid',
+                        placeItems: 'center',
+                        bgcolor: palette.bg,
+                        color: palette.accent,
+                      }}
+                    >
+                      <Icon />
+                    </Box>
+                    <Box>
+                      <Typography variant="h3" sx={{ mb: 0.75 }}>
+                        {category.name}
+                      </Typography>
+                      <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
+                        {category.description || 'Production readiness workstream.'}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {categoryModules.slice(0, 4).map((module) => (
+                        <PastelChip
+                          key={module.id}
+                          label={shortModuleName(module.name)}
+                          accent={palette.accent}
+                          bg={palette.bg}
+                        />
+                      ))}
+                    </Stack>
+                    <DotLabel label={demand.label} color={demand.color} />
+                  </Stack>
+                </Surface>
+              );
+            })}
+          </Box>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2}
+            alignItems={{ xs: 'flex-start', md: 'center' }}
+            justifyContent="center"
+            sx={{ mt: 4, color: 'text.secondary' }}
+          >
+            <Typography>Responsive by design</Typography>
+            <Typography>4 columns desktop</Typography>
+            <Typography>2 columns tablet</Typography>
+            <Typography>1 column mobile</Typography>
           </Stack>
-          <Stack spacing={1.5}>
-            {modules.data?.map((module) => (
-              <Surface key={module.id}>
-                <Typography variant="h4">{module.name}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  {module.description}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Deliverables
-                </Typography>
-                <Typography variant="body2">{module.expectedDeliverables || 'Not defined yet.'}</Typography>
-              </Surface>
-            ))}
-          </Stack>
-        </Box>
+        </>
       ) : (
-        <EmptyState label="No service categories are available." />
+        <EmptyState label="No service categories are available. In local dev, call /api/mock/feed/platform-demo or restart the dev backend to seed the catalog." />
       )}
     </>
   );

@@ -3,6 +3,7 @@ package com.produs.controller;
 import com.produs.dto.UserDto;
 import com.produs.entity.User;
 import com.produs.service.MockUserService;
+import com.produs.service.PlatformDemoSeedService;
 import com.produs.service.UsersFeedService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -29,6 +30,7 @@ public class MockUserController {
 
     private final MockUserService mockUserService;
     private final UsersFeedService usersFeedService;
+    private final PlatformDemoSeedService platformDemoSeedService;
 
     @GetMapping("/users")
     @Operation(summary = "Get all mock users", description = "Returns a list of all available mock users for testing")
@@ -225,6 +227,33 @@ public class MockUserController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Failed to feed users to database", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/feed/platform-demo")
+    @Operation(summary = "Feed ProdUS platform demo data", description = "Loads catalog, products, packages, teams, workspaces, and support data for local UI review")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Platform demo data fed successfully"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<Map<String, Object>> feedPlatformDemoData() {
+        log.info("Feeding platform demo data");
+        try {
+            PlatformDemoSeedService.SeedSummary summary = platformDemoSeedService.feedDemoData();
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Platform demo data fed successfully");
+            response.put("categories", summary.categories());
+            response.put("modules", summary.modules());
+            response.put("products", summary.products());
+            response.put("packages", summary.packages());
+            response.put("teams", summary.teams());
+            response.put("workspaces", summary.workspaces());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to feed platform demo data", e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);

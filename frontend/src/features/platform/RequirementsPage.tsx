@@ -6,12 +6,17 @@ import { useAdvancedForm } from '@/hooks/enterprise';
 import { getJson, postJson } from './api';
 import {
   EmptyState,
+  MetricTile,
   PageHeader,
+  PastelChip,
+  ProgressRing,
   QueryState,
   SaveButton,
+  SectionTitle,
   StatusChip,
   Surface,
   TextInput,
+  appleColors,
 } from './PlatformComponents';
 import { ProductProfile, RequirementIntake, ServiceModule } from './types';
 
@@ -35,6 +40,13 @@ const initialRequirementValues: RequirementPayload = {
   riskSignals: '',
   requirementBrief: '',
   status: 'SUBMITTED',
+};
+
+const intakeScore = (status: RequirementIntake['status']) => {
+  if (status === 'PACKAGE_RECOMMENDED') return 88;
+  if (status === 'SUBMITTED') return 66;
+  if (status === 'CLOSED') return 100;
+  return 38;
 };
 
 export default function RequirementsPage() {
@@ -65,35 +77,32 @@ export default function RequirementsPage() {
   const submit = form.handleSubmit(() => {
     createRequirement.mutate();
   });
+  const requirementList = requirements.data || [];
+  const submittedCount = requirementList.filter((requirement) => requirement.status === 'SUBMITTED').length;
+  const packageReadyCount = requirementList.filter((requirement) => requirement.status === 'PACKAGE_RECOMMENDED').length;
 
   return (
     <>
-      <PageHeader title="Requirement Intake" description="Convert product pain into structured service and package inputs." />
+      <PageHeader title="Requirement Intake" description="Convert product pain into structured service needs, risk signals, and package-builder inputs." />
       <QueryState isLoading={products.isLoading || modules.isLoading || requirements.isLoading} error={products.error || modules.error || requirements.error || createRequirement.error} />
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '420px 1fr' }, gap: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 2, mb: 2.5 }}>
+        <MetricTile label="Intakes" value={requirementList.length} detail={`${products.data?.length || 0} products available`} accent={appleColors.purple} />
+        <MetricTile label="Submitted" value={submittedCount} detail="Ready for package composition" accent={appleColors.blue} />
+        <MetricTile label="Package ready" value={packageReadyCount} detail="AI-backed package generated" accent={appleColors.green} />
+      </Box>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '420px 1fr' }, gap: 2.5 }}>
         <Surface>
+          <SectionTitle title="New Intake" />
           <Box component="form" onSubmit={submit}>
             <Stack spacing={2}>
-              <TextField
-                select
-                fullWidth
-                label="Product"
-                value={form.values.productProfileId}
-                onChange={(event) => form.setValue('productProfileId', event.target.value)}
-              >
+              <TextField select fullWidth label="Product" value={form.values.productProfileId} onChange={(event) => form.setValue('productProfileId', event.target.value)}>
                 {(products.data || []).map((product) => (
                   <MenuItem key={product.id} value={product.id}>
                     {product.name}
                   </MenuItem>
                 ))}
               </TextField>
-              <TextField
-                select
-                fullWidth
-                label="Requested service"
-                value={form.values.requestedServiceModuleId ?? ''}
-                onChange={(event) => form.setValue('requestedServiceModuleId', event.target.value || null)}
-              >
+              <TextField select fullWidth label="Requested service" value={form.values.requestedServiceModuleId ?? ''} onChange={(event) => form.setValue('requestedServiceModuleId', event.target.value || null)}>
                 <MenuItem value="">No specific service yet</MenuItem>
                 {(modules.data || []).map((module) => (
                   <MenuItem key={module.id} value={module.id}>
@@ -110,23 +119,31 @@ export default function RequirementsPage() {
             </Stack>
           </Box>
         </Surface>
-        <Stack spacing={1.5}>
-          {requirements.data?.length ? (
-            requirements.data.map((requirement) => (
-              <Surface key={requirement.id}>
-                <Stack direction="row" spacing={2} justifyContent="space-between">
-                  <Typography variant="h4">{requirement.productProfile?.name || 'Product requirement'}</Typography>
+        <Surface>
+          <SectionTitle title="Intake Queue" action={<PastelChip label={`${requirementList.length} records`} accent={appleColors.purple} />} />
+          {requirementList.length ? (
+            <Stack spacing={0}>
+              {requirementList.map((requirement, index) => (
+                <Box key={requirement.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '82px 1fr auto' }, gap: 1.5, alignItems: 'center', py: 1.75, borderTop: index === 0 ? 0 : '1px solid', borderColor: 'divider' }}>
+                  <ProgressRing value={intakeScore(requirement.status)} size={66} color={requirement.status === 'PACKAGE_RECOMMENDED' ? appleColors.green : appleColors.amber} />
+                  <Box>
+                    <Typography variant="h4">{requirement.productProfile?.name || 'Product requirement'}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {requirement.businessGoal}
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                      {requirement.requestedServiceModule && <PastelChip label={requirement.requestedServiceModule.name} accent={appleColors.blue} />}
+                      {requirement.riskSignals && <PastelChip label="Risk signals captured" accent={appleColors.amber} />}
+                    </Stack>
+                  </Box>
                   <StatusChip label={requirement.status} />
-                </Stack>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {requirement.businessGoal}
-                </Typography>
-              </Surface>
-            ))
+                </Box>
+              ))}
+            </Stack>
           ) : (
             <EmptyState label="No requirement intakes have been submitted." />
           )}
-        </Stack>
+        </Surface>
       </Box>
     </>
   );

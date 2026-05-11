@@ -12,8 +12,6 @@ import { useMenuState, useMenuActions } from 'contexts/MenuContext';
 
 import LogoSection from '../LogoSection';
 
-import FullScreenSection from './FullScreenSection';
-import LocalizationSection from './LocalizationSection';
 import MobileSection from './MobileSection';
 import NotificationSection from './NotificationSection';
 import ProfileSection from './ProfileSection';
@@ -58,23 +56,12 @@ const Header = () => {
               ...theme.typography.mediumAvatar,
               overflow: 'hidden',
               transition: 'all .2s ease-in-out',
-              background:
-                theme.palette.mode === 'dark'
-                  ? theme.palette.dark.main
-                  : theme.palette.secondary.light,
-              color:
-                theme.palette.mode === 'dark'
-                  ? theme.palette.secondary.main
-                  : theme.palette.secondary.dark,
+              background: '#fff',
+              color: theme.palette.primary.main,
+              border: '1px solid #dbe4f0',
               '&:hover': {
-                background:
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.secondary.main
-                    : theme.palette.secondary.dark,
-                color:
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.secondary.light
-                    : theme.palette.secondary.light,
+                background: '#f1efff',
+                color: theme.palette.primary.main,
               },
             } as any}
             onClick={() => setDrawerOpen(!drawerOpen)}
@@ -88,20 +75,9 @@ const Header = () => {
       {/* header search */}
       <SearchSection />
       <Box sx={{ flexGrow: 1 }} />
-      <Box sx={{ flexGrow: 1 }} />
-
-      {/* live customization & localization */}
-      <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-        <LocalizationSection />
-      </Box>
 
       {/* notification */}
       <NotificationSection />
-
-      {/* full sceen toggler */}
-      <Box sx={{ display: { xs: 'none', lg: 'block' } }}>
-        <FullScreenSection />
-      </Box>
 
       {/* profile */}
       <ProfileSection />

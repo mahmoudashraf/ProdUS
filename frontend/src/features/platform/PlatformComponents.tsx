@@ -12,8 +12,38 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import type { ChipProps } from '@mui/material';
+import type { ChipProps, SxProps, Theme } from '@mui/material';
 import { ReactNode } from 'react';
+
+export const appleColors = {
+  ink: '#101828',
+  muted: '#64748b',
+  line: '#dbe4f0',
+  panel: '#ffffff',
+  wash: '#f7faff',
+  purple: '#625cff',
+  blue: '#1877f2',
+  cyan: '#0ea5c6',
+  green: '#13a66b',
+  amber: '#f59e0b',
+  red: '#ef4444',
+};
+
+export const categoryPalette = [
+  { accent: '#625cff', bg: '#f1efff', soft: '#f8f7ff' },
+  { accent: '#1877f2', bg: '#eaf3ff', soft: '#f7fbff' },
+  { accent: '#f59e0b', bg: '#fff4dc', soft: '#fffaf1' },
+  { accent: '#0ea5c6', bg: '#e4f9fd', soft: '#f5fdff' },
+  { accent: '#06a4b7', bg: '#dcf7fa', soft: '#f4fdfe' },
+  { accent: '#ef4444', bg: '#ffe9ec', soft: '#fff7f8' },
+  { accent: '#16a34a', bg: '#e7f8ee', soft: '#f6fff9' },
+  { accent: '#7c3aed', bg: '#f1e9ff', soft: '#fbf8ff' },
+];
+
+export const formatLabel = (value?: string | null) =>
+  value ? value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) : 'Not Set';
+
+export const clampScore = (score: number) => Math.max(0, Math.min(100, Math.round(score)));
 
 export const PageHeader = ({
   title,
@@ -36,7 +66,7 @@ export const PageHeader = ({
         {title}
       </Typography>
       {description && (
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 780, lineHeight: 1.65 }}>
           {description}
         </Typography>
       )}
@@ -45,15 +75,29 @@ export const PageHeader = ({
   </Stack>
 );
 
-export const Surface = ({ children }: { children: ReactNode }) => (
-  <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
+export const Surface = ({ children, sx }: { children: ReactNode; sx?: SxProps<Theme> }) => (
+  <Paper
+    variant="outlined"
+    sx={[
+      {
+        p: { xs: 2, md: 2.5 },
+        borderRadius: 1,
+        borderColor: appleColors.line,
+        background: appleColors.panel,
+        boxShadow: '0 18px 50px rgba(15, 23, 42, 0.06)',
+      },
+      ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+    ]}
+  >
     {children}
   </Paper>
 );
 
 export const EmptyState = ({ label }: { label: string }) => (
-  <Surface>
-    <Typography color="text.secondary">{label}</Typography>
+  <Surface sx={{ borderStyle: 'dashed', background: 'rgba(248, 250, 252, 0.72)' }}>
+    <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
+      {label}
+    </Typography>
   </Surface>
 );
 
@@ -65,9 +109,9 @@ export const QueryState = ({
   error: unknown;
 }) => (
   <>
-    {isLoading && <LinearProgress sx={{ mb: 2 }} />}
+    {isLoading && <LinearProgress sx={{ mb: 2, borderRadius: 999 }} />}
     {error && (
-      <Alert severity="error" sx={{ mb: 2 }}>
+      <Alert severity="error" sx={{ mb: 2, borderRadius: 1 }}>
         Failed to load platform data.
       </Alert>
     )}
@@ -95,13 +139,198 @@ export const TextInput = ({
 );
 
 export const SaveButton = ({ disabled, label = 'Save' }: { disabled?: boolean; label?: string }) => (
-  <Button type="submit" variant="contained" disabled={!!disabled}>
+  <Button type="submit" variant="contained" disabled={!!disabled} sx={{ minHeight: 44 }}>
     {label}
   </Button>
 );
 
 export const StatusChip = ({ label, color = 'default' }: { label: string; color?: ChipProps['color'] }) => (
-  <Chip size="small" color={color} label={label.replaceAll('_', ' ').toLowerCase()} />
+  <Chip
+    size="small"
+    color={color}
+    label={formatLabel(label)}
+    sx={{
+      borderRadius: 1,
+      fontWeight: 700,
+      '& .MuiChip-label': { px: 1 },
+    }}
+  />
 );
 
 export const RecordDivider = () => <Divider sx={{ my: 1.5 }} />;
+
+export const PastelChip = ({
+  label,
+  accent = appleColors.purple,
+  bg,
+}: {
+  label: string;
+  accent?: string;
+  bg?: string;
+}) => (
+  <Chip
+    size="small"
+    label={label}
+    sx={{
+      height: 26,
+      borderRadius: 1,
+      bgcolor: bg || `${accent}14`,
+      color: accent,
+      fontWeight: 700,
+      border: `1px solid ${accent}1f`,
+      '& .MuiChip-label': { px: 1 },
+    }}
+  />
+);
+
+export const DotLabel = ({
+  label,
+  color = appleColors.green,
+}: {
+  label: string;
+  color?: string;
+}) => (
+  <Stack direction="row" spacing={0.75} alignItems="center">
+    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color, boxShadow: `0 0 0 4px ${color}18` }} />
+    <Typography variant="body2" sx={{ color, fontWeight: 700 }}>
+      {label}
+    </Typography>
+  </Stack>
+);
+
+export const ProgressRing = ({
+  value,
+  size = 76,
+  color = appleColors.purple,
+  label,
+}: {
+  value: number;
+  size?: number;
+  color?: string;
+  label?: string;
+}) => {
+  const safeValue = clampScore(value);
+
+  return (
+    <Box
+      sx={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        display: 'grid',
+        placeItems: 'center',
+        background: `conic-gradient(${color} ${safeValue * 3.6}deg, #edf1f7 0deg)`,
+        position: 'relative',
+        flex: '0 0 auto',
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          inset: 7,
+          borderRadius: '50%',
+          background: '#fff',
+          boxShadow: 'inset 0 0 0 1px rgba(15, 23, 42, 0.04)',
+        },
+      }}
+    >
+      <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+        <Typography sx={{ fontWeight: 800, color: appleColors.ink, fontSize: size > 82 ? 26 : 18, lineHeight: 1 }}>
+          {safeValue}%
+        </Typography>
+        {label && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: 10 }}>
+            {label}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+};
+
+export const MiniSparkline = ({
+  color = appleColors.purple,
+  points = [14, 20, 18, 30, 42, 35, 28, 34, 44, 31, 39],
+}: {
+  color?: string;
+  points?: number[];
+}) => {
+  const max = Math.max(...points);
+  const min = Math.min(...points);
+  const width = 132;
+  const height = 42;
+  const path = points
+    .map((point, index) => {
+      const x = points.length === 1 ? 0 : (index / (points.length - 1)) * width;
+      const y = height - ((point - min) / Math.max(1, max - min)) * (height - 8) - 4;
+      return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+
+  return (
+    <Box component="svg" viewBox={`0 0 ${width} ${height}`} sx={{ width: 132, height, display: 'block' }}>
+      <path d={path} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </Box>
+  );
+};
+
+export const MetricTile = ({
+  label,
+  value,
+  detail,
+  icon,
+  accent = appleColors.purple,
+  sparkline,
+}: {
+  label: string;
+  value: ReactNode;
+  detail?: string;
+  icon?: ReactNode;
+  accent?: string;
+  sparkline?: boolean;
+}) => (
+  <Surface sx={{ overflow: 'hidden', position: 'relative' }}>
+    <Stack spacing={1.5}>
+      <Stack direction="row" spacing={1.25} alignItems="center">
+        {icon && (
+          <Box
+            sx={{
+              width: 42,
+              height: 42,
+              borderRadius: 1,
+              bgcolor: `${accent}14`,
+              color: accent,
+              display: 'grid',
+              placeItems: 'center',
+            }}
+          >
+            {icon}
+          </Box>
+        )}
+        <Typography color="text.secondary" sx={{ fontWeight: 700 }}>
+          {label}
+        </Typography>
+      </Stack>
+      <Typography sx={{ fontSize: 30, lineHeight: 1, fontWeight: 800, color: appleColors.ink }}>{value}</Typography>
+      {detail && (
+        <Typography variant="body2" color="text.secondary">
+          {detail}
+        </Typography>
+      )}
+      {sparkline && <MiniSparkline color={accent} />}
+    </Stack>
+  </Surface>
+);
+
+export const SectionTitle = ({
+  title,
+  action,
+}: {
+  title: string;
+  action?: ReactNode;
+}) => (
+  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
+    <Typography variant="h4" sx={{ color: appleColors.ink }}>
+      {title}
+    </Typography>
+    {action}
+  </Stack>
+);
