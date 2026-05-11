@@ -1,15 +1,9 @@
 FROM node:20-alpine AS base
 ENV NEXT_TELEMETRY_DISABLED=1
 
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-COPY package.json package-lock.json* ./
-RUN npm ci --legacy-peer-deps --ignore-scripts
-
 FROM base AS builder
 WORKDIR /app
+RUN apk add --no-cache bash libc6-compat
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -22,7 +16,8 @@ ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 ENV NEXT_PUBLIC_MOCK_AUTH_ENABLED=${NEXT_PUBLIC_MOCK_AUTH_ENABLED}
 ENV NEXT_PUBLIC_ENVIRONMENT=${NEXT_PUBLIC_ENVIRONMENT}
 ENV REACT_APP_API_URL=${REACT_APP_API_URL}
-COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json* ./
+RUN npm ci --legacy-peer-deps --ignore-scripts
 COPY . .
 RUN npm run build
 

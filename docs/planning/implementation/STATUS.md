@@ -76,6 +76,7 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Live callback/dispute UI smoke: frontend dev server returned `200 OK` for `/packages`, `/workspaces`, `/teams`, and `/admin/recommendations` after the workspace dispute UI was added.
 - Railway deployment readiness: backend/frontend Dockerfiles are configured for Railway service roots, per-service Railway config files exist, variable templates map Railway Postgres references into Spring JDBC settings, and the production deployment sequence is documented.
 - Local UI recovery: `npm run type-check`, `npm test -- --runInBand`, `mvn -DskipTests package`, targeted backend workflow test, backend health check, CORS preflight from `127.0.0.1:3001`, and headless Chrome dashboard smoke all passed. The verified dashboard URL is `http://127.0.0.1:3001/dashboard`.
+- Docker image readiness: backend and frontend images build as `produs-backend:local` and `produs-frontend:local`; backend container passed `/api/health` and mock admin login; frontend standalone container served `/dashboard`; Compose files now pass current Spring datasource, storage, health-check, and frontend build-arg contracts.
 
 ## Notes
 
