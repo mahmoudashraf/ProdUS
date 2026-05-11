@@ -14,6 +14,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson } from './api';
+import OwnerProductizationWorkspace from './OwnerProductizationWorkspace';
+import TeamDeliveryWorkspace from './TeamDeliveryWorkspace';
 import {
   DotLabel,
   EmptyState,
@@ -59,6 +61,20 @@ const packageHealth = (item: PackageInstance, index: number) => {
 };
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+
+  if (user?.role === UserRole.PRODUCT_OWNER) {
+    return <OwnerProductizationWorkspace />;
+  }
+
+  if (user?.role === UserRole.TEAM_MANAGER || user?.role === UserRole.SPECIALIST || user?.role === UserRole.ADVISOR) {
+    return <TeamDeliveryWorkspace />;
+  }
+
+  return <AdminOperationsDashboard />;
+}
+
+function AdminOperationsDashboard() {
   const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const canManageOperations = hasRole(UserRole.ADMIN);
@@ -124,8 +140,8 @@ export default function DashboardPage() {
   return (
     <>
       <PageHeader
-        title="Workspace"
-        description="Monitor productization execution, package readiness, verified teams, and operational risk in one backend-backed command surface."
+        title="Admin Control"
+        description="Operate the platform catalog, portfolio visibility, verified team supply, AI audit trail, notification delivery, and SLA health."
       />
       <QueryState isLoading={loading} error={error} />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 330px' }, gap: 2.5 }}>

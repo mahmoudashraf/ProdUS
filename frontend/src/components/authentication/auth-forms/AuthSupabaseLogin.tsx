@@ -21,7 +21,16 @@ import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { DASHBOARD_PATH } from '@/config';
 import { authConfig } from '@/config/authConfig';
+import { MOCK_CREDENTIALS } from '@/data/mockUsers';
 import SocialLoginButtons from './SocialLoginButtons';
+
+const demoCredentialOptions = [
+  { label: 'Admin', role: 'Platform operations', ...MOCK_CREDENTIALS.admin },
+  { label: 'Owner', role: 'Productization workspace', ...MOCK_CREDENTIALS.owner },
+  { label: 'Team manager', role: 'Delivery control', ...MOCK_CREDENTIALS.team },
+  { label: 'Specialist', role: 'Delivery contributor', ...MOCK_CREDENTIALS.specialist },
+  { label: 'Advisor', role: 'Review and guidance', ...MOCK_CREDENTIALS.advisor },
+];
 
 const AuthSupabaseLogin = () => {
   const router = useRouter();
@@ -154,6 +163,48 @@ const AuthSupabaseLogin = () => {
             {isSubmitting ? 'Signing In...' : 'Sign In'}
           </Button>
         </Box>
+
+        {shouldUseMockAuth && (
+          <Box
+            sx={{
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1,
+              p: 2,
+              bgcolor: '#f7faff',
+            }}
+          >
+            <Typography sx={{ fontWeight: 800, mb: 0.5 }}>Test accounts</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Local dev credentials for role-specific UI review.
+            </Typography>
+            <Stack spacing={1}>
+              {demoCredentialOptions.map((credential) => (
+                <Button
+                  key={credential.email}
+                  type="button"
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => {
+                    setEmail(credential.email);
+                    setPassword(credential.password);
+                  }}
+                  sx={{ justifyContent: 'space-between', textTransform: 'none', minHeight: 44 }}
+                >
+                  <Box sx={{ textAlign: 'left' }}>
+                    <Typography sx={{ fontWeight: 800 }}>{credential.label}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {credential.email} / {credential.password}
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    {credential.role}
+                  </Typography>
+                </Button>
+              ))}
+            </Stack>
+          </Box>
+        )}
 
         {!shouldUseMockAuth && (
           <Box sx={{ mt: 3 }}>

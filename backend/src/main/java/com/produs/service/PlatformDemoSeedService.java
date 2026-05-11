@@ -112,7 +112,7 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         Map<String, ServiceModule> modules = seedCatalogModules(categories);
         seedDependencies(modules);
         List<Team> teams = seedTeams(categories, modules);
-        seedAdminDemoData(modules, teams);
+        seedOwnerDemoData(modules, teams);
 
         return new SeedSummary(
                 categoryRepository.count(),
@@ -254,10 +254,13 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         return teamRepository.findByActiveTrueOrderByCreatedAtDesc();
     }
 
-    private void seedAdminDemoData(Map<String, ServiceModule> modules, List<Team> teams) {
+    private void seedOwnerDemoData(Map<String, ServiceModule> modules, List<Team> teams) {
         User admin = user("admin@produs.com");
+        User owner = user("owner@produs.com");
         User manager = user("team@produs.com");
-        if (!productRepository.findByOwnerIdOrderByCreatedAtDesc(admin.getId()).isEmpty()) {
+        User specialist = user("specialist@produs.com");
+        User advisor = user("advisor@produs.com");
+        if (!productRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId()).isEmpty()) {
             return;
         }
 
@@ -271,9 +274,9 @@ public class PlatformDemoSeedService implements ApplicationRunner {
 
         for (int index = 0; index < products.size(); index++) {
             ProductSeed seed = products.get(index);
-            ProductProfile product = createProduct(admin, seed);
+            ProductProfile product = createProduct(owner, seed);
             RequirementIntake requirement = createRequirement(product, modules.get(seed.moduleSlug()), seed);
-            PackageInstance packageInstance = packageBuilderService.buildFromRequirement(admin, requirement.getId());
+            PackageInstance packageInstance = packageBuilderService.buildFromRequirement(owner, requirement.getId());
             packageInstance.setName(seed.name() + " package");
             packageInstance.setSummary("Governed productization package for " + seed.name() + " covering " + modules.get(seed.moduleSlug()).getName() + ".");
             packageInstance.setStatus(seed.packageStatus());
@@ -281,11 +284,24 @@ public class PlatformDemoSeedService implements ApplicationRunner {
             tunePackageModules(packageInstance, index);
             Team team = teams.get(index % teams.size());
             createProposal(packageInstance, team, manager, index);
-            ProjectWorkspace workspace = createWorkspace(admin, packageInstance, team, index);
-            createSupport(admin, manager, team, workspace, index);
-            createReputation(admin, team, workspace, index);
+            ProjectWorkspace workspace = createWorkspace(owner, packageInstance, team, specialist, advisor, index);
+            createSupport(owner, manager, team, workspace, index);
+            createReputation(owner, team, workspace, index);
         }
-        createRecommendation(admin);
+        createRecommendation(
+                admin,
+                "ADMIN_OPERATIONS",
+                "PLATFORM",
+                admin.getId().toString(),
+                "Platform is seeded for admin control. Review catalog coverage, notification delivery, SLA escalations, and team supply."
+        );
+        createRecommendation(
+                owner,
+                "OWNER_PRODUCTIZATION",
+                "PORTFOLIO",
+                owner.getId().toString(),
+                "Your productization queue is trending well. Focus on package evidence, shortlisted teams, and launch-critical security and CI/CD services."
+        );
         createAdminNotification(admin, manager);
     }
 
@@ -346,7 +362,7 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         return proposalRepository.save(proposal);
     }
 
-    private ProjectWorkspace createWorkspace(User owner, PackageInstance packageInstance, Team team, int index) {
+    private ProjectWorkspace createWorkspace(User owner, PackageInstance packageInstance, Team team, User specialist, User advisor, int index) {
         ProjectWorkspace workspace = new ProjectWorkspace();
         workspace.setOwner(owner);
         workspace.setPackageInstance(packageInstance);
@@ -355,6 +371,8 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         workspace = workspaceRepository.save(workspace);
         ensureParticipant(workspace, owner, owner, WorkspaceParticipant.ParticipantRole.OWNER);
         ensureParticipant(workspace, team.getManager(), owner, WorkspaceParticipant.ParticipantRole.TEAM_LEAD);
+        ensureParticipant(workspace, specialist, owner, WorkspaceParticipant.ParticipantRole.SPECIALIST);
+        ensureParticipant(workspace, advisor, owner, WorkspaceParticipant.ParticipantRole.ADVISOR);
         createMilestones(workspace, packageInstance, index);
         return workspace;
     }
@@ -437,15 +455,15 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         reputationRepository.save(event);
     }
 
-    private void createRecommendation(User admin) {
+    private void createRecommendation(User user, String type, String sourceEntityType, String sourceEntityId, String rationale) {
         AIRecommendation recommendation = new AIRecommendation();
-        recommendation.setCreatedBy(admin);
-        recommendation.setRecommendationType("PORTFOLIO_HEALTH");
-        recommendation.setSourceEntityType("PORTFOLIO");
-        recommendation.setSourceEntityId(admin.getId().toString());
+        recommendation.setCreatedBy(user);
+        recommendation.setRecommendationType(type);
+        recommendation.setSourceEntityType(sourceEntityType);
+        recommendation.setSourceEntityId(sourceEntityId);
         recommendation.setPromptVersion("dev-demo-v1");
         recommendation.setConfidence(0.88);
-        recommendation.setRationale("Portfolio is trending well. Focus on blocked API permissions, test coverage, and support handoff evidence.");
+        recommendation.setRationale(rationale);
         recommendation.setOutputJson("{\"health\":68,\"focus\":[\"security\",\"ci_cd\",\"support_handoff\"]}");
         recommendationRepository.save(recommendation);
     }

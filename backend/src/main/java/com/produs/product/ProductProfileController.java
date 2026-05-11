@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,6 +30,12 @@ public class ProductProfileController {
 
     @GetMapping
     public List<ProductProfileResponse> list(@AuthenticationPrincipal User owner) {
+        if (owner.getRole() == User.UserRole.ADMIN) {
+            return productProfileRepository.findAll().stream()
+                    .sorted(Comparator.comparing(ProductProfile::getCreatedAt).reversed())
+                    .map(profile -> toProductProfileResponse(profile))
+                    .toList();
+        }
         return productProfileRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId()).stream()
                 .map(profile -> toProductProfileResponse(profile))
                 .toList();

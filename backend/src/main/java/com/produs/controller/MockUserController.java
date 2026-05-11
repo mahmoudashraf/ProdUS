@@ -44,6 +44,15 @@ public class MockUserController {
         return ResponseEntity.ok(users);
     }
 
+    @GetMapping("/auth/credentials")
+    @Operation(summary = "Get mock login credentials", description = "Returns local development credentials for each supported user role")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Mock credentials retrieved successfully")
+    })
+    public ResponseEntity<List<MockUserService.MockCredentialSummary>> getMockCredentials() {
+        return ResponseEntity.ok(mockUserService.getCredentialSummaries());
+    }
+
     @GetMapping("/users/role/{role}")
     @Operation(summary = "Get mock users by role", description = "Returns mock users filtered by role")
     @ApiResponses({

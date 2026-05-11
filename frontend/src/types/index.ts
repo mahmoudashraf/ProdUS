@@ -83,6 +83,7 @@ export type NavItemTypeObject = { children?: NavItemType[]; items?: NavItemType[
 export type NavItemType = {
   id?: string;
   icon?: GenericCardProps['iconPrimary'];
+  roles?: User['role'][];
   target?: boolean;
   external?: boolean;
   url?: string;

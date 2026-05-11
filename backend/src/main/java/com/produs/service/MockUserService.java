@@ -76,6 +76,24 @@ public class MockUserService {
                 .toList();
     }
 
+    public List<MockCredentialSummary> getCredentialSummaries() {
+        return mockCredentials.values().stream()
+                .sorted(Comparator.comparing(credentials -> credentials.role.name()))
+                .map(credentials -> new MockCredentialSummary(
+                        credentials.email,
+                        credentials.password,
+                        credentials.role,
+                        switch (credentials.role) {
+                            case ADMIN -> "Platform admin";
+                            case PRODUCT_OWNER -> "Product owner";
+                            case TEAM_MANAGER -> "Team manager";
+                            case SPECIALIST -> "Team specialist";
+                            case ADVISOR -> "Advisor";
+                        }
+                ))
+                .toList();
+    }
+
     public List<UserDto> getMockUsersByRole(User.UserRole role) {
         return mockUsers.values().stream()
                 .filter(user -> user.getRole() == role)
@@ -260,5 +278,12 @@ public class MockUserService {
             this.role = role;
         }
     }
+
+    public record MockCredentialSummary(
+            String email,
+            String password,
+            User.UserRole role,
+            String label
+    ) {}
 
 }

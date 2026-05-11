@@ -81,11 +81,9 @@ const NavItem = ({ item, level, parentId, isParents = false }: NavItemProps) => 
 
   // active menu item on page load
   useEffect(() => {
-    const currentIndex = document.location.pathname
-      .toString()
-      .split('/')
-      .findIndex(id => id === item.id!);
-    if (currentIndex > -1) {
+    const currentPath = document.location.pathname.toString();
+    const currentIndex = currentPath.split('/').findIndex(id => id === item.id!);
+    if (currentIndex > -1 || item.url === currentPath) {
       setActiveItem([item.id!]);
     }
     // eslint-disable-next-line

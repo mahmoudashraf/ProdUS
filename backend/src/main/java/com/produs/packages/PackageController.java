@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,6 +33,12 @@ public class PackageController {
 
     @GetMapping
     public List<PackageInstanceResponse> list(@AuthenticationPrincipal User user) {
+        if (user.getRole() == User.UserRole.ADMIN) {
+            return packageRepository.findAll().stream()
+                    .sorted(Comparator.comparing(PackageInstance::getCreatedAt).reversed())
+                    .map(packageInstance -> toPackageInstanceResponse(packageInstance))
+                    .toList();
+        }
         return packageRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId()).stream()
                 .map(packageInstance -> toPackageInstanceResponse(packageInstance))
                 .toList();

@@ -51,6 +51,12 @@ public class WorkspaceController {
 
     @GetMapping
     public List<ProjectWorkspaceResponse> list(@AuthenticationPrincipal User user) {
+        if (user.getRole() == User.UserRole.ADMIN) {
+            return workspaceRepository.findAll().stream()
+                    .sorted(Comparator.comparing(ProjectWorkspace::getCreatedAt).reversed())
+                    .map(workspace -> toProjectWorkspaceResponse(workspace))
+                    .toList();
+        }
         Map<UUID, ProjectWorkspace> visibleWorkspaces = new LinkedHashMap<>();
         workspaceRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId())
                 .forEach(workspace -> visibleWorkspaces.put(workspace.getId(), workspace));

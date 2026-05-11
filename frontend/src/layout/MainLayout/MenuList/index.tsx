@@ -9,6 +9,7 @@ import { LAYOUT_CONST } from 'constant';
 import useConfig from 'hooks/useConfig';
 import menuItem from 'menu-items';
 import { useMenuState } from 'contexts/MenuContext';
+import useAuth from '@/hooks/useAuth';
 
 // types
 import { NavItemType } from 'types';
@@ -22,6 +23,7 @@ const MenuList = () => {
   const theme = useTheme();
   const { layout } = useConfig();
   const { drawerOpen } = useMenuState();
+  const { user } = useAuth();
 
   const matchDownMd = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -29,15 +31,25 @@ const MenuList = () => {
   const lastItem =
     layout === LAYOUT_CONST.HORIZONTAL_LAYOUT && !matchDownMd ? HORIZONTAL_MAX_ITEM : undefined;
 
-  let lastItemIndex = menuItem.items.length - 1;
+  const visibleMenuItems = menuItem.items
+    .map((item) => {
+      if (!item.children) return item;
+      return {
+        ...item,
+        children: item.children.filter((child) => !child.roles || (user?.role ? child.roles.includes(user.role) : true)),
+      };
+    })
+    .filter((item) => !item.roles || (user?.role ? item.roles.includes(user.role) : true));
+
+  let lastItemIndex = visibleMenuItems.length - 1;
   let remItems: NavItemType[] = [];
   let lastItemId: string = '';
 
-  if (typeof lastItem === 'number' && lastItem < menuItem.items.length) {
-    const targetItem = menuItem.items[lastItem - 1];
+  if (typeof lastItem === 'number' && lastItem < visibleMenuItems.length) {
+    const targetItem = visibleMenuItems[lastItem - 1];
     lastItemId = targetItem?.id || '';
     lastItemIndex = lastItem - 1;
-    remItems = menuItem.items.slice(lastItem - 1, menuItem.items.length).map(item => ({
+    remItems = visibleMenuItems.slice(lastItem - 1, visibleMenuItems.length).map(item => ({
       title: item.title,
       elements: item.children ?? [],
       icon: item.icon,
@@ -47,7 +59,7 @@ const MenuList = () => {
     }));
   }
 
-  const navItems = menuItem.items.slice(0, lastItemIndex + 1).map(item => {
+  const navItems = visibleMenuItems.slice(0, lastItemIndex + 1).map(item => {
     switch (item.type) {
       case 'group':
         if (item.url && item.id !== lastItemId) {
