@@ -205,6 +205,21 @@ export interface SupportSubscription extends BaseRecord {
   status: 'PROPOSED' | 'ACTIVE' | 'PAUSED' | 'CANCELLED';
 }
 
+export interface SupportRequest extends BaseRecord {
+  workspace?: ProjectWorkspace;
+  supportSubscription?: SupportSubscription;
+  team: Team;
+  owner?: CurrentUserSummary;
+  openedBy?: CurrentUserSummary;
+  title: string;
+  description?: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  status: 'OPEN' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'WAITING_ON_OWNER' | 'RESOLVED' | 'CANCELLED';
+  dueOn?: string;
+  resolvedAt?: string;
+  resolution?: string;
+}
+
 export interface TeamReputationEvent extends BaseRecord {
   team?: Team;
   workspace?: ProjectWorkspace;
@@ -267,6 +282,42 @@ export interface EvidenceAttachment extends BaseRecord {
 export interface AttachmentDownloadUrl {
   downloadUrl: string;
   expiresInSeconds: number;
+}
+
+export interface PlatformNotification extends BaseRecord {
+  actor?: CurrentUserSummary;
+  workspace?: ProjectWorkspace;
+  type:
+    | 'PROPOSAL_SUBMITTED'
+    | 'PROPOSAL_STATUS_CHANGED'
+    | 'CONTRACT_CREATED'
+    | 'CONTRACT_STATUS_CHANGED'
+    | 'CONTRACT_SIGNED'
+    | 'INVOICE_ISSUED'
+    | 'INVOICE_STATUS_CHANGED'
+    | 'INVOICE_PAID'
+    | 'SUPPORT_SUBSCRIPTION_CREATED'
+    | 'SUPPORT_SUBSCRIPTION_STATUS_CHANGED'
+    | 'SUPPORT_REQUEST_OPENED'
+    | 'SUPPORT_REQUEST_UPDATED'
+    | 'DISPUTE_OPENED'
+    | 'DISPUTE_UPDATED'
+    | 'EVIDENCE_ATTACHED'
+    | 'SYSTEM';
+  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
+  status: 'UNREAD' | 'READ' | 'ARCHIVED';
+  title: string;
+  body?: string;
+  actionUrl?: string;
+  sourceType: string;
+  sourceId: string;
+  readAt?: string;
+  expiresAt?: string;
+}
+
+export interface NotificationSummary {
+  unreadCount: number;
+  latest: PlatformNotification[];
 }
 
 export interface AIRecommendation extends BaseRecord {

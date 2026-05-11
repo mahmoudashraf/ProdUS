@@ -49,6 +49,8 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Frontend workspace dispute panel with create, severity/status controls, resolution updates, and typed payment/signature/dispute records.
 - Evidence attachment backend with workspace, deliverable, and dispute scopes, multipart upload/list/delete API, file type/size validation, and role-aware workspace/dispute authorization.
 - Frontend workspace evidence, dispute evidence, and deliverable evidence upload/listing using the shared file picker and one stable attachment query per workspace.
+- Platform notification center with recipient-scoped unread/read records, API-backed header dropdown, dashboard action summary, and mark-read/read-all flows.
+- Support request operations tied to workspaces, support subscriptions, assigned teams, due dates, priority, status, resolution notes, and owner/team notification fan-out.
 - S3-compatible storage hardening for sanitized keys, configurable public URLs, missing-object handling, and Docker MinIO credential alignment.
 - HTTP exception handling now preserves controller-level `ResponseStatusException` codes instead of collapsing callback auth failures into 500 responses.
 - Local development auth now auto-seeds an admin mock session, stabilizes the mock auth provider boundary, and allows both `localhost` and `127.0.0.1` frontend origins.
@@ -83,6 +85,9 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Evidence attachments: `mvn test` passed with mocked multipart upload/list/delete, signed-download permission coverage, private storage metadata response checks, and PostgreSQL Liquibase validation for `evidence_attachments`; `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after frontend evidence UI wiring.
 - Live evidence attachment smoke: dev backend on `http://127.0.0.1:8080`, frontend on `http://127.0.0.1:3001`, and local MinIO accepted a workspace evidence upload through `/api/attachments`, returned an attachment ID, listed one attachment for the workspace, and returned an authenticated short-lived download URL. Headless Chrome rendered `/workspaces` successfully.
 - Docker evidence attachment readiness: `docker build -t produs-backend:local ./backend` and `docker build -t produs-frontend:local ./frontend` passed after the attachment slice.
+- Notifications/support requests: `mvn -DskipTests compile`, `mvn test`, `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after adding `platform_notifications`, `support_requests`, notification fan-out, support request lifecycle APIs, the API-backed header notification dropdown, dashboard action center, and workspace support request UI.
+- Live notifications/support smoke: dev backend/frontend created a mock package/workspace, proposal, support subscription, and support request; verified owner/team notification fan-out and read-all behavior; and served `/dashboard`.
+- Docker notifications/support readiness: backend and frontend images rebuilt successfully as `produs-backend:local` and `produs-frontend:local` after the notifications/support request implementation.
 
 ## Notes
 
@@ -95,4 +100,4 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 ## Remaining Production Hardening Queue
 
 - None from the current 2026-05-11 implementation plan.
-- Future production integrations can add provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters, support SLA automation, notification fan-out, and full CI enforcement for the Testcontainers profile.
+- Future production integrations can add provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters, SLA escalation scheduling, email/push fan-out, and full CI enforcement for the Testcontainers profile.

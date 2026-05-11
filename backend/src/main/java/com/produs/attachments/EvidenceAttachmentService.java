@@ -3,6 +3,8 @@ package com.produs.attachments;
 import com.produs.commerce.DisputeCase;
 import com.produs.commerce.DisputeCaseRepository;
 import com.produs.entity.User;
+import com.produs.notifications.NotificationService;
+import com.produs.notifications.PlatformNotification;
 import com.produs.service.S3Service;
 import com.produs.teams.Team;
 import com.produs.teams.TeamMemberRepository;
@@ -52,6 +54,7 @@ public class EvidenceAttachmentService {
     private final WorkspaceParticipantRepository participantRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final S3Service s3Service;
+    private final NotificationService notificationService;
 
     @Value("${app.attachments.max-file-size-bytes:10485760}")
     private long maxFileSizeBytes;
@@ -110,7 +113,9 @@ public class EvidenceAttachmentService {
         attachment.setContentType(contentType);
         attachment.setSizeBytes(file.getSize());
         attachment.setLabel(normalizeLabel(label));
-        return attachmentRepository.save(attachment);
+        EvidenceAttachment saved = attachmentRepository.save(attachment);
+        notifyEvidenceAttached(saved, user);
+        return saved;
     }
 
     @Transactional
@@ -291,6 +296,40 @@ public class EvidenceAttachmentService {
                     case DISPUTE -> scope.dispute().getId();
                 }
         );
+    }
+
+    private void notifyEvidenceAttached(EvidenceAttachment attachment, User actor) {
+        String title = "Evidence attached";
+        String body = "%s added %s".formatted(
+                actor.getEmail(),
+                attachment.getLabel() == null ? attachment.getFileName() : attachment.getLabel()
+        );
+        notificationService.notify(
+                attachment.getWorkspace().getOwner(),
+                actor,
+                PlatformNotification.NotificationType.EVIDENCE_ATTACHED,
+                PlatformNotification.NotificationPriority.NORMAL,
+                title,
+                body,
+                "/workspaces",
+                "EVIDENCE_ATTACHMENT",
+                attachment.getId(),
+                attachment.getWorkspace()
+        );
+        if (attachment.getDispute() != null && attachment.getDispute().getTeam() != null) {
+            notificationService.notify(
+                    attachment.getDispute().getTeam().getManager(),
+                    actor,
+                    PlatformNotification.NotificationType.EVIDENCE_ATTACHED,
+                    PlatformNotification.NotificationPriority.NORMAL,
+                    title,
+                    body,
+                    "/workspaces",
+                    "EVIDENCE_ATTACHMENT",
+                    attachment.getId(),
+                    attachment.getWorkspace()
+            );
+        }
     }
 
     private record ResolvedScope(

@@ -1,304 +1,181 @@
-// material-ui
-import { Avatar,
+import {
+  Avatar,
+  Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   Divider,
-  Grid,
   List,
   ListItem,
   ListItemAvatar,
-  ListItemSecondaryAction,
   ListItemText,
   Stack,
   Typography,
- } from '@mui/material';
+} from '@mui/material';
 import { useTheme, styled } from '@mui/material/styles';
+import {
+  IconAlertTriangle,
+  IconBell,
+  IconChecks,
+  IconFileInvoice,
+  IconFileUpload,
+  IconHeadset,
+  IconPackage,
+  IconSignature,
+} from '@tabler/icons-react';
+import Link from 'next/link';
 
-// assets
-import { IconBuildingStore, IconChecks, IconPhoto } from '@tabler/icons-react';
-const User1 = '/assets/images/users/user-round.svg';
+import { PlatformNotification } from '@/features/platform/types';
 
-// styles
 const ListItemWrapper = styled('div')(({ theme }) => ({
-  cursor: 'pointer',
   padding: 16,
   '&:hover': {
-    background:
-      theme.palette.mode === 'dark' ? theme.palette.dark.main : theme.palette.primary.light,
+    background: theme.palette.mode === 'dark' ? theme.palette.dark.main : theme.palette.primary.light,
   },
   '& .MuiListItem-root': {
     padding: 0,
   },
 }));
 
-// ==============================|| NOTIFICATION LIST ITEM ||============================== //
+const formatTime = (value?: string) => {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+};
 
-const NotificationList = () => {
+const iconForType = (type: PlatformNotification['type']) => {
+  if (type.startsWith('PROPOSAL')) {
+    return IconPackage;
+  }
+  if (type.startsWith('CONTRACT')) {
+    return IconSignature;
+  }
+  if (type.startsWith('INVOICE')) {
+    return IconFileInvoice;
+  }
+  if (type.startsWith('SUPPORT')) {
+    return IconHeadset;
+  }
+  if (type.startsWith('DISPUTE')) {
+    return IconAlertTriangle;
+  }
+  if (type === 'EVIDENCE_ATTACHED') {
+    return IconFileUpload;
+  }
+  return IconBell;
+};
+
+const colorForPriority = (priority: PlatformNotification['priority']) => {
+  if (priority === 'CRITICAL') {
+    return 'error';
+  }
+  if (priority === 'HIGH') {
+    return 'warning';
+  }
+  if (priority === 'LOW') {
+    return 'success';
+  }
+  return 'primary';
+};
+
+const NotificationList = ({
+  notifications,
+  onMarkRead,
+}: {
+  notifications: PlatformNotification[];
+  onMarkRead: (notification: PlatformNotification) => void;
+}) => {
   const theme = useTheme();
 
-  const chipSX = {
-    height: 24,
-    padding: '0 6px',
-  };
-  const chipErrorSX = {
-    ...chipSX,
-    color: theme.palette.orange.dark,
-    backgroundColor:
-      theme.palette.mode === 'dark' ? theme.palette.dark.main : theme.palette.orange.light,
-    marginRight: '5px',
-  };
-
-  const chipWarningSX = {
-    ...chipSX,
-    color: theme.palette.warning.dark,
-    backgroundColor:
-      theme.palette.mode === 'dark' ? theme.palette.dark.main : theme.palette.warning.light,
-  };
-
-  const chipSuccessSX = {
-    ...chipSX,
-    color: theme.palette.success.dark,
-    backgroundColor:
-      theme.palette.mode === 'dark' ? theme.palette.dark.main : theme.palette.success.light,
-    height: 28,
-  };
+  if (!notifications.length) {
+    return (
+      <Box sx={{ width: 330, px: 2, py: 3 }}>
+        <Typography variant="body2" color="text.secondary">
+          No notifications for this filter.
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <List
       sx={{
         width: '100%',
-        maxWidth: 330,
+        maxWidth: 360,
         py: 0,
-        borderRadius: '10px',
+        borderRadius: 1,
         [theme.breakpoints.down('md')]: {
-          maxWidth: 300,
-        },
-        '& .MuiListItemSecondaryAction-root': {
-          top: 22,
-        },
-        '& .MuiDivider-root': {
-          my: 0,
-        },
-        '& .list-container': {
-          pl: 7,
+          maxWidth: 320,
         },
       }}
     >
-      <ListItemWrapper>
-        <ListItem alignItems="center">
-          <ListItemAvatar>
-            <Avatar alt="John Doe" src={User1} />
-          </ListItemAvatar>
-          <ListItemText primary="John Doe" />
-          <ListItemSecondaryAction>
-            <Grid container justifyContent="flex-end">
-              <Grid size={{ xs: 12 }}>
-                <Typography variant="caption" display="block" gutterBottom>
-                  2 min ago
-                </Typography>
-              </Grid>
-            </Grid>
-          </ListItemSecondaryAction>
-        </ListItem>
-        <Grid container direction="column" className="list-container">
-          <Grid size={{ xs: 12 }} sx={{ pb: 2 }}>
-            <Typography variant="subtitle2">
-              It is a long established fact that a reader will be distracted
-            </Typography>
-          </Grid>
-          <Grid size={{ xs: 12 }}>
-            <Grid container>
-              <Grid>
-                <Chip label="Unread" sx={chipErrorSX} />
-              </Grid>
-              <Grid>
-                <Chip label="New" sx={chipWarningSX} />
-              </Grid>
-            </Grid>
-          </Grid>
-        </Grid>
-      </ListItemWrapper>
-      <Divider />
-      <ListItemWrapper>
-        <ListItem alignItems="center">
-          <ListItemAvatar>
-            <Avatar
-              sx={{
-                color: theme.palette.success.dark,
-                backgroundColor:
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.dark.main
-                    : theme.palette.success.light,
-                border: theme.palette.mode === 'dark' ? '1px solid' : 'none',
-                borderColor: theme.palette.success.main,
-              }}
-            >
-              <IconBuildingStore stroke={1.5} size="20px" />
-            </Avatar>
-          </ListItemAvatar>
-          <ListItemText
-            primary={<Typography variant="subtitle1">Store Verification Done</Typography>}
-          />
-          <ListItemSecondaryAction>
-            <Grid container justifyContent="flex-end">
-              <Grid size={{ xs: 12 }}>
-                <Typography variant="caption" display="block" gutterBottom>
-                  2 min ago
-                </Typography>
-              </Grid>
-            </Grid>
-          </ListItemSecondaryAction>
-        </ListItem>
-        <Grid container direction="column" className="list-container">
-          <Grid size={{ xs: 12 }} sx={{ pb: 2 }}>
-            <Typography variant="subtitle2">We have successfully received your request.</Typography>
-          </Grid>
-          <Grid size={{ xs: 12 }}>
-            <Grid container>
-              <Grid>
-                <Chip label="Unread" sx={chipErrorSX} />
-              </Grid>
-            </Grid>
-          </Grid>
-        </Grid>
-      </ListItemWrapper>
-      <Divider />
-      <ListItemWrapper>
-        <ListItem alignItems="center">
-          <ListItemAvatar>
-            <Avatar
-              sx={{
-                color: theme.palette.primary.dark,
-                backgroundColor:
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.dark.main
-                    : theme.palette.primary.light,
-                border: theme.palette.mode === 'dark' ? '1px solid' : 'none',
-                borderColor: theme.palette.primary.main,
-              }}
-            >
-              <IconChecks stroke={1.5} size="20px" />
-            </Avatar>
-          </ListItemAvatar>
-          <ListItemText primary={<Typography variant="subtitle1">Package Review Ready</Typography>} />
-          <ListItemSecondaryAction>
-            <Grid container justifyContent="flex-end">
-              <Grid>
-                <Typography variant="caption" display="block" gutterBottom>
-                  2 min ago
-                </Typography>
-              </Grid>
-            </Grid>
-          </ListItemSecondaryAction>
-        </ListItem>
-        <Grid container direction="column" className="list-container">
-          <Grid size={{ xs: 12 }} sx={{ pb: 2 }}>
-            <Typography variant="subtitle2">
-              The latest recommendation package is ready for owner review.
-            </Typography>
-          </Grid>
-          <Grid size={{ xs: 12 }}>
-            <Grid container>
-              <Grid>
-                <Button
-                  variant="contained"
-                  disableElevation
-                  endIcon={<IconChecks stroke={1.5} size="20px" />}
-                >
-                  Review
-                </Button>
-              </Grid>
-            </Grid>
-          </Grid>
-        </Grid>
-      </ListItemWrapper>
-      <Divider />
-      <ListItemWrapper>
-        <ListItem alignItems="center">
-          <ListItemAvatar>
-            <Avatar alt="John Doe" src={User1} />
-          </ListItemAvatar>
-          <ListItemText primary={<Typography variant="subtitle1">John Doe</Typography>} />
-          <ListItemSecondaryAction>
-            <Grid container justifyContent="flex-end">
-              <Grid size={{ xs: 12 }}>
-                <Typography variant="caption" display="block" gutterBottom>
-                  2 min ago
-                </Typography>
-              </Grid>
-            </Grid>
-          </ListItemSecondaryAction>
-        </ListItem>
-        <Grid container direction="column" className="list-container">
-          <Grid size={{ xs: 12 }} sx={{ pb: 2 }}>
-            <Typography component="span" variant="subtitle2">
-              Uploaded two file on &nbsp;
-              <Typography component="span" variant="h6">
-                21 Jan 2020
-              </Typography>
-            </Typography>
-          </Grid>
-          <Grid size={{ xs: 12 }}>
-            <Grid container>
-              <Grid size={{ xs: 12 }}>
-                <Card
-                  sx={{
-                    backgroundColor:
-                      theme.palette.mode === 'dark'
-                        ? theme.palette.dark.main
-                        : theme.palette.secondary.light,
-                  }}
-                >
-                  <CardContent>
-                    <Grid container direction="column">
-                      <Grid size={{ xs: 12 }}>
-                        <Stack direction="row" spacing={2}>
-                          <IconPhoto stroke={1.5} size="20px" />
-                          <Typography variant="subtitle1">demo.jpg</Typography>
-                        </Stack>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </Grid>
-        </Grid>
-      </ListItemWrapper>
-      <Divider />
-      <ListItemWrapper>
-        <ListItem alignItems="center">
-          <ListItemAvatar>
-            <Avatar alt="John Doe" src={User1} />
-          </ListItemAvatar>
-          <ListItemText primary={<Typography variant="subtitle1">John Doe</Typography>} />
-          <ListItemSecondaryAction>
-            <Grid container justifyContent="flex-end">
-              <Grid size={{ xs: 12 }}>
-                <Typography variant="caption" display="block" gutterBottom>
-                  2 min ago
-                </Typography>
-              </Grid>
-            </Grid>
-          </ListItemSecondaryAction>
-        </ListItem>
-        <Grid container direction="column" className="list-container">
-          <Grid size={{ xs: 12 }} sx={{ pb: 2 }}>
-            <Typography variant="subtitle2">
-              It is a long established fact that a reader will be distracted
-            </Typography>
-          </Grid>
-          <Grid size={{ xs: 12 }}>
-            <Grid container>
-              <Grid>
-                <Chip label="Confirmation of Account." sx={chipSuccessSX} />
-              </Grid>
-            </Grid>
-          </Grid>
-        </Grid>
-      </ListItemWrapper>
+      {notifications.map((notification, index) => {
+        const Icon = iconForType(notification.type);
+        const priorityColor = colorForPriority(notification.priority);
+        const actionUrl = notification.actionUrl || '/dashboard';
+        return (
+          <Box key={notification.id}>
+            <ListItemWrapper>
+              <ListItem alignItems="flex-start">
+                <ListItemAvatar>
+                  <Avatar
+                    sx={{
+                      color: theme.palette.mode === 'dark' ? theme.palette.grey[100] : theme.palette[priorityColor].dark,
+                      backgroundColor:
+                        theme.palette.mode === 'dark' ? theme.palette.dark.main : theme.palette[priorityColor].light,
+                      border: theme.palette.mode === 'dark' ? '1px solid' : 'none',
+                      borderColor: theme.palette[priorityColor].main,
+                    }}
+                  >
+                    <Icon stroke={1.5} size="20px" />
+                  </Avatar>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={
+                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                      <Typography variant="subtitle1">{notification.title}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatTime(notification.createdAt)}
+                      </Typography>
+                    </Stack>
+                  }
+                  secondary={
+                    <Stack spacing={1} sx={{ mt: 0.75 }}>
+                      {notification.body && (
+                        <Typography variant="body2" color="text.secondary">
+                          {notification.body}
+                        </Typography>
+                      )}
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                        {notification.status === 'UNREAD' && <Chip size="small" label="Unread" color="warning" />}
+                        <Chip size="small" label={notification.priority.toLowerCase()} color={priorityColor} variant="outlined" />
+                        <Button component={Link} href={actionUrl} size="small" variant="text" startIcon={<IconChecks size="16px" />}>
+                          Open
+                        </Button>
+                        {notification.status === 'UNREAD' && (
+                          <Button size="small" variant="text" onClick={() => onMarkRead(notification)}>
+                            Mark read
+                          </Button>
+                        )}
+                      </Stack>
+                    </Stack>
+                  }
+                />
+              </ListItem>
+            </ListItemWrapper>
+            {index < notifications.length - 1 && <Divider />}
+          </Box>
+        );
+      })}
     </List>
   );
 };

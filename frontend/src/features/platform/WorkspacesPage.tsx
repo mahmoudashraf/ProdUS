@@ -19,6 +19,7 @@ import {
   Milestone,
   PackageInstance,
   ProjectWorkspace,
+  SupportRequest,
   SupportSubscription,
   Team,
   WorkspaceParticipant,
@@ -27,6 +28,8 @@ import {
 const participantRoles: WorkspaceParticipant['role'][] = ['COORDINATOR', 'TEAM_LEAD', 'SPECIALIST', 'ADVISOR', 'VIEWER'];
 const disputeSeverities: DisputeCase['severity'][] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const disputeStatuses: DisputeCase['status'][] = ['OPEN', 'UNDER_REVIEW', 'OWNER_RESPONSE_NEEDED', 'TEAM_RESPONSE_NEEDED', 'RESOLVED', 'CANCELLED'];
+const supportPriorities: SupportRequest['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+const supportRequestStatuses: SupportRequest['status'][] = ['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'WAITING_ON_OWNER', 'RESOLVED', 'CANCELLED'];
 
 interface WorkspacePayload {
   packageInstanceId: string;
@@ -62,6 +65,21 @@ interface SupportSubscriptionPayload {
   startsOn: string | null;
   renewsOn: string | null;
   status: SupportSubscription['status'];
+}
+
+interface SupportRequestPayload {
+  supportSubscriptionId: string | null;
+  teamId: string | null;
+  title: string;
+  description: string;
+  priority: SupportRequest['priority'];
+  status: SupportRequest['status'];
+  dueOn: string | null;
+}
+
+interface SupportRequestStatusPayload {
+  status: SupportRequest['status'];
+  resolution: string;
 }
 
 interface DisputePayload {
@@ -111,6 +129,16 @@ const initialSupportValues: SupportSubscriptionPayload = {
   startsOn: null,
   renewsOn: null,
   status: 'PROPOSED',
+};
+
+const initialSupportRequestValues: SupportRequestPayload = {
+  supportSubscriptionId: null,
+  teamId: null,
+  title: '',
+  description: '',
+  priority: 'MEDIUM',
+  status: 'OPEN',
+  dueOn: null,
 };
 
 const initialDisputeValues: DisputePayload = {
@@ -203,6 +231,8 @@ export default function WorkspacesPage() {
   });
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
   const [selectedMilestoneId, setSelectedMilestoneId] = useState('');
+  const [supportRequestStatusById, setSupportRequestStatusById] = useState<Record<string, SupportRequest['status']>>({});
+  const [supportRequestResolutionById, setSupportRequestResolutionById] = useState<Record<string, string>>({});
   const [disputeStatusById, setDisputeStatusById] = useState<Record<string, DisputeCase['status']>>({});
   const [disputeResolutionById, setDisputeResolutionById] = useState<Record<string, string>>({});
   const [attachmentFilesByKey, setAttachmentFilesByKey] = useState<Record<string, File | null>>({});
@@ -244,6 +274,13 @@ export default function WorkspacesPage() {
     validationRules: {
       teamId: [{ type: 'required', message: 'Team is required' }],
       planName: [{ type: 'required', message: 'Plan name is required' }],
+    },
+  });
+  const supportRequestForm = useAdvancedForm<SupportRequestPayload>({
+    initialValues: initialSupportRequestValues,
+    validationRules: {
+      title: [{ type: 'required', message: 'Support request title is required' }],
+      description: [{ type: 'required', message: 'Support request context is required' }],
     },
   });
   const disputeForm = useAdvancedForm<DisputePayload>({
@@ -308,6 +345,11 @@ export default function WorkspacesPage() {
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<DisputeCase[]>(`/commerce/workspaces/${selectedWorkspace?.id}/disputes`),
   });
+  const supportRequests = useQuery({
+    queryKey: ['commerce-support-requests', selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () => getJson<SupportRequest[]>(`/commerce/workspaces/${selectedWorkspace?.id}/support-requests`),
+  });
   const attachments = useQuery({
     queryKey: ['attachments', selectedWorkspace?.id],
     enabled: !!selectedWorkspace?.id,
@@ -324,6 +366,9 @@ export default function WorkspacesPage() {
   );
   const selectedSupportSubscriptions = (supportSubscriptions.data || []).filter(
     (subscription) => subscription.workspace?.id === selectedWorkspace?.id
+  );
+  const activeSupportSubscriptions = selectedSupportSubscriptions.filter(
+    (subscription) => subscription.status === 'ACTIVE' || subscription.status === 'PROPOSED'
   );
 
   const createMilestone = useMutation({
@@ -355,6 +400,25 @@ export default function WorkspacesPage() {
     onSuccess: async () => {
       supportForm.resetForm();
       await queryClient.invalidateQueries({ queryKey: ['commerce-support-subscriptions'] });
+      await queryClient.invalidateQueries({ queryKey: ['notification-summary'] });
+    },
+  });
+  const createSupportRequest = useMutation({
+    mutationFn: () => postJson<SupportRequest, SupportRequestPayload>(`/commerce/workspaces/${selectedWorkspace?.id}/support-requests`, supportRequestForm.values),
+    onSuccess: async () => {
+      supportRequestForm.resetForm();
+      await queryClient.invalidateQueries({ queryKey: ['commerce-support-requests', selectedWorkspace?.id] });
+      await queryClient.invalidateQueries({ queryKey: ['notification-summary'] });
+    },
+  });
+  const updateSupportRequestStatus = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: SupportRequestStatusPayload }) =>
+      putJson<SupportRequest, SupportRequestStatusPayload>(`/commerce/support-requests/${id}/status`, payload),
+    onSuccess: async (supportRequest) => {
+      setSupportRequestStatusById((current) => ({ ...current, [supportRequest.id]: supportRequest.status }));
+      setSupportRequestResolutionById((current) => ({ ...current, [supportRequest.id]: supportRequest.resolution || '' }));
+      await queryClient.invalidateQueries({ queryKey: ['commerce-support-requests', selectedWorkspace?.id] });
+      await queryClient.invalidateQueries({ queryKey: ['notification-summary'] });
     },
   });
   const createDispute = useMutation({
@@ -362,6 +426,7 @@ export default function WorkspacesPage() {
     onSuccess: async () => {
       disputeForm.resetForm();
       await queryClient.invalidateQueries({ queryKey: ['commerce-disputes', selectedWorkspace?.id] });
+      await queryClient.invalidateQueries({ queryKey: ['notification-summary'] });
     },
   });
   const updateDisputeStatus = useMutation({
@@ -370,6 +435,7 @@ export default function WorkspacesPage() {
       setDisputeStatusById((current) => ({ ...current, [dispute.id]: dispute.status }));
       setDisputeResolutionById((current) => ({ ...current, [dispute.id]: dispute.resolution || '' }));
       await queryClient.invalidateQueries({ queryKey: ['commerce-disputes', selectedWorkspace?.id] });
+      await queryClient.invalidateQueries({ queryKey: ['notification-summary'] });
     },
   });
   const uploadAttachment = useMutation({
@@ -391,6 +457,7 @@ export default function WorkspacesPage() {
       setAttachmentLabelsByKey((current) => ({ ...current, [input.key]: '' }));
       setAttachmentProgressByKey((current) => ({ ...current, [input.key]: 0 }));
       await queryClient.invalidateQueries({ queryKey: ['attachments', selectedWorkspace?.id] });
+      await queryClient.invalidateQueries({ queryKey: ['notification-summary'] });
     },
     onError: (error, input) => {
       setAttachmentErrorsByKey((current) => ({ ...current, [input.key]: uploadErrorMessage(error) }));
@@ -423,6 +490,20 @@ export default function WorkspacesPage() {
       createSupportSubscription.mutate();
     }
   });
+  const submitSupportRequest = supportRequestForm.handleSubmit(() => {
+    if (selectedWorkspace?.id && (supportRequestForm.values.supportSubscriptionId || supportRequestForm.values.teamId)) {
+      createSupportRequest.mutate();
+    }
+  });
+  const submitSupportRequestStatus = (supportRequest: SupportRequest) => {
+    updateSupportRequestStatus.mutate({
+      id: supportRequest.id,
+      payload: {
+        status: supportRequestStatusById[supportRequest.id] || supportRequest.status,
+        resolution: supportRequestResolutionById[supportRequest.id] || supportRequest.resolution || '',
+      },
+    });
+  };
   const submitDispute = disputeForm.handleSubmit(() => {
     if (selectedWorkspace?.id) {
       createDispute.mutate();
@@ -526,8 +607,8 @@ export default function WorkspacesPage() {
     <>
       <PageHeader title="Workspaces" description="Coordinate package execution through milestones, deliverables, decisions, and handoff." />
       <QueryState
-        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || supportSubscriptions.isLoading || disputes.isLoading || attachments.isLoading}
-        error={packages.error || workspaces.error || teams.error || supportSubscriptions.error || milestones.error || deliverables.error || participants.error || disputes.error || attachments.error || createWorkspace.error || createMilestone.error || createDeliverable.error || addParticipant.error || createSupportSubscription.error || createDispute.error || updateDisputeStatus.error || uploadAttachment.error}
+        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || supportSubscriptions.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading}
+        error={packages.error || workspaces.error || teams.error || supportSubscriptions.error || supportRequests.error || milestones.error || deliverables.error || participants.error || disputes.error || attachments.error || createWorkspace.error || createMilestone.error || createDeliverable.error || addParticipant.error || createSupportSubscription.error || createSupportRequest.error || updateSupportRequestStatus.error || createDispute.error || updateDisputeStatus.error || uploadAttachment.error}
       />
       {attachmentOpenError && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setAttachmentOpenError('')}>
@@ -597,7 +678,7 @@ export default function WorkspacesPage() {
                   <StatusChip label={selectedWorkspace.status} />
                 </Stack>
               </Box>
-              {(milestones.isFetching || deliverables.isFetching || disputes.isFetching || attachments.isFetching) && <LinearProgress />}
+              {(milestones.isFetching || deliverables.isFetching || supportRequests.isFetching || disputes.isFetching || attachments.isFetching) && <LinearProgress />}
               <Box>
                 <Typography variant="h4">Workspace evidence</Typography>
                 {renderAttachmentControls('WORKSPACE', selectedWorkspace.id)}
@@ -720,6 +801,154 @@ export default function WorkspacesPage() {
                     </Typography>
                   )}
                 </Stack>
+                <Box sx={{ mt: 2 }}>
+                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between">
+                    <Typography variant="h5">Support requests</Typography>
+                    {canManageSupport && (
+                      <Box component="form" onSubmit={submitSupportRequest} sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <TextField
+                          select
+                          size="small"
+                          label="Plan"
+                          value={supportRequestForm.values.supportSubscriptionId || ''}
+                          onChange={(event) => {
+                            const subscription = activeSupportSubscriptions.find((item) => item.id === event.target.value);
+                            supportRequestForm.setValue('supportSubscriptionId', event.target.value || null);
+                            supportRequestForm.setValue('teamId', subscription?.team.id || supportRequestForm.values.teamId);
+                          }}
+                          sx={{ minWidth: 190 }}
+                        >
+                          <MenuItem value="">No plan</MenuItem>
+                          {activeSupportSubscriptions.map((subscription) => (
+                            <MenuItem key={subscription.id} value={subscription.id}>
+                              {subscription.planName}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                        <TextField
+                          select
+                          size="small"
+                          label="Team"
+                          value={supportRequestForm.values.teamId || ''}
+                          onChange={(event) => supportRequestForm.setValue('teamId', event.target.value || null)}
+                          sx={{ minWidth: 180 }}
+                        >
+                          {(teams.data || []).map((team) => (
+                            <MenuItem key={team.id} value={team.id}>
+                              {team.name}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                        <TextField
+                          size="small"
+                          label="Request"
+                          value={supportRequestForm.values.title}
+                          onChange={(event) => supportRequestForm.setValue('title', event.target.value)}
+                        />
+                        <TextField
+                          select
+                          size="small"
+                          label="Priority"
+                          value={supportRequestForm.values.priority}
+                          onChange={(event) => supportRequestForm.setValue('priority', event.target.value as SupportRequest['priority'])}
+                          sx={{ minWidth: 130 }}
+                        >
+                          {supportPriorities.map((priority) => (
+                            <MenuItem key={priority} value={priority}>
+                              {priority.toLowerCase()}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                        <TextField
+                          size="small"
+                          type="date"
+                          label="Due"
+                          value={supportRequestForm.values.dueOn || ''}
+                          onChange={(event) => supportRequestForm.setValue('dueOn', event.target.value || null)}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                        <TextField
+                          size="small"
+                          label="Context"
+                          value={supportRequestForm.values.description}
+                          onChange={(event) => supportRequestForm.setValue('description', event.target.value)}
+                          sx={{ minWidth: { xs: '100%', sm: 260 } }}
+                        />
+                        <Button
+                          type="submit"
+                          variant="outlined"
+                          disabled={
+                            !supportRequestForm.values.title ||
+                            !supportRequestForm.values.description ||
+                            (!supportRequestForm.values.supportSubscriptionId && !supportRequestForm.values.teamId) ||
+                            createSupportRequest.isPending
+                          }
+                        >
+                          Open
+                        </Button>
+                      </Box>
+                    )}
+                  </Stack>
+                  <Stack spacing={1.5} sx={{ mt: 1.5 }}>
+                    {supportRequests.data?.length ? (
+                      supportRequests.data.map((request) => (
+                        <Box key={request.id} sx={{ borderTop: 1, borderColor: 'divider', pt: 1.5 }}>
+                          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between">
+                            <Box>
+                              <Typography variant="subtitle1">{request.title}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {request.team.name} · {request.priority.toLowerCase()}
+                                {request.dueOn ? ` · due ${request.dueOn}` : ''}
+                              </Typography>
+                            </Box>
+                            <StatusChip label={request.status} />
+                          </Stack>
+                          {request.description && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+                              {request.description}
+                            </Typography>
+                          )}
+                          {canManageSupport && (
+                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} sx={{ mt: 1 }}>
+                              <TextField
+                                select
+                                size="small"
+                                label="Status"
+                                value={supportRequestStatusById[request.id] || request.status}
+                                onChange={(event) =>
+                                  setSupportRequestStatusById((current) => ({ ...current, [request.id]: event.target.value as SupportRequest['status'] }))
+                                }
+                                sx={{ minWidth: 210 }}
+                              >
+                                {supportRequestStatuses.map((statusOption) => (
+                                  <MenuItem key={statusOption} value={statusOption}>
+                                    {statusOption.replaceAll('_', ' ').toLowerCase()}
+                                  </MenuItem>
+                                ))}
+                              </TextField>
+                              <TextField
+                                size="small"
+                                label="Resolution note"
+                                value={supportRequestResolutionById[request.id] ?? request.resolution ?? ''}
+                                onChange={(event) =>
+                                  setSupportRequestResolutionById((current) => ({ ...current, [request.id]: event.target.value }))
+                                }
+                                sx={{ minWidth: { xs: '100%', md: 320 } }}
+                              />
+                              <Button variant="outlined" onClick={() => submitSupportRequestStatus(request)} disabled={updateSupportRequestStatus.isPending}>
+                                Update
+                              </Button>
+                            </Stack>
+                          )}
+                        </Box>
+                      ))
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No support requests are open for this workspace.
+                      </Typography>
+                    )}
+                  </Stack>
+                </Box>
               </Box>
               <Box>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between">

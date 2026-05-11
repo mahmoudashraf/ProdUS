@@ -11,9 +11,11 @@ import com.produs.commerce.InvoiceRecord;
 import com.produs.commerce.PaymentWebhookEvent;
 import com.produs.commerce.QuoteProposal;
 import com.produs.commerce.SignatureWebhookEvent;
+import com.produs.commerce.SupportRequest;
 import com.produs.commerce.SupportSubscription;
 import com.produs.commerce.TeamReputationEvent;
 import com.produs.entity.User;
+import com.produs.notifications.PlatformNotification;
 import com.produs.packages.PackageInstance;
 import com.produs.packages.PackageModule;
 import com.produs.packages.TeamMatchService;
@@ -272,6 +274,24 @@ public final class PlatformDtos {
             SupportSubscription.SubscriptionStatus status
     ) {}
 
+    public record SupportRequestResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            ProjectWorkspaceResponse workspace,
+            SupportSubscriptionResponse supportSubscription,
+            TeamResponse team,
+            CurrentUserSummary owner,
+            CurrentUserSummary openedBy,
+            String title,
+            String description,
+            SupportRequest.SupportPriority priority,
+            SupportRequest.SupportStatus status,
+            LocalDate dueOn,
+            LocalDateTime resolvedAt,
+            String resolution
+    ) {}
+
     public record TeamReputationEventResponse(
             UUID id,
             LocalDateTime createdAt,
@@ -403,6 +423,29 @@ public final class PlatformDtos {
     public record AttachmentDownloadUrlResponse(
             String downloadUrl,
             int expiresInSeconds
+    ) {}
+
+    public record PlatformNotificationResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            CurrentUserSummary actor,
+            ProjectWorkspaceResponse workspace,
+            PlatformNotification.NotificationType type,
+            PlatformNotification.NotificationPriority priority,
+            PlatformNotification.NotificationStatus status,
+            String title,
+            String body,
+            String actionUrl,
+            String sourceType,
+            UUID sourceId,
+            LocalDateTime readAt,
+            LocalDateTime expiresAt
+    ) {}
+
+    public record NotificationSummaryResponse(
+            long unreadCount,
+            List<PlatformNotificationResponse> latest
     ) {}
 
     public record ErrorMessageResponse(String error) {}
@@ -744,6 +787,29 @@ public final class PlatformDtos {
         );
     }
 
+    public static SupportRequestResponse toSupportRequestResponse(SupportRequest request) {
+        if (request == null) {
+            return null;
+        }
+        return new SupportRequestResponse(
+                request.getId(),
+                request.getCreatedAt(),
+                request.getUpdatedAt(),
+                toProjectWorkspaceResponse(request.getWorkspace()),
+                toSupportSubscriptionResponse(request.getSupportSubscription()),
+                toTeamResponse(request.getTeam()),
+                toCurrentUserSummary(request.getOwner()),
+                toCurrentUserSummary(request.getOpenedBy()),
+                request.getTitle(),
+                request.getDescription(),
+                request.getPriority(),
+                request.getStatus(),
+                request.getDueOn(),
+                request.getResolvedAt(),
+                request.getResolution()
+        );
+    }
+
     public static TeamReputationEventResponse toTeamReputationEventResponse(TeamReputationEvent event) {
         if (event == null) {
             return null;
@@ -857,6 +923,29 @@ public final class PlatformDtos {
                 recommendation.getRationale(),
                 recommendation.getOutputJson(),
                 recommendation.getHumanFeedback()
+        );
+    }
+
+    public static PlatformNotificationResponse toPlatformNotificationResponse(PlatformNotification notification) {
+        if (notification == null) {
+            return null;
+        }
+        return new PlatformNotificationResponse(
+                notification.getId(),
+                notification.getCreatedAt(),
+                notification.getUpdatedAt(),
+                toCurrentUserSummary(notification.getActor()),
+                toProjectWorkspaceResponse(notification.getWorkspace()),
+                notification.getType(),
+                notification.getPriority(),
+                notification.getStatus(),
+                notification.getTitle(),
+                notification.getBody(),
+                notification.getActionUrl(),
+                notification.getSourceType(),
+                notification.getSourceId(),
+                notification.getReadAt(),
+                notification.getExpiresAt()
         );
     }
 }

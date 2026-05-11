@@ -1,0 +1,129 @@
+databaseChangeLog:
+  - changeSet:
+      id: 600
+      author: produs
+      changes:
+        - createTable:
+            tableName: platform_notifications
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: recipient_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: actor_id, type: UUID }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: type, type: VARCHAR(80), constraints: { nullable: false } }
+              - column: { name: priority, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: body, type: TEXT }
+              - column: { name: action_url, type: VARCHAR(500) }
+              - column: { name: source_type, type: VARCHAR(80), constraints: { nullable: false } }
+              - column: { name: source_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: read_at, type: TIMESTAMP }
+              - column: { name: expires_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: platform_notifications
+            baseColumnNames: recipient_id
+            constraintName: fk_platform_notifications_recipient
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: platform_notifications
+            baseColumnNames: actor_id
+            constraintName: fk_platform_notifications_actor
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: platform_notifications
+            baseColumnNames: workspace_id
+            constraintName: fk_platform_notifications_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - createIndex:
+            tableName: platform_notifications
+            indexName: idx_platform_notifications_recipient
+            columns:
+              - column: { name: recipient_id }
+              - column: { name: status }
+              - column: { name: created_at }
+        - createIndex:
+            tableName: platform_notifications
+            indexName: idx_platform_notifications_source
+            columns:
+              - column: { name: source_type }
+              - column: { name: source_id }
+
+  - changeSet:
+      id: 601
+      author: produs
+      changes:
+        - createTable:
+            tableName: support_requests
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: workspace_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: support_subscription_id, type: UUID }
+              - column: { name: team_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: opened_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: priority, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: due_on, type: DATE }
+              - column: { name: resolved_at, type: TIMESTAMP }
+              - column: { name: resolution, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: support_requests
+            baseColumnNames: workspace_id
+            constraintName: fk_support_requests_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: support_requests
+            baseColumnNames: support_subscription_id
+            constraintName: fk_support_requests_subscription
+            referencedTableName: support_subscriptions
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: support_requests
+            baseColumnNames: team_id
+            constraintName: fk_support_requests_team
+            referencedTableName: teams
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: support_requests
+            baseColumnNames: owner_id
+            constraintName: fk_support_requests_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: support_requests
+            baseColumnNames: opened_by
+            constraintName: fk_support_requests_opened_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: support_requests
+            indexName: idx_support_requests_workspace
+            columns:
+              - column: { name: workspace_id }
+              - column: { name: status }
+              - column: { name: due_on }
+        - createIndex:
+            tableName: support_requests
+            indexName: idx_support_requests_team
+            columns:
+              - column: { name: team_id }
+              - column: { name: status }
+              - column: { name: due_on }
+        - createIndex:
+            tableName: support_requests
+            indexName: idx_support_requests_owner
+            columns:
+              - column: { name: owner_id }
+              - column: { name: status }
+              - column: { name: due_on }

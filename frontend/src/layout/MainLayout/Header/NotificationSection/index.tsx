@@ -1,4 +1,7 @@
-import { Avatar,
+'use client';
+
+import {
+  Avatar,
   Box,
   Button,
   CardActions,
@@ -12,64 +15,87 @@ import { Avatar,
   TextField,
   Typography,
   useMediaQuery,
- } from '@mui/material';
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { IconBell } from '@tabler/icons-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-
-// material-ui
-
-// third-party
 import PerfectScrollbar from 'react-perfect-scrollbar';
 
-// project imports
 import MainCard from 'ui-component/cards/MainCard';
 import Transitions from 'ui-component/extended/Transitions';
+import apiClient from '@/lib/api-client';
+import { NotificationSummary, PlatformNotification } from '@/features/platform/types';
 
 import NotificationList from './NotificationList';
 
-// assets
-
-// notification status options
-const status = [
-  {
-    value: 'all',
-    label: 'All Notification',
-  },
-  {
-    value: 'new',
-    label: 'New',
-  },
-  {
-    value: 'unread',
-    label: 'Unread',
-  },
-  {
-    value: 'other',
-    label: 'Other',
-  },
+const statusOptions = [
+  { value: '', label: 'All notifications' },
+  { value: 'UNREAD', label: 'Unread' },
+  { value: 'READ', label: 'Read' },
 ];
 
-// ==============================|| NOTIFICATION ||============================== //
+const fetchSummary = async () => {
+  const response = await apiClient.get<NotificationSummary>('/notifications/summary');
+  return response.data;
+};
+
+const fetchNotifications = async (status: string) => {
+  const response = await apiClient.get<PlatformNotification[]>('/notifications', {
+    params: status ? { status } : undefined,
+  });
+  return response.data;
+};
 
 const NotificationSection = () => {
   const theme = useTheme();
   const matchesXs = useMediaQuery(theme.breakpoints.down('md'));
+  const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState('');
-  /**
-   * anchorRef is used on different componets and specifying one type leads to other components throwing an error
-   * */
-  const anchorRef = useRef<any>(null);
+  const [status, setStatus] = useState('');
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+
+  const summary = useQuery({
+    queryKey: ['notification-summary'],
+    queryFn: fetchSummary,
+    refetchInterval: 30000,
+    retry: false,
+  });
+  const notifications = useQuery({
+    queryKey: ['notifications', status],
+    queryFn: () => fetchNotifications(status),
+    enabled: open,
+    retry: false,
+  });
+
+  const markRead = useMutation({
+    mutationFn: (notification: PlatformNotification) => apiClient.put(`/notifications/${notification.id}/read`),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['notification-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+      ]);
+    },
+  });
+
+  const markAllRead = useMutation({
+    mutationFn: () => apiClient.put('/notifications/read-all'),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['notification-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+      ]);
+    },
+  });
 
   const handleToggle = () => {
-    setOpen(prevOpen => !prevOpen);
+    setOpen((prevOpen) => !prevOpen);
   };
 
-  const handleClose = (event: React.MouseEvent<HTMLDivElement> | MouseEvent | TouchEvent) => {
-    if (anchorRef.current && anchorRef.current.contains(event.target)) {
+  const handleClose = (event: MouseEvent | TouchEvent) => {
+    if (anchorRef.current && anchorRef.current.contains(event.target as Node)) {
       return;
     }
     setOpen(false);
@@ -78,16 +104,13 @@ const NotificationSection = () => {
   const prevOpen = useRef(open);
   useEffect(() => {
     if (prevOpen.current === true && open === false) {
-      anchorRef.current.focus();
+      anchorRef.current?.focus();
     }
     prevOpen.current = open;
   }, [open]);
 
-  const handleChange = (
-    event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement> | undefined
-  ) => {
-    if (event?.target.value) setValue(event?.target.value);
-  };
+  const unreadCount = summary.data?.unreadCount || 0;
+  const list = notifications.data || summary.data?.latest || [];
 
   return (
     <>
@@ -106,23 +129,12 @@ const NotificationSection = () => {
             ...theme.typography.commonAvatar,
             ...theme.typography.mediumAvatar,
             transition: 'all .2s ease-in-out',
-            background:
-              theme.palette.mode === 'dark'
-                ? theme.palette.dark.main
-                : theme.palette.secondary.light,
-            color:
-              theme.palette.mode === 'dark'
-                ? theme.palette.warning.dark
-                : theme.palette.secondary.dark,
+            background: theme.palette.mode === 'dark' ? theme.palette.dark.main : theme.palette.secondary.light,
+            color: theme.palette.mode === 'dark' ? theme.palette.warning.dark : theme.palette.secondary.dark,
+            position: 'relative',
             '&[aria-controls="menu-list-grow"],&:hover': {
-              background:
-                theme.palette.mode === 'dark'
-                  ? theme.palette.warning.dark
-                  : theme.palette.secondary.dark,
-              color:
-                theme.palette.mode === 'dark'
-                  ? theme.palette.grey[800]
-                  : theme.palette.secondary.light,
+              background: theme.palette.mode === 'dark' ? theme.palette.warning.dark : theme.palette.secondary.dark,
+              color: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.secondary.light,
             },
           } as any}
           ref={anchorRef}
@@ -132,6 +144,20 @@ const NotificationSection = () => {
           color="inherit"
         >
           <IconBell stroke={1.5} size="20px" />
+          {unreadCount > 0 && (
+            <Box
+              component="span"
+              sx={{
+                position: 'absolute',
+                top: 5,
+                right: 5,
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: 'error.main',
+              }}
+            />
+          )}
         </Avatar>
       </Box>
 
@@ -156,69 +182,43 @@ const NotificationSection = () => {
             <Transitions position={matchesXs ? 'top' : 'top-right'} in={open} {...TransitionProps}>
               <Paper>
                 {open && (
-                  <MainCard
-                    border={false}
-                    elevation={16}
-                    content={false}
-                    boxShadow
-                    shadow={theme.shadows[16]}
-                  >
+                  <MainCard border={false} elevation={16} content={false} boxShadow shadow={theme.shadows[16]}>
                     <Grid container direction="column" spacing={2}>
                       <Grid size={{ xs: 12 }}>
-                        <Grid
-                          container
-                          alignItems="center"
-                          justifyContent="space-between"
-                          sx={{ pt: 2, px: 2 }}
-                        >
+                        <Grid container alignItems="center" justifyContent="space-between" sx={{ pt: 2, px: 2 }}>
                           <Grid>
-                            <Stack direction="row" spacing={2}>
-                              <Typography variant="subtitle1">All Notification</Typography>
+                            <Stack direction="row" spacing={2} alignItems="center">
+                              <Typography variant="subtitle1">Notifications</Typography>
                               <Chip
                                 size="small"
-                                label="01"
+                                label={unreadCount}
                                 sx={{
                                   color: theme.palette.background.default,
-                                  bgcolor: theme.palette.warning.dark,
+                                  bgcolor: unreadCount > 0 ? theme.palette.warning.dark : theme.palette.grey[500],
                                 }}
                               />
                             </Stack>
                           </Grid>
                           <Grid>
-                            <Typography
-                              component={Link}
-                              href="#"
-                              variant="subtitle2"
-                              color="primary"
+                            <Button
+                              size="small"
+                              variant="text"
+                              disabled={!unreadCount || markAllRead.isPending}
+                              onClick={() => markAllRead.mutate()}
                             >
-                              Mark as all read
-                            </Typography>
+                              Mark all read
+                            </Button>
                           </Grid>
                         </Grid>
                       </Grid>
                       <Grid size={{ xs: 12 }}>
-                        <PerfectScrollbar
-                          style={{
-                            height: '100%',
-                            maxHeight: 'calc(100vh - 205px)',
-                            overflowX: 'hidden',
-                          }}
-                        >
+                        <PerfectScrollbar style={{ height: '100%', maxHeight: 'calc(100vh - 205px)', overflowX: 'hidden' }}>
                           <Grid container direction="column" spacing={2}>
                             <Grid size={{ xs: 12 }}>
                               <Box sx={{ px: 2, pt: 0.25 }}>
-                                <TextField
-                                  id="outlined-select-currency-native"
-                                  select
-                                  fullWidth
-                                  value={value}
-                                  onChange={handleChange}
-                                  SelectProps={{
-                                    native: true,
-                                  }}
-                                >
-                                  {status.map(option => (
-                                    <option key={option.value} value={option.value}>
+                                <TextField select fullWidth value={status} onChange={(event) => setStatus(event.target.value)} SelectProps={{ native: true }}>
+                                  {statusOptions.map((option) => (
+                                    <option key={option.value || 'all'} value={option.value}>
                                       {option.label}
                                     </option>
                                   ))}
@@ -229,14 +229,22 @@ const NotificationSection = () => {
                               <Divider sx={{ my: 0 }} />
                             </Grid>
                           </Grid>
-                          <NotificationList />
+                          {notifications.isLoading ? (
+                            <Box sx={{ width: 330, px: 2, py: 3 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                Loading notifications...
+                              </Typography>
+                            </Box>
+                          ) : (
+                            <NotificationList notifications={list} onMarkRead={(notification) => markRead.mutate(notification)} />
+                          )}
                         </PerfectScrollbar>
                       </Grid>
                     </Grid>
                     <Divider />
                     <CardActions sx={{ p: 1.25, justifyContent: 'center' }}>
-                      <Button size="small" disableElevation>
-                        View All
+                      <Button component={Link} href="/dashboard" size="small" disableElevation>
+                        View dashboard
                       </Button>
                     </CardActions>
                   </MainCard>

@@ -6,6 +6,7 @@ import { getJson } from './api';
 import { EmptyState, PageHeader, QueryState, StatusChip, Surface } from './PlatformComponents';
 import {
   AIRecommendation,
+  NotificationSummary,
   PackageInstance,
   ProductProfile,
   ProjectWorkspace,
@@ -30,6 +31,11 @@ export default function DashboardPage() {
   const recommendations = useQuery({
     queryKey: ['ai-recommendations'],
     queryFn: () => getJson<AIRecommendation[]>('/ai/recommendations'),
+    retry: false,
+  });
+  const notifications = useQuery({
+    queryKey: ['notification-summary'],
+    queryFn: () => getJson<NotificationSummary>('/notifications/summary'),
     retry: false,
   });
 
@@ -64,6 +70,30 @@ export default function DashboardPage() {
         ))}
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2 }}>
+        <Surface>
+          <Typography variant="h4" sx={{ mb: 2 }}>
+            Action Center
+          </Typography>
+          {notifications.data?.latest?.length ? (
+            <Stack spacing={1.5}>
+              {notifications.data.latest.slice(0, 5).map((item) => (
+                <Box key={item.id}>
+                  <Stack direction="row" justifyContent="space-between" spacing={2}>
+                    <Typography>{item.title}</Typography>
+                    <StatusChip label={item.status} />
+                  </Stack>
+                  {item.body && (
+                    <Typography variant="body2" color="text.secondary">
+                      {item.body}
+                    </Typography>
+                  )}
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            <EmptyState label="No platform notifications require attention." />
+          )}
+        </Surface>
         <Surface>
           <Typography variant="h4" sx={{ mb: 2 }}>
             Package Pipeline

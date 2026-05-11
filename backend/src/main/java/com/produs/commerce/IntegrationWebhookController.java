@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.dto.PlatformDtos.PaymentWebhookEventResponse;
 import com.produs.dto.PlatformDtos.SignatureWebhookEventResponse;
+import com.produs.notifications.NotificationService;
+import com.produs.notifications.PlatformNotification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,6 +34,7 @@ public class IntegrationWebhookController {
     private final InvoiceRecordRepository invoiceRepository;
     private final ContractAgreementRepository contractRepository;
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
 
     @PostMapping("/payments/webhook")
     public PaymentWebhookEventResponse paymentWebhook(
@@ -78,6 +81,7 @@ public class IntegrationWebhookController {
         InvoiceRecord.InvoiceStatus nextStatus = resolveInvoiceStatus(root, eventType);
         invoice.setStatus(nextStatus);
         invoiceRepository.save(invoice);
+        notifyInvoiceWebhook(invoice);
         event.setProcessed(true);
         event.setProcessedAt(LocalDateTime.now());
         return toPaymentWebhookEventResponse(paymentEventRepository.save(event));
@@ -124,6 +128,7 @@ public class IntegrationWebhookController {
             contract.setSignedAt(LocalDateTime.now());
         }
         contractRepository.save(contract);
+        notifyContractWebhook(contract);
         event.setProcessed(true);
         event.setProcessedAt(LocalDateTime.now());
         return toSignatureWebhookEventResponse(signatureEventRepository.save(event));
@@ -204,5 +209,42 @@ public class IntegrationWebhookController {
             return null;
         }
         return root.path(field).asText();
+    }
+
+    private void notifyInvoiceWebhook(InvoiceRecord invoice) {
+        PlatformNotification.NotificationType type = invoice.getStatus() == InvoiceRecord.InvoiceStatus.PAID
+                ? PlatformNotification.NotificationType.INVOICE_PAID
+                : PlatformNotification.NotificationType.INVOICE_STATUS_CHANGED;
+        notificationService.notifyAll(
+                java.util.List.of(invoice.getOwner(), invoice.getContractAgreement().getTeam().getManager()),
+                null,
+                type,
+                PlatformNotification.NotificationPriority.NORMAL,
+                "Invoice " + invoice.getStatus().name().replace('_', ' ').toLowerCase(),
+                invoice.getInvoiceNumber() + " was updated by the payment provider",
+                "/packages",
+                "INVOICE_RECORD",
+                invoice.getId(),
+                invoice.getContractAgreement().getWorkspace()
+        );
+    }
+
+    private void notifyContractWebhook(ContractAgreement contract) {
+        PlatformNotification.NotificationType type = contract.getStatus() == ContractAgreement.ContractStatus.SIGNED
+                || contract.getStatus() == ContractAgreement.ContractStatus.ACTIVE
+                ? PlatformNotification.NotificationType.CONTRACT_SIGNED
+                : PlatformNotification.NotificationType.CONTRACT_STATUS_CHANGED;
+        notificationService.notifyAll(
+                java.util.List.of(contract.getOwner(), contract.getTeam().getManager()),
+                null,
+                type,
+                PlatformNotification.NotificationPriority.NORMAL,
+                "Contract " + contract.getStatus().name().replace('_', ' ').toLowerCase(),
+                contract.getTitle() + " was updated by the signature provider",
+                "/packages",
+                "CONTRACT_AGREEMENT",
+                contract.getId(),
+                contract.getWorkspace()
+        );
     }
 }

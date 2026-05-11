@@ -4,9 +4,12 @@ import com.produs.dto.PlatformDtos.ContractAgreementResponse;
 import com.produs.dto.PlatformDtos.DisputeCaseResponse;
 import com.produs.dto.PlatformDtos.InvoiceRecordResponse;
 import com.produs.dto.PlatformDtos.QuoteProposalResponse;
+import com.produs.dto.PlatformDtos.SupportRequestResponse;
 import com.produs.dto.PlatformDtos.SupportSubscriptionResponse;
 import com.produs.dto.PlatformDtos.TeamReputationEventResponse;
 import com.produs.entity.User;
+import com.produs.notifications.NotificationService;
+import com.produs.notifications.PlatformNotification;
 import com.produs.packages.PackageInstance;
 import com.produs.packages.PackageInstanceRepository;
 import com.produs.shared.BaseEntity;
@@ -34,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,6 +50,7 @@ import static com.produs.dto.PlatformDtos.toContractAgreementResponse;
 import static com.produs.dto.PlatformDtos.toDisputeCaseResponse;
 import static com.produs.dto.PlatformDtos.toInvoiceRecordResponse;
 import static com.produs.dto.PlatformDtos.toQuoteProposalResponse;
+import static com.produs.dto.PlatformDtos.toSupportRequestResponse;
 import static com.produs.dto.PlatformDtos.toSupportSubscriptionResponse;
 import static com.produs.dto.PlatformDtos.toTeamReputationEventResponse;
 
@@ -58,12 +63,14 @@ public class CommerceController {
     private final ContractAgreementRepository contractRepository;
     private final InvoiceRecordRepository invoiceRepository;
     private final SupportSubscriptionRepository subscriptionRepository;
+    private final SupportRequestRepository supportRequestRepository;
     private final TeamReputationEventRepository reputationRepository;
     private final DisputeCaseRepository disputeRepository;
     private final PackageInstanceRepository packageRepository;
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final ProjectWorkspaceRepository workspaceRepository;
+    private final NotificationService notificationService;
 
     @GetMapping("/proposals")
     public List<QuoteProposalResponse> proposals(@AuthenticationPrincipal User user) {
@@ -113,7 +120,9 @@ public class CommerceController {
         proposal.setFixedPriceCents(request.fixedPriceCents() == null ? 0 : request.fixedPriceCents());
         proposal.setPlatformFeeCents(request.platformFeeCents() == null ? 0 : request.platformFeeCents());
         proposal.setStatus(request.status() == null ? QuoteProposal.ProposalStatus.SUBMITTED : request.status());
-        return toQuoteProposalResponse(proposalRepository.save(proposal));
+        QuoteProposal saved = proposalRepository.save(proposal);
+        notifyProposalSubmitted(saved, user);
+        return toQuoteProposalResponse(saved);
     }
 
     @PutMapping("/proposals/{proposalId}/status")
@@ -126,13 +135,17 @@ public class CommerceController {
                 .orElseThrow(() -> new IllegalArgumentException("Proposal not found"));
         if (isAdmin(user)) {
             proposal.setStatus(request.status());
-            return toQuoteProposalResponse(proposalRepository.save(proposal));
+            QuoteProposal saved = proposalRepository.save(proposal);
+            notifyProposalStatusChanged(saved, user);
+            return toQuoteProposalResponse(saved);
         }
         if (isPackageOwner(user, proposal.getPackageInstance())) {
             if (request.status() == QuoteProposal.ProposalStatus.OWNER_ACCEPTED
                     || request.status() == QuoteProposal.ProposalStatus.OWNER_REJECTED) {
                 proposal.setStatus(request.status());
-                return toQuoteProposalResponse(proposalRepository.save(proposal));
+                QuoteProposal saved = proposalRepository.save(proposal);
+                notifyProposalStatusChanged(saved, user);
+                return toQuoteProposalResponse(saved);
             }
         }
         if (isTeamManager(user, proposal.getTeam())) {
@@ -140,7 +153,9 @@ public class CommerceController {
                     || request.status() == QuoteProposal.ProposalStatus.SUBMITTED
                     || request.status() == QuoteProposal.ProposalStatus.WITHDRAWN) {
                 proposal.setStatus(request.status());
-                return toQuoteProposalResponse(proposalRepository.save(proposal));
+                QuoteProposal saved = proposalRepository.save(proposal);
+                notifyProposalStatusChanged(saved, user);
+                return toQuoteProposalResponse(saved);
             }
         }
         throw new AccessDeniedException("Proposal status cannot be changed by this user");
@@ -183,7 +198,9 @@ public class CommerceController {
                 || contract.getStatus() == ContractAgreement.ContractStatus.ACTIVE) {
             contract.setSignedAt(LocalDateTime.now());
         }
-        return toContractAgreementResponse(contractRepository.save(contract));
+        ContractAgreement saved = contractRepository.save(contract);
+        notifyContractCreated(saved, user);
+        return toContractAgreementResponse(saved);
     }
 
     @GetMapping("/contracts")
@@ -214,7 +231,9 @@ public class CommerceController {
                 && contract.getSignedAt() == null) {
             contract.setSignedAt(LocalDateTime.now());
         }
-        return toContractAgreementResponse(contractRepository.save(contract));
+        ContractAgreement saved = contractRepository.save(contract);
+        notifyContractStatusChanged(saved, user);
+        return toContractAgreementResponse(saved);
     }
 
     @PostMapping("/contracts/{contractId}/invoices")
@@ -237,7 +256,9 @@ public class CommerceController {
         invoice.setCurrency(normalizeCurrency(request.currency()));
         invoice.setDueDate(request.dueDate());
         invoice.setStatus(request.status() == null ? InvoiceRecord.InvoiceStatus.ISSUED : request.status());
-        return toInvoiceRecordResponse(invoiceRepository.save(invoice));
+        InvoiceRecord saved = invoiceRepository.save(invoice);
+        notifyInvoiceIssued(saved, user);
+        return toInvoiceRecordResponse(saved);
     }
 
     @GetMapping("/invoices")
@@ -263,7 +284,9 @@ public class CommerceController {
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found"));
         requireInvoiceParty(user, invoice);
         invoice.setStatus(request.status());
-        return toInvoiceRecordResponse(invoiceRepository.save(invoice));
+        InvoiceRecord saved = invoiceRepository.save(invoice);
+        notifyInvoiceStatusChanged(saved, user);
+        return toInvoiceRecordResponse(saved);
     }
 
     @PostMapping("/workspaces/{workspaceId}/support-subscriptions")
@@ -292,7 +315,9 @@ public class CommerceController {
         subscription.setStartsOn(request.startsOn());
         subscription.setRenewsOn(request.renewsOn());
         subscription.setStatus(request.status() == null ? SupportSubscription.SubscriptionStatus.PROPOSED : request.status());
-        return toSupportSubscriptionResponse(subscriptionRepository.save(subscription));
+        SupportSubscription saved = subscriptionRepository.save(subscription);
+        notifySupportSubscriptionCreated(saved, user);
+        return toSupportSubscriptionResponse(saved);
     }
 
     @GetMapping("/support-subscriptions")
@@ -320,7 +345,100 @@ public class CommerceController {
             throw new AccessDeniedException("Support subscription cannot be changed by this user");
         }
         subscription.setStatus(request.status());
-        return toSupportSubscriptionResponse(subscriptionRepository.save(subscription));
+        SupportSubscription saved = subscriptionRepository.save(subscription);
+        notifySupportSubscriptionStatusChanged(saved, user);
+        return toSupportSubscriptionResponse(saved);
+    }
+
+    @GetMapping("/support-requests")
+    public List<SupportRequestResponse> supportRequests(@AuthenticationPrincipal User user) {
+        Stream<SupportRequest> requests = switch (user.getRole()) {
+            case ADMIN -> supportRequestRepository.findAll().stream();
+            case PRODUCT_OWNER -> supportRequestRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId()).stream();
+            case TEAM_MANAGER -> supportRequestRepository.findByTeamManagerIdOrderByCreatedAtDesc(user.getId()).stream();
+            case SPECIALIST, ADVISOR -> teamMemberRepository.findByUserIdAndActiveTrueOrderByCreatedAtDesc(user.getId()).stream()
+                    .flatMap(member -> supportRequestRepository.findByTeamIdOrderByCreatedAtDesc(member.getTeam().getId()).stream());
+        };
+        return sortDistinct(requests).stream()
+                .map(request -> toSupportRequestResponse(request))
+                .toList();
+    }
+
+    @GetMapping("/workspaces/{workspaceId}/support-requests")
+    public List<SupportRequestResponse> workspaceSupportRequests(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId
+    ) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceSupportViewer(user, workspace);
+        return supportRequestRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
+                .map(request -> toSupportRequestResponse(request))
+                .toList();
+    }
+
+    @PostMapping("/workspaces/{workspaceId}/support-requests")
+    public SupportRequestResponse createSupportRequest(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody SupportRequestPayload request
+    ) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        SupportSubscription subscription = resolveSupportSubscription(request.supportSubscriptionId());
+        if (subscription != null && !subscription.getWorkspace().getId().equals(workspaceId)) {
+            throw new IllegalArgumentException("Support subscription belongs to a different workspace");
+        }
+
+        Team team = request.teamId() == null
+                ? subscription == null ? null : subscription.getTeam()
+                : teamRepository.findById(request.teamId()).orElseThrow(() -> new IllegalArgumentException("Team not found"));
+        if (team == null) {
+            throw new IllegalArgumentException("Support team is required");
+        }
+        if (subscription != null && !subscription.getTeam().getId().equals(team.getId())) {
+            throw new IllegalArgumentException("Support request team must match the subscription team");
+        }
+        requireSupportParticipant(user, workspace, team);
+
+        SupportRequest supportRequest = new SupportRequest();
+        supportRequest.setWorkspace(workspace);
+        supportRequest.setSupportSubscription(subscription);
+        supportRequest.setTeam(team);
+        supportRequest.setOwner(workspace.getOwner());
+        supportRequest.setOpenedBy(user);
+        supportRequest.setTitle(request.title());
+        supportRequest.setDescription(request.description());
+        supportRequest.setPriority(request.priority() == null ? SupportRequest.SupportPriority.MEDIUM : request.priority());
+        supportRequest.setStatus(request.status() == null ? SupportRequest.SupportStatus.OPEN : request.status());
+        supportRequest.setDueOn(request.dueOn());
+        SupportRequest saved = supportRequestRepository.save(supportRequest);
+        notifySupportRequestOpened(saved, user);
+        return toSupportRequestResponse(saved);
+    }
+
+    @PutMapping("/support-requests/{requestId}/status")
+    public SupportRequestResponse updateSupportRequestStatus(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID requestId,
+            @Valid @RequestBody SupportRequestStatusPayload request
+    ) {
+        SupportRequest supportRequest = supportRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Support request not found"));
+        requireSupportParticipant(user, supportRequest.getWorkspace(), supportRequest.getTeam());
+        supportRequest.setStatus(request.status());
+        if (request.resolution() != null) {
+            supportRequest.setResolution(request.resolution());
+        }
+        if (request.status() == SupportRequest.SupportStatus.RESOLVED && supportRequest.getResolvedAt() == null) {
+            supportRequest.setResolvedAt(LocalDateTime.now());
+        }
+        if (request.status() != SupportRequest.SupportStatus.RESOLVED) {
+            supportRequest.setResolvedAt(null);
+        }
+        SupportRequest saved = supportRequestRepository.save(supportRequest);
+        notifySupportRequestUpdated(saved, user);
+        return toSupportRequestResponse(saved);
     }
 
     @GetMapping("/teams/{teamId}/reputation")
@@ -404,7 +522,9 @@ public class CommerceController {
         dispute.setSeverity(request.severity() == null ? DisputeCase.DisputeSeverity.MEDIUM : request.severity());
         dispute.setStatus(request.status() == null ? DisputeCase.DisputeStatus.OPEN : request.status());
         dispute.setResponseDueOn(request.responseDueOn());
-        return toDisputeCaseResponse(disputeRepository.save(dispute));
+        DisputeCase saved = disputeRepository.save(dispute);
+        notifyDisputeOpened(saved, user);
+        return toDisputeCaseResponse(saved);
     }
 
     @PutMapping("/disputes/{disputeId}/status")
@@ -420,7 +540,216 @@ public class CommerceController {
         if (request.resolution() != null) {
             dispute.setResolution(request.resolution());
         }
-        return toDisputeCaseResponse(disputeRepository.save(dispute));
+        DisputeCase saved = disputeRepository.save(dispute);
+        notifyDisputeUpdated(saved, user);
+        return toDisputeCaseResponse(saved);
+    }
+
+    private void notifyProposalSubmitted(QuoteProposal proposal, User actor) {
+        notificationService.notify(
+                proposal.getPackageInstance().getOwner(),
+                actor,
+                PlatformNotification.NotificationType.PROPOSAL_SUBMITTED,
+                PlatformNotification.NotificationPriority.HIGH,
+                "Proposal submitted",
+                proposal.getTeam().getName() + " submitted " + proposal.getTitle(),
+                "/packages",
+                "QUOTE_PROPOSAL",
+                proposal.getId(),
+                null
+        );
+    }
+
+    private void notifyProposalStatusChanged(QuoteProposal proposal, User actor) {
+        notificationService.notifyAll(
+                List.of(proposal.getPackageInstance().getOwner(), proposal.getTeam().getManager()),
+                actor,
+                PlatformNotification.NotificationType.PROPOSAL_STATUS_CHANGED,
+                PlatformNotification.NotificationPriority.NORMAL,
+                "Proposal " + proposal.getStatus().name().replace('_', ' ').toLowerCase(),
+                proposal.getTitle() + " is now " + proposal.getStatus().name().replace('_', ' ').toLowerCase(),
+                "/packages",
+                "QUOTE_PROPOSAL",
+                proposal.getId(),
+                null
+        );
+    }
+
+    private void notifyContractCreated(ContractAgreement contract, User actor) {
+        notificationService.notify(
+                contract.getTeam().getManager(),
+                actor,
+                PlatformNotification.NotificationType.CONTRACT_CREATED,
+                PlatformNotification.NotificationPriority.HIGH,
+                "Contract ready",
+                contract.getTitle() + " was created for " + contract.getTeam().getName(),
+                "/packages",
+                "CONTRACT_AGREEMENT",
+                contract.getId(),
+                contract.getWorkspace()
+        );
+    }
+
+    private void notifyContractStatusChanged(ContractAgreement contract, User actor) {
+        PlatformNotification.NotificationType type = contract.getStatus() == ContractAgreement.ContractStatus.SIGNED
+                || contract.getStatus() == ContractAgreement.ContractStatus.ACTIVE
+                ? PlatformNotification.NotificationType.CONTRACT_SIGNED
+                : PlatformNotification.NotificationType.CONTRACT_STATUS_CHANGED;
+        notificationService.notifyAll(
+                List.of(contract.getOwner(), contract.getTeam().getManager()),
+                actor,
+                type,
+                PlatformNotification.NotificationPriority.NORMAL,
+                "Contract " + contract.getStatus().name().replace('_', ' ').toLowerCase(),
+                contract.getTitle() + " is now " + contract.getStatus().name().replace('_', ' ').toLowerCase(),
+                "/packages",
+                "CONTRACT_AGREEMENT",
+                contract.getId(),
+                contract.getWorkspace()
+        );
+    }
+
+    private void notifyInvoiceIssued(InvoiceRecord invoice, User actor) {
+        notificationService.notify(
+                invoice.getOwner(),
+                actor,
+                PlatformNotification.NotificationType.INVOICE_ISSUED,
+                PlatformNotification.NotificationPriority.HIGH,
+                "Invoice issued",
+                invoice.getInvoiceNumber() + " is ready for review",
+                "/packages",
+                "INVOICE_RECORD",
+                invoice.getId(),
+                invoice.getContractAgreement().getWorkspace()
+        );
+    }
+
+    private void notifyInvoiceStatusChanged(InvoiceRecord invoice, User actor) {
+        PlatformNotification.NotificationType type = invoice.getStatus() == InvoiceRecord.InvoiceStatus.PAID
+                ? PlatformNotification.NotificationType.INVOICE_PAID
+                : PlatformNotification.NotificationType.INVOICE_STATUS_CHANGED;
+        notificationService.notifyAll(
+                List.of(invoice.getOwner(), invoice.getContractAgreement().getTeam().getManager()),
+                actor,
+                type,
+                PlatformNotification.NotificationPriority.NORMAL,
+                "Invoice " + invoice.getStatus().name().replace('_', ' ').toLowerCase(),
+                invoice.getInvoiceNumber() + " is now " + invoice.getStatus().name().replace('_', ' ').toLowerCase(),
+                "/packages",
+                "INVOICE_RECORD",
+                invoice.getId(),
+                invoice.getContractAgreement().getWorkspace()
+        );
+    }
+
+    private void notifySupportSubscriptionCreated(SupportSubscription subscription, User actor) {
+        notificationService.notifyAll(
+                List.of(subscription.getOwner(), subscription.getTeam().getManager()),
+                actor,
+                PlatformNotification.NotificationType.SUPPORT_SUBSCRIPTION_CREATED,
+                PlatformNotification.NotificationPriority.NORMAL,
+                "Support plan created",
+                subscription.getPlanName() + " is attached to " + subscription.getWorkspace().getName(),
+                "/workspaces",
+                "SUPPORT_SUBSCRIPTION",
+                subscription.getId(),
+                subscription.getWorkspace()
+        );
+    }
+
+    private void notifySupportSubscriptionStatusChanged(SupportSubscription subscription, User actor) {
+        notificationService.notifyAll(
+                List.of(subscription.getOwner(), subscription.getTeam().getManager()),
+                actor,
+                PlatformNotification.NotificationType.SUPPORT_SUBSCRIPTION_STATUS_CHANGED,
+                PlatformNotification.NotificationPriority.NORMAL,
+                "Support plan " + subscription.getStatus().name().replace('_', ' ').toLowerCase(),
+                subscription.getPlanName() + " is now " + subscription.getStatus().name().replace('_', ' ').toLowerCase(),
+                "/workspaces",
+                "SUPPORT_SUBSCRIPTION",
+                subscription.getId(),
+                subscription.getWorkspace()
+        );
+    }
+
+    private void notifySupportRequestOpened(SupportRequest request, User actor) {
+        notificationService.notifyAll(
+                ownerAndTeamManager(request.getWorkspace(), request.getTeam()),
+                actor,
+                PlatformNotification.NotificationType.SUPPORT_REQUEST_OPENED,
+                priorityForSupportRequest(request),
+                "Support request opened",
+                request.getTitle(),
+                "/workspaces",
+                "SUPPORT_REQUEST",
+                request.getId(),
+                request.getWorkspace()
+        );
+    }
+
+    private void notifySupportRequestUpdated(SupportRequest request, User actor) {
+        notificationService.notifyAll(
+                ownerAndTeamManager(request.getWorkspace(), request.getTeam()),
+                actor,
+                PlatformNotification.NotificationType.SUPPORT_REQUEST_UPDATED,
+                priorityForSupportRequest(request),
+                "Support request " + request.getStatus().name().replace('_', ' ').toLowerCase(),
+                request.getTitle() + " is now " + request.getStatus().name().replace('_', ' ').toLowerCase(),
+                "/workspaces",
+                "SUPPORT_REQUEST",
+                request.getId(),
+                request.getWorkspace()
+        );
+    }
+
+    private void notifyDisputeOpened(DisputeCase dispute, User actor) {
+        notificationService.notifyAll(
+                ownerAndTeamManager(dispute.getWorkspace(), dispute.getTeam()),
+                actor,
+                PlatformNotification.NotificationType.DISPUTE_OPENED,
+                PlatformNotification.NotificationPriority.CRITICAL,
+                "Dispute opened",
+                dispute.getTitle(),
+                "/workspaces",
+                "DISPUTE_CASE",
+                dispute.getId(),
+                dispute.getWorkspace()
+        );
+    }
+
+    private void notifyDisputeUpdated(DisputeCase dispute, User actor) {
+        notificationService.notifyAll(
+                ownerAndTeamManager(dispute.getWorkspace(), dispute.getTeam()),
+                actor,
+                PlatformNotification.NotificationType.DISPUTE_UPDATED,
+                dispute.getSeverity() == DisputeCase.DisputeSeverity.CRITICAL
+                        ? PlatformNotification.NotificationPriority.CRITICAL
+                        : PlatformNotification.NotificationPriority.HIGH,
+                "Dispute " + dispute.getStatus().name().replace('_', ' ').toLowerCase(),
+                dispute.getTitle() + " is now " + dispute.getStatus().name().replace('_', ' ').toLowerCase(),
+                "/workspaces",
+                "DISPUTE_CASE",
+                dispute.getId(),
+                dispute.getWorkspace()
+        );
+    }
+
+    private PlatformNotification.NotificationPriority priorityForSupportRequest(SupportRequest request) {
+        return switch (request.getPriority()) {
+            case URGENT -> PlatformNotification.NotificationPriority.CRITICAL;
+            case HIGH -> PlatformNotification.NotificationPriority.HIGH;
+            case MEDIUM -> PlatformNotification.NotificationPriority.NORMAL;
+            case LOW -> PlatformNotification.NotificationPriority.LOW;
+        };
+    }
+
+    private List<User> ownerAndTeamManager(ProjectWorkspace workspace, Team team) {
+        List<User> users = new ArrayList<>();
+        users.add(workspace.getOwner());
+        if (team != null) {
+            users.add(team.getManager());
+        }
+        return users;
     }
 
     private <T extends BaseEntity> List<T> sortDistinct(Stream<T> records) {
@@ -504,6 +833,30 @@ public class CommerceController {
         throw new AccessDeniedException("Workspace disputes are not available to this user");
     }
 
+    private void requireWorkspaceSupportViewer(User user, ProjectWorkspace workspace) {
+        if (isAdmin(user) || isWorkspaceOwner(user, workspace)) {
+            return;
+        }
+        boolean hasSubscriptionAccess = subscriptionRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId()).stream()
+                .anyMatch(subscription -> isTeamManager(user, subscription.getTeam()) || isTeamMember(user, subscription.getTeam()));
+        if (hasSubscriptionAccess) {
+            return;
+        }
+        boolean hasRequestAccess = supportRequestRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId()).stream()
+                .anyMatch(request -> isTeamManager(user, request.getTeam()) || isTeamMember(user, request.getTeam()));
+        if (hasRequestAccess) {
+            return;
+        }
+        throw new AccessDeniedException("Workspace support requests are not available to this user");
+    }
+
+    private void requireSupportParticipant(User user, ProjectWorkspace workspace, Team team) {
+        if (isAdmin(user) || isWorkspaceOwner(user, workspace) || isTeamManager(user, team) || isTeamMember(user, team)) {
+            return;
+        }
+        throw new AccessDeniedException("Support request cannot be changed by this user");
+    }
+
     private void requireDisputeCreator(User user, ProjectWorkspace workspace, Team team) {
         if (isAdmin(user) || isWorkspaceOwner(user, workspace)) {
             return;
@@ -524,12 +877,24 @@ public class CommerceController {
         throw new AccessDeniedException("Dispute cannot be changed by this user");
     }
 
+    private boolean isTeamMember(User user, Team team) {
+        return team != null && teamMemberRepository.existsByTeamIdAndUserIdAndActiveTrue(team.getId(), user.getId());
+    }
+
     private ProjectWorkspace resolveWorkspace(UUID workspaceId) {
         if (workspaceId == null) {
             return null;
         }
         return workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+    }
+
+    private SupportSubscription resolveSupportSubscription(UUID subscriptionId) {
+        if (subscriptionId == null) {
+            return null;
+        }
+        return subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("Support subscription not found"));
     }
 
     private void requireWorkspaceMatchesProposal(ProjectWorkspace workspace, QuoteProposal proposal) {
@@ -615,6 +980,23 @@ public class CommerceController {
     public record SubscriptionStatusRequest(
             @NotNull(message = "Subscription status is required")
             SupportSubscription.SubscriptionStatus status
+    ) {}
+
+    public record SupportRequestPayload(
+            UUID supportSubscriptionId,
+            UUID teamId,
+            @NotBlank(message = "Support request title is required")
+            String title,
+            String description,
+            SupportRequest.SupportPriority priority,
+            SupportRequest.SupportStatus status,
+            LocalDate dueOn
+    ) {}
+
+    public record SupportRequestStatusPayload(
+            @NotNull(message = "Support request status is required")
+            SupportRequest.SupportStatus status,
+            String resolution
     ) {}
 
     public record ReputationEventRequest(

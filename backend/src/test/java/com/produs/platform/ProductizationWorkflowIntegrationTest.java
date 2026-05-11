@@ -237,6 +237,10 @@ class ProductizationWorkflowIntegrationTest {
                 .andReturn();
         UUID proposalId = readId(proposalResult);
 
+        mockMvc.perform(get("/api/notifications").with(auth(owner)).param("status", "UNREAD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.type == 'PROPOSAL_SUBMITTED')]", hasSize(greaterThan(0))));
+
         mockMvc.perform(get("/api/commerce/packages/{id}/proposals", packageId).with(auth(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
@@ -254,9 +258,13 @@ class ProductizationWorkflowIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 { "status": "OWNER_ACCEPTED" }
-                                """))
+                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("OWNER_ACCEPTED"));
+
+        mockMvc.perform(get("/api/notifications").with(auth(teamManager)).param("status", "UNREAD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.type == 'PROPOSAL_STATUS_CHANGED')]", hasSize(greaterThan(0))));
 
         MvcResult contractResult = mockMvc.perform(post("/api/commerce/proposals/{id}/contract", proposalId)
                         .with(auth(owner))
@@ -341,6 +349,11 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.processed").value(true))
                 .andExpect(jsonPath("$.invoice.status").value("PAID"));
 
+        mockMvc.perform(get("/api/notifications/summary").with(auth(teamManager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unreadCount").value(greaterThan(0)))
+                .andExpect(jsonPath("$.latest", hasSize(greaterThan(0))));
+
         mockMvc.perform(post("/api/integrations/payments/webhook")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("X-ProdUS-Signature", hmac(paymentPayload, "test-payment-webhook-secret"))
@@ -349,7 +362,7 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.processed").value(true))
                 .andExpect(jsonPath("$.eventId").value("pay-event-001"));
 
-        mockMvc.perform(post("/api/commerce/workspaces/{id}/support-subscriptions", workspaceId)
+        MvcResult supportSubscriptionResult = mockMvc.perform(post("/api/commerce/workspaces/{id}/support-subscriptions", workspaceId)
                         .with(auth(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -365,7 +378,53 @@ class ProductizationWorkflowIntegrationTest {
                                 }
                                 """.formatted(recommendedTeam.getId())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ACTIVE"));
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andReturn();
+        UUID supportSubscriptionId = readId(supportSubscriptionResult);
+
+        MvcResult supportRequestResult = mockMvc.perform(post("/api/commerce/workspaces/{id}/support-requests", workspaceId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "supportSubscriptionId": "%s",
+                                  "title": "Monitor launch week errors",
+                                  "description": "Track post-launch failures and prepare owner report.",
+                                  "priority": "HIGH",
+                                  "dueOn": "2026-06-07"
+                                }
+                                """.formatted(supportSubscriptionId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.priority").value("HIGH"))
+                .andExpect(jsonPath("$.team.name").value("Launch Operations Team"))
+                .andReturn();
+        UUID supportRequestId = readId(supportRequestResult);
+
+        mockMvc.perform(get("/api/commerce/workspaces/{id}/support-requests", workspaceId).with(auth(teamManager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title").value("Monitor launch week errors"));
+
+        mockMvc.perform(put("/api/commerce/support-requests/{id}/status", supportRequestId)
+                        .with(auth(teamManager))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "IN_PROGRESS",
+                                  "resolution": "Launch week monitoring started."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+
+        mockMvc.perform(get("/api/notifications").with(auth(owner)).param("status", "UNREAD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.type == 'SUPPORT_REQUEST_UPDATED')]", hasSize(greaterThan(0))));
+
+        mockMvc.perform(put("/api/notifications/read-all").with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unreadCount").value(0));
 
         mockMvc.perform(post("/api/commerce/teams/{id}/reputation", recommendedTeam.getId())
                         .with(auth(owner))
