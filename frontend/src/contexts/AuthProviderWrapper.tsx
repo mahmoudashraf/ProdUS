@@ -8,33 +8,34 @@ interface AuthProviderWrapperProps {
   children: React.ReactNode;
 }
 
+const MockAuthProviderComponent = React.lazy(() =>
+  import('./dev/MockAuthProvider').then(module => ({
+    default: module.MockAuthProvider,
+  }))
+);
+
 /**
  * Conditional Auth Provider Wrapper
  * Uses MockAuthProvider in development mode with mock auth enabled
  * Uses SupabaseAuthProvider in production or when mock auth is disabled
  */
 export const AuthProviderWrapper: React.FC<AuthProviderWrapperProps> = ({ children }) => {
+  const shouldUseMockAuth = authConfig.shouldUseMockAuth();
+
   // Initialize API client with conditional mock interceptors
   useEffect(() => {
     // Dynamic import to avoid bundling dev code in production
-    if (authConfig.shouldUseMockAuth()) {
+    if (shouldUseMockAuth) {
       import('@/lib/api-client-init').then(({ initializeApiClient }) => {
         initializeApiClient();
       });
     }
-  }, []);
+  }, [shouldUseMockAuth]);
 
   // In development mode with mock auth enabled, use MockAuthProvider
-  if (authConfig.shouldUseMockAuth()) {
-    // Dynamic import to avoid bundling dev code in production
-    const MockAuthProviderComponent = React.lazy(() => 
-      import('./dev/MockAuthProvider').then(module => ({ 
-        default: module.MockAuthProvider 
-      }))
-    );
-
+  if (shouldUseMockAuth) {
     return (
-      <React.Suspense fallback={<SupabaseAuthProvider>{children}</SupabaseAuthProvider>}>
+      <React.Suspense fallback={null}>
         <MockAuthProviderComponent>
           {children}
         </MockAuthProviderComponent>

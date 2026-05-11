@@ -189,9 +189,10 @@ export function useOptimizedIntersectionObserver(
 ) {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const elementsRef = useRef<Set<Element>>(new Set());
+  const throttledCallback = useThrottle(callback, 100);
 
   useEffect(() => {
-    observerRef.current = new IntersectionObserver(useThrottle(callback, 100), {
+    observerRef.current = new IntersectionObserver(throttledCallback, {
       threshold: 0.1,
       rootMargin: '50px',
       ...options,
@@ -202,7 +203,7 @@ export function useOptimizedIntersectionObserver(
         observerRef.current.disconnect();
       }
     };
-  }, [callback, options]);
+  }, [options, throttledCallback]);
 
   const observe = useCallback((element: Element | null) => {
     if (observerRef.current && element && !elementsRef.current.has(element)) {

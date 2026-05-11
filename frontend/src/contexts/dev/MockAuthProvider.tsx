@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { authConfig } from '@/config/authConfig';
 import { AuthContextType, User, UserRole } from '@/types/auth';
 import axios from 'axios';
@@ -16,9 +16,19 @@ interface MockAuthProviderProps {
   children: React.ReactNode;
 }
 
+const devAutoLoginEnabled = process.env.NEXT_PUBLIC_MOCK_AUTH_AUTO_LOGIN === 'true';
+const devAutoLoginRole = process.env.NEXT_PUBLIC_MOCK_AUTH_DEFAULT_ROLE || 'ADMIN';
+
 export const MockAuthProvider: React.FC<MockAuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const applyMockSession = useCallback((mockUser: User, token: string) => {
+    setUser(mockUser);
+    localStorage.setItem('mock_token', token);
+    localStorage.setItem('mock_user', JSON.stringify(mockUser));
+    axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+  }, []);
 
   // Initialize mock auth state
   useEffect(() => {
@@ -31,15 +41,22 @@ export const MockAuthProvider: React.FC<MockAuthProviderProps> = ({ children }) 
           try {
             const userData = JSON.parse(mockUser);
             authConfig.log('🎭 [Dev] Initializing with mock user:', userData);
-            setUser(userData);
-            
-            // Set axios defaults for API calls (following project guidelines)
-            axios.defaults.headers.common.Authorization = `Bearer ${mockToken}`;
+            applyMockSession(userData, mockToken);
+            return;
           } catch (mockError) {
             authConfig.log('[Dev] Mock user data invalid, clearing...', mockError);
             localStorage.removeItem('mock_token');
             localStorage.removeItem('mock_user');
             delete axios.defaults.headers.common.Authorization;
+          }
+        }
+
+        if (devAutoLoginEnabled) {
+          authConfig.log(`🎭 [Dev] Auto logging in as ${devAutoLoginRole}`);
+          const response = await axios.post(`${authConfig.getMockAuthUrl()}/login-as/${devAutoLoginRole}`);
+
+          if (response.data.token && response.data.user) {
+            applyMockSession(response.data.user, response.data.token);
           }
         }
       } catch (error) {
@@ -50,7 +67,7 @@ export const MockAuthProvider: React.FC<MockAuthProviderProps> = ({ children }) 
     };
 
     initMockAuth();
-  }, []);
+  }, [applyMockSession]);
 
   const signIn = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
@@ -64,12 +81,7 @@ export const MockAuthProvider: React.FC<MockAuthProviderProps> = ({ children }) 
 
       if (response.data.token) {
         const mockUser = response.data.user;
-        setUser(mockUser);
-        localStorage.setItem('mock_token', response.data.token);
-        localStorage.setItem('mock_user', JSON.stringify(mockUser));
-        
-        // Set axios defaults for API calls (following project guidelines)
-        axios.defaults.headers.common.Authorization = `Bearer ${response.data.token}`;
+        applyMockSession(mockUser, response.data.token);
         
         authConfig.log('✅ Mock login successful', mockUser.email);
       }

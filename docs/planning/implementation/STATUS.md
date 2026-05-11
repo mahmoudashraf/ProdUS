@@ -48,6 +48,7 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Workspace dispute cases with assigned team visibility, owner/team/admin status updates, response due dates, resolution notes, and explicit DTO responses.
 - Frontend workspace dispute panel with create, severity/status controls, resolution updates, and typed payment/signature/dispute records.
 - HTTP exception handling now preserves controller-level `ResponseStatusException` codes instead of collapsing callback auth failures into 500 responses.
+- Local development auth now auto-seeds an admin mock session, stabilizes the mock auth provider boundary, and allows both `localhost` and `127.0.0.1` frontend origins.
 
 ## Verification Results
 
@@ -73,6 +74,8 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Frontend callback/dispute UI: `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed.
 - Live callback/dispute API smoke: backend dev server passed HMAC e-signature callback to `SIGNED`, invalid payment signature to `401`, signed payment callback to `PAID`, replay idempotency, active support subscription, assigned-team dispute visibility, dispute resolution, and specialist deliverable submission.
 - Live callback/dispute UI smoke: frontend dev server returned `200 OK` for `/packages`, `/workspaces`, `/teams`, and `/admin/recommendations` after the workspace dispute UI was added.
+- Railway deployment readiness: backend/frontend Dockerfiles are configured for Railway service roots, per-service Railway config files exist, variable templates map Railway Postgres references into Spring JDBC settings, and the production deployment sequence is documented.
+- Local UI recovery: `npm run type-check`, `npm test -- --runInBand`, `mvn -DskipTests package`, targeted backend workflow test, backend health check, CORS preflight from `127.0.0.1:3001`, and headless Chrome dashboard smoke all passed. The verified dashboard URL is `http://127.0.0.1:3001/dashboard`.
 
 ## Notes
 
@@ -80,6 +83,7 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Supabase is the production auth/users provider.
 - Mock auth and H2 are only local/test conveniences.
 - LoomAI is an assistant/runtime integration path, not a blocking dependency.
+- Railway CLI provisioning is blocked until a valid Railway browser login, `RAILWAY_TOKEN`, or `RAILWAY_API_TOKEN` is available. The pasted UUID did not authenticate as a token and appears more likely to be a project identifier.
 
 ## Remaining Production Hardening Queue
 
