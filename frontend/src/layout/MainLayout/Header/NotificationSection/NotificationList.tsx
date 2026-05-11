@@ -17,7 +17,7 @@ import { Avatar,
 import { useTheme, styled } from '@mui/material/styles';
 
 // assets
-import { IconBrandTelegram, IconBuildingStore, IconMailbox, IconPhoto } from '@tabler/icons-react';
+import { IconBuildingStore, IconChecks, IconPhoto } from '@tabler/icons-react';
 const User1 = '/assets/images/users/user-round.svg';
 
 // styles
@@ -179,10 +179,10 @@ const NotificationList = () => {
                 borderColor: theme.palette.primary.main,
               }}
             >
-              <IconMailbox stroke={1.5} size="20px" />
+              <IconChecks stroke={1.5} size="20px" />
             </Avatar>
           </ListItemAvatar>
-          <ListItemText primary={<Typography variant="subtitle1">Check Your Mail.</Typography>} />
+          <ListItemText primary={<Typography variant="subtitle1">Package Review Ready</Typography>} />
           <ListItemSecondaryAction>
             <Grid container justifyContent="flex-end">
               <Grid>
@@ -196,7 +196,7 @@ const NotificationList = () => {
         <Grid container direction="column" className="list-container">
           <Grid size={{ xs: 12 }} sx={{ pb: 2 }}>
             <Typography variant="subtitle2">
-              All done! Now check your inbox as you&apos;re in for a sweet treat!
+              The latest recommendation package is ready for owner review.
             </Typography>
           </Grid>
           <Grid size={{ xs: 12 }}>
@@ -205,9 +205,9 @@ const NotificationList = () => {
                 <Button
                   variant="contained"
                   disableElevation
-                  endIcon={<IconBrandTelegram stroke={1.5} size="20px" />}
+                  endIcon={<IconChecks stroke={1.5} size="20px" />}
                 >
-                  Mail
+                  Review
                 </Button>
               </Grid>
             </Grid>

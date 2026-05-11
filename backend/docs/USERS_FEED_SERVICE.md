@@ -15,14 +15,11 @@ The service creates the following mock users:
 
 | Email | First Name | Last Name | Role |
 |-------|------------|-----------|------|
-| admin@easyluxury.com | Admin | User | ADMIN |
-| john.doe@example.com | John | Doe | OWNER |
-| sarah.wilson@luxuryrealty.com | Sarah | Wilson | AGENCY_OWNER |
-| mike.chen@luxuryrealty.com | Mike | Chen | AGENCY_MEMBER |
-| emma.johnson@example.com | Emma | Johnson | TENANT |
-| robert.smith@example.com | Robert | Smith | OWNER |
-| lisa.garcia@luxuryrealty.com | Lisa | Garcia | AGENCY_MEMBER |
-| david.brown@example.com | David | Brown | TENANT |
+| admin@produs.com | Admin | User | ADMIN |
+| owner@produs.com | Product | Owner | PRODUCT_OWNER |
+| team@produs.com | Team | Manager | TEAM_MANAGER |
+| specialist@produs.com | Service | Specialist | SPECIALIST |
+| advisor@produs.com | Platform | Advisor | ADVISOR |
 
 ## API Endpoints
 
@@ -54,12 +51,12 @@ Returns information about users in the database:
 ```json
 {
   "hasUsers": true,
-  "totalUsers": 8,
+  "totalUsers": 5,
   "adminUsers": 1,
-  "ownerUsers": 2,
-  "agencyOwnerUsers": 1,
-  "agencyMemberUsers": 2,
-  "tenantUsers": 2
+  "productOwnerUsers": 1,
+  "teamManagerUsers": 1,
+  "specialistUsers": 1,
+  "advisorUsers": 1
 }
 ```
 
@@ -111,7 +108,7 @@ Users are persisted with the following structure:
 - `email`: Unique email address
 - `first_name`: User's first name
 - `last_name`: User's last name
-- `role`: User role (ADMIN, OWNER, AGENCY_OWNER, AGENCY_MEMBER, TENANT)
+- `role`: User role (ADMIN, PRODUCT_OWNER, TEAM_MANAGER, SPECIALIST, ADVISOR)
 - `supabase_id`: Mock Supabase ID for compatibility
 - `created_at`: Creation timestamp
 - `updated_at`: Last update timestamp

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# EasyLuxury Platform - Mocked Development Mode Startup
+# ProdUS Platform - Mocked Development Mode Startup
 # Optimized for development with H2 database, MinIO, and mock AI services
 
 set -e
@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}================================${NC}"
-echo -e "${BLUE}🚀 EasyLuxury Mocked Dev Mode${NC}"
+echo -e "${BLUE}🚀 ProdUS Mocked Dev Mode${NC}"
 echo -e "${BLUE}================================${NC}"
 echo ""
 
@@ -63,7 +63,7 @@ DATABASE_PASSWORD=
 MINIO_ENDPOINT=http://localhost:9000
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin
-MINIO_BUCKET=easyluxury-dev
+MINIO_BUCKET=produs-dev
 
 # Disable external services
 SUPABASE_URL=
@@ -94,12 +94,12 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 # App Configuration
-NEXT_PUBLIC_APP_NAME=EasyLuxury
+NEXT_PUBLIC_APP_NAME=ProdUS
 NEXT_PUBLIC_APP_VERSION=1.0.0-dev-mocked
 
 # MinIO Configuration
 NEXT_PUBLIC_MINIO_ENDPOINT=http://localhost:9000
-NEXT_PUBLIC_MINIO_BUCKET=easyluxury-dev
+NEXT_PUBLIC_MINIO_BUCKET=produs-dev
 EOF
     echo -e "${GREEN}✓${NC} Frontend mocked development environment created"
 else
@@ -122,10 +122,10 @@ if curl -s http://localhost:9000/minio/health/live >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC} MinIO is running"
 elif command -v docker &> /dev/null; then
     echo -e "${YELLOW}⚠️${NC}  MinIO not running. Starting Docker container..."
-    if docker ps -a | grep -q easyluxury-minio-dev; then
-        docker start easyluxury-minio-dev >/dev/null 2>&1
+    if docker ps -a | grep -q produs-minio-dev; then
+        docker start produs-minio-dev >/dev/null 2>&1
     else
-        docker run -d --name easyluxury-minio-dev \
+        docker run -d --name produs-minio-dev \
           -e MINIO_ROOT_USER=minioadmin \
           -e MINIO_ROOT_PASSWORD=minioadmin \
           -p 9000:9000 \
@@ -139,15 +139,15 @@ elif command -v docker &> /dev/null; then
             echo -e "${GREEN}✓${NC} MinIO started successfully"
             # Create bucket if it doesn't exist
             echo "Setting up MinIO bucket..."
-            docker exec easyluxury-minio-dev mc alias set myminio http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1
-            docker exec easyluxury-minio-dev mc mb myminio/easyluxury-dev >/dev/null 2>&1 || true
-            docker exec easyluxury-minio-dev mc anonymous set public myminio/easyluxury-dev >/dev/null 2>&1 || true
+            docker exec produs-minio-dev mc alias set myminio http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1
+            docker exec produs-minio-dev mc mb myminio/produs-dev >/dev/null 2>&1 || true
+            docker exec produs-minio-dev mc anonymous set public myminio/produs-dev >/dev/null 2>&1 || true
             echo -e "${GREEN}✓${NC} MinIO bucket configured"
             break
         fi
         if [ $i -eq 20 ]; then
             echo -e "${RED}❌ MinIO failed to start within 20 seconds${NC}"
-            echo "Check container logs: docker logs easyluxury-minio-dev"
+            echo "Check container logs: docker logs produs-minio-dev"
             exit 1
         fi
         sleep 1
@@ -235,7 +235,7 @@ if lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null 2>&1; then
     sleep 2
 fi
 
-mvn spring-boot:run -Dspring-boot.run.profiles=${SPRING_PROFILES_ACTIVE} > /tmp/easyluxury-backend-mocked.log 2>&1 &
+mvn spring-boot:run -Dspring-boot.run.profiles=${SPRING_PROFILES_ACTIVE} > /tmp/produs-backend-mocked.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 echo "Backend starting with H2 database (PID: $BACKEND_PID)..."
@@ -249,9 +249,9 @@ for i in {1..90}; do
     fi
     if [ $i -eq 90 ]; then
         echo -e "${RED}❌ Backend failed to start within 90 seconds${NC}"
-        echo "Check logs: tail -f /tmp/easyluxury-backend-mocked.log"
+        echo "Check logs: tail -f /tmp/produs-backend-mocked.log"
         echo "Last 20 lines of backend log:"
-        tail -20 /tmp/easyluxury-backend-mocked.log
+        tail -20 /tmp/produs-backend-mocked.log
         kill $BACKEND_PID 2>/dev/null
         exit 1
     fi
@@ -271,7 +271,7 @@ if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
     sleep 2
 fi
 
-npm run dev > /tmp/easyluxury-frontend-mocked.log 2>&1 &
+npm run dev > /tmp/produs-frontend-mocked.log 2>&1 &
 FRONTEND_PID=$!
 cd ..
 echo "Frontend starting with mocked auth (PID: $FRONTEND_PID)..."
@@ -312,8 +312,8 @@ echo "  Backend PID:  $BACKEND_PID"
 echo "  Frontend PID: $FRONTEND_PID"
 echo ""
 echo -e "${BLUE}View Logs:${NC}"
-echo "  Backend:  tail -f /tmp/easyluxury-backend-mocked.log"
-echo "  Frontend: tail -f /tmp/easyluxury-frontend-mocked.log"
+echo "  Backend:  tail -f /tmp/produs-backend-mocked.log"
+echo "  Frontend: tail -f /tmp/produs-frontend-mocked.log"
 echo ""
 echo -e "${BLUE}Stop Services:${NC}"
 echo "  Run: ./stop.sh"
@@ -324,8 +324,8 @@ echo -e "${YELLOW}Press Ctrl+C to stop this script (services will continue runni
 echo ""
 
 # Save PIDs to file for stop script
-echo "$BACKEND_PID" > /tmp/easyluxury-backend-mocked.pid
-echo "$FRONTEND_PID" > /tmp/easyluxury-frontend-mocked.pid
+echo "$BACKEND_PID" > /tmp/produs-backend-mocked.pid
+echo "$FRONTEND_PID" > /tmp/produs-frontend-mocked.pid
 
 # In background mode, exit immediately after starting services
 if [ "$RUN_IN_BACKGROUND" -eq 1 ]; then

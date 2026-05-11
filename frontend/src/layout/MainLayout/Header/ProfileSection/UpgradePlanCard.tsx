@@ -1,5 +1,5 @@
 // material-ui
-import { Button, Card, CardContent, Grid, Link, Stack, Typography  } from '@mui/material';
+import { Button, Card, CardContent, Grid, Stack, Typography  } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
 
 // project imports
@@ -56,22 +56,15 @@ const UpgradePlanCard = () => {
               color={theme.palette.mode === 'dark' ? 'textSecondary' : 'grey.900'}
               sx={{ opacity: theme.palette.mode === 'dark' ? 1 : 0.6 }}
             >
-              70% discount for 1 years <br />
-              subscriptions.
+              Review package activity, support scope, and team handoff status.
             </Typography>
           </Grid>
           <Grid>
             <Stack direction="row">
               <AnimateButton>
-                <Link
-                  style={{ textDecoration: 'none' }}
-                  href="https://links.codedthemes.com/hsqll"
-                  target="_blank"
-                >
-                  <Button variant="contained" color="warning" sx={{ boxShadow: 'none' }}>
-                    Go Premium
-                  </Button>
-                </Link>
+                <Button variant="contained" color="warning" sx={{ boxShadow: 'none' }}>
+                  View Plans
+                </Button>
               </AnimateButton>
             </Stack>
           </Grid>

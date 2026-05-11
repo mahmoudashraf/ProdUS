@@ -1,7 +1,7 @@
 # Production Deployment Guide
 
 ## Overview
-This guide covers deploying the EasyLuxury backend to production using the `application-prod.yml` configuration.
+This guide covers deploying the ProdUS backend to production using the `application-prod.yml` configuration.
 
 ## Prerequisites
 - Java 21+ installed
@@ -26,7 +26,7 @@ Template for environment variables. Copy to `.env.prod` and fill in your values.
 
 ### Database
 ```bash
-DATABASE_URL=jdbc:postgresql://your-prod-db-host:5432/easyluxury
+DATABASE_URL=jdbc:postgresql://your-prod-db-host:5432/produs
 DATABASE_USERNAME=your_prod_db_user
 DATABASE_PASSWORD=your_prod_db_password
 ```
@@ -51,7 +51,7 @@ AWS_SECRET_KEY=your_aws_secret_key
 ```bash
 SERVER_PORT=8080
 REQUIRE_SSL=true
-CORS_ALLOWED_ORIGINS=https://easyluxury.com,https://www.easyluxury.com
+CORS_ALLOWED_ORIGINS=https://produs.com,https://www.produs.com
 ```
 
 ## Deployment Steps
@@ -80,23 +80,23 @@ mvn package -DskipTests
 ### 3. Deploy
 ```bash
 # Run with production profile
-java -jar target/easyluxury-backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+java -jar target/produs-backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
 
 # Or with environment file
-java -jar target/easyluxury-backend-0.0.1-SNAPSHOT.jar --spring.config.location=file:.env.prod
+java -jar target/produs-backend-0.0.1-SNAPSHOT.jar --spring.config.location=file:.env.prod
 ```
 
 ### 4. Docker Deployment
 ```bash
 # Build Docker image
-docker build -t easyluxury-backend:prod .
+docker build -t produs-backend:prod .
 
 # Run with environment variables
 docker run -d \
-  --name easyluxury-backend \
+  --name produs-backend \
   -p 8080:8080 \
   --env-file .env.prod \
-  easyluxury-backend:prod
+  produs-backend:prod
 ```
 
 ## Production Features
@@ -150,7 +150,7 @@ The application includes custom health checks for:
 - Custom business metrics included
 
 ### Logs
-- Application logs: `/var/log/easyluxury/backend.log`
+- Application logs: `/var/log/produs/backend.log`
 - Access logs: Configured in server settings
 - Error logs: Separate error tracking
 
@@ -165,7 +165,7 @@ The application includes custom health checks for:
 ### Debug Mode
 To enable debug logging temporarily:
 ```bash
-java -jar app.jar --logging.level.com.easyluxury=DEBUG
+java -jar app.jar --logging.level.com.produs=DEBUG
 ```
 
 ## Security Considerations
@@ -180,7 +180,7 @@ java -jar app.jar --logging.level.com.easyluxury=DEBUG
 
 ### Database Backup
 ```bash
-pg_dump -h your-db-host -U your-user easyluxury > backup.sql
+pg_dump -h your-db-host -U your-user produs > backup.sql
 ```
 
 ### Application Backup

@@ -1,11 +1,11 @@
 #!/bin/bash
-# Install Docker and Run Behavioral Integration Tests
+# Install Docker and Prepare ProdUS Local Services
 # For Ubuntu 24.04 LTS
 
 set -e
 
 echo "=========================================="
-echo "Docker Installation and Test Setup Script"
+echo "Docker Installation and ProdUS Setup Script"
 echo "=========================================="
 echo ""
 
@@ -118,15 +118,15 @@ echo "📋 Next Steps:"
 echo ""
 echo "1. If you're not root, log out and back in (or run: newgrp docker)"
 echo ""
-echo "2. Run a single behavioral test:"
-echo "   cd /workspace/ai-infrastructure-module"
-echo "   mvn test -Dtest=PatternAnalyzerInsightsIntegrationTest -pl integration-tests"
+echo "2. Validate the local Docker Compose file:"
+echo "   docker compose -f docker-compose.dev.yml config"
 echo ""
-echo "3. Run all behavioral tests:"
-echo "   mvn test -Dtest=RealAPIProviderBehaviourMatrixIntegrationTest -pl integration-tests"
+echo "3. Run backend tests:"
+echo "   cd backend"
+echo "   mvn test"
 echo ""
-echo "4. Check test results:"
-echo "   cat ai-infrastructure-module/integration-tests/target/surefire-reports/*.txt"
+echo "4. Start the local stack:"
+echo "   docker compose -f docker-compose.dev.yml up"
 echo ""
 echo "=========================================="
 echo "Happy Testing! 🎉"

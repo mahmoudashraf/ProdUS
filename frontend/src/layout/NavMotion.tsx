@@ -25,7 +25,7 @@ const NavMotion = ({ children }: { children: ReactElement | ReactElement[] }) =>
     type: 'tween',
     ease: 'anticipate',
     duration: 0.4,
-  };
+  } as const;
 
   return (
     <motion.div

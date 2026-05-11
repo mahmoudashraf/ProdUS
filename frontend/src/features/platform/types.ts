@@ -1,0 +1,227 @@
+export interface BaseRecord {
+  id: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CurrentUserSummary {
+  id: string;
+  email: string;
+  role: 'ADMIN' | 'PRODUCT_OWNER' | 'TEAM_MANAGER' | 'SPECIALIST' | 'ADVISOR';
+}
+
+export interface ServiceCategory extends BaseRecord {
+  name: string;
+  slug: string;
+  description?: string;
+  sortOrder: number;
+  active: boolean;
+}
+
+export interface ServiceModule extends BaseRecord {
+  category?: ServiceCategory;
+  name: string;
+  slug: string;
+  description?: string;
+  requiredInputs?: string;
+  expectedDeliverables?: string;
+  acceptanceCriteria?: string;
+  timelineRange?: string;
+  priceRange?: string;
+  sortOrder: number;
+  active: boolean;
+}
+
+export interface ProductProfile extends BaseRecord {
+  name: string;
+  summary?: string;
+  businessStage: 'IDEA' | 'PROTOTYPE' | 'VALIDATED' | 'LIVE' | 'SCALING';
+  techStack?: string;
+  productUrl?: string;
+  repositoryUrl?: string;
+  riskProfile?: string;
+}
+
+export interface RequirementIntake extends BaseRecord {
+  productProfile?: ProductProfile;
+  requestedServiceModule?: ServiceModule;
+  businessGoal: string;
+  currentProblems?: string;
+  constraints?: string;
+  riskSignals?: string;
+  requirementBrief?: string;
+  status: 'DRAFT' | 'SUBMITTED' | 'PACKAGE_RECOMMENDED' | 'CLOSED';
+}
+
+export interface PackageInstance extends BaseRecord {
+  name: string;
+  summary?: string;
+  status:
+    | 'DRAFT'
+    | 'AWAITING_TEAM'
+    | 'SCOPE_NEGOTIATION'
+    | 'ACTIVE_DELIVERY'
+    | 'MILESTONE_REVIEW'
+    | 'DELIVERED'
+    | 'SUPPORT_HANDOFF'
+    | 'CLOSED';
+}
+
+export interface PackageModule extends BaseRecord {
+  packageInstance?: PackageInstance;
+  serviceModule: ServiceModule;
+  sequenceOrder: number;
+  required: boolean;
+  rationale?: string;
+  deliverables?: string;
+  acceptanceCriteria?: string;
+  status: 'PLANNED' | 'IN_PROGRESS' | 'REVIEW' | 'ACCEPTED' | 'BLOCKED';
+}
+
+export interface Team extends BaseRecord {
+  name: string;
+  description?: string;
+  timezone?: string;
+  capabilitiesSummary?: string;
+  typicalProjectSize?: string;
+  verificationStatus:
+    | 'APPLIED'
+    | 'VERIFIED'
+    | 'CERTIFIED'
+    | 'SPECIALIST'
+    | 'OPERATIONS_READY'
+    | 'SUSPENDED';
+  active: boolean;
+}
+
+export interface TeamCapability extends BaseRecord {
+  team?: Team;
+  serviceCategory: ServiceCategory;
+  serviceModule?: ServiceModule;
+  evidenceUrl?: string;
+  notes?: string;
+}
+
+export interface TeamMember extends BaseRecord {
+  team?: Team;
+  user: CurrentUserSummary;
+  role: 'LEAD' | 'DELIVERY_MANAGER' | 'SPECIALIST' | 'ADVISOR' | 'QUALITY_REVIEWER';
+  active: boolean;
+}
+
+export interface TeamRecommendation {
+  team: Team;
+  score: number;
+  reasons: string[];
+}
+
+export interface ProjectWorkspace extends BaseRecord {
+  packageInstance?: PackageInstance;
+  name: string;
+  status:
+    | 'DRAFT_PACKAGE'
+    | 'AWAITING_TEAM_PROPOSAL'
+    | 'SCOPE_NEGOTIATION'
+    | 'ACTIVE_DELIVERY'
+    | 'BLOCKED'
+    | 'MILESTONE_REVIEW'
+    | 'DELIVERED'
+    | 'SUPPORT_HANDOFF'
+    | 'CLOSED';
+}
+
+export interface WorkspaceParticipant extends BaseRecord {
+  workspace?: ProjectWorkspace;
+  user: CurrentUserSummary;
+  addedBy?: CurrentUserSummary;
+  role: 'OWNER' | 'COORDINATOR' | 'TEAM_LEAD' | 'SPECIALIST' | 'ADVISOR' | 'VIEWER';
+  active: boolean;
+}
+
+export interface Milestone extends BaseRecord {
+  workspace?: ProjectWorkspace;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  status: 'PLANNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'ACCEPTED' | 'BLOCKED';
+}
+
+export interface Deliverable extends BaseRecord {
+  milestone?: Milestone;
+  title: string;
+  evidence?: string;
+  status: 'PENDING' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED';
+}
+
+export interface QuoteProposal extends BaseRecord {
+  packageInstance?: PackageInstance;
+  team: Team;
+  submittedBy?: CurrentUserSummary;
+  title: string;
+  scope?: string;
+  assumptions?: string;
+  timelineDays: number;
+  currency: string;
+  fixedPriceCents: number;
+  platformFeeCents: number;
+  status: 'DRAFT' | 'SUBMITTED' | 'OWNER_ACCEPTED' | 'OWNER_REJECTED' | 'WITHDRAWN' | 'EXPIRED';
+}
+
+export interface ContractAgreement extends BaseRecord {
+  proposal?: QuoteProposal;
+  workspace?: ProjectWorkspace;
+  owner?: CurrentUserSummary;
+  team: Team;
+  title: string;
+  terms?: string;
+  effectiveOn?: string;
+  signedAt?: string;
+  status: 'DRAFT' | 'SENT' | 'SIGNED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+}
+
+export interface InvoiceRecord extends BaseRecord {
+  contractAgreement?: ContractAgreement;
+  owner?: CurrentUserSummary;
+  issuedBy?: CurrentUserSummary;
+  invoiceNumber: string;
+  description?: string;
+  amountCents: number;
+  currency: string;
+  dueDate?: string;
+  status: 'DRAFT' | 'ISSUED' | 'PAID' | 'VOID' | 'OVERDUE';
+}
+
+export interface SupportSubscription extends BaseRecord {
+  workspace?: ProjectWorkspace;
+  owner?: CurrentUserSummary;
+  team: Team;
+  createdBy?: CurrentUserSummary;
+  planName: string;
+  sla?: string;
+  monthlyAmountCents: number;
+  currency: string;
+  startsOn?: string;
+  renewsOn?: string;
+  status: 'PROPOSED' | 'ACTIVE' | 'PAUSED' | 'CANCELLED';
+}
+
+export interface TeamReputationEvent extends BaseRecord {
+  team?: Team;
+  workspace?: ProjectWorkspace;
+  createdBy?: CurrentUserSummary;
+  eventType: 'MILESTONE_ACCEPTED' | 'DELIVERABLE_REVIEW' | 'CONTRACT_COMPLETED' | 'SUPPORT_REVIEW' | 'WORKSPACE_REVIEW' | 'DISPUTE';
+  rating: number;
+  verified: boolean;
+  notes?: string;
+}
+
+export interface AIRecommendation extends BaseRecord {
+  recommendationType: string;
+  sourceEntityType?: string;
+  sourceEntityId?: string;
+  promptVersion?: string;
+  confidence?: number;
+  rationale?: string;
+  outputJson?: string;
+  humanFeedback?: string;
+}

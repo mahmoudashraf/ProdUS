@@ -16,11 +16,10 @@ const Page = forwardRef<HTMLDivElement, Props>(
   ({ children, title = '', meta, ...other }: Props, ref: Ref<HTMLDivElement>) => (
     <>
       <Head>
-        <title>{`${title} | Kiwi - React Material Admin Dashboard Template`}</title>
-        <meta name="description" content="Checkout our cool page" key="desc" />
-        <meta property="og:title" content="Social Title for Cool Page" />
-        <meta property="og:description" content="And a social description for our cool page" />
-        <meta property="og:image" content="https://example.com/images/cool-page.jpg" />
+        <title>{`${title} | ProdUS Platform`}</title>
+        <meta name="description" content="ProdUS productization collaboration platform" key="desc" />
+        <meta property="og:title" content="ProdUS Platform" />
+        <meta property="og:description" content="Service catalog, package builder, teams, and product workspaces." />
         {meta}
       </Head>
 

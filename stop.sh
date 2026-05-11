@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# EasyLuxury Platform - Stop Script
+# ProdUS Platform - Stop Script
 
 # Colors
 RED='\033[0;31m'
@@ -10,15 +10,15 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo -e "${BLUE}================================${NC}"
-echo -e "${BLUE}🛑 Stopping EasyLuxury Services${NC}"
+echo -e "${BLUE}🛑 Stopping ProdUS Services${NC}"
 echo -e "${BLUE}================================${NC}"
 echo ""
 
 STOPPED=false
 
 # Stop backend
-if [ -f /tmp/easyluxury-backend.pid ]; then
-    BACKEND_PID=$(cat /tmp/easyluxury-backend.pid)
+if [ -f /tmp/produs-backend.pid ]; then
+    BACKEND_PID=$(cat /tmp/produs-backend.pid)
     if kill -0 $BACKEND_PID 2>/dev/null; then
         echo -e "${YELLOW}Stopping backend (PID: $BACKEND_PID)...${NC}"
         kill $BACKEND_PID 2>/dev/null
@@ -27,12 +27,12 @@ if [ -f /tmp/easyluxury-backend.pid ]; then
         echo -e "${GREEN}✓${NC} Backend stopped"
         STOPPED=true
     fi
-    rm /tmp/easyluxury-backend.pid
+    rm /tmp/produs-backend.pid
 fi
 
 # Stop frontend
-if [ -f /tmp/easyluxury-frontend.pid ]; then
-    FRONTEND_PID=$(cat /tmp/easyluxury-frontend.pid)
+if [ -f /tmp/produs-frontend.pid ]; then
+    FRONTEND_PID=$(cat /tmp/produs-frontend.pid)
     if kill -0 $FRONTEND_PID 2>/dev/null; then
         echo -e "${YELLOW}Stopping frontend (PID: $FRONTEND_PID)...${NC}"
         kill $FRONTEND_PID 2>/dev/null
@@ -41,7 +41,7 @@ if [ -f /tmp/easyluxury-frontend.pid ]; then
         echo -e "${GREEN}✓${NC} Frontend stopped"
         STOPPED=true
     fi
-    rm /tmp/easyluxury-frontend.pid
+    rm /tmp/produs-frontend.pid
 fi
 
 # Fallback: Kill by process name
@@ -71,7 +71,7 @@ fi
 
 echo ""
 echo -e "${BLUE}Docker Containers:${NC}"
-echo "  PostgreSQL: docker stop easyluxury-db"
-echo "  MinIO:      docker stop easyluxury-minio"
-echo "  To stop all: docker stop easyluxury-db easyluxury-minio"
+echo "  PostgreSQL: docker stop produs-db"
+echo "  MinIO:      docker stop produs-minio"
+echo "  To stop all: docker stop produs-db produs-minio"
 echo ""

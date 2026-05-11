@@ -1,0 +1,204 @@
+databaseChangeLog:
+  - changeSet:
+      id: 300
+      author: produs
+      changes:
+        - createTable:
+            tableName: quote_proposals
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: package_instance_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: team_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: submitted_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: scope, type: TEXT }
+              - column: { name: assumptions, type: TEXT }
+              - column: { name: timeline_days, type: INT, defaultValueNumeric: 14, constraints: { nullable: false } }
+              - column: { name: currency, type: VARCHAR(3), defaultValue: "USD", constraints: { nullable: false } }
+              - column: { name: fixed_price_cents, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: platform_fee_cents, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: quote_proposals
+            baseColumnNames: package_instance_id
+            constraintName: fk_quote_proposals_package
+            referencedTableName: package_instances
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: quote_proposals
+            baseColumnNames: team_id
+            constraintName: fk_quote_proposals_team
+            referencedTableName: teams
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: quote_proposals
+            baseColumnNames: submitted_by
+            constraintName: fk_quote_proposals_submitted_by
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 301
+      author: produs
+      changes:
+        - createTable:
+            tableName: contract_agreements
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: proposal_id, type: UUID, constraints: { nullable: false, unique: true } }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: team_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: terms, type: TEXT }
+              - column: { name: effective_on, type: DATE }
+              - column: { name: signed_at, type: TIMESTAMP }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: contract_agreements
+            baseColumnNames: proposal_id
+            constraintName: fk_contract_agreements_proposal
+            referencedTableName: quote_proposals
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: contract_agreements
+            baseColumnNames: workspace_id
+            constraintName: fk_contract_agreements_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: contract_agreements
+            baseColumnNames: owner_id
+            constraintName: fk_contract_agreements_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: contract_agreements
+            baseColumnNames: team_id
+            constraintName: fk_contract_agreements_team
+            referencedTableName: teams
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 302
+      author: produs
+      changes:
+        - createTable:
+            tableName: invoice_records
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: contract_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: issued_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: invoice_number, type: VARCHAR(120), constraints: { nullable: false, unique: true } }
+              - column: { name: description, type: TEXT }
+              - column: { name: amount_cents, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: currency, type: VARCHAR(3), defaultValue: "USD", constraints: { nullable: false } }
+              - column: { name: due_date, type: DATE }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: invoice_records
+            baseColumnNames: contract_id
+            constraintName: fk_invoice_records_contract
+            referencedTableName: contract_agreements
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: invoice_records
+            baseColumnNames: owner_id
+            constraintName: fk_invoice_records_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: invoice_records
+            baseColumnNames: issued_by
+            constraintName: fk_invoice_records_issued_by
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 303
+      author: produs
+      changes:
+        - createTable:
+            tableName: support_subscriptions
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: workspace_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: team_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: created_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: plan_name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: sla, type: TEXT }
+              - column: { name: monthly_amount_cents, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: currency, type: VARCHAR(3), defaultValue: "USD", constraints: { nullable: false } }
+              - column: { name: starts_on, type: DATE }
+              - column: { name: renews_on, type: DATE }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: support_subscriptions
+            baseColumnNames: workspace_id
+            constraintName: fk_support_subscriptions_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: support_subscriptions
+            baseColumnNames: owner_id
+            constraintName: fk_support_subscriptions_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: support_subscriptions
+            baseColumnNames: team_id
+            constraintName: fk_support_subscriptions_team
+            referencedTableName: teams
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: support_subscriptions
+            baseColumnNames: created_by
+            constraintName: fk_support_subscriptions_created_by
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 304
+      author: produs
+      changes:
+        - createTable:
+            tableName: team_reputation_events
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: team_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: created_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: event_type, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: rating, type: INT, constraints: { nullable: false } }
+              - column: { name: verified, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: notes, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: team_reputation_events
+            baseColumnNames: team_id
+            constraintName: fk_team_reputation_events_team
+            referencedTableName: teams
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: team_reputation_events
+            baseColumnNames: workspace_id
+            constraintName: fk_team_reputation_events_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: team_reputation_events
+            baseColumnNames: created_by
+            constraintName: fk_team_reputation_events_created_by
+            referencedTableName: users
+            referencedColumnNames: id

@@ -1,5 +1,9 @@
 export enum UserRole {
   ADMIN = 'ADMIN',
+  PRODUCT_OWNER = 'PRODUCT_OWNER',
+  TEAM_MANAGER = 'TEAM_MANAGER',
+  SPECIALIST = 'SPECIALIST',
+  ADVISOR = 'ADVISOR',
 }
 
 export interface User {
@@ -20,7 +24,7 @@ export interface AuthContextType {
   isLoggedIn: boolean; // Add compatibility with existing code
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
-  signInWithOAuth: (provider: 'google' | 'apple' | 'facebook') => Promise<void>;
+  signInWithOAuth: (provider: 'google' | 'apple' | 'facebook' | 'linkedin') => Promise<void>;
   signOut: () => Promise<void>;
   logout: () => Promise<void>; // Add compatibility alias
   hasRole: (role: UserRole | UserRole[]) => boolean;

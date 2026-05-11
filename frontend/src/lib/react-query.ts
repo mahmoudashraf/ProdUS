@@ -28,68 +28,47 @@ export const queryClient = new QueryClient({
 
 // Query keys factory for consistent key management
 export const queryKeys = {
-  // User-related queries
   user: {
     all: ['user'] as const,
     current: () => [...queryKeys.user.all, 'current'] as const,
-    profile: (id: string) => [...queryKeys.user.all, 'profile', id] as const,
-    list: () => [...queryKeys.user.all, 'list'] as const,
-    listS1: () => [...queryKeys.user.all, 'list-s1'] as const,
-    listS2: () => [...queryKeys.user.all, 'list-s2'] as const,
-    followers: (userId: string) => [...queryKeys.user.all, 'followers', userId] as const,
-    friends: (userId: string) => [...queryKeys.user.all, 'friends', userId] as const,
-    gallery: (userId: string) => [...queryKeys.user.all, 'gallery', userId] as const,
-    posts: (userId: string) => [...queryKeys.user.all, 'posts', userId] as const,
   },
-  
-  // Product-related queries
+
+  catalog: {
+    all: ['catalog'] as const,
+    categories: () => [...queryKeys.catalog.all, 'categories'] as const,
+    modules: () => [...queryKeys.catalog.all, 'modules'] as const,
+    dependencies: (moduleId: string) => [...queryKeys.catalog.all, 'dependencies', moduleId] as const,
+  },
+
   products: {
     all: ['products'] as const,
     list: (filters?: Record<string, unknown>) => [...queryKeys.products.all, 'list', filters] as const,
     detail: (id: string) => [...queryKeys.products.all, 'detail', id] as const,
-    reviews: (id: string) => [...queryKeys.products.detail(id), 'reviews'] as const,
-    related: (id: string) => [...queryKeys.products.detail(id), 'related'] as const,
   },
-  
-  // Cart-related queries
-  cart: {
-    all: ['cart'] as const,
-    current: () => [...queryKeys.cart.all, 'current'] as const,
+
+  requirements: {
+    all: ['requirements'] as const,
+    list: () => [...queryKeys.requirements.all, 'list'] as const,
   },
-  
-  // Menu-related queries
-  menu: {
-    all: ['menu'] as const,
-    widget: () => [...queryKeys.menu.all, 'widget'] as const,
+
+  packages: {
+    all: ['packages'] as const,
+    list: () => [...queryKeys.packages.all, 'list'] as const,
   },
-  
-  // Customer-related queries
-  customers: {
-    all: ['customers'] as const,
-    list: (filters?: Record<string, unknown>) => [...queryKeys.customers.all, 'list', filters] as const,
-    orders: (customerId: string) => [...queryKeys.customers.all, 'orders', customerId] as const,
+
+  teams: {
+    all: ['teams'] as const,
+    list: () => [...queryKeys.teams.all, 'list'] as const,
   },
-  
-  // Chat-related queries
-  chat: {
-    all: ['chat'] as const,
-    users: () => [...queryKeys.chat.all, 'users'] as const,
-    conversations: (userId: string) => [...queryKeys.chat.all, 'conversations', userId] as const,
-    messages: (conversationId: string) => [...queryKeys.chat.all, 'messages', conversationId] as const,
+
+  workspaces: {
+    all: ['workspaces'] as const,
+    list: () => [...queryKeys.workspaces.all, 'list'] as const,
   },
-  
-  // Calendar-related queries
-  calendar: {
-    all: ['calendar'] as const,
-    events: (filters?: Record<string, unknown>) => [...queryKeys.calendar.all, 'events', filters] as const,
-  },
-  
-  // Kanban-related queries
-  kanban: {
-    all: ['kanban'] as const,
-    board: (boardId: string) => [...queryKeys.kanban.all, 'board', boardId] as const,
-    columns: (boardId: string) => [...queryKeys.kanban.board(boardId), 'columns'] as const,
-    items: (boardId: string) => [...queryKeys.kanban.board(boardId), 'items'] as const,
+
+  recommendations: {
+    all: ['recommendations'] as const,
+    list: () => [...queryKeys.recommendations.all, 'list'] as const,
   },
 } as const;
 
@@ -107,15 +86,12 @@ export const handleQueryError = (error: unknown) => {
 
 // Cache invalidation utilities
 export const queryKeysUtils = {
-  // Invalidate all user-related queries
   invalidateUser: () => queryClient.invalidateQueries({ queryKey: queryKeys.user.all }),
-  
-  // Invalidate all product-related queries
+  invalidateCatalog: () => queryClient.invalidateQueries({ queryKey: queryKeys.catalog.all }),
   invalidateProducts: () => queryClient.invalidateQueries({ queryKey: queryKeys.products.all }),
-  
-  // Invalidate cart queries
-  invalidateCart: () => queryClient.invalidateQueries({ queryKey: queryKeys.cart.all }),
-  
-  // Invalidate menu queries
-  invalidateMenu: () => queryClient.invalidateQueries({ queryKey: queryKeys.menu.all }),
+  invalidateRequirements: () => queryClient.invalidateQueries({ queryKey: queryKeys.requirements.all }),
+  invalidatePackages: () => queryClient.invalidateQueries({ queryKey: queryKeys.packages.all }),
+  invalidateTeams: () => queryClient.invalidateQueries({ queryKey: queryKeys.teams.all }),
+  invalidateWorkspaces: () => queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all }),
+  invalidateRecommendations: () => queryClient.invalidateQueries({ queryKey: queryKeys.recommendations.all }),
 };

@@ -14,7 +14,6 @@ import LogoSection from '../LogoSection';
 
 import FullScreenSection from './FullScreenSection';
 import LocalizationSection from './LocalizationSection';
-import MegaMenuSection from './MegaMenuSection';
 import MobileSection from './MobileSection';
 import NotificationSection from './NotificationSection';
 import ProfileSection from './ProfileSection';
@@ -90,11 +89,6 @@ const Header = () => {
       <SearchSection />
       <Box sx={{ flexGrow: 1 }} />
       <Box sx={{ flexGrow: 1 }} />
-
-      {/* mega-menu */}
-      <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-        <MegaMenuSection />
-      </Box>
 
       {/* live customization & localization */}
       <Box sx={{ display: { xs: 'none', sm: 'block' } }}>

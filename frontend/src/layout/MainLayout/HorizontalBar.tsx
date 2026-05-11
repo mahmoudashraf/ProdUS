@@ -12,7 +12,7 @@ import MenuList from './MenuList';
 // ==============================|| HORIZONTAL MENU LIST ||============================== //
 
 interface ElevationScrollProps {
-  children: ReactElement;
+  children: ReactElement<{ elevation?: number }>;
   window?: Window | Node;
 }
 

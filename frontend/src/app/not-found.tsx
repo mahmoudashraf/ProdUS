@@ -1,7 +1,10 @@
-import Error404 from 'views/maintenance/404-notfound';
+import { Stack, Typography } from '@mui/material';
 
-// ==============================|| PAGE ||============================== //
-
-export default function notfound() {
-  return <Error404 />;
+export default function NotFound() {
+  return (
+    <Stack minHeight="100vh" alignItems="center" justifyContent="center" spacing={1}>
+      <Typography variant="h2">Page not found</Typography>
+      <Typography color="text.secondary">The requested ProdUS page does not exist.</Typography>
+    </Stack>
+  );
 }

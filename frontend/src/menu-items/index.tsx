@@ -1,14 +1,14 @@
 // menu import
 import { NavItemType } from 'types';
 
-import easyluxury from './easyluxury';
+import produs from './produs';
 
 // types
 
 // ==============================|| MENU ITEMS ||============================== //
 
 const menuItems: { items: NavItemType[] } = {
-  items: [easyluxury],
+  items: [produs],
 };
 
 export default menuItems;

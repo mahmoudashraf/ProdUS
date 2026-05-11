@@ -46,7 +46,7 @@ const SupabaseRegister = () => {
                             gutterBottom
                             variant={matchDownSM ? 'h3' : 'h2'}
                           >
-                            Join EasyLuxury
+                            Join ProdUS
                           </Typography>
                           <Typography
                             variant="caption"

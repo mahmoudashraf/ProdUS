@@ -12,11 +12,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.easyluxury</groupId>
-    <artifactId>easyluxury-backend</artifactId>
+    <groupId>com.produs</groupId>
+    <artifactId>produs-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>EasyLuxury Backend</name>
-    <description>Property management platform backend</description>
+    <name>ProdUS Backend</name>
+    <description>Productization collaboration platform backend</description>
 
     <properties>
         <java.version>21</java.version>
@@ -103,84 +103,6 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
             <version>2.20.26</version>
-        </dependency>
-
-        <!-- AI Infrastructure Module -->
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-core</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-provider-openai</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-provider-azure</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-provider-cohere</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-provider-anthropic</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-provider-rest</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-vector-lucene</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-vector-pinecone</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-vector-memory</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-vector-weaviate</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-vector-qdrant</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.ai.infrastructure</groupId>
-            <artifactId>ai-infrastructure-vector-milvus</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-
-
-        <!-- Apache POI for Word document parsing -->
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-ooxml</artifactId>
-            <version>5.2.5</version>
-        </dependency>
-
-        <!-- Apache PDFBox for PDF parsing -->
-        <dependency>
-            <groupId>org.apache.pdfbox</groupId>
-            <artifactId>pdfbox</artifactId>
-            <version>2.0.30</version>
         </dependency>
 
         <!-- Testing -->

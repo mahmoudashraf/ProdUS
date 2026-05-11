@@ -30,7 +30,8 @@ export type ValidationRules<TForm extends object> = Partial<Record<keyof TForm, 
 
 // Enterprise component type definitions
 import type React from 'react';
-import type { ComponentProps } from './enterprise';
+
+export type ComponentProps<T> = T extends React.ComponentType<infer P> ? P : never;
 
 // Polymorphic Component Types
 export type PolymorphicComponent<T extends React.ElementType> = {
@@ -76,5 +77,4 @@ export interface UseFormState<T> {
   handleSubmit: (onSubmit: (values: T) => void) => (e: React.FormEvent) => void;
   resetForm: () => void;
 }
-
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# EasyLuxury Docker Deployment Script
+# ProdUS Docker Deployment Script
 # Deploys frontend + backend + Supabase database
 
 set -e
@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}================================${NC}"
-echo -e "${BLUE}🐳 EasyLuxury Docker Deployment${NC}"
+echo -e "${BLUE}🐳 ProdUS Docker Deployment${NC}"
 echo -e "${BLUE}================================${NC}"
 echo ""
 

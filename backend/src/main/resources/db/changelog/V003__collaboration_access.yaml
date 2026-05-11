@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: 200
+      author: produs
+      changes:
+        - createTable:
+            tableName: team_members
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: team_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: role, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: team_members
+            columnNames: team_id, user_id
+            constraintName: uk_team_members_team_user
+        - addForeignKeyConstraint:
+            baseTableName: team_members
+            baseColumnNames: team_id
+            constraintName: fk_team_members_team
+            referencedTableName: teams
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: team_members
+            baseColumnNames: user_id
+            constraintName: fk_team_members_user
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 201
+      author: produs
+      changes:
+        - createTable:
+            tableName: workspace_participants
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: workspace_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: added_by, type: UUID }
+              - column: { name: role, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: workspace_participants
+            columnNames: workspace_id, user_id
+            constraintName: uk_workspace_participants_workspace_user
+        - addForeignKeyConstraint:
+            baseTableName: workspace_participants
+            baseColumnNames: workspace_id
+            constraintName: fk_workspace_participants_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: workspace_participants
+            baseColumnNames: user_id
+            constraintName: fk_workspace_participants_user
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: workspace_participants
+            baseColumnNames: added_by
+            constraintName: fk_workspace_participants_added_by
+            referencedTableName: users
+            referencedColumnNames: id

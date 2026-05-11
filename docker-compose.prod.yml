@@ -6,7 +6,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: easyluxury-backend
+    container_name: produs-backend
     environment:
       # Supabase Configuration
       SUPABASE_URL: ${SUPABASE_URL}
@@ -44,7 +44,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: easyluxury-frontend
+    container_name: produs-frontend
     environment:
       # Supabase Configuration
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
@@ -67,4 +67,4 @@ services:
 
 networks:
   default:
-    name: easyluxury-network
+    name: produs-network

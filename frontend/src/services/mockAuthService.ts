@@ -78,7 +78,7 @@ export class MockAuthService {
       email,
       firstName: firstName || 'New',
       lastName: lastName || 'User',
-      role: 'ADMIN', // Default role
+      role: 'PRODUCT_OWNER',
       supabaseId: `mock-supabase-${Date.now()}`,
       avatar: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
       phone: '+1-555-0000',
@@ -170,7 +170,13 @@ export class MockAuthService {
     return this.signIn(MOCK_CREDENTIALS.admin.email, MOCK_CREDENTIALS.admin.password);
   }
 
-  // Only admin login is available in the simplified version
+  async loginAsOwner(): Promise<MockAuthResponse> {
+    return this.signIn(MOCK_CREDENTIALS.owner.email, MOCK_CREDENTIALS.owner.password);
+  }
+
+  async loginAsTeamManager(): Promise<MockAuthResponse> {
+    return this.signIn(MOCK_CREDENTIALS.team.email, MOCK_CREDENTIALS.team.password);
+  }
 
   // Generate mock JWT token
   private generateMockToken(user: MockUser): string {

@@ -34,7 +34,7 @@ type ConfigProviderProps = {
 };
 
 function ConfigProvider({ children }: ConfigProviderProps) {
-  const [config, setConfig] = useLocalStorage('kiwi-config-ts', {
+  const [config, setConfig] = useLocalStorage('produs-config', {
     layout: initialState.layout,
     drawerType: initialState.drawerType,
     fontFamily: initialState.fontFamily,

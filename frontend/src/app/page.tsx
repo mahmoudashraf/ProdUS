@@ -1,17 +1,5 @@
-"use client";
-// project import
-import MinimalLayout from 'layout/MinimalLayout';
-import { withErrorBoundary } from '@/components/enterprise/HOCs';
-import Landing from 'views/landing';
+import { redirect } from 'next/navigation';
 
-// ==============================|| HOME PAGE ||============================== //
-
-function HomePage() {
-  return (
-    <MinimalLayout>
-      <Landing />
-    </MinimalLayout>
-  );
+export default function HomePage() {
+  redirect('/dashboard');
 }
-
-export default withErrorBoundary(HomePage);

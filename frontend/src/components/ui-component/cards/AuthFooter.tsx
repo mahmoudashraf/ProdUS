@@ -1,27 +1,12 @@
-// material-ui
-import { Link, Typography, Stack } from '@mui/material';
-
-// ==============================|| FOOTER - AUTHENTICATION 2 & 3 ||============================== //
+import { Typography, Stack } from '@mui/material';
 
 const AuthFooter = () => (
   <Stack direction="row" justifyContent="space-between">
-    <Typography
-      variant="subtitle2"
-      component={Link}
-      href="https://kiwidashboard.io"
-      target="_blank"
-      underline="hover"
-    >
-      kiwidashboard.io
+    <Typography variant="subtitle2">
+      ProdUS Platform
     </Typography>
-    <Typography
-      variant="subtitle2"
-      component={Link}
-      href="https://codedthemes.com"
-      target="_blank"
-      underline="hover"
-    >
-      &copy; codedthemes.com
+    <Typography variant="subtitle2">
+      Productization collaboration
     </Typography>
   </Stack>
 );

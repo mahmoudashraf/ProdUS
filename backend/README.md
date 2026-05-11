@@ -109,7 +109,7 @@ To create a new migration:
 
 ```
 backend/
-├── src/main/java/com/easyluxury/
+├── src/main/java/com/produs/
 │   ├── entity/           # JPA entities
 │   ├── dto/              # Data Transfer Objects
 │   ├── mapper/           # MapStruct mappers

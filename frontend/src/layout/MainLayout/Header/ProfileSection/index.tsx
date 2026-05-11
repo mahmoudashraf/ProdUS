@@ -278,7 +278,7 @@ const ProfileSection = () => {
                             sx={{ borderRadius: `${borderRadius}px` }}
                             selected={selectedIndex === 0}
                             onClick={(event: React.MouseEvent<HTMLDivElement>) =>
-                              handleListItemClick(event, 0, '/user/account-profile/profile1')
+                              handleListItemClick(event, 0, '/dashboard')
                             }
                           >
                             <ListItemIcon>
@@ -296,7 +296,7 @@ const ProfileSection = () => {
                             sx={{ borderRadius: `${borderRadius}px` }}
                             selected={selectedIndex === 1}
                             onClick={(event: React.MouseEvent<HTMLDivElement>) =>
-                              handleListItemClick(event, 1, '/user/social-profile/posts')
+                              handleListItemClick(event, 1, '/workspaces')
                             }
                           >
                             <ListItemIcon>
@@ -307,7 +307,7 @@ const ProfileSection = () => {
                                 <Grid container spacing={1} justifyContent="space-between">
                                   <Grid>
                                     <Typography variant="body2">
-                                      <FormattedMessage id="social-profile" />
+                                      <FormattedMessage id="workspaces" />
                                     </Typography>
                                   </Grid>
                                   <Grid>

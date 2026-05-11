@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
       id: 1
-      author: easyluxury
+      author: produs
       changes:
         - createTable:
             tableName: users
@@ -45,7 +45,7 @@ databaseChangeLog:
 
   - changeSet:
       id: 2
-      author: easyluxury
+      author: produs
       changes:
         - createIndex:
             indexName: idx_users_email
@@ -56,7 +56,7 @@ databaseChangeLog:
 
   - changeSet:
       id: 3
-      author: easyluxury
+      author: produs
       changes:
         - createIndex:
             indexName: idx_users_supabase_id

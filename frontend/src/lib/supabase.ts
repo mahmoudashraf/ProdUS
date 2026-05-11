@@ -5,12 +5,13 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const isDevelopment = process.env.NEXT_PUBLIC_ENVIRONMENT === 'development';
 const mockAuthEnabled = process.env.NEXT_PUBLIC_MOCK_AUTH_ENABLED === 'true';
 
-// Only show error if not in development mode with mock auth enabled
-if ((!supabaseUrl || !supabaseAnonKey) && !(isDevelopment && mockAuthEnabled)) {
-  console.error('❌ Supabase configuration missing!');
-  console.error('Please create frontend/.env.local with:');
-  console.error('NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co');
-  console.error('NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key');
+// Surface missing auth configuration in the browser without polluting static builds.
+if (
+  typeof window !== 'undefined'
+  && (!supabaseUrl || !supabaseAnonKey)
+  && !(isDevelopment && mockAuthEnabled)
+) {
+  console.warn('Supabase configuration missing. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
 }
 
 // Create a mock client if credentials are missing to prevent crashes

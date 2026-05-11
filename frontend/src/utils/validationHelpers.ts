@@ -1,4 +1,4 @@
-// Enhanced validation helpers for enterprise forms
+// Enhanced validation helpers for platform forms
 
 import { VALIDATION_PATTERNS, VALIDATION_MESSAGES } from '@/types/validation';
 import type { IValidationRule } from '@/types/common';

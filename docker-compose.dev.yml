@@ -4,9 +4,9 @@ services:
   # PostgreSQL Database Service
   postgres:
     image: postgres:15-alpine
-    container_name: easyluxury-postgres
+    container_name: produs-postgres
     environment:
-      POSTGRES_DB: easyluxury
+      POSTGRES_DB: produs
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -14,7 +14,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d easyluxury"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d produs"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,7 +25,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: easyluxury-backend
+    container_name: produs-backend
     environment:
       # Supabase Configuration
       SUPABASE_URL: ${SUPABASE_URL}
@@ -33,7 +33,7 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       
       # Database Configuration (Local PostgreSQL)
-      DATABASE_URL: jdbc:postgresql://postgres:5432/easyluxury
+      DATABASE_URL: jdbc:postgresql://postgres:5432/produs
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
       
@@ -43,7 +43,7 @@ services:
       # AWS S3/MinIO Configuration
       AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-http://minio:9000}
       AWS_S3_REGION: ${AWS_S3_REGION:-us-east-1}
-      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-easyluxury}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-produs}
       AWS_ACCESS_KEY: ${AWS_ACCESS_KEY:-minioadmin}
       AWS_SECRET_KEY: ${AWS_SECRET_KEY:-minioadmin}
       
@@ -68,7 +68,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: easyluxury-frontend
+    container_name: produs-frontend
     environment:
       # Supabase Configuration
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
@@ -92,7 +92,7 @@ services:
   # MinIO for File Storage (DEVELOPMENT ONLY)
   minio:
     image: minio/minio:latest
-    container_name: easyluxury-minio
+    container_name: produs-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${AWS_ACCESS_KEY:-minioadmin}
@@ -115,4 +115,4 @@ volumes:
 
 networks:
   default:
-    name: easyluxury-network
+    name: produs-network

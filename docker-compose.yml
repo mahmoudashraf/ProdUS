@@ -6,7 +6,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: easyluxury-backend
+    container_name: produs-backend
     environment:
       # Supabase Configuration
       SUPABASE_URL: ${SUPABASE_URL}
@@ -24,7 +24,7 @@ services:
       # AWS S3/MinIO Configuration
       AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-http://minio:9000}
       AWS_S3_REGION: ${AWS_S3_REGION:-us-east-1}
-      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-easyluxury}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-produs}
       AWS_ACCESS_KEY: ${AWS_ACCESS_KEY:-minioadmin}
       AWS_SECRET_KEY: ${AWS_SECRET_KEY:-minioadmin}
       
@@ -47,7 +47,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: easyluxury-frontend
+    container_name: produs-frontend
     environment:
       # Supabase Configuration
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
@@ -71,7 +71,7 @@ services:
   # MinIO for File Storage (Optional - can use Supabase Storage instead)
   minio:
     image: minio/minio:latest
-    container_name: easyluxury-minio
+    container_name: produs-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${AWS_ACCESS_KEY:-minioadmin}
@@ -93,4 +93,4 @@ volumes:
 
 networks:
   default:
-    name: easyluxury-network
+    name: produs-network

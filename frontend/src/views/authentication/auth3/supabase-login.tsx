@@ -46,7 +46,7 @@ const SupabaseLogin = () => {
                             gutterBottom
                             variant={matchDownSM ? 'h3' : 'h2'}
                           >
-                            Welcome to EasyLuxury
+                            Welcome to ProdUS
                           </Typography>
                           <Typography
                             variant="caption"

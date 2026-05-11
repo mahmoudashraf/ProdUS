@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# EasyLuxury Platform - Development Mode Startup
+# ProdUS Platform - Development Mode Startup
 # Unified script to start backend and frontend in development mode
 
 set -e
@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}================================${NC}"
-echo -e "${BLUE}🚀 EasyLuxury Development Mode${NC}"
+echo -e "${BLUE}🚀 ProdUS Development Mode${NC}"
 echo -e "${BLUE}================================${NC}"
 echo ""
 
@@ -40,7 +40,7 @@ if [ ! -f "backend/.env" ]; then
     echo -e "${YELLOW}⚠️  backend/.env not found. Creating template...${NC}"
     cat > backend/.env << 'EOF'
 # Database Configuration
-DATABASE_URL=jdbc:postgresql://localhost:5432/easyluxury
+DATABASE_URL=jdbc:postgresql://localhost:5432/produs
 DATABASE_USERNAME=postgres
 DATABASE_PASSWORD=postgres
 
@@ -88,7 +88,7 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 # App Configuration
-NEXT_PUBLIC_APP_NAME=EasyLuxury
+NEXT_PUBLIC_APP_NAME=ProdUS
 NEXT_PUBLIC_APP_VERSION=1.0.0-dev
 EOF
     echo -e "${GREEN}✓${NC} Frontend development environment created"
@@ -106,24 +106,24 @@ echo ""
 
 # Skip PostgreSQL setup for dev mode
 if false; then
-if docker exec easyluxury-db-dev pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
+if docker exec produs-db-dev pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC} PostgreSQL is running"
 elif command -v docker &> /dev/null; then
     echo -e "${YELLOW}⚠️${NC}  PostgreSQL not running. Starting Docker container..."
     
     # Stop any existing backend container that might be failing
-    if docker ps -a | grep -q easyluxury-backend-dev; then
+    if docker ps -a | grep -q produs-backend-dev; then
         echo "Stopping existing backend container..."
-        docker stop easyluxury-backend-dev >/dev/null 2>&1
+        docker stop produs-backend-dev >/dev/null 2>&1
     fi
     
-    if docker ps -a | grep -q easyluxury-db-dev; then
+    if docker ps -a | grep -q produs-db-dev; then
         echo "Starting existing PostgreSQL container..."
-        docker start easyluxury-db-dev >/dev/null 2>&1
+        docker start produs-db-dev >/dev/null 2>&1
     else
         echo "Creating new PostgreSQL container..."
-        docker run -d --name easyluxury-db-dev \
-          -e POSTGRES_DB=easyluxury \
+        docker run -d --name produs-db-dev \
+          -e POSTGRES_DB=produs \
           -e POSTGRES_USER=postgres \
           -e POSTGRES_PASSWORD=postgres \
           -p 5432:5432 \
@@ -133,13 +133,13 @@ elif command -v docker &> /dev/null; then
     echo "Waiting for PostgreSQL to be ready..."
     # Wait up to 30 seconds for PostgreSQL to be ready
     for i in {1..30}; do
-        if docker exec easyluxury-db-dev pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
+        if docker exec produs-db-dev pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
             echo -e "${GREEN}✓${NC} PostgreSQL started successfully"
             break
         fi
         if [ $i -eq 30 ]; then
             echo -e "${RED}❌ PostgreSQL failed to start within 30 seconds${NC}"
-            echo "Check container logs: docker logs easyluxury-db-dev"
+            echo "Check container logs: docker logs produs-db-dev"
             exit 1
         fi
         sleep 1
@@ -160,10 +160,10 @@ if curl -s http://localhost:9000/minio/health/live >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC} MinIO is running"
 elif command -v docker &> /dev/null; then
     echo -e "${YELLOW}⚠️${NC}  MinIO not running. Starting Docker container..."
-    if docker ps -a | grep -q easyluxury-minio-dev; then
-        docker start easyluxury-minio-dev >/dev/null 2>&1
+    if docker ps -a | grep -q produs-minio-dev; then
+        docker start produs-minio-dev >/dev/null 2>&1
     else
-        docker run -d --name easyluxury-minio-dev \
+        docker run -d --name produs-minio-dev \
           -e MINIO_ROOT_USER=minioadmin \
           -e MINIO_ROOT_PASSWORD=minioadmin \
           -p 9000:9000 \
@@ -177,9 +177,9 @@ elif command -v docker &> /dev/null; then
             echo -e "${GREEN}✓${NC} MinIO started successfully"
             # Create bucket if it doesn't exist
             echo "Setting up MinIO bucket..."
-            docker exec easyluxury-minio-dev mc alias set myminio http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1
-            docker exec easyluxury-minio-dev mc mb myminio/easyluxury >/dev/null 2>&1 || true
-            docker exec easyluxury-minio-dev mc anonymous set public myminio/easyluxury >/dev/null 2>&1 || true
+            docker exec produs-minio-dev mc alias set myminio http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1
+            docker exec produs-minio-dev mc mb myminio/produs >/dev/null 2>&1 || true
+            docker exec produs-minio-dev mc anonymous set public myminio/produs >/dev/null 2>&1 || true
             echo -e "${GREEN}✓${NC} MinIO bucket configured"
             break
         fi
@@ -213,23 +213,8 @@ fi
 echo -e "${GREEN}✓${NC} Ports 3000 and 8080 are available"
 echo ""
 
-# Step 6: Build AI Infrastructure Module
-echo -e "${BLUE}Step 6/10:${NC} Building AI Infrastructure Module..."
-cd ai-infrastructure-module
-echo "Cleaning and installing AI module to local repository..."
-export JAVA_HOME=/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
-if mvn clean install -DskipTests -q; then
-    echo -e "${GREEN}✓${NC} AI Infrastructure Module built and installed"
-else
-    echo -e "${RED}❌ AI Infrastructure Module build failed${NC}"
-    echo "Check the output above for compilation errors"
-    exit 1
-fi
-cd ..
-echo ""
-
-# Step 7: Recompile backend
-echo -e "${BLUE}Step 7/10:${NC} Recompiling backend..."
+# Step 6: Recompile backend
+echo -e "${BLUE}Step 6/8:${NC} Recompiling backend..."
 cd backend
 echo "Cleaning and compiling backend..."
 export JAVA_HOME=/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
@@ -243,14 +228,8 @@ fi
 cd ..
 echo ""
 
-# Step 8: Skip database migrations (H2 auto-creates tables)
-echo -e "${BLUE}Step 8/10:${NC} Skipping database migrations..."
-echo -e "${YELLOW}⚠️${NC}  H2 in-memory database auto-creates tables on startup"
-echo -e "${GREEN}✓${NC} Database setup handled by Hibernate"
-echo ""
-
-# Step 9: Install frontend dependencies
-echo -e "${BLUE}Step 9/10:${NC} Checking frontend dependencies..."
+# Step 7: Install frontend dependencies
+echo -e "${BLUE}Step 7/8:${NC} Checking frontend dependencies..."
 if [ ! -d "frontend/node_modules" ]; then
     echo "Installing frontend dependencies..."
     cd frontend
@@ -262,8 +241,8 @@ else
 fi
 echo ""
 
-# Step 10: Start services
-echo -e "${BLUE}Step 10/10:${NC} Starting services..."
+# Step 8: Start services
+echo -e "${BLUE}Step 8/8:${NC} Starting services..."
 
 # Start backend
 echo "Starting backend..."
@@ -299,7 +278,7 @@ if lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null 2>&1; then
     sleep 2
 fi
 
-mvn spring-boot:run -Dspring-boot.run.profiles=${SPRING_PROFILES_ACTIVE} > /tmp/easyluxury-backend.log 2>&1 &
+mvn spring-boot:run -Dspring-boot.run.profiles=${SPRING_PROFILES_ACTIVE} > /tmp/produs-backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 echo "Backend starting (PID: $BACKEND_PID)..."
@@ -313,9 +292,9 @@ for i in {1..90}; do
     fi
     if [ $i -eq 90 ]; then
         echo -e "${RED}❌ Backend failed to start within 90 seconds${NC}"
-        echo "Check logs: tail -f /tmp/easyluxury-backend.log"
+        echo "Check logs: tail -f /tmp/produs-backend.log"
         echo "Last 20 lines of backend log:"
-        tail -20 /tmp/easyluxury-backend.log
+        tail -20 /tmp/produs-backend.log
         kill $BACKEND_PID 2>/dev/null
         exit 1
     fi
@@ -335,7 +314,7 @@ if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
     sleep 2
 fi
 
-npm run dev > /tmp/easyluxury-frontend.log 2>&1 &
+npm run dev > /tmp/produs-frontend.log 2>&1 &
 FRONTEND_PID=$!
 cd ..
 echo "Frontend starting (PID: $FRONTEND_PID)..."
@@ -366,8 +345,8 @@ echo "  Backend PID:  $BACKEND_PID"
 echo "  Frontend PID: $FRONTEND_PID"
 echo ""
 echo -e "${BLUE}View Logs:${NC}"
-echo "  Backend:  tail -f /tmp/easyluxury-backend.log"
-echo "  Frontend: tail -f /tmp/easyluxury-frontend.log"
+echo "  Backend:  tail -f /tmp/produs-backend.log"
+echo "  Frontend: tail -f /tmp/produs-frontend.log"
 echo ""
 echo -e "${BLUE}Stop Services:${NC}"
 echo "  Run: ./stop.sh"
@@ -378,8 +357,8 @@ echo -e "${YELLOW}Press Ctrl+C to stop this script (services will continue runni
 echo ""
 
 # Save PIDs to file for stop script
-echo "$BACKEND_PID" > /tmp/easyluxury-backend.pid
-echo "$FRONTEND_PID" > /tmp/easyluxury-frontend.pid
+echo "$BACKEND_PID" > /tmp/produs-backend.pid
+echo "$FRONTEND_PID" > /tmp/produs-frontend.pid
 
 # In background mode, exit immediately after starting services
 if [ "$RUN_IN_BACKGROUND" -eq 1 ]; then

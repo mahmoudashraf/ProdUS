@@ -94,7 +94,7 @@ const Sidebar = () => {
     <Box
       component="nav"
       sx={{ flexShrink: { md: 0 }, width: matchUpMd ? drawerWidth : 'auto' }}
-      aria-label="mailbox folders"
+      aria-label="platform navigation"
     >
       {matchDownMd || (drawerType === LAYOUT_CONST.MINI_DRAWER && drawerOpen) ? (
         <Drawer

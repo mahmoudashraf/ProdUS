@@ -127,7 +127,7 @@ jest.mock('react-apexcharts', () => {
   return function Chart({ options, series, type, ...props }) {
     return <div data-testid="apex-chart" {...props} />;
   };
-});
+}, { virtual: true });
 
 // Mock react-intersection-observer
 jest.mock('react-intersection-observer', () => ({

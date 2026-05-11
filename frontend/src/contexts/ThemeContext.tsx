@@ -102,7 +102,7 @@ export const ThemeProvider: React.FC<{
   // Persist customization to localStorage
   useEffect(() => {
     try {
-      const savedCustomization = localStorage.getItem('kiwi-customization');
+      const savedCustomization = localStorage.getItem('produs-customization');
       if (savedCustomization) {
         const parsed = JSON.parse(savedCustomization);
         // Validate and update state only if keys are valid
@@ -122,7 +122,7 @@ export const ThemeProvider: React.FC<{
   // Save to localStorage whenever customization changes
   useEffect(() => {
     try {
-      localStorage.setItem('kiwi-customization', JSON.stringify(customization));
+      localStorage.setItem('produs-customization', JSON.stringify(customization));
     } catch (error) {
       console.warn('Failed to save customization to localStorage:', error);
     }

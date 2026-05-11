@@ -1,24 +1,17 @@
 'use client';
 
-// project import
-import Error500 from 'views/maintenance/500';
+import { Button, Stack, Typography } from '@mui/material';
 
-// ==============================|| ERROR 500 - MAIN ||============================== //
-
-// todo: testing of this page is pending. Need to figure out how to test this. Waiting to see
-// if this comes automatically when some error appears
-
-export default function GlobalError({
-  error: _error,
-  reset: _reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <html>
       <body>
-        <Error500 />
+        <Stack minHeight="100vh" alignItems="center" justifyContent="center" spacing={2}>
+          <Typography variant="h2">Something went wrong</Typography>
+          <Button variant="contained" onClick={reset}>
+            Try again
+          </Button>
+        </Stack>
       </body>
     </html>
   );

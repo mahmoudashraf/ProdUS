@@ -12,18 +12,7 @@ import { SvgIconTypeMap, ChipProps, TableCellProps } from '@mui/material';
 import { OverridableComponent } from '@mui/material/OverridableComponent';
 
 // project imports
-import { UserProfile } from 'types/user-profile';
-
-import { CalendarStateProps } from './calendar';
-import { CartStateProps } from './cart';
-import { ChatStateProps } from './chat';
-import { ContactStateProps } from './contact';
-import { CustomerStateProps } from './customer';
-import { KanbanStateProps } from './kanban';
-import { MailStateProps } from './mail';
-import { ProductStateProps } from './product';
-import { SnackbarProps } from './snackbar';
-import { UserStateProps } from './user';
+import { User } from './auth';
 
 // types
 
@@ -120,19 +109,6 @@ export interface ColorPaletteProps {
   value: string;
 }
 
-export interface DefaultRootStateProps {
-  snackbar: SnackbarProps;
-  cart: CartStateProps;
-  kanban: KanbanStateProps;
-  customer: CustomerStateProps;
-  contact: ContactStateProps;
-  product: ProductStateProps;
-  chat: ChatStateProps;
-  calendar: CalendarStateProps;
-  mail: MailStateProps;
-  user: UserStateProps;
-}
-
 export interface ColorProps {
   readonly [key: string]: string;
 }
@@ -156,7 +132,7 @@ export type KeyedObject = {
 export interface InitialLoginContextProps {
   isLoggedIn: boolean;
   isInitialized?: boolean;
-  user?: UserProfile | null | undefined;
+  user?: User | null | undefined;
 }
 
 export interface FormInputProps {
@@ -184,5 +160,4 @@ export type ChangeEventFunc = (e: React.ChangeEvent<HTMLInputElement>) => void;
 
 // Export common types
 export * from './common';
-export * from './enterprise';
 export * from './components';

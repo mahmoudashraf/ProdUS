@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 .PHONY: help
 help:
-	@echo "EasyLuxury Makefile"
+	@echo "ProdUS Makefile"
 	@echo " make up           - start Postgres + MinIO"
 	@echo " make be_run       - run backend (Spring Boot)"
 	@echo " make be_test      - run backend tests (with Testcontainers)"

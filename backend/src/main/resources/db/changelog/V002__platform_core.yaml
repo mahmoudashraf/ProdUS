@@ -1,0 +1,581 @@
+databaseChangeLog:
+  - changeSet:
+      id: 100
+      author: produs
+      changes:
+        - createTable:
+            tableName: service_categories
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: slug, type: VARCHAR(255), constraints: { nullable: false, unique: true } }
+              - column: { name: description, type: TEXT }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createTable:
+            tableName: service_modules
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: category_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: slug, type: VARCHAR(255), constraints: { nullable: false, unique: true } }
+              - column: { name: description, type: TEXT }
+              - column: { name: required_inputs, type: TEXT }
+              - column: { name: expected_deliverables, type: TEXT }
+              - column: { name: acceptance_criteria, type: TEXT }
+              - column: { name: timeline_range, type: VARCHAR(255) }
+              - column: { name: price_range, type: VARCHAR(255) }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createTable:
+            tableName: service_dependencies
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: source_module_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: depends_on_module_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: reason, type: TEXT }
+              - column: { name: required, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: service_modules
+            baseColumnNames: category_id
+            constraintName: fk_service_modules_category
+            referencedTableName: service_categories
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: service_dependencies
+            baseColumnNames: source_module_id
+            constraintName: fk_service_dependencies_source
+            referencedTableName: service_modules
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: service_dependencies
+            baseColumnNames: depends_on_module_id
+            constraintName: fk_service_dependencies_depends_on
+            referencedTableName: service_modules
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 101
+      author: produs
+      changes:
+        - createTable:
+            tableName: product_profiles
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: summary, type: TEXT }
+              - column: { name: business_stage, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: tech_stack, type: TEXT }
+              - column: { name: product_url, type: VARCHAR(500) }
+              - column: { name: repository_url, type: VARCHAR(500) }
+              - column: { name: risk_profile, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createTable:
+            tableName: requirement_intakes
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: requested_service_module_id, type: UUID }
+              - column: { name: business_goal, type: TEXT, constraints: { nullable: false } }
+              - column: { name: current_problems, type: TEXT }
+              - column: { name: constraints, type: TEXT }
+              - column: { name: risk_signals, type: TEXT }
+              - column: { name: requirement_brief, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: product_profiles
+            baseColumnNames: owner_id
+            constraintName: fk_product_profiles_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: requirement_intakes
+            baseColumnNames: product_profile_id
+            constraintName: fk_requirement_intakes_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: requirement_intakes
+            baseColumnNames: requested_service_module_id
+            constraintName: fk_requirement_intakes_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 102
+      author: produs
+      changes:
+        - createTable:
+            tableName: package_instances
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: requirement_intake_id, type: UUID }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: summary, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createTable:
+            tableName: package_modules
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: package_instance_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: service_module_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: sequence_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: required, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: rationale, type: TEXT }
+              - column: { name: deliverables, type: TEXT }
+              - column: { name: acceptance_criteria, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: package_instances
+            baseColumnNames: owner_id
+            constraintName: fk_package_instances_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: package_instances
+            baseColumnNames: product_profile_id
+            constraintName: fk_package_instances_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: package_instances
+            baseColumnNames: requirement_intake_id
+            constraintName: fk_package_instances_requirement
+            referencedTableName: requirement_intakes
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: package_modules
+            baseColumnNames: package_instance_id
+            constraintName: fk_package_modules_package
+            referencedTableName: package_instances
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: package_modules
+            baseColumnNames: service_module_id
+            constraintName: fk_package_modules_service_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 103
+      author: produs
+      changes:
+        - createTable:
+            tableName: teams
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: manager_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: timezone, type: VARCHAR(120) }
+              - column: { name: capabilities_summary, type: TEXT }
+              - column: { name: typical_project_size, type: VARCHAR(120) }
+              - column: { name: verification_status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createTable:
+            tableName: team_capabilities
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: team_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: service_category_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: service_module_id, type: UUID }
+              - column: { name: evidence_url, type: VARCHAR(500) }
+              - column: { name: notes, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: teams
+            baseColumnNames: manager_id
+            constraintName: fk_teams_manager
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: team_capabilities
+            baseColumnNames: team_id
+            constraintName: fk_team_capabilities_team
+            referencedTableName: teams
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: team_capabilities
+            baseColumnNames: service_category_id
+            constraintName: fk_team_capabilities_category
+            referencedTableName: service_categories
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: team_capabilities
+            baseColumnNames: service_module_id
+            constraintName: fk_team_capabilities_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 104
+      author: produs
+      changes:
+        - createTable:
+            tableName: project_workspaces
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: package_instance_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createTable:
+            tableName: milestones
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: workspace_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: due_date, type: DATE }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createTable:
+            tableName: deliverables
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: milestone_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: evidence, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: project_workspaces
+            baseColumnNames: package_instance_id
+            constraintName: fk_project_workspaces_package
+            referencedTableName: package_instances
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: project_workspaces
+            baseColumnNames: owner_id
+            constraintName: fk_project_workspaces_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: milestones
+            baseColumnNames: workspace_id
+            constraintName: fk_milestones_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: deliverables
+            baseColumnNames: milestone_id
+            constraintName: fk_deliverables_milestone
+            referencedTableName: milestones
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 105
+      author: produs
+      changes:
+        - createTable:
+            tableName: ai_recommendations
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_by, type: UUID }
+              - column: { name: recommendation_type, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: source_entity_type, type: VARCHAR(120) }
+              - column: { name: source_entity_id, type: VARCHAR(120) }
+              - column: { name: prompt_version, type: VARCHAR(120) }
+              - column: { name: confidence, type: DOUBLE }
+              - column: { name: rationale, type: TEXT }
+              - column: { name: output_json, type: TEXT }
+              - column: { name: human_feedback, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: ai_recommendations
+            baseColumnNames: created_by
+            constraintName: fk_ai_recommendations_created_by
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 106
+      author: produs
+      changes:
+        - insert:
+            tableName: service_categories
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000101" }
+              - column: { name: name, value: "Validation" }
+              - column: { name: slug, value: "validation" }
+              - column: { name: description, value: "Requirement analysis, technical review, and product readiness assessment." }
+              - column: { name: sort_order, valueNumeric: 1 }
+        - insert:
+            tableName: service_categories
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000102" }
+              - column: { name: name, value: "Code rewrite/refactor" }
+              - column: { name: slug, value: "code-rewrite-refactor" }
+              - column: { name: description, value: "Backend rewrite, frontend rewrite, API redesign, no-code migration, and refactor work." }
+              - column: { name: sort_order, valueNumeric: 2 }
+        - insert:
+            tableName: service_categories
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000103" }
+              - column: { name: name, value: "Scaling" }
+              - column: { name: slug, value: "scaling" }
+              - column: { name: description, value: "Performance audit, load testing, caching, and cloud cost optimization." }
+              - column: { name: sort_order, valueNumeric: 3 }
+        - insert:
+            tableName: service_categories
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000104" }
+              - column: { name: name, value: "Cloud/DevOps" }
+              - column: { name: slug, value: "cloud-devops" }
+              - column: { name: description, value: "Deployment, CI/CD, staging/prod setup, monitoring, backup, and rollback." }
+              - column: { name: sort_order, valueNumeric: 4 }
+        - insert:
+            tableName: service_categories
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000105" }
+              - column: { name: name, value: "Database" }
+              - column: { name: slug, value: "database" }
+              - column: { name: description, value: "Schema redesign, migrations, backup/restore, query optimization, and data integrity." }
+              - column: { name: sort_order, valueNumeric: 5 }
+        - insert:
+            tableName: service_categories
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000106" }
+              - column: { name: name, value: "Security" }
+              - column: { name: slug, value: "security" }
+              - column: { name: description, value: "Auth, access control, API security, secrets, and vulnerability review." }
+              - column: { name: sort_order, valueNumeric: 6 }
+        - insert:
+            tableName: service_categories
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000107" }
+              - column: { name: name, value: "Launch/GTM readiness" }
+              - column: { name: slug, value: "launch-gtm-readiness" }
+              - column: { name: description, value: "Analytics, payments, onboarding, admin readiness, and launch checklist." }
+              - column: { name: sort_order, valueNumeric: 7 }
+        - insert:
+            tableName: service_categories
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000108" }
+              - column: { name: name, value: "Operations/support" }
+              - column: { name: slug, value: "operations-support" }
+              - column: { name: description, value: "Maintenance, bug fixing, monitoring, incident response, and monthly health reports." }
+              - column: { name: sort_order, valueNumeric: 8 }
+
+  - changeSet:
+      id: 107
+      author: produs
+      changes:
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000201" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000101" }
+              - column: { name: name, value: "Requirement analysis" }
+              - column: { name: slug, value: "requirement-analysis" }
+              - column: { name: description, value: "Turn vague product needs into a structured requirement brief and risk map." }
+              - column: { name: expected_deliverables, value: "Requirement brief; risk map; recommended service package; open questions." }
+              - column: { name: acceptance_criteria, value: "Owner confirms the brief accurately represents the product state, business goal, assumptions, and next required services." }
+              - column: { name: sort_order, valueNumeric: 1 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000202" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000101" }
+              - column: { name: name, value: "Launch readiness review" }
+              - column: { name: slug, value: "launch-readiness-review" }
+              - column: { name: description, value: "Assess whether a SaaS/web product is ready for public launch or customer handoff." }
+              - column: { name: expected_deliverables, value: "Launch readiness report; critical blockers; recommended milestone sequence." }
+              - column: { name: acceptance_criteria, value: "Report covers deployment, security, monitoring, backups, analytics, payments, support, and handoff readiness." }
+              - column: { name: sort_order, valueNumeric: 2 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000203" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000102" }
+              - column: { name: name, value: "Backend rewrite/refactor" }
+              - column: { name: slug, value: "backend-rewrite-refactor" }
+              - column: { name: description, value: "Stabilize or rebuild backend modules that block production readiness." }
+              - column: { name: expected_deliverables, value: "Refactored backend modules; API notes; migration and deployment notes." }
+              - column: { name: acceptance_criteria, value: "Backend paths are documented, tested at critical boundaries, deployable, and do not regress agreed user workflows." }
+              - column: { name: sort_order, valueNumeric: 1 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000204" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000102" }
+              - column: { name: name, value: "Frontend rewrite/refactor" }
+              - column: { name: slug, value: "frontend-rewrite-refactor" }
+              - column: { name: description, value: "Stabilize frontend architecture, screens, state, and release readiness." }
+              - column: { name: expected_deliverables, value: "Refactored frontend flows; component cleanup; route and state notes." }
+              - column: { name: acceptance_criteria, value: "Core screens render without blocking errors, match agreed UX scope, and are ready for deployment handoff." }
+              - column: { name: sort_order, valueNumeric: 2 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000205" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000103" }
+              - column: { name: name, value: "Performance audit" }
+              - column: { name: slug, value: "performance-audit" }
+              - column: { name: description, value: "Find bottlenecks across app, database, API, and hosting." }
+              - column: { name: expected_deliverables, value: "Performance report; prioritized bottlenecks; remediation plan." }
+              - column: { name: acceptance_criteria, value: "Findings include evidence, impact, and recommended remediation sequence." }
+              - column: { name: sort_order, valueNumeric: 1 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000206" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000104" }
+              - column: { name: name, value: "Cloud deployment" }
+              - column: { name: slug, value: "cloud-deployment" }
+              - column: { name: description, value: "Set up production/staging deployment with rollback and environment ownership." }
+              - column: { name: expected_deliverables, value: "Production/staging environments; deployment notes; rollback process." }
+              - column: { name: acceptance_criteria, value: "Deployment can be repeated, production URL is live, rollback path is documented, and environment access is handed off." }
+              - column: { name: sort_order, valueNumeric: 1 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000207" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000104" }
+              - column: { name: name, value: "CI/CD setup" }
+              - column: { name: slug, value: "ci-cd-setup" }
+              - column: { name: description, value: "Create a deploy pipeline and basic release checks." }
+              - column: { name: expected_deliverables, value: "Pipeline configuration; required checks; release notes." }
+              - column: { name: acceptance_criteria, value: "Pipeline runs on agreed branch events and blocks release on configured failing checks." }
+              - column: { name: sort_order, valueNumeric: 2 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000208" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000104" }
+              - column: { name: name, value: "Monitoring setup" }
+              - column: { name: slug, value: "monitoring-setup" }
+              - column: { name: description, value: "Configure uptime, error, and operational monitoring for launch." }
+              - column: { name: expected_deliverables, value: "Monitoring dashboard; alert rules; escalation notes." }
+              - column: { name: acceptance_criteria, value: "Alerts are configured for agreed critical paths and owner/team know how to respond." }
+              - column: { name: sort_order, valueNumeric: 3 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000209" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000105" }
+              - column: { name: name, value: "Database redesign" }
+              - column: { name: slug, value: "database-redesign" }
+              - column: { name: description, value: "Improve schema, migration strategy, query health, and data integrity." }
+              - column: { name: expected_deliverables, value: "Schema changes; migration scripts; data integrity notes." }
+              - column: { name: acceptance_criteria, value: "Migration path is documented, reversible where practical, and validated against agreed data scenarios." }
+              - column: { name: sort_order, valueNumeric: 1 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000210" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000105" }
+              - column: { name: name, value: "Backup and restore" }
+              - column: { name: slug, value: "backup-restore" }
+              - column: { name: description, value: "Set backup policy and verify restore readiness." }
+              - column: { name: expected_deliverables, value: "Backup schedule; restore runbook; verification evidence." }
+              - column: { name: acceptance_criteria, value: "Restore process is documented and tested against a non-production environment or agreed substitute." }
+              - column: { name: sort_order, valueNumeric: 2 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000211" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000106" }
+              - column: { name: name, value: "Auth and access control review" }
+              - column: { name: slug, value: "auth-access-control-review" }
+              - column: { name: description, value: "Review authentication, authorization, roles, sessions, and sensitive flows." }
+              - column: { name: expected_deliverables, value: "Findings; remediation plan; launch security checklist." }
+              - column: { name: acceptance_criteria, value: "Findings are evidence-backed and no unsupported compliance certification is claimed." }
+              - column: { name: sort_order, valueNumeric: 1 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000212" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000106" }
+              - column: { name: name, value: "API security review" }
+              - column: { name: slug, value: "api-security-review" }
+              - column: { name: description, value: "Review APIs, secrets, access control, and risky integrations." }
+              - column: { name: expected_deliverables, value: "API security findings; prioritized fixes; verification notes." }
+              - column: { name: acceptance_criteria, value: "Critical API risks are documented with reproduction evidence or clear reasoning." }
+              - column: { name: sort_order, valueNumeric: 2 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000213" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000107" }
+              - column: { name: name, value: "Analytics, payments, and onboarding readiness" }
+              - column: { name: slug, value: "analytics-payments-onboarding-readiness" }
+              - column: { name: description, value: "Prepare operational launch workflows around analytics, payments, onboarding, and admin readiness." }
+              - column: { name: expected_deliverables, value: "Launch checklist; configured tracking/payment/onboarding notes; admin readiness notes." }
+              - column: { name: acceptance_criteria, value: "Launch-critical business flows have owner-approved acceptance criteria and handoff notes." }
+              - column: { name: sort_order, valueNumeric: 1 }
+        - insert:
+            tableName: service_modules
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000214" }
+              - column: { name: category_id, value: "00000000-0000-0000-0000-000000000108" }
+              - column: { name: name, value: "Support package" }
+              - column: { name: slug, value: "support-package" }
+              - column: { name: description, value: "Create ongoing support, monitoring, bug fixing, and incident response workflow." }
+              - column: { name: expected_deliverables, value: "Support scope; SLA notes; monthly health report template; escalation path." }
+              - column: { name: acceptance_criteria, value: "Owner and team agree response expectations, support scope, known issues, and reporting format." }
+              - column: { name: sort_order, valueNumeric: 1 }
+
+  - changeSet:
+      id: 108
+      author: produs
+      changes:
+        - insert:
+            tableName: service_dependencies
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000301" }
+              - column: { name: source_module_id, value: "00000000-0000-0000-0000-000000000206" }
+              - column: { name: depends_on_module_id, value: "00000000-0000-0000-0000-000000000207" }
+              - column: { name: reason, value: "Cloud deployment without CI/CD leaves release quality dependent on manual deployments." }
+        - insert:
+            tableName: service_dependencies
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000302" }
+              - column: { name: source_module_id, value: "00000000-0000-0000-0000-000000000206" }
+              - column: { name: depends_on_module_id, value: "00000000-0000-0000-0000-000000000208" }
+              - column: { name: reason, value: "Production deployment needs monitoring so failures and regressions are visible." }
+        - insert:
+            tableName: service_dependencies
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000303" }
+              - column: { name: source_module_id, value: "00000000-0000-0000-0000-000000000206" }
+              - column: { name: depends_on_module_id, value: "00000000-0000-0000-0000-000000000210" }
+              - column: { name: reason, value: "A live deployment should include backup and restore readiness before handoff." }
+        - insert:
+            tableName: service_dependencies
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000304" }
+              - column: { name: source_module_id, value: "00000000-0000-0000-0000-000000000203" }
+              - column: { name: depends_on_module_id, value: "00000000-0000-0000-0000-000000000209" }
+              - column: { name: reason, value: "Backend rewrites often affect schema, migrations, and data integrity." }
+        - insert:
+            tableName: service_dependencies
+            columns:
+              - column: { name: id, value: "00000000-0000-0000-0000-000000000305" }
+              - column: { name: source_module_id, value: "00000000-0000-0000-0000-000000000211" }
+              - column: { name: depends_on_module_id, value: "00000000-0000-0000-0000-000000000212" }
+              - column: { name: reason, value: "Auth and access control review should include API-level authorization and exposed integration risks." }

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# EasyLuxury Platform - Status Check Script
+# ProdUS Platform - Status Check Script
 
 # Colors
 RED='\033[0;31m'
@@ -10,7 +10,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo -e "${BLUE}================================${NC}"
-echo -e "${BLUE}📊 EasyLuxury Service Status${NC}"
+echo -e "${BLUE}📊 ProdUS Service Status${NC}"
 echo -e "${BLUE}================================${NC}"
 echo ""
 
@@ -19,8 +19,8 @@ echo -e "${BLUE}Backend (Spring Boot):${NC}"
 if curl -s http://localhost:8080/api/health 2>/dev/null | grep -q "UP"; then
     echo -e "  Status: ${GREEN}✓ Running${NC}"
     echo "  URL:    http://localhost:8080"
-    if [ -f /tmp/easyluxury-backend.pid ]; then
-        echo "  PID:    $(cat /tmp/easyluxury-backend.pid)"
+    if [ -f /tmp/produs-backend.pid ]; then
+        echo "  PID:    $(cat /tmp/produs-backend.pid)"
     fi
 else
     echo -e "  Status: ${RED}✗ Not Running${NC}"
@@ -32,8 +32,8 @@ echo -e "${BLUE}Frontend (Next.js):${NC}"
 if curl -s http://localhost:3000 2>/dev/null | grep -q "<!DOCTYPE html>"; then
     echo -e "  Status: ${GREEN}✓ Running${NC}"
     echo "  URL:    http://localhost:3000"
-    if [ -f /tmp/easyluxury-frontend.pid ]; then
-        echo "  PID:    $(cat /tmp/easyluxury-frontend.pid)"
+    if [ -f /tmp/produs-frontend.pid ]; then
+        echo "  PID:    $(cat /tmp/produs-frontend.pid)"
     fi
 else
     echo -e "  Status: ${RED}✗ Not Running${NC}"
@@ -64,16 +64,16 @@ echo ""
 # Check Docker containers
 if command -v docker &> /dev/null; then
     echo -e "${BLUE}Docker Containers:${NC}"
-    if docker ps | grep -q easyluxury-db-dev; then
-        echo -e "  easyluxury-db-dev: ${GREEN}✓ Running${NC}"
+    if docker ps | grep -q produs-db-dev; then
+        echo -e "  produs-db-dev: ${GREEN}✓ Running${NC}"
     else
-        echo -e "  easyluxury-db-dev: ${YELLOW}Not running${NC}"
+        echo -e "  produs-db-dev: ${YELLOW}Not running${NC}"
     fi
     
-    if docker ps | grep -q easyluxury-minio-dev; then
-        echo -e "  easyluxury-minio-dev: ${GREEN}✓ Running${NC}"
+    if docker ps | grep -q produs-minio-dev; then
+        echo -e "  produs-minio-dev: ${GREEN}✓ Running${NC}"
     else
-        echo -e "  easyluxury-minio-dev: ${YELLOW}Not running${NC}"
+        echo -e "  produs-minio-dev: ${YELLOW}Not running${NC}"
     fi
     echo ""
 fi

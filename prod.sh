@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# EasyLuxury Platform - Production Mode Startup
+# ProdUS Platform - Production Mode Startup
 # Unified script to start backend and frontend in production mode
 
 set -e
@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}================================${NC}"
-echo -e "${BLUE}🚀 EasyLuxury Production Mode${NC}"
+echo -e "${BLUE}🚀 ProdUS Production Mode${NC}"
 echo -e "${BLUE}================================${NC}"
 echo ""
 
@@ -97,15 +97,15 @@ echo ""
 
 # Step 3: Check PostgreSQL
 echo -e "${BLUE}Step 3/8:${NC} Checking PostgreSQL..."
-if docker exec easyluxury-db pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
+if docker exec produs-db pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC} PostgreSQL is running"
 elif command -v docker &> /dev/null; then
     echo -e "${YELLOW}⚠️${NC}  PostgreSQL not running. Starting Docker container..."
-    if docker ps -a | grep -q easyluxury-db; then
-        docker start easyluxury-db >/dev/null 2>&1
+    if docker ps -a | grep -q produs-db; then
+        docker start produs-db >/dev/null 2>&1
     else
-        docker run -d --name easyluxury-db \
-          -e POSTGRES_DB=easyluxury \
+        docker run -d --name produs-db \
+          -e POSTGRES_DB=produs \
           -e POSTGRES_USER=postgres \
           -e POSTGRES_PASSWORD=postgres \
           -p 5432:5432 \
@@ -113,7 +113,7 @@ elif command -v docker &> /dev/null; then
     fi
     echo "Waiting for PostgreSQL to be ready..."
     sleep 5
-    if docker exec easyluxury-db pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
+    if docker exec produs-db pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
         echo -e "${GREEN}✓${NC} PostgreSQL started successfully"
     else
         echo -e "${RED}❌ PostgreSQL failed to start${NC}"
@@ -132,10 +132,10 @@ if curl -s http://localhost:9000/minio/health/live >/dev/null 2>&1; then
     echo -e "${GREEN}✓${NC} MinIO is running"
 elif command -v docker &> /dev/null; then
     echo -e "${YELLOW}⚠️${NC}  MinIO not running. Starting Docker container..."
-    if docker ps -a | grep -q easyluxury-minio; then
-        docker start easyluxury-minio >/dev/null 2>&1
+    if docker ps -a | grep -q produs-minio; then
+        docker start produs-minio >/dev/null 2>&1
     else
-        docker run -d --name easyluxury-minio \
+        docker run -d --name produs-minio \
           -e MINIO_ROOT_USER=minioadmin \
           -e MINIO_ROOT_PASSWORD=minioadmin \
           -p 9000:9000 \
@@ -148,9 +148,9 @@ elif command -v docker &> /dev/null; then
         echo -e "${GREEN}✓${NC} MinIO started successfully"
         # Create bucket if it doesn't exist
         echo "Setting up MinIO bucket..."
-        docker exec easyluxury-minio mc alias set myminio http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1
-        docker exec easyluxury-minio mc mb myminio/easyluxury >/dev/null 2>&1 || true
-        docker exec easyluxury-minio mc anonymous set public myminio/easyluxury >/dev/null 2>&1 || true
+        docker exec produs-minio mc alias set myminio http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1
+        docker exec produs-minio mc mb myminio/produs >/dev/null 2>&1 || true
+        docker exec produs-minio mc anonymous set public myminio/produs >/dev/null 2>&1 || true
         echo -e "${GREEN}✓${NC} MinIO bucket configured"
     else
         echo -e "${RED}❌ MinIO failed to start${NC}"
@@ -227,7 +227,7 @@ if [ -f ".env.prod" ]; then
     export $(grep -v '^#' .env.prod | xargs)
 fi
 
-mvn spring-boot:run -Dspring-boot.run.profiles=prod > /tmp/easyluxury-backend.log 2>&1 &
+mvn spring-boot:run -Dspring-boot.run.profiles=prod > /tmp/produs-backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 echo "Backend starting (PID: $BACKEND_PID)..."
@@ -241,7 +241,7 @@ for i in {1..60}; do
     fi
     if [ $i -eq 60 ]; then
         echo -e "${RED}❌ Backend failed to start within 60 seconds${NC}"
-        echo "Check logs: tail -f /tmp/easyluxury-backend.log"
+        echo "Check logs: tail -f /tmp/produs-backend.log"
         kill $BACKEND_PID 2>/dev/null
         exit 1
     fi
@@ -260,7 +260,7 @@ rm -f .env.local
 
 # Copy .env.production to .env.local for runtime
 cp .env.production .env.local
-npm start > /tmp/easyluxury-frontend.log 2>&1 &
+npm start > /tmp/produs-frontend.log 2>&1 &
 FRONTEND_PID=$!
 cd ..
 echo "Frontend starting (PID: $FRONTEND_PID)..."
@@ -294,8 +294,8 @@ echo "  Backend PID:  $BACKEND_PID"
 echo "  Frontend PID: $FRONTEND_PID"
 echo ""
 echo -e "${BLUE}View Logs:${NC}"
-echo "  Backend:  tail -f /tmp/easyluxury-backend.log"
-echo "  Frontend: tail -f /tmp/easyluxury-frontend.log"
+echo "  Backend:  tail -f /tmp/produs-backend.log"
+echo "  Frontend: tail -f /tmp/produs-frontend.log"
 echo ""
 echo -e "${BLUE}Stop Services:${NC}"
 echo "  Run: ./stop.sh"
@@ -306,8 +306,8 @@ echo -e "${YELLOW}Press Ctrl+C to stop this script (services will continue runni
 echo ""
 
 # Save PIDs to file for stop script
-echo "$BACKEND_PID" > /tmp/easyluxury-backend.pid
-echo "$FRONTEND_PID" > /tmp/easyluxury-frontend.pid
+echo "$BACKEND_PID" > /tmp/produs-backend.pid
+echo "$FRONTEND_PID" > /tmp/produs-frontend.pid
 
 # Wait for user interrupt
 trap 'echo ""; echo "Services are still running. Use ./stop.sh to stop them."; exit 0' INT

@@ -1,14 +1,14 @@
 #!/bin/bash
 
-# EasyLuxury Database Cleanup Script
+# ProdUS Database Cleanup Script
 # This script clears all data from the database for development purposes
 
 echo "================================="
-echo "🧹 EasyLuxury Database Cleanup"
+echo "🧹 ProdUS Database Cleanup"
 echo "================================="
 
 # Find the PostgreSQL container name
-POSTGRES_CONTAINER=$(docker ps --format "table {{.Names}}" | grep -E "easyluxury.*db" | head -1)
+POSTGRES_CONTAINER=$(docker ps --format "table {{.Names}}" | grep -E "produs.*db" | head -1)
 
 if [ -z "$POSTGRES_CONTAINER" ]; then
     echo "❌ PostgreSQL container is not running. Please start it first:"
@@ -31,7 +31,7 @@ fi
 echo "🗑️  Cleaning database..."
 
 # Connect to PostgreSQL and clean all tables
-docker exec -i "$POSTGRES_CONTAINER" psql -U postgres -d easyluxury << EOF
+docker exec -i "$POSTGRES_CONTAINER" psql -U postgres -d produs << EOF
 -- Disable foreign key checks temporarily
 SET session_replication_role = replica;
 
