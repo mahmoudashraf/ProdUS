@@ -52,6 +52,12 @@ app:
       scheduler-enabled: ${APP_NOTIFICATION_DELIVERY_SCHEDULER_ENABLED:true}
       email-enabled: ${APP_NOTIFICATION_EMAIL_ENABLED:false}
       push-enabled: ${APP_NOTIFICATION_PUSH_ENABLED:false}
+      email-provider: ${APP_NOTIFICATION_EMAIL_PROVIDER:AUDIT_LOG}
+      push-provider: ${APP_NOTIFICATION_PUSH_PROVIDER:AUDIT_LOG}
+      email-webhook-url: ${APP_NOTIFICATION_EMAIL_WEBHOOK_URL:}
+      push-webhook-url: ${APP_NOTIFICATION_PUSH_WEBHOOK_URL:}
+      webhook-secret: ${APP_NOTIFICATION_WEBHOOK_SECRET:}
+      webhook-timeout-ms: ${APP_NOTIFICATION_WEBHOOK_TIMEOUT_MS:2500}
       batch-size: ${APP_NOTIFICATION_DELIVERY_BATCH_SIZE:50}
       max-attempts: ${APP_NOTIFICATION_DELIVERY_MAX_ATTEMPTS:3}
       retry-delay-seconds: ${APP_NOTIFICATION_DELIVERY_RETRY_DELAY_SECONDS:300}

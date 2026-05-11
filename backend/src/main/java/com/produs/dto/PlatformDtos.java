@@ -479,6 +479,21 @@ public final class PlatformDtos {
             int skippedCount
     ) {}
 
+    public record NotificationDeliveryConfigResponse(
+            boolean enabled,
+            boolean schedulerEnabled,
+            boolean emailEnabled,
+            boolean pushEnabled,
+            String emailProvider,
+            String pushProvider,
+            boolean emailProviderConfigured,
+            boolean pushProviderConfigured,
+            int batchSize,
+            int maxAttempts,
+            long retryDelaySeconds,
+            long webhookTimeoutMs
+    ) {}
+
     public record SupportSlaRunResponse(
             int scannedCount,
             int dueSoonCount,
@@ -1013,6 +1028,25 @@ public final class PlatformDtos {
                 delivery.getNextAttemptAt(),
                 delivery.getDeliveredAt(),
                 delivery.getLastError()
+        );
+    }
+
+    public static NotificationDeliveryConfigResponse toNotificationDeliveryConfigResponse(
+            com.produs.notifications.NotificationDeliveryService.DeliveryConfiguration configuration
+    ) {
+        return new NotificationDeliveryConfigResponse(
+                configuration.enabled(),
+                configuration.schedulerEnabled(),
+                configuration.emailEnabled(),
+                configuration.pushEnabled(),
+                configuration.emailProvider(),
+                configuration.pushProvider(),
+                configuration.emailProviderConfigured(),
+                configuration.pushProviderConfigured(),
+                configuration.batchSize(),
+                configuration.maxAttempts(),
+                configuration.retryDelaySeconds(),
+                configuration.webhookTimeoutMs()
         );
     }
 }

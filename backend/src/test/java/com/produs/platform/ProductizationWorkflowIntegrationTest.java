@@ -467,9 +467,16 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.scannedCount").value(greaterThan(0)))
                 .andExpect(jsonPath("$.sentCount").value(greaterThan(0)));
 
+        mockMvc.perform(get("/api/notifications/deliveries/config").with(auth(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.emailProvider").value("audit-log"))
+                .andExpect(jsonPath("$.emailProviderConfigured").value(true))
+                .andExpect(jsonPath("$.pushEnabled").value(false));
+
         mockMvc.perform(get("/api/notifications/deliveries").with(auth(admin)).param("status", "SENT"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.channel == 'EMAIL' && @.status == 'SENT')]", hasSize(greaterThan(0))));
+                .andExpect(jsonPath("$[?(@.channel == 'EMAIL' && @.status == 'SENT')]", hasSize(greaterThan(0))))
+                .andExpect(jsonPath("$[?(@.provider == 'audit-log')]", hasSize(greaterThan(0))));
 
         mockMvc.perform(put("/api/notifications/read-all").with(auth(owner)))
                 .andExpect(status().isOk())

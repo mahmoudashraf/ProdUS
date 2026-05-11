@@ -349,6 +349,21 @@ export interface NotificationDeliveryRun {
   skippedCount: number;
 }
 
+export interface NotificationDeliveryConfig {
+  enabled: boolean;
+  schedulerEnabled: boolean;
+  emailEnabled: boolean;
+  pushEnabled: boolean;
+  emailProvider: string;
+  pushProvider: string;
+  emailProviderConfigured: boolean;
+  pushProviderConfigured: boolean;
+  batchSize: number;
+  maxAttempts: number;
+  retryDelaySeconds: number;
+  webhookTimeoutMs: number;
+}
+
 export interface SupportSlaRun {
   scannedCount: number;
   dueSoonCount: number;

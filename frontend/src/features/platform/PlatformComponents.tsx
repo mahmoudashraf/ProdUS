@@ -12,6 +12,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import type { ChipProps } from '@mui/material';
 import { ReactNode } from 'react';
 
 export const PageHeader = ({
@@ -99,8 +100,8 @@ export const SaveButton = ({ disabled, label = 'Save' }: { disabled?: boolean; l
   </Button>
 );
 
-export const StatusChip = ({ label }: { label: string }) => (
-  <Chip size="small" label={label.replaceAll('_', ' ').toLowerCase()} />
+export const StatusChip = ({ label, color = 'default' }: { label: string; color?: ChipProps['color'] }) => (
+  <Chip size="small" color={color} label={label.replaceAll('_', ' ').toLowerCase()} />
 );
 
 export const RecordDivider = () => <Divider sx={{ my: 1.5 }} />;

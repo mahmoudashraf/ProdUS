@@ -9,17 +9,18 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationDeliveryService {
 
-    private static final String AUDIT_LOG_PROVIDER = "audit-log";
-
     private final NotificationDeliveryRepository deliveryRepository;
     private final NotificationDeliveryProperties properties;
+    private final List<NotificationDeliverySender> senders;
 
     @Transactional
     public List<NotificationDelivery> enqueue(PlatformNotification notification) {
@@ -102,23 +103,28 @@ public class NotificationDeliveryService {
             return DispatchOutcome.SKIPPED;
         }
 
+        NotificationDeliveryProperties.DeliveryProvider provider = properties.providerFor(delivery.getChannel());
+        NotificationDeliverySender sender = senderFor(provider);
+        delivery.setAttemptCount(delivery.getAttemptCount() + 1);
+        delivery.setProvider(provider.providerName());
         try {
-            delivery.setAttemptCount(delivery.getAttemptCount() + 1);
-            delivery.setProvider(AUDIT_LOG_PROVIDER);
-            delivery.setProviderMessageId(UUID.randomUUID().toString());
+            NotificationDeliverySendResult result = sender.send(delivery);
+            delivery.setProvider(result.provider());
+            delivery.setProviderMessageId(result.providerMessageId());
             delivery.setDeliveredAt(now);
             delivery.setStatus(NotificationDelivery.DeliveryStatus.SENT);
             delivery.setLastError(null);
-            log.info(
-                    "Notification delivery recorded channel={} destination={} notificationId={}",
-                    delivery.getChannel(),
-                    delivery.getDestination(),
-                    delivery.getNotification().getId()
-            );
             return DispatchOutcome.SENT;
+        } catch (NotificationDeliveryException ex) {
+            delivery.setLastError(truncate(ex.getMessage()));
+            if (!ex.isRetryable() || delivery.getAttemptCount() >= Math.max(1, properties.getMaxAttempts())) {
+                delivery.setStatus(NotificationDelivery.DeliveryStatus.FAILED);
+                return DispatchOutcome.FAILED;
+            }
+            delivery.setNextAttemptAt(now.plusSeconds(Math.max(1, properties.getRetryDelaySeconds())));
+            return DispatchOutcome.SKIPPED;
         } catch (RuntimeException ex) {
-            delivery.setAttemptCount(delivery.getAttemptCount() + 1);
-            delivery.setLastError(ex.getMessage());
+            delivery.setLastError(truncate(ex.getMessage()));
             if (delivery.getAttemptCount() >= Math.max(1, properties.getMaxAttempts())) {
                 delivery.setStatus(NotificationDelivery.DeliveryStatus.FAILED);
                 return DispatchOutcome.FAILED;
@@ -128,6 +134,24 @@ public class NotificationDeliveryService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public DeliveryConfiguration configuration() {
+        return new DeliveryConfiguration(
+                properties.isEnabled(),
+                properties.isSchedulerEnabled(),
+                properties.isEmailEnabled(),
+                properties.isPushEnabled(),
+                properties.providerFor(NotificationDelivery.DeliveryChannel.EMAIL).providerName(),
+                properties.providerFor(NotificationDelivery.DeliveryChannel.PUSH).providerName(),
+                providerConfigured(NotificationDelivery.DeliveryChannel.EMAIL),
+                providerConfigured(NotificationDelivery.DeliveryChannel.PUSH),
+                properties.getBatchSize(),
+                properties.getMaxAttempts(),
+                properties.getRetryDelaySeconds(),
+                properties.getWebhookTimeoutMs()
+        );
+    }
+
     private boolean isChannelEnabled(NotificationDelivery.DeliveryChannel channel) {
         return switch (channel) {
             case EMAIL -> properties.isEmailEnabled();
@@ -135,8 +159,36 @@ public class NotificationDeliveryService {
         };
     }
 
+    private NotificationDeliverySender senderFor(NotificationDeliveryProperties.DeliveryProvider provider) {
+        Map<NotificationDeliveryProperties.DeliveryProvider, NotificationDeliverySender> byProvider = senders.stream()
+                .collect(Collectors.toMap(NotificationDeliverySender::provider, Function.identity(), (first, second) -> first));
+        NotificationDeliverySender sender = byProvider.get(provider);
+        if (sender == null) {
+            throw new NotificationDeliveryException("No sender is configured for provider " + provider, false);
+        }
+        return sender;
+    }
+
+    private boolean providerConfigured(NotificationDelivery.DeliveryChannel channel) {
+        NotificationDeliveryProperties.DeliveryProvider provider = properties.providerFor(channel);
+        if (provider == NotificationDeliveryProperties.DeliveryProvider.AUDIT_LOG) {
+            return true;
+        }
+        if (provider == NotificationDeliveryProperties.DeliveryProvider.WEBHOOK) {
+            return hasText(properties.webhookUrlFor(channel)) && hasText(properties.getWebhookSecret());
+        }
+        return false;
+    }
+
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private String truncate(String value) {
+        if (value == null || value.length() <= 2000) {
+            return value;
+        }
+        return value.substring(0, 2000);
     }
 
     private enum DispatchOutcome {
@@ -150,5 +202,20 @@ public class NotificationDeliveryService {
             int sentCount,
             int failedCount,
             int skippedCount
+    ) {}
+
+    public record DeliveryConfiguration(
+            boolean enabled,
+            boolean schedulerEnabled,
+            boolean emailEnabled,
+            boolean pushEnabled,
+            String emailProvider,
+            String pushProvider,
+            boolean emailProviderConfigured,
+            boolean pushProviderConfigured,
+            int batchSize,
+            int maxAttempts,
+            long retryDelaySeconds,
+            long webhookTimeoutMs
     ) {}
 }

@@ -33,6 +33,9 @@ app:
       scheduler-enabled: false
       email-enabled: true
       push-enabled: false
+      email-provider: AUDIT_LOG
+      push-provider: AUDIT_LOG
+      webhook-secret: test-notification-webhook-secret
   support:
     sla:
       enabled: true

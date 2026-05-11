@@ -1,6 +1,7 @@
 package com.produs.notifications;
 
 import com.produs.dto.PlatformDtos.NotificationDeliveryResponse;
+import com.produs.dto.PlatformDtos.NotificationDeliveryConfigResponse;
 import com.produs.dto.PlatformDtos.NotificationDeliveryRunResponse;
 import com.produs.dto.PlatformDtos.NotificationSummaryResponse;
 import com.produs.dto.PlatformDtos.PlatformNotificationResponse;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static com.produs.dto.PlatformDtos.toNotificationDeliveryResponse;
+import static com.produs.dto.PlatformDtos.toNotificationDeliveryConfigResponse;
 import static com.produs.dto.PlatformDtos.toPlatformNotificationResponse;
 
 @RestController
@@ -73,6 +75,12 @@ public class NotificationController {
         return deliveryService.recent(status).stream()
                 .map(delivery -> toNotificationDeliveryResponse(delivery))
                 .toList();
+    }
+
+    @GetMapping("/deliveries/config")
+    public NotificationDeliveryConfigResponse deliveryConfig(@AuthenticationPrincipal User user) {
+        requireAdmin(user);
+        return toNotificationDeliveryConfigResponse(deliveryService.configuration());
     }
 
     @PostMapping("/deliveries/dispatch")

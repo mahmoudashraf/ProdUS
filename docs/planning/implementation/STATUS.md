@@ -53,6 +53,7 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Support request operations tied to workspaces, support subscriptions, assigned teams, due dates, priority, status, resolution notes, and owner/team notification fan-out.
 - Support SLA tracking with due-soon, overdue, escalated, resolved states; scheduled/admin-triggered SLA scans; and owner/team escalation notifications.
 - Notification delivery outbox for email/push dispatch attempts with admin dispatch and delivery audit APIs.
+- Notification provider adapters with safe audit-log delivery, signed outbound webhook delivery for email/push channels, retry/permanent failure handling, and admin delivery configuration visibility.
 - GitHub verification workflows now run ProdUS backend tests, frontend type-check/tests/build, and Docker image builds instead of stale template jobs.
 - S3-compatible storage hardening for sanitized keys, configurable public URLs, missing-object handling, and Docker MinIO credential alignment.
 - HTTP exception handling now preserves controller-level `ResponseStatusException` codes instead of collapsing callback auth failures into 500 responses.
@@ -94,6 +95,9 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Support SLA/delivery/CI: `mvn -DskipTests compile`, `mvn test`, `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after adding support SLA state/scans, notification delivery outbox, admin operations UI, and ProdUS CI workflows.
 - Live support SLA/delivery smoke: fresh dev backend and frontend passed mock-auth admin catalog setup, product/requirement/package/workspace creation, support subscription creation, overdue support request passive `OVERDUE` state, owner-forbidden SLA/dispatch operations, admin SLA escalation to `ESCALATED`, team escalation notifications, admin email delivery dispatch, and sent delivery lookup.
 - Docker support SLA/delivery readiness: `docker build -t produs-backend:local ./backend` and `docker build -t produs-frontend:local ./frontend` passed after the SLA/outbox/CI slice.
+- Notification provider adapters: `mvn test`, `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after adding audit-log and signed webhook senders, admin provider config visibility, and dashboard provider status UI.
+- Live notification provider adapter smoke: fresh dev backend/frontend plus a local signed webhook receiver created a mock package/workspace/support subscription, escalated an overdue support request, dispatched 4 webhook email deliveries, validated every webhook signature, recorded live provider message IDs, and served `/dashboard`.
+- Docker notification provider adapter readiness: `docker build -t produs-backend:local ./backend` and `docker build -t produs-frontend:local ./frontend` passed after the provider adapter slice.
 
 ## Notes
 
@@ -106,4 +110,4 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 ## Remaining Production Hardening Queue
 
 - None from the current 2026-05-11 implementation plan.
-- Future production integrations can add provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters plus provider-specific email/push sender adapters.
+- Future production integrations can add provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters plus vendor-specific email/push payload mappers on top of the signed notification webhook adapter.

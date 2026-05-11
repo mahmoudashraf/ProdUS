@@ -8,6 +8,7 @@ import { getJson, postJson } from './api';
 import { EmptyState, PageHeader, QueryState, StatusChip, Surface } from './PlatformComponents';
 import {
   AIRecommendation,
+  NotificationDeliveryConfig,
   NotificationDelivery,
   NotificationDeliveryRun,
   NotificationSummary,
@@ -52,6 +53,12 @@ export default function DashboardPage() {
     enabled: canManageOperations,
     retry: false,
   });
+  const deliveryConfig = useQuery({
+    queryKey: ['notification-delivery-config'],
+    queryFn: () => getJson<NotificationDeliveryConfig>('/notifications/deliveries/config'),
+    enabled: canManageOperations,
+    retry: false,
+  });
   const runSlaScan = useMutation({
     mutationFn: () => postJson<SupportSlaRun, Record<string, never>>('/commerce/support-requests/sla/run', {}),
     onSuccess: async () => {
@@ -68,7 +75,7 @@ export default function DashboardPage() {
 
   const counts = [products.data, requirements.data, packages.data, teams.data, workspaces.data];
   const loading = [products, requirements, packages, teams, workspaces].some((query) => query.isLoading);
-  const error = [products, requirements, packages, teams, workspaces, deliveries].find((query) => query.error)?.error;
+  const error = [products, requirements, packages, teams, workspaces, deliveries, deliveryConfig].find((query) => query.error)?.error;
 
   return (
     <>
@@ -171,6 +178,24 @@ export default function DashboardPage() {
               </Stack>
             </Stack>
             <Stack spacing={1.5}>
+              {deliveryConfig.data && (
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Delivery providers
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                    <StatusChip
+                      label={`Email ${deliveryConfig.data.emailEnabled ? deliveryConfig.data.emailProvider : 'disabled'}`}
+                      color={deliveryConfig.data.emailProviderConfigured ? 'success' : 'warning'}
+                    />
+                    <StatusChip
+                      label={`Push ${deliveryConfig.data.pushEnabled ? deliveryConfig.data.pushProvider : 'disabled'}`}
+                      color={deliveryConfig.data.pushProviderConfigured ? 'success' : 'warning'}
+                    />
+                    <StatusChip label={`Batch ${deliveryConfig.data.batchSize}`} color="default" />
+                  </Stack>
+                </Box>
+              )}
               {runSlaScan.data && (
                 <Typography variant="body2" color="text.secondary">
                   SLA: {runSlaScan.data.scannedCount} scanned · {runSlaScan.data.escalatedCount} escalated
@@ -189,7 +214,7 @@ export default function DashboardPage() {
                       <StatusChip label={delivery.status} />
                     </Stack>
                     <Typography variant="body2" color="text.secondary">
-                      {delivery.channel.toLowerCase()} · {delivery.recipient?.email || delivery.destination}
+                      {delivery.channel.toLowerCase()} · {delivery.provider || 'pending'} · {delivery.recipient?.email || delivery.destination}
                     </Typography>
                   </Box>
                 ))
