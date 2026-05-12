@@ -1,7 +1,7 @@
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import {
   Avatar,
-  ButtonBase,
+  Box,
   Chip,
   ListItemButton,
   ListItemIcon,
@@ -138,10 +138,10 @@ const NavItem = ({ item, level, parentId, isParents = false }: NavItemProps) => 
             selected={isSelected}
             onClick={() => itemHandler(item.id!)}
           >
-          <ButtonBase
+          <Box
+            component="span"
             sx={{ borderRadius: `${borderRadius}px` }}
-            disableRipple={drawerOpen}
-            aria-label="theme-icon"
+            aria-hidden="true"
           >
             <ListItemIcon
               sx={{
@@ -177,7 +177,7 @@ const NavItem = ({ item, level, parentId, isParents = false }: NavItemProps) => 
             >
               {itemIcon}
             </ListItemIcon>
-          </ButtonBase>
+          </Box>
 
           {(drawerOpen || (!drawerOpen && level !== 1)) && (
             <ListItemText

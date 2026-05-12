@@ -112,9 +112,13 @@ const Customization = () => {
           }}
         >
           <AnimateButton type="rotate">
-            <IconButton color="inherit" size="large" disableRipple aria-label="live customize">
+            <Box
+              component="span"
+              sx={{ display: 'grid', placeItems: 'center', width: 48, height: 48, color: 'inherit' }}
+              aria-hidden="true"
+            >
               <IconSettings />
-            </IconButton>
+            </Box>
           </AnimateButton>
         </Fab>
       </Tooltip>

@@ -16,12 +16,14 @@ import {
   Stack,
   Typography,
   Alert,
+  Chip,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { DASHBOARD_PATH } from '@/config';
 import { authConfig } from '@/config/authConfig';
 import { MOCK_CREDENTIALS } from '@/data/mockUsers';
+import { supabase } from '@/lib/supabase';
 import SocialLoginButtons from './SocialLoginButtons';
 
 const demoCredentialOptions = [
@@ -42,6 +44,7 @@ const AuthSupabaseLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
+  const [resetMessage, setResetMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = (): boolean => {
@@ -80,6 +83,35 @@ const AuthSupabaseLogin = () => {
       setErrors({
         general: error.message || 'Failed to sign in. Please check your credentials.',
       });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    setErrors({});
+    setResetMessage('');
+
+    if (shouldUseMockAuth) {
+      setResetMessage('Mock accounts use the listed development passwords.');
+      return;
+    }
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErrors({ email: 'Enter your email first so we can send a reset link.' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+
+      if (error) throw error;
+      setResetMessage('Password reset link sent. Check your email.');
+    } catch (error: any) {
+      setErrors({ general: error.message || 'Unable to send password reset link.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -141,14 +173,22 @@ const AuthSupabaseLogin = () => {
             }
             label="Remember me"
           />
-          <Typography
-            variant="subtitle1"
+          <Button
+            type="button"
+            variant="text"
             color="secondary"
-            sx={{ textDecoration: 'none', cursor: 'pointer' }}
+            onClick={handlePasswordReset}
+            disabled={isSubmitting}
+            sx={{ px: 0.5, minHeight: 34 }}
           >
             Forgot Password?
-          </Typography>
+          </Button>
         </Stack>
+        {resetMessage && (
+          <Alert severity="success" sx={{ borderRadius: 1 }}>
+            {resetMessage}
+          </Alert>
+        )}
 
         <Box>
           <Button
@@ -189,17 +229,39 @@ const AuthSupabaseLogin = () => {
                     setEmail(credential.email);
                     setPassword(credential.password);
                   }}
-                  sx={{ justifyContent: 'space-between', textTransform: 'none', minHeight: 44 }}
+                  sx={{
+                    justifyContent: 'flex-start',
+                    textTransform: 'none',
+                    minHeight: 58,
+                    px: 1.5,
+                    py: 1,
+                    whiteSpace: 'normal',
+                    textAlign: 'left',
+                  }}
                 >
-                  <Box sx={{ textAlign: 'left' }}>
-                    <Typography sx={{ fontWeight: 800 }}>{credential.label}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {credential.email} / {credential.password}
-                    </Typography>
-                  </Box>
-                  <Typography variant="caption" color="text.secondary">
-                    {credential.role}
-                  </Typography>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.25} sx={{ width: '100%', minWidth: 0 }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 800 }}>{credential.label}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflowWrap: 'anywhere' }}>
+                        {credential.email} / {credential.password}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      size="small"
+                      label={credential.role}
+                      sx={{
+                        flex: '0 0 auto',
+                        maxWidth: 144,
+                        bgcolor: 'rgba(99, 102, 241, 0.09)',
+                        color: 'secondary.main',
+                        '& .MuiChip-label': {
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        },
+                      }}
+                    />
+                  </Stack>
                 </Button>
               ))}
             </Stack>

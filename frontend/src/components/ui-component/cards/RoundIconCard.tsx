@@ -1,5 +1,5 @@
 // material-ui
-import { Grid, IconButton, Stack, Typography  } from '@mui/material';
+import { Avatar, Grid, Stack, Typography  } from '@mui/material';
 
 // project imports
 import { GenericCardProps } from 'types';
@@ -38,13 +38,12 @@ const RoundIconCard = ({ primary, secondary, content, iconPrimary, color, bgcolo
           </Stack>
         </Grid>
         <Grid>
-          <IconButton
-            sx={{ bgcolor, color, '& .MuiSvgIcon-root': { fontSize: '1.5rem' } }}
-            size="large"
-            aria-label="view icon"
+          <Avatar
+            sx={{ bgcolor, color, width: 48, height: 48, '& .MuiSvgIcon-root': { fontSize: '1.5rem' } }}
+            aria-hidden="true"
           >
             {primaryIcon}
-          </IconButton>
+          </Avatar>
         </Grid>
       </Grid>
     </MainCard>

@@ -720,10 +720,24 @@ export default function WorkspacesPage() {
                       setSelectedWorkspaceId(workspace.id);
                       setSelectedMilestoneId('');
                     }}
-                    sx={{ justifyContent: 'space-between', textAlign: 'left' }}
+                    sx={{
+                      justifyContent: 'space-between',
+                      textAlign: 'left',
+                      gap: 1.5,
+                      overflow: 'hidden',
+                      '& span:first-of-type': {
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      },
+                      '& span:last-of-type': {
+                        flex: '0 0 auto',
+                        color: selectedWorkspace?.id === workspace.id ? 'inherit' : 'text.secondary',
+                      },
+                    }}
                   >
                     <span>{workspace.name}</span>
-                    <span>{workspace.status.replaceAll('_', ' ').toLowerCase()}</span>
+                    <span>{formatLabel(workspace.status)}</span>
                   </Button>
                 ))}
               </Stack>
@@ -1174,10 +1188,24 @@ export default function WorkspacesPage() {
                           fullWidth
                           variant={selectedMilestone?.id === milestone.id ? 'contained' : 'text'}
                           onClick={() => setSelectedMilestoneId(milestone.id)}
-                          sx={{ justifyContent: 'space-between', textAlign: 'left' }}
+                          sx={{
+                            justifyContent: 'space-between',
+                            textAlign: 'left',
+                            gap: 1.5,
+                            overflow: 'hidden',
+                            '& span:first-of-type': {
+                              minWidth: 0,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            },
+                            '& span:last-of-type': {
+                              flex: '0 0 auto',
+                              color: selectedMilestone?.id === milestone.id ? 'inherit' : 'text.secondary',
+                            },
+                          }}
                         >
                           <span>{milestone.title}</span>
-                          <span>{milestone.status.replaceAll('_', ' ').toLowerCase()}</span>
+                          <span>{formatLabel(milestone.status)}</span>
                         </Button>
                         {milestone.description && (
                           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>

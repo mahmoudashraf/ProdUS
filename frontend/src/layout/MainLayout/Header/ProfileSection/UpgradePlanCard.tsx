@@ -1,6 +1,7 @@
 // material-ui
 import { Button, Card, CardContent, Grid, Stack, Typography  } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
+import NextLink from 'next/link';
 
 // project imports
 import AnimateButton from 'ui-component/extended/AnimateButton';
@@ -62,7 +63,7 @@ const UpgradePlanCard = () => {
           <Grid>
             <Stack direction="row">
               <AnimateButton>
-                <Button variant="contained" color="warning" sx={{ boxShadow: 'none' }}>
+                <Button component={NextLink} href="/packages" variant="contained" color="warning" sx={{ boxShadow: 'none' }}>
                   View Plans
                 </Button>
               </AnimateButton>

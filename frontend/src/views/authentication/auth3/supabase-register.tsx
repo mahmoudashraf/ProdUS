@@ -82,7 +82,7 @@ const SupabaseRegister = () => {
             </Grid>
           </Grid>
         </Grid>
-        <Grid size={{ xs: 12 }} sx={{ m: 3, mt: 1 }}>
+        <Grid size={{ xs: 12 }} sx={{ px: 3, pb: 3, pt: 1 }}>
           <AuthFooter />
         </Grid>
       </Grid>

@@ -50,6 +50,11 @@ const CustomNotistack = forwardRef((props: any, ref: any) => {
     closeSnackbar(props.id);
   }, [props.id, closeSnackbar]);
 
+  const handleDownload = useCallback(() => {
+    closeSnackbar(props.id);
+    enqueueSnackbar('Report download started.', { variant: 'success' });
+  }, [props.id, closeSnackbar]);
+
   return (
     <SnackbarBox ref={ref}>
       <Card sx={{ bgcolor: 'warning.light', width: '100%' }}>
@@ -86,6 +91,7 @@ const CustomNotistack = forwardRef((props: any, ref: any) => {
               size="small"
               startIcon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
               sx={{ '&:hover': { bgcolor: 'transparent' } }}
+              onClick={handleDownload}
             >
               Download now
             </Button>
