@@ -30,6 +30,21 @@ public class Team extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "headline")
+    private String headline;
+
+    @Column(name = "bio", columnDefinition = "TEXT")
+    private String bio;
+
+    @Column(name = "profile_photo_url", columnDefinition = "TEXT")
+    private String profilePhotoUrl;
+
+    @Column(name = "cover_photo_url", columnDefinition = "TEXT")
+    private String coverPhotoUrl;
+
+    @Column(name = "website_url")
+    private String websiteUrl;
+
     @Column
     private String timezone;
 

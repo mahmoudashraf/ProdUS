@@ -104,6 +104,8 @@ class ProductizationWorkflowIntegrationTest {
         User anotherOwner = saveUser("other-owner@produs.test", User.UserRole.PRODUCT_OWNER);
         User teamManager = saveUser("team-manager@produs.test", User.UserRole.TEAM_MANAGER);
         User specialist = saveUser("specialist@produs.test", User.UserRole.SPECIALIST);
+        User invitedSpecialist = saveUser("invited-specialist@produs.test", User.UserRole.SPECIALIST);
+        User soloExpert = saveUser("solo-expert@produs.test", User.UserRole.SPECIALIST);
         User admin = saveUser("admin-workflow@produs.test", User.UserRole.ADMIN);
         PlatformCatalog catalog = saveCatalog();
         Team recommendedTeam = saveRecommendedTeam(teamManager, catalog);
@@ -165,6 +167,149 @@ class ProductizationWorkflowIntegrationTest {
 
         mockMvc.perform(get("/api/teams/{id}/members", recommendedTeam.getId()).with(auth(anotherOwner)))
                 .andExpect(status().isForbidden());
+
+        mockMvc.perform(put("/api/expert-profiles/me")
+                        .with(auth(soloExpert))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "displayName": "Aisha Rahman",
+                                  "headline": "Independent backend and launch readiness expert",
+                                  "bio": "Builds secure APIs, migration plans, and production launch evidence for owner-led products.",
+                                  "profilePhotoUrl": "https://images.produs.test/aisha-profile.jpg",
+                                  "coverPhotoUrl": "https://images.produs.test/aisha-cover.jpg",
+                                  "location": "London, UK",
+                                  "timezone": "Europe/London",
+                                  "websiteUrl": "https://aisha.example",
+                                  "portfolioUrl": "https://aisha.example/work",
+                                  "skills": "Spring Boot, PostgreSQL, API security, launch readiness",
+                                  "preferredProjectSize": "$25K-$80K",
+                                  "availability": "AVAILABLE",
+                                  "soloMode": true,
+                                  "active": true
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("Aisha Rahman"))
+                .andExpect(jsonPath("$.soloMode").value(true))
+                .andExpect(jsonPath("$.profilePhotoUrl").value("https://images.produs.test/aisha-profile.jpg"));
+
+        mockMvc.perform(get("/api/expert-profiles").with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].displayName").value("Aisha Rahman"));
+
+        MvcResult soloTeamResult = mockMvc.perform(post("/api/teams")
+                        .with(auth(soloExpert))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Aisha Launch Studio",
+                                  "description": "Solo-led productization team for secure backend launches",
+                                  "headline": "Secure backend launches without heavyweight staffing",
+                                  "bio": "A focused expert-led team profile for API hardening, data migrations, and launch evidence.",
+                                  "profilePhotoUrl": "https://images.produs.test/team-avatar.jpg",
+                                  "coverPhotoUrl": "https://images.produs.test/team-cover.jpg",
+                                  "websiteUrl": "https://studio.example",
+                                  "timezone": "Europe/London",
+                                  "capabilitiesSummary": "Backend rewrite, PostgreSQL migration, API security, launch readiness",
+                                  "typicalProjectSize": "$40K-$120K",
+                                  "verificationStatus": "VERIFIED",
+                                  "active": true
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Aisha Launch Studio"))
+                .andExpect(jsonPath("$.headline").value("Secure backend launches without heavyweight staffing"))
+                .andExpect(jsonPath("$.coverPhotoUrl").value("https://images.produs.test/team-cover.jpg"))
+                .andReturn();
+        UUID soloTeamId = readId(soloTeamResult);
+
+        mockMvc.perform(put("/api/teams/{id}", soloTeamId)
+                        .with(auth(soloExpert))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Aisha Launch Studio",
+                                  "description": "Solo-led productization team for secure backend launches",
+                                  "headline": "Backend launch studio for owner-led products",
+                                  "bio": "Updated profile with launch governance, security proof, and database migration evidence.",
+                                  "profilePhotoUrl": "https://images.produs.test/team-avatar-v2.jpg",
+                                  "coverPhotoUrl": "https://images.produs.test/team-cover-v2.jpg",
+                                  "websiteUrl": "https://studio.example",
+                                  "timezone": "Europe/London",
+                                  "capabilitiesSummary": "Backend rewrite, PostgreSQL migration, API security, launch readiness",
+                                  "typicalProjectSize": "$40K-$120K",
+                                  "verificationStatus": "VERIFIED",
+                                  "active": true
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.headline").value("Backend launch studio for owner-led products"))
+                .andExpect(jsonPath("$.profilePhotoUrl").value("https://images.produs.test/team-avatar-v2.jpg"));
+
+        mockMvc.perform(get("/api/teams/{id}/members", soloTeamId).with(auth(soloExpert)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].role").value("LEAD"));
+
+        mockMvc.perform(post("/api/teams/{id}/invitations", soloTeamId)
+                        .with(auth(soloExpert))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "role": "QUALITY_REVIEWER",
+                                  "message": "Join the studio as launch evidence reviewer."
+                                }
+                                """.formatted(invitedSpecialist.getEmail())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(invitedSpecialist.getEmail()))
+                .andExpect(jsonPath("$.role").value("QUALITY_REVIEWER"))
+                .andExpect(jsonPath("$.status").value("PENDING"));
+
+        mockMvc.perform(get("/api/teams/{id}/members", soloTeamId).with(auth(invitedSpecialist)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
+
+        MvcResult joinRequestResult = mockMvc.perform(post("/api/teams/{id}/join-requests", recommendedTeam.getId())
+                        .with(auth(soloExpert))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "I can support launch evidence and backend hardening for this delivery."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.requester.email").value(soloExpert.getEmail()))
+                .andReturn();
+        UUID joinRequestId = readId(joinRequestResult);
+
+        mockMvc.perform(get("/api/teams/join-requests/mine").with(auth(soloExpert)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].team.id").value(recommendedTeam.getId().toString()))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
+
+        mockMvc.perform(get("/api/teams/{id}/join-requests", recommendedTeam.getId()).with(auth(teamManager)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].requester.email").value(soloExpert.getEmail()));
+
+        mockMvc.perform(put("/api/teams/join-requests/{requestId}", joinRequestId)
+                        .with(auth(teamManager))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "APPROVED",
+                                  "reviewNote": "Approved for backend launch support."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.reviewedBy.email").value(teamManager.getEmail()));
+
+        mockMvc.perform(get("/api/teams/{id}/members", recommendedTeam.getId()).with(auth(soloExpert)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
 
         MvcResult productResult = mockMvc.perform(post("/api/products")
                         .with(auth(owner))

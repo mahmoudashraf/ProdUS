@@ -13,6 +13,7 @@ import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson } from './api';
+import TeamProfilesPage from './TeamProfilesPage';
 import {
   DotLabel,
   EmptyState,
@@ -125,6 +126,14 @@ const verificationScore = (team: Team) => {
 };
 
 export default function TeamsPage() {
+  const { hasRole } = useAuth();
+  const shouldShowProfileStudio = hasRole([UserRole.TEAM_MANAGER, UserRole.SPECIALIST, UserRole.ADVISOR])
+    && !hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER]);
+
+  return shouldShowProfileStudio ? <TeamProfilesPage /> : <MatchedTeamsPage />;
+}
+
+function MatchedTeamsPage() {
   const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const canManageTeamRoster = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);

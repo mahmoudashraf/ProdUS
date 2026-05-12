@@ -15,6 +15,7 @@ import com.produs.commerce.SupportRequest;
 import com.produs.commerce.SupportSubscription;
 import com.produs.commerce.TeamReputationEvent;
 import com.produs.entity.User;
+import com.produs.experts.ExpertProfile;
 import com.produs.notifications.NotificationDelivery;
 import com.produs.notifications.PlatformNotification;
 import com.produs.packages.PackageInstance;
@@ -25,6 +26,8 @@ import com.produs.requirements.RequirementIntake;
 import com.produs.shortlist.TeamShortlist;
 import com.produs.teams.Team;
 import com.produs.teams.TeamCapability;
+import com.produs.teams.TeamInvitation;
+import com.produs.teams.TeamJoinRequest;
 import com.produs.teams.TeamMember;
 import com.produs.workspace.Deliverable;
 import com.produs.workspace.Milestone;
@@ -135,8 +138,14 @@ public final class PlatformDtos {
             UUID id,
             LocalDateTime createdAt,
             LocalDateTime updatedAt,
+            CurrentUserSummary manager,
             String name,
             String description,
+            String headline,
+            String bio,
+            String profilePhotoUrl,
+            String coverPhotoUrl,
+            String websiteUrl,
             String timezone,
             String capabilitiesSummary,
             String typicalProjectSize,
@@ -162,6 +171,51 @@ public final class PlatformDtos {
             TeamResponse team,
             CurrentUserSummary user,
             TeamMember.MemberRole role,
+            boolean active
+    ) {}
+
+    public record TeamInvitationResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            TeamResponse team,
+            CurrentUserSummary invitedBy,
+            String email,
+            TeamMember.MemberRole role,
+            String message,
+            TeamInvitation.InvitationStatus status
+    ) {}
+
+    public record TeamJoinRequestResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            TeamResponse team,
+            CurrentUserSummary requester,
+            String message,
+            TeamJoinRequest.RequestStatus status,
+            CurrentUserSummary reviewedBy,
+            String reviewNote
+    ) {}
+
+    public record ExpertProfileResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            CurrentUserSummary user,
+            String displayName,
+            String headline,
+            String bio,
+            String profilePhotoUrl,
+            String coverPhotoUrl,
+            String location,
+            String timezone,
+            String websiteUrl,
+            String portfolioUrl,
+            String skills,
+            String preferredProjectSize,
+            ExpertProfile.Availability availability,
+            boolean soloMode,
             boolean active
     ) {}
 
@@ -655,8 +709,14 @@ public final class PlatformDtos {
                 team.getId(),
                 team.getCreatedAt(),
                 team.getUpdatedAt(),
+                toCurrentUserSummary(team.getManager()),
                 team.getName(),
                 team.getDescription(),
+                team.getHeadline(),
+                team.getBio(),
+                team.getProfilePhotoUrl(),
+                team.getCoverPhotoUrl(),
+                team.getWebsiteUrl(),
                 team.getTimezone(),
                 team.getCapabilitiesSummary(),
                 team.getTypicalProjectSize(),
@@ -693,6 +753,66 @@ public final class PlatformDtos {
                 toCurrentUserSummary(member.getUser()),
                 member.getRole(),
                 member.isActive()
+        );
+    }
+
+    public static TeamInvitationResponse toTeamInvitationResponse(TeamInvitation invitation) {
+        if (invitation == null) {
+            return null;
+        }
+        return new TeamInvitationResponse(
+                invitation.getId(),
+                invitation.getCreatedAt(),
+                invitation.getUpdatedAt(),
+                toTeamResponse(invitation.getTeam()),
+                toCurrentUserSummary(invitation.getInvitedBy()),
+                invitation.getEmail(),
+                invitation.getRole(),
+                invitation.getMessage(),
+                invitation.getStatus()
+        );
+    }
+
+    public static TeamJoinRequestResponse toTeamJoinRequestResponse(TeamJoinRequest request) {
+        if (request == null) {
+            return null;
+        }
+        return new TeamJoinRequestResponse(
+                request.getId(),
+                request.getCreatedAt(),
+                request.getUpdatedAt(),
+                toTeamResponse(request.getTeam()),
+                toCurrentUserSummary(request.getRequester()),
+                request.getMessage(),
+                request.getStatus(),
+                toCurrentUserSummary(request.getReviewedBy()),
+                request.getReviewNote()
+        );
+    }
+
+    public static ExpertProfileResponse toExpertProfileResponse(ExpertProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        return new ExpertProfileResponse(
+                profile.getId(),
+                profile.getCreatedAt(),
+                profile.getUpdatedAt(),
+                toCurrentUserSummary(profile.getUser()),
+                profile.getDisplayName(),
+                profile.getHeadline(),
+                profile.getBio(),
+                profile.getProfilePhotoUrl(),
+                profile.getCoverPhotoUrl(),
+                profile.getLocation(),
+                profile.getTimezone(),
+                profile.getWebsiteUrl(),
+                profile.getPortfolioUrl(),
+                profile.getSkills(),
+                profile.getPreferredProjectSize(),
+                profile.getAvailability(),
+                profile.isSoloMode(),
+                profile.isActive()
         );
     }
 

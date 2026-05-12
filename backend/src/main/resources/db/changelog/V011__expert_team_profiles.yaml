@@ -1,0 +1,134 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1100
+      author: produs
+      changes:
+        - addColumn:
+            tableName: teams
+            columns:
+              - column: { name: headline, type: VARCHAR(255) }
+              - column: { name: bio, type: TEXT }
+              - column: { name: profile_photo_url, type: TEXT }
+              - column: { name: cover_photo_url, type: TEXT }
+              - column: { name: website_url, type: VARCHAR(500) }
+
+  - changeSet:
+      id: 1101
+      author: produs
+      changes:
+        - createTable:
+            tableName: expert_profiles
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: display_name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: headline, type: VARCHAR(255) }
+              - column: { name: bio, type: TEXT }
+              - column: { name: profile_photo_url, type: TEXT }
+              - column: { name: cover_photo_url, type: TEXT }
+              - column: { name: location, type: VARCHAR(255) }
+              - column: { name: timezone, type: VARCHAR(255) }
+              - column: { name: website_url, type: VARCHAR(500) }
+              - column: { name: portfolio_url, type: VARCHAR(500) }
+              - column: { name: skills, type: TEXT }
+              - column: { name: preferred_project_size, type: VARCHAR(255) }
+              - column: { name: availability, type: VARCHAR(40), defaultValue: AVAILABLE, constraints: { nullable: false } }
+              - column: { name: solo_mode, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: expert_profiles
+            columnNames: user_id
+            constraintName: uk_expert_profiles_user
+        - addForeignKeyConstraint:
+            baseTableName: expert_profiles
+            baseColumnNames: user_id
+            constraintName: fk_expert_profiles_user
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: expert_profiles
+            indexName: idx_expert_profiles_active_updated
+            columns:
+              - column: { name: active }
+              - column: { name: updated_at }
+
+  - changeSet:
+      id: 1102
+      author: produs
+      changes:
+        - createTable:
+            tableName: team_invitations
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: team_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: invited_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: email, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: role, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: message, type: TEXT }
+              - column: { name: status, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: team_invitations
+            columnNames: team_id, email
+            constraintName: uk_team_invitations_team_email
+        - addForeignKeyConstraint:
+            baseTableName: team_invitations
+            baseColumnNames: team_id
+            constraintName: fk_team_invitations_team
+            referencedTableName: teams
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: team_invitations
+            baseColumnNames: invited_by
+            constraintName: fk_team_invitations_invited_by
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 1103
+      author: produs
+      changes:
+        - createTable:
+            tableName: team_join_requests
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: team_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: requester_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: message, type: TEXT }
+              - column: { name: status, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: reviewed_by, type: UUID }
+              - column: { name: review_note, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: team_join_requests
+            columnNames: team_id, requester_id
+            constraintName: uk_team_join_requests_team_user
+        - addForeignKeyConstraint:
+            baseTableName: team_join_requests
+            baseColumnNames: team_id
+            constraintName: fk_team_join_requests_team
+            referencedTableName: teams
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: team_join_requests
+            baseColumnNames: requester_id
+            constraintName: fk_team_join_requests_requester
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: team_join_requests
+            baseColumnNames: reviewed_by
+            constraintName: fk_team_join_requests_reviewed_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: team_join_requests
+            indexName: idx_team_join_requests_team_status
+            columns:
+              - column: { name: team_id }
+              - column: { name: status }
+              - column: { name: created_at }

@@ -81,8 +81,14 @@ export interface PackageModule extends BaseRecord {
 }
 
 export interface Team extends BaseRecord {
+  manager?: CurrentUserSummary;
   name: string;
   description?: string;
+  headline?: string;
+  bio?: string;
+  profilePhotoUrl?: string;
+  coverPhotoUrl?: string;
+  websiteUrl?: string;
   timezone?: string;
   capabilitiesSummary?: string;
   typicalProjectSize?: string;
@@ -93,6 +99,24 @@ export interface Team extends BaseRecord {
     | 'SPECIALIST'
     | 'OPERATIONS_READY'
     | 'SUSPENDED';
+  active: boolean;
+}
+
+export interface ExpertProfile extends BaseRecord {
+  user?: CurrentUserSummary;
+  displayName: string;
+  headline?: string;
+  bio?: string;
+  profilePhotoUrl?: string;
+  coverPhotoUrl?: string;
+  location?: string;
+  timezone?: string;
+  websiteUrl?: string;
+  portfolioUrl?: string;
+  skills?: string;
+  preferredProjectSize?: string;
+  availability: 'AVAILABLE' | 'LIMITED' | 'BUSY' | 'OFFLINE';
+  soloMode: boolean;
   active: boolean;
 }
 
@@ -109,6 +133,24 @@ export interface TeamMember extends BaseRecord {
   user: CurrentUserSummary;
   role: 'LEAD' | 'DELIVERY_MANAGER' | 'SPECIALIST' | 'ADVISOR' | 'QUALITY_REVIEWER';
   active: boolean;
+}
+
+export interface TeamInvitation extends BaseRecord {
+  team?: Team;
+  invitedBy?: CurrentUserSummary;
+  email: string;
+  role: TeamMember['role'];
+  message?: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
+}
+
+export interface TeamJoinRequest extends BaseRecord {
+  team?: Team;
+  requester?: CurrentUserSummary;
+  message?: string;
+  status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'CANCELLED';
+  reviewedBy?: CurrentUserSummary;
+  reviewNote?: string;
 }
 
 export interface TeamRecommendation {

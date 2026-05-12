@@ -17,6 +17,8 @@ import com.produs.commerce.SupportSubscriptionRepository;
 import com.produs.commerce.TeamReputationEvent;
 import com.produs.commerce.TeamReputationEventRepository;
 import com.produs.entity.User;
+import com.produs.experts.ExpertProfile;
+import com.produs.experts.ExpertProfileRepository;
 import com.produs.notifications.NotificationService;
 import com.produs.notifications.PlatformNotification;
 import com.produs.packages.PackageBuilderService;
@@ -87,6 +89,7 @@ public class PlatformDemoSeedService implements ApplicationRunner {
     private final DeliverableRepository deliverableRepository;
     private final QuoteProposalRepository proposalRepository;
     private final TeamShortlistRepository shortlistRepository;
+    private final ExpertProfileRepository expertProfileRepository;
     private final SupportSubscriptionRepository supportSubscriptionRepository;
     private final SupportRequestRepository supportRequestRepository;
     private final TeamReputationEventRepository reputationRepository;
@@ -114,6 +117,7 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         Map<String, ServiceCategory> categories = seedCatalogCategories();
         Map<String, ServiceModule> modules = seedCatalogModules(categories);
         seedDependencies(modules);
+        seedExpertProfiles();
         List<Team> teams = seedTeams(categories, modules);
         seedOwnerDemoData(modules, teams);
 
@@ -222,15 +226,85 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         }
     }
 
+    private void seedExpertProfiles() {
+        upsertExpertProfile(
+                user("specialist@produs.com"),
+                "Maya Patel",
+                "Independent backend and launch readiness expert",
+                "Solo productization specialist focused on API hardening, acceptance evidence, and production handoff for early SaaS teams.",
+                "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80",
+                "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1200&q=80",
+                "Austin, TX",
+                "Backend Rewrite, API Security, Launch Readiness, PostgreSQL, CI/CD",
+                "$15K-$80K",
+                true
+        );
+        upsertExpertProfile(
+                user("team@produs.com"),
+                "Jordan Lee",
+                "Team lead for governed delivery",
+                "Leads multidisciplinary productization teams through service packaging, milestone evidence, and owner-ready launch control.",
+                "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80",
+                "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80",
+                "San Francisco, CA",
+                "Team Leadership, DevOps, Security, Delivery Governance",
+                "$60K-$240K",
+                false
+        );
+        upsertExpertProfile(
+                user("advisor@produs.com"),
+                "Priya Shah",
+                "Productization advisor and reviewer",
+                "Advisor for owner decision quality, evidence review, scope confidence, and production-readiness risk management.",
+                "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=240&q=80",
+                "https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1200&q=80",
+                "New York, NY",
+                "Advisory, Quality Review, Scope Governance, Launch Risk",
+                "$8K-$35K",
+                true
+        );
+    }
+
+    private void upsertExpertProfile(
+            User user,
+            String displayName,
+            String headline,
+            String bio,
+            String profilePhotoUrl,
+            String coverPhotoUrl,
+            String location,
+            String skills,
+            String preferredProjectSize,
+            boolean soloMode
+    ) {
+        ExpertProfile profile = expertProfileRepository.findByUserId(user.getId()).orElseGet(ExpertProfile::new);
+        profile.setUser(user);
+        profile.setDisplayName(displayName);
+        profile.setHeadline(headline);
+        profile.setBio(bio);
+        profile.setProfilePhotoUrl(profilePhotoUrl);
+        profile.setCoverPhotoUrl(coverPhotoUrl);
+        profile.setLocation(location);
+        profile.setTimezone(location);
+        profile.setWebsiteUrl("https://profiles.produs.local/" + displayName.toLowerCase().replace(" ", "-"));
+        profile.setPortfolioUrl("https://portfolio.produs.local/" + displayName.toLowerCase().replace(" ", "-"));
+        profile.setSkills(skills);
+        profile.setPreferredProjectSize(preferredProjectSize);
+        profile.setAvailability(ExpertProfile.Availability.AVAILABLE);
+        profile.setSoloMode(soloMode);
+        profile.setActive(true);
+        expertProfileRepository.save(profile);
+    }
+
     private List<Team> seedTeams(Map<String, ServiceCategory> categories, Map<String, ServiceModule> modules) {
         User manager = user("team@produs.com");
         User specialist = user("specialist@produs.com");
         User advisor = user("advisor@produs.com");
         List<TeamSeed> seeds = List.of(
-                new TeamSeed("CoreLedger Labs", "Payment orchestration, fraud controls, backend APIs, and compliance-ready delivery.", "San Francisco, CA", "Payments, backend, risk, compliance, API integrations", "$80K-$240K", Team.VerificationStatus.OPERATIONS_READY, List.of("analytics-payments-onboarding-readiness", "backend-rewrite-refactor", "api-security-review")),
-                new TeamSeed("Northstar Engineers", "Secure backend and cloud systems for modern businesses.", "Austin, TX", "Backend, DevOps, security, reliability, PostgreSQL", "$60K-$180K", Team.VerificationStatus.SPECIALIST, List.of("backend-rewrite-refactor", "cloud-deployment", "ci-cd-setup", "database-redesign")),
-                new TeamSeed("Pivotal Stack", "Full-stack delivery with risk, fraud, and QA experience.", "New York, NY", "Payments, frontend, QA, launch readiness", "$50K-$160K", Team.VerificationStatus.CERTIFIED, List.of("frontend-rewrite-refactor", "launch-readiness-review", "support-package")),
-                new TeamSeed("Altura Engineering", "Disciplined infrastructure, scaling, and cost optimization.", "Chicago, IL", "Cloud, performance, monitoring, scaling", "$45K-$140K", Team.VerificationStatus.VERIFIED, List.of("performance-audit", "monitoring-setup", "cloud-deployment"))
+                new TeamSeed("CoreLedger Labs", "Payment orchestration, fraud controls, backend APIs, and compliance-ready delivery.", "Payments launch squad", "Senior productization team for regulated payments, settlement, fraud tooling, and launch governance.", "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=240&q=80", "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80", "https://coreledger.example", "San Francisco, CA", "Payments, backend, risk, compliance, API integrations", "$80K-$240K", Team.VerificationStatus.OPERATIONS_READY, List.of("analytics-payments-onboarding-readiness", "backend-rewrite-refactor", "api-security-review")),
+                new TeamSeed("Northstar Engineers", "Secure backend and cloud systems for modern businesses.", "Backend and cloud reliability team", "Focused on backend modernization, platform reliability, security posture, and production operating discipline.", "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=240&q=80", "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80", "https://northstar.example", "Austin, TX", "Backend, DevOps, security, reliability, PostgreSQL", "$60K-$180K", Team.VerificationStatus.SPECIALIST, List.of("backend-rewrite-refactor", "cloud-deployment", "ci-cd-setup", "database-redesign")),
+                new TeamSeed("Pivotal Stack", "Full-stack delivery with risk, fraud, and QA experience.", "Full-stack launch readiness studio", "Turns uncertain prototypes into testable, owner-readable launch workflows with QA evidence and handoff clarity.", "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=240&q=80", "https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=1200&q=80", "https://pivotalstack.example", "New York, NY", "Payments, frontend, QA, launch readiness", "$50K-$160K", Team.VerificationStatus.CERTIFIED, List.of("frontend-rewrite-refactor", "launch-readiness-review", "support-package")),
+                new TeamSeed("Altura Engineering", "Disciplined infrastructure, scaling, and cost optimization.", "Infrastructure and scaling specialists", "Optimizes deployment foundations, observability, cost controls, and resilience before production traffic grows.", "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=240&q=80", "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1200&q=80", "https://altura.example", "Chicago, IL", "Cloud, performance, monitoring, scaling", "$45K-$140K", Team.VerificationStatus.VERIFIED, List.of("performance-audit", "monitoring-setup", "cloud-deployment"))
         );
 
         Map<String, Team> existing = teamRepository.findAll().stream()
@@ -240,6 +314,11 @@ public class PlatformDemoSeedService implements ApplicationRunner {
             team.setManager(manager);
             team.setName(seed.name());
             team.setDescription(seed.description());
+            team.setHeadline(seed.headline());
+            team.setBio(seed.bio());
+            team.setProfilePhotoUrl(seed.profilePhotoUrl());
+            team.setCoverPhotoUrl(seed.coverPhotoUrl());
+            team.setWebsiteUrl(seed.websiteUrl());
             team.setTimezone(seed.location());
             team.setCapabilitiesSummary(seed.capabilities());
             team.setTypicalProjectSize(seed.typicalProjectSize());
@@ -622,6 +701,11 @@ public class PlatformDemoSeedService implements ApplicationRunner {
     private record TeamSeed(
             String name,
             String description,
+            String headline,
+            String bio,
+            String profilePhotoUrl,
+            String coverPhotoUrl,
+            String websiteUrl,
             String location,
             String capabilities,
             String typicalProjectSize,

@@ -12,7 +12,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import type { ChipProps, SxProps, Theme } from '@mui/material';
+import type { ButtonProps, ChipProps, SxProps, Theme } from '@mui/material';
 import { ReactNode } from 'react';
 
 export const appleColors = {
@@ -137,23 +137,42 @@ export const TextInput = ({
   value,
   onChange,
   multiline,
+  disabled,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   multiline?: boolean;
+  disabled?: boolean;
 }) => (
   <TextField
     fullWidth
     label={label}
     value={value}
+    disabled={!!disabled}
     onChange={(event) => onChange(event.target.value)}
     {...(multiline ? { multiline: true, minRows: 3 } : {})}
   />
 );
 
-export const SaveButton = ({ disabled, label = 'Save' }: { disabled?: boolean; label?: string }) => (
-  <Button type="submit" variant="contained" disabled={!!disabled} sx={{ minHeight: 44 }}>
+export const SaveButton = ({
+  disabled,
+  label = 'Save',
+  sx,
+  type = 'submit',
+  variant = 'contained',
+  ...props
+}: ButtonProps & { label?: string }) => (
+  <Button
+    type={type}
+    variant={variant}
+    disabled={!!disabled}
+    sx={[
+      { minHeight: 44 },
+      ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+    ]}
+    {...props}
+  >
     {label}
   </Button>
 );
