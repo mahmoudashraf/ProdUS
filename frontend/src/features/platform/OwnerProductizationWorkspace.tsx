@@ -126,6 +126,50 @@ const packageScore = (packageInstance?: PackageInstance, modules?: PackageModule
   return clampScore(moduleScore + statusBonus);
 };
 
+const compactIntakeFieldSx = {
+  '& .MuiOutlinedInput-root': {
+    minHeight: 44,
+    borderRadius: 1,
+    bgcolor: '#fbfdff',
+    transition: 'border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease',
+    '& fieldset': {
+      borderColor: '#dbe4f0',
+    },
+    '&:hover fieldset': {
+      borderColor: '#b9c8dc',
+    },
+    '&.Mui-focused': {
+      bgcolor: '#fff',
+      boxShadow: '0 0 0 4px rgba(98, 92, 255, 0.1)',
+      '& fieldset': {
+        borderColor: appleColors.purple,
+        borderWidth: 1,
+      },
+    },
+  },
+  '& .MuiInputLabel-root': {
+    color: appleColors.muted,
+  },
+};
+
+const intakeActionButtonSx = {
+  width: { xs: '100%', md: 132 },
+  minWidth: 132,
+  height: 44,
+  borderRadius: 1,
+  textTransform: 'none',
+  whiteSpace: 'nowrap',
+  fontWeight: 800,
+  letterSpacing: 0,
+  boxShadow: '0 10px 22px rgba(24, 119, 242, 0.18)',
+  '&:hover': {
+    boxShadow: '0 12px 26px rgba(24, 119, 242, 0.24)',
+  },
+  '&.Mui-disabled': {
+    boxShadow: 'none',
+  },
+};
+
 const productHealth = (product?: ProductProfile, packageInstance?: PackageInstance, modules?: PackageModule[]) => {
   if (!product) return 0;
   if (!packageInstance) return product.businessStage === 'LIVE' ? 66 : 58;
@@ -445,21 +489,44 @@ export default function OwnerProductizationWorkspace() {
             <Surface>
               <SectionTitle title="Intake to Package" action={<PastelChip label={`${selectedProductRequirements.length} intakes`} accent={appleColors.blue} />} />
               <Box component="form" onSubmit={submitRequirement} sx={{ mb: 2 }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr auto' }, gap: 1.25 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(210px, 1fr) minmax(240px, 1fr) 132px' }, gap: 1.25, alignItems: 'start' }}>
                   <TextField
                     select
                     size="small"
                     label="Requested service"
                     value={requirementForm.values.requestedServiceModuleId || ''}
                     onChange={(event) => requirementForm.setValue('requestedServiceModuleId', event.target.value || null)}
+                    sx={compactIntakeFieldSx}
                   >
                     <MenuItem value="">General diagnosis</MenuItem>
                     {(catalogModules.data || []).map((module) => (
                       <MenuItem key={module.id} value={module.id}>{module.name}</MenuItem>
                     ))}
                   </TextField>
-                  <TextField size="small" label="Business goal" value={requirementForm.values.businessGoal} onChange={(event) => requirementForm.setValue('businessGoal', event.target.value)} />
-                  <Button type="submit" variant="outlined" disabled={!selectedProduct || !requirementForm.values.businessGoal || createRequirement.isPending}>
+                  <TextField
+                    size="small"
+                    label="Business goal"
+                    value={requirementForm.values.businessGoal}
+                    onChange={(event) => requirementForm.setValue('businessGoal', event.target.value)}
+                    sx={compactIntakeFieldSx}
+                  />
+                  <Button
+                    type="submit"
+                    variant="outlined"
+                    disabled={!selectedProduct || !requirementForm.values.businessGoal || createRequirement.isPending}
+                    sx={{
+                      ...intakeActionButtonSx,
+                      borderColor: '#dbe4f0',
+                      color: appleColors.purple,
+                      bgcolor: '#fff',
+                      boxShadow: 'none',
+                      '&:hover': {
+                        borderColor: appleColors.purple,
+                        bgcolor: '#f8f7ff',
+                        boxShadow: '0 10px 22px rgba(98, 92, 255, 0.12)',
+                      },
+                    }}
+                  >
                     Submit intake
                   </Button>
                 </Box>
@@ -467,18 +534,34 @@ export default function OwnerProductizationWorkspace() {
               <Stack spacing={1.25}>
                 {selectedProductRequirements.length ? (
                   selectedProductRequirements.slice(0, 4).map((requirement) => (
-                    <Stack key={requirement.id} direction={{ xs: 'column', md: 'row' }} spacing={1.25} alignItems={{ md: 'center' }} justifyContent="space-between" sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.25 }}>
-                      <Box>
-                        <Typography sx={{ fontWeight: 800 }}>{requirement.requestedServiceModule?.name || 'Product diagnosis'}</Typography>
-                        <Typography variant="body2" color="text.secondary">{requirement.businessGoal}</Typography>
+                    <Box
+                      key={requirement.id}
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) auto' },
+                        gap: { xs: 1.25, md: 2 },
+                        alignItems: 'center',
+                        p: 1.5,
+                        border: '1px solid',
+                        borderColor: '#e5edf7',
+                        borderRadius: 1,
+                        background: 'linear-gradient(180deg, #ffffff 0%, #fbfdff 100%)',
+                        boxShadow: '0 10px 28px rgba(15, 23, 42, 0.045)',
+                      }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 900, color: appleColors.ink, lineHeight: 1.25 }}>{requirement.requestedServiceModule?.name || 'Product diagnosis'}</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.55 }}>
+                          {requirement.businessGoal}
+                        </Typography>
                       </Box>
-                      <Stack direction="row" spacing={1}>
+                      <Stack direction="row" spacing={1} alignItems="center" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} sx={{ minWidth: { md: 282 } }}>
                         <StatusChip label={requirement.status} />
-                        <Button size="small" variant="contained" onClick={() => buildPackage.mutate(requirement.id)} disabled={buildPackage.isPending}>
-                          Build package
+                        <Button size="small" variant="contained" onClick={() => buildPackage.mutate(requirement.id)} disabled={buildPackage.isPending} sx={intakeActionButtonSx}>
+                          Build Package
                         </Button>
                       </Stack>
-                    </Stack>
+                    </Box>
                   ))
                 ) : (
                   <Typography variant="body2" color="text.secondary">Select a lifecycle service and submit an intake to generate a governed package.</Typography>

@@ -40,8 +40,22 @@ export const categoryPalette = [
   { accent: '#7c3aed', bg: '#f1e9ff', soft: '#fbf8ff' },
 ];
 
-export const formatLabel = (value?: string | null) =>
-  value ? value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) : 'Not Set';
+const labelAcronyms = new Set(['AI', 'API', 'CI/CD', 'JWT', 'MCP', 'QA', 'RBAC', 'S3', 'SLA', 'SSO', 'UAT', 'URL']);
+
+export const formatLabel = (value?: string | null) => {
+  if (!value) return 'Not Set';
+
+  return value
+    .replaceAll('_', ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => {
+      const upper = word.toUpperCase();
+      if (labelAcronyms.has(upper)) return upper;
+      return word.toLowerCase().replace(/^\w/, (letter) => letter.toUpperCase());
+    })
+    .join(' ');
+};
 
 export const clampScore = (score: number) => Math.max(0, Math.min(100, Math.round(score)));
 
@@ -144,18 +158,46 @@ export const SaveButton = ({ disabled, label = 'Save' }: { disabled?: boolean; l
   </Button>
 );
 
-export const StatusChip = ({ label, color = 'default' }: { label: string; color?: ChipProps['color'] }) => (
-  <Chip
-    size="small"
-    color={color}
-    label={formatLabel(label)}
-    sx={{
-      borderRadius: 1,
-      fontWeight: 700,
-      '& .MuiChip-label': { px: 1 },
-    }}
-  />
-);
+const chipAccent = (label: string, color: ChipProps['color'] = 'default') => {
+  if (color === 'success') return appleColors.green;
+  if (color === 'error') return appleColors.red;
+  if (color === 'warning') return appleColors.amber;
+  if (color === 'primary') return appleColors.purple;
+
+  const value = label.toUpperCase();
+  if (value.includes('REJECT') || value.includes('FAILED') || value.includes('BLOCK') || value.includes('CRITICAL')) return appleColors.red;
+  if (value.includes('SUBMITTED') || value.includes('REVIEW') || value.includes('PENDING') || value.includes('AWAITING')) return appleColors.amber;
+  if (value.includes('ACCEPT') || value.includes('ACTIVE') || value.includes('SIGNED') || value.includes('PAID') || value.includes('COMPLETE')) return appleColors.green;
+  if (value.includes('RECOMMENDED') || value.includes('READY')) return appleColors.purple;
+  return appleColors.muted;
+};
+
+export const StatusChip = ({ label, color = 'default' }: { label: string; color?: ChipProps['color'] }) => {
+  const accent = chipAccent(label, color);
+
+  return (
+    <Chip
+      size="small"
+      label={formatLabel(label)}
+      sx={{
+        height: 28,
+        borderRadius: 1,
+        bgcolor: `${accent}12`,
+        color: accent,
+        border: `1px solid ${accent}24`,
+        fontWeight: 800,
+        letterSpacing: 0,
+        maxWidth: '100%',
+        '& .MuiChip-label': {
+          px: 1.25,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        },
+      }}
+    />
+  );
+};
 
 export const RecordDivider = () => <Divider sx={{ my: 1.5 }} />;
 
