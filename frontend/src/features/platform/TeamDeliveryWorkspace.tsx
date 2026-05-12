@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import NextLink from 'next/link';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AssignmentTurnedInOutlined,
   CheckCircleOutlineOutlined,
@@ -9,7 +10,7 @@ import {
   StarOutlineOutlined,
   WarningAmberOutlined,
 } from '@mui/icons-material';
-import { Box, Button, LinearProgress, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, LinearProgress, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
@@ -33,6 +34,8 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import {
+  AttachmentDownloadUrl,
+  EvidenceAttachment,
   Milestone,
   ProjectWorkspace,
   QuoteProposal,
@@ -62,6 +65,13 @@ const statusAccent = (status?: string) => {
 const formatMoney = (amountCents: number, currency: string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format((amountCents || 0) / 100);
 
+const formatFileSize = (sizeBytes: number) => {
+  if (sizeBytes >= 1024 * 1024) {
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${Math.max(1, Math.round(sizeBytes / 1024))} KB`;
+};
+
 const teamScore = (team?: Team, capabilities?: TeamCapability[], reputation?: TeamReputationEvent[]) => {
   if (!team) return 0;
   const statusScore = {
@@ -82,6 +92,7 @@ const teamScore = (team?: Team, capabilities?: TeamCapability[], reputation?: Te
 export default function TeamDeliveryWorkspace() {
   const queryClient = useQueryClient();
   const { hasRole, user } = useAuth();
+  const evidencePanelRef = useRef<HTMLDivElement | null>(null);
   const canManageRoster = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
   const teamsMine = useQuery({ queryKey: ['teams-mine'], queryFn: () => getJson<Team[]>('/teams/mine'), retry: false });
   const proposals = useQuery({ queryKey: ['commerce-proposals'], queryFn: () => getJson<QuoteProposal[]>('/commerce/proposals') });
@@ -89,6 +100,8 @@ export default function TeamDeliveryWorkspace() {
   const supportRequests = useQuery({ queryKey: ['commerce-support-requests'], queryFn: () => getJson<SupportRequest[]>('/commerce/support-requests') });
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
+  const [workspaceToFocusEvidence, setWorkspaceToFocusEvidence] = useState('');
+  const [attachmentOpenError, setAttachmentOpenError] = useState('');
   const [memberEmail, setMemberEmail] = useState('');
   const [memberRole, setMemberRole] = useState<TeamMember['role']>('SPECIALIST');
 
@@ -127,6 +140,12 @@ export default function TeamDeliveryWorkspace() {
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<Milestone[]>(`/workspaces/${selectedWorkspace?.id}/milestones`),
   });
+  const attachments = useQuery({
+    queryKey: ['attachments', selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () => getJson<EvidenceAttachment[]>(`/attachments?workspaceId=${selectedWorkspace?.id}`),
+    retry: false,
+  });
   const addMember = useMutation({
     mutationFn: () =>
       postJson<TeamMember, TeamMemberPayload>(`/teams/${selectedTeam?.id}/members`, {
@@ -156,8 +175,40 @@ export default function TeamDeliveryWorkspace() {
     ? (reputation.data.reduce((total, event) => total + event.rating, 0) / reputation.data.length).toFixed(1)
     : 'New';
 
-  const loading = [teamsMine, proposals, workspaces, supportRequests, capabilities, members, reputation, milestones].some((query) => query.isLoading);
-  const error = [teamsMine, proposals, workspaces, supportRequests, capabilities, members, reputation, milestones].find((query) => query.error)?.error || addMember.error || updateSupportRequest.error;
+  useEffect(() => {
+    if (workspaceToFocusEvidence && selectedWorkspace?.id === workspaceToFocusEvidence) {
+      evidencePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setWorkspaceToFocusEvidence('');
+    }
+  }, [selectedWorkspace?.id, workspaceToFocusEvidence]);
+
+  const openEvidencePanel = (workspaceId: string) => {
+    setSelectedWorkspaceId(workspaceId);
+    setWorkspaceToFocusEvidence(workspaceId);
+    if (selectedWorkspace?.id === workspaceId) {
+      window.requestAnimationFrame(() => evidencePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  };
+
+  const openAttachment = async (attachment: EvidenceAttachment) => {
+    setAttachmentOpenError('');
+    const popup = window.open('about:blank', '_blank');
+    try {
+      const response = await getJson<AttachmentDownloadUrl>(`/attachments/${attachment.id}/download-url`);
+      if (popup) {
+        popup.opener = null;
+        popup.location.href = response.downloadUrl;
+      } else {
+        window.location.assign(response.downloadUrl);
+      }
+    } catch (error) {
+      popup?.close();
+      setAttachmentOpenError(error instanceof Error ? error.message : 'Could not open evidence attachment.');
+    }
+  };
+
+  const loading = [teamsMine, proposals, workspaces, supportRequests, capabilities, members, reputation, milestones, attachments].some((query) => query.isLoading);
+  const error = [teamsMine, proposals, workspaces, supportRequests, capabilities, members, reputation, milestones, attachments].find((query) => query.error)?.error || addMember.error || updateSupportRequest.error;
 
   return (
     <>
@@ -252,7 +303,7 @@ export default function TeamDeliveryWorkspace() {
                     <Button
                       size="small"
                       variant={selectedWorkspace?.id === workspace.id ? 'contained' : 'outlined'}
-                      onClick={() => setSelectedWorkspaceId(workspace.id)}
+                      onClick={() => openEvidencePanel(workspace.id)}
                     >
                       Open evidence
                     </Button>
@@ -265,24 +316,107 @@ export default function TeamDeliveryWorkspace() {
           </Surface>
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
-            <Surface>
-              <SectionTitle title="Milestone Evidence" />
-              {milestones.data?.length ? (
-                <Stack spacing={1.25}>
-                  {milestones.data.slice(0, 6).map((milestone) => (
-                    <Stack key={milestone.id} direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 800 }}>{milestone.title}</Typography>
-                        <Typography variant="caption" color="text.secondary">{milestone.dueDate || 'No due date'}</Typography>
-                      </Box>
-                      <StatusChip label={milestone.status} />
-                    </Stack>
-                  ))}
-                </Stack>
-              ) : (
-                <Typography variant="body2" color="text.secondary">Milestones appear when a delivery workspace is selected.</Typography>
-              )}
-            </Surface>
+            <Box ref={evidencePanelRef} sx={{ scrollMarginTop: 96 }}>
+              <Surface>
+                <SectionTitle
+                  title="Delivery Evidence"
+                  action={
+                    selectedWorkspace ? (
+                      <PastelChip
+                        label={selectedWorkspace.name}
+                        accent={statusAccent(selectedWorkspace.status)}
+                      />
+                    ) : null
+                  }
+                />
+                {selectedWorkspace ? (
+                  <Stack spacing={2}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        {selectedWorkspace.packageInstance?.productProfile?.name || selectedWorkspace.packageInstance?.name || 'Selected workspace'}
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                        <StatusChip label={selectedWorkspace.status} />
+                        <PastelChip label={`${attachments.data?.length || 0} attachments`} accent={appleColors.cyan} bg="#e4f9fd" />
+                        <PastelChip label={`${milestones.data?.length || 0} milestones`} accent={appleColors.purple} bg="#f1efff" />
+                      </Stack>
+                    </Box>
+                    {attachmentOpenError && (
+                      <Alert severity="error" sx={{ borderRadius: 1 }}>
+                        {attachmentOpenError}
+                      </Alert>
+                    )}
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 900, mb: 1 }}>
+                        Workspace attachments
+                      </Typography>
+                      {attachments.data?.length ? (
+                        <Stack spacing={0.75}>
+                          {attachments.data.slice(0, 5).map((attachment) => (
+                            <Box key={attachment.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, px: 1.25, py: 1 }}>
+                              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} justifyContent="space-between">
+                                <Box>
+                                  <Link
+                                    component="button"
+                                    type="button"
+                                    underline="hover"
+                                    variant="body2"
+                                    onClick={() => openAttachment(attachment)}
+                                    sx={{ cursor: 'pointer', textAlign: 'left', fontWeight: 800 }}
+                                  >
+                                    {attachment.label || attachment.fileName}
+                                  </Link>
+                                  {attachment.label && (
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                      {attachment.fileName}
+                                    </Typography>
+                                  )}
+                                </Box>
+                                <Typography variant="caption" color="text.secondary">
+                                  {formatFileSize(attachment.sizeBytes)}
+                                  {attachment.uploadedBy?.email ? ` · ${attachment.uploadedBy.email}` : ''}
+                                </Typography>
+                              </Stack>
+                            </Box>
+                          ))}
+                        </Stack>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          No file attachments yet. Milestone evidence and deliverable status are shown below.
+                        </Typography>
+                      )}
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 900, mb: 1 }}>
+                        Milestone evidence
+                      </Typography>
+                      {milestones.data?.length ? (
+                        <Stack spacing={1.25}>
+                          {milestones.data.slice(0, 6).map((milestone) => (
+                            <Stack key={milestone.id} direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 800 }}>{milestone.title}</Typography>
+                                <Typography variant="caption" color="text.secondary">{milestone.dueDate || 'No due date'}</Typography>
+                              </Box>
+                              <StatusChip label={milestone.status} />
+                            </Stack>
+                          ))}
+                        </Stack>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">Milestones appear when a delivery workspace is selected.</Typography>
+                      )}
+                    </Box>
+                    <Button component={NextLink} href="/workspaces" variant="outlined" sx={{ minHeight: 42, alignSelf: 'flex-start' }}>
+                      Open full workspace
+                    </Button>
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Select an active delivery to review its evidence trail.
+                  </Typography>
+                )}
+              </Surface>
+            </Box>
 
             <Surface sx={{ background: overdueSupport ? '#fff7f8' : '#f6fffb' }}>
               <SectionTitle title="Support Queue" />
