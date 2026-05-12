@@ -110,6 +110,23 @@ class ProductizationWorkflowIntegrationTest {
         PlatformCatalog catalog = saveCatalog();
         Team recommendedTeam = saveRecommendedTeam(teamManager, catalog);
 
+        mockMvc.perform(get("/api/catalog/categories"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+
+        mockMvc.perform(get("/api/teams"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].name").value(recommendedTeam.getName()));
+
+        mockMvc.perform(get("/api/teams/{id}", recommendedTeam.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value(recommendedTeam.getName()));
+
+        mockMvc.perform(get("/api/teams/{id}/capabilities", recommendedTeam.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+
         mockMvc.perform(get("/api/catalog/dependencies").with(auth(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
@@ -197,6 +214,15 @@ class ProductizationWorkflowIntegrationTest {
         mockMvc.perform(get("/api/expert-profiles").with(auth(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].displayName").value("Aisha Rahman"));
+
+        MvcResult publicExpertResult = mockMvc.perform(get("/api/expert-profiles"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].displayName").value("Aisha Rahman"))
+                .andReturn();
+        String publicExpertId = objectMapper.readTree(publicExpertResult.getResponse().getContentAsString()).get(0).get("id").asText();
+        mockMvc.perform(get("/api/expert-profiles/{id}", publicExpertId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("Aisha Rahman"));
 
         MvcResult soloTeamResult = mockMvc.perform(post("/api/teams")
                         .with(auth(soloExpert))

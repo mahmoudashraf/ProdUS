@@ -13,6 +13,7 @@ import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson } from './api';
+import PublicTalentDirectoryPage from './PublicTalentDirectoryPage';
 import TeamProfilesPage from './TeamProfilesPage';
 import {
   DotLabel,
@@ -126,7 +127,11 @@ const verificationScore = (team: Team) => {
 };
 
 export default function TeamsPage() {
-  const { hasRole } = useAuth();
+  const { hasRole, isLoggedIn } = useAuth();
+  if (!isLoggedIn) {
+    return <PublicTalentDirectoryPage />;
+  }
+
   const shouldShowProfileStudio = hasRole([UserRole.TEAM_MANAGER, UserRole.SPECIALIST, UserRole.ADVISOR])
     && !hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER]);
 

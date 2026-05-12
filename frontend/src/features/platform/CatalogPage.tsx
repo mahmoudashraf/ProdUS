@@ -1,5 +1,6 @@
 'use client';
 
+import NextLink from 'next/link';
 import {
   CloudQueueOutlined,
   CodeOutlined,
@@ -10,8 +11,9 @@ import {
   TaskAltOutlined,
   TrendingUpOutlined,
 } from '@mui/icons-material';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import useAuth from '@/hooks/useAuth';
 import { getJson } from './api';
 import {
   DotLabel,
@@ -56,6 +58,7 @@ const shortModuleName = (name: string) =>
     .replace(' and ', ' & ');
 
 export default function CatalogPage() {
+  const { isLoggedIn } = useAuth();
   const categories = useQuery({
     queryKey: ['catalog-categories'],
     queryFn: () => getJson<ServiceCategory[]>('/catalog/categories'),
@@ -79,6 +82,16 @@ export default function CatalogPage() {
       <PageHeader
         title="Service Categories"
         description="Specialist workstreams for production-ready products, powered by the live catalog API and dependency-aware package builder."
+        action={
+          <Button
+            component={NextLink}
+            href={isLoggedIn ? '/packages' : '/login'}
+            variant="contained"
+            sx={{ minHeight: 42, minWidth: 140 }}
+          >
+            Build Package
+          </Button>
+        }
       />
       <QueryState isLoading={categories.isLoading || modules.isLoading} error={categories.error || modules.error} />
       {catalogCategories.length ? (

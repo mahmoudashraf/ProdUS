@@ -47,6 +47,11 @@ public class SecurityConfig {
                         // Mock endpoints (for testing)
                         .requestMatchers("/api/mock/**").permitAll()
 
+                        // Public discovery endpoints for unauthenticated visitors.
+                        .requestMatchers(HttpMethod.GET, "/api/catalog/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/teams", "/api/teams/{id}", "/api/teams/{id}/capabilities").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/expert-profiles", "/api/expert-profiles/{id}").permitAll()
+
                         // Signed provider webhooks; authentication is the HMAC signature.
                         .requestMatchers(HttpMethod.POST, "/api/integrations/payments/webhook").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/integrations/signatures/webhook").permitAll()

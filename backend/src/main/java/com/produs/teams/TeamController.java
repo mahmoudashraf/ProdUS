@@ -59,6 +59,7 @@ public class TeamController {
     }
 
     @GetMapping("/mine")
+    @PreAuthorize("isAuthenticated()")
     public List<TeamResponse> mine(@AuthenticationPrincipal User user) {
         LinkedHashMap<UUID, Team> teams = new LinkedHashMap<>();
         teamRepository.findByManagerIdOrderByCreatedAtDesc(user.getId())
@@ -74,12 +75,14 @@ public class TeamController {
 
     @GetMapping("/{id}")
     public TeamResponse get(@PathVariable UUID id) {
-        return toTeamResponse(teamRepository.findById(id)
+        return toTeamResponse(teamRepository.findByIdAndActiveTrue(id)
                 .orElseThrow(() -> new IllegalArgumentException("Team not found")));
     }
 
     @GetMapping("/{id}/capabilities")
     public List<TeamCapabilityResponse> capabilities(@PathVariable UUID id) {
+        teamRepository.findByIdAndActiveTrue(id)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found"));
         return capabilityRepository.findByTeamId(id).stream()
                 .map(capability -> toTeamCapabilityResponse(capability))
                 .toList();
@@ -216,6 +219,7 @@ public class TeamController {
     }
 
     @GetMapping("/join-requests/mine")
+    @PreAuthorize("isAuthenticated()")
     public List<TeamJoinRequestResponse> myJoinRequests(@AuthenticationPrincipal User user) {
         return teamJoinRequestRepository.findByRequesterIdOrderByCreatedAtDesc(user.getId()).stream()
                 .map(request -> toTeamJoinRequestResponse(request))

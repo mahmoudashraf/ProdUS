@@ -62,6 +62,17 @@ export default function LandingPage() {
             <NextLink href="/" aria-label="ProdOps Network home" style={{ color: 'inherit', textDecoration: 'none' }}>
               <Logo />
             </NextLink>
+            <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' } }}>
+              <Button component={NextLink} href="/services" variant="text" sx={{ minHeight: 42, color: '#334155', fontWeight: 800 }}>
+                Services
+              </Button>
+              <Button component={NextLink} href="/teams" variant="text" sx={{ minHeight: 42, color: '#334155', fontWeight: 800 }}>
+                Teams
+              </Button>
+              <Button component={NextLink} href="/solo-experts" variant="text" sx={{ minHeight: 42, color: '#334155', fontWeight: 800 }}>
+                Solo Experts
+              </Button>
+            </Stack>
             <Stack direction="row" spacing={1}>
               <Button component={NextLink} href="/dashboard" variant={isLoggedIn ? 'contained' : 'outlined'}>
                 Dashboard
@@ -89,11 +100,11 @@ export default function LandingPage() {
               ProdOps Network helps owners diagnose what blocks production, select lifecycle services, compare verified teams, and govern delivery with evidence at every milestone.
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <Button component={NextLink} href="/dashboard" size="large" variant="contained">
-                {isLoggedIn ? `Open ${user?.role === 'PRODUCT_OWNER' ? 'Productization' : 'Dashboard'}` : 'Open Dashboard'}
+              <Button component={NextLink} href={isLoggedIn ? '/dashboard' : '/services'} size="large" variant="contained">
+                {isLoggedIn ? `Open ${user?.role === 'PRODUCT_OWNER' ? 'Productization' : 'Dashboard'}` : 'Explore Services'}
               </Button>
-              <Button component={NextLink} href={isLoggedIn ? '/packages' : '/login'} size="large" variant="outlined">
-                Build a package
+              <Button component={NextLink} href="/teams" size="large" variant="outlined">
+                Browse Teams
               </Button>
             </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} sx={{ pt: 1 }}>
@@ -158,7 +169,7 @@ export default function LandingPage() {
               <Typography variant="h2">Service Catalog</Typography>
               <Typography color="text.secondary" sx={{ mt: 0.75 }}>Production-ready workstreams with clear descriptions, inputs, deliverables, and acceptance criteria.</Typography>
             </Box>
-            <Button component={NextLink} href="/catalog" variant="outlined">View catalog</Button>
+            <Button component={NextLink} href="/services" variant="outlined">View catalog</Button>
           </Stack>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 1.5, mt: 2.5 }}>
             {catalog.map((item, index) => (

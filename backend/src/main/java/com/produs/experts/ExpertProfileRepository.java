@@ -8,5 +8,6 @@ import java.util.UUID;
 
 public interface ExpertProfileRepository extends JpaRepository<ExpertProfile, UUID> {
     Optional<ExpertProfile> findByUserId(UUID userId);
+    Optional<ExpertProfile> findByIdAndActiveTrue(UUID id);
     List<ExpertProfile> findByActiveTrueOrderByUpdatedAtDesc();
 }
