@@ -4,6 +4,9 @@ const nextConfig = {
   // Enable React Strict Mode for better development experience
   reactStrictMode: true,
 
+  // Keep local product screens free of framework chrome during UI review.
+  devIndicators: false,
+
   // Disable ESLint during builds to avoid linting errors blocking deployment
   eslint: {
     ignoreDuringBuilds: true,

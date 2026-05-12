@@ -28,7 +28,7 @@ const SupabaseLogin = () => {
               <AuthCardWrapper>
                 <Grid container spacing={2} alignItems="center" justifyContent="center">
                   <Grid sx={{ mb: 3 }}>
-                    <Link href="/" aria-label="theme-logo">
+                    <Link href="/" aria-label="ProdOps Network home" style={{ color: 'inherit', textDecoration: 'none' }}>
                       <Logo />
                     </Link>
                   </Grid>

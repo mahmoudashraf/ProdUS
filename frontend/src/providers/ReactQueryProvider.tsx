@@ -8,13 +8,12 @@ import { queryClient } from '../lib/react-query';
 
 // Provider wrapper for React Query
 export const ReactQueryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const showDevtools = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_ENABLE_REACT_QUERY_DEVTOOLS === 'true';
+
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {/* Only show devtools in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <ReactQueryDevtools initialIsOpen={false} />
-      )}
+      {showDevtools && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   );
 };
