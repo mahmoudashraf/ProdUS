@@ -39,6 +39,7 @@ import {
   TeamMember,
   TeamRecommendation,
   TeamReputationEvent,
+  TeamShortlist,
 } from './types';
 
 const statuses: Team['verificationStatus'][] = ['APPLIED', 'VERIFIED', 'CERTIFIED', 'SPECIALIST', 'OPERATIONS_READY'];
@@ -71,6 +72,13 @@ interface ReputationPayload {
   workspaceId: string;
   eventType: TeamReputationEvent['eventType'];
   rating: number;
+  notes: string;
+}
+
+interface ShortlistPayload {
+  packageInstanceId: string;
+  teamId: string;
+  status: TeamShortlist['status'];
   notes: string;
 }
 
@@ -205,6 +213,12 @@ export default function TeamsPage() {
     enabled: !!selectedTeam?.id,
     queryFn: () => getJson<TeamReputationEvent[]>(`/commerce/teams/${selectedTeam?.id}/reputation`),
   });
+  const shortlists = useQuery({
+    queryKey: ['shortlists', selectedPackageId],
+    enabled: !!selectedPackageId,
+    queryFn: () => getJson<TeamShortlist[]>(`/shortlists?packageId=${selectedPackageId}`),
+    retry: false,
+  });
 
   const createCapability = useMutation({
     mutationFn: () => postJson<TeamCapability, CapabilityPayload>(`/teams/${selectedTeam?.id}/capabilities`, capabilityForm.values),
@@ -226,6 +240,12 @@ export default function TeamsPage() {
     onSuccess: async () => {
       reputationForm.resetForm();
       await queryClient.invalidateQueries({ queryKey: ['teams', selectedTeam?.id, 'reputation'] });
+    },
+  });
+  const upsertShortlist = useMutation({
+    mutationFn: (payload: ShortlistPayload) => postJson<TeamShortlist, ShortlistPayload>('/shortlists', payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['shortlists', selectedPackageId] });
     },
   });
 
@@ -254,6 +274,18 @@ export default function TeamsPage() {
   const avgMatch = matchedTeams.length
     ? Math.round((matchedTeams.reduce((total, item) => total + item.score, 0) / matchedTeams.length) * 100)
     : 0;
+  const activeShortlists = (shortlists.data || []).filter((shortlist) => shortlist.status !== 'ARCHIVED');
+  const recordShortlist = (teamId: string, status: TeamShortlist['status']) => {
+    if (!selectedPackageId) return;
+    upsertShortlist.mutate({
+      packageInstanceId: selectedPackageId,
+      teamId,
+      status,
+      notes: status === 'COMPARED'
+        ? 'Compared against this package requirements, team capabilities, delivery history, and expected budget.'
+        : 'Shortlisted for owner review and proposal follow-up.',
+    });
+  };
 
   return (
     <>
@@ -263,7 +295,7 @@ export default function TeamsPage() {
       />
       <QueryState
         isLoading={teams.isLoading || packages.isLoading || categories.isLoading || modules.isLoading || workspaces.isLoading}
-        error={teams.error || packages.error || categories.error || modules.error || workspaces.error || recommendations.error || capabilities.error || reputation.error || (canManageTeamRoster ? members.error : null) || createTeam.error || createCapability.error || addMember.error || addReputation.error}
+        error={teams.error || packages.error || categories.error || modules.error || workspaces.error || recommendations.error || capabilities.error || reputation.error || shortlists.error || (canManageTeamRoster ? members.error : null) || createTeam.error || createCapability.error || addMember.error || addReputation.error || upsertShortlist.error}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 330px' }, gap: 2.5 }}>
@@ -326,8 +358,24 @@ export default function TeamsPage() {
                         </Stack>
                       </Box>
                       <Stack spacing={1}>
-                        <Button variant="outlined" size="small" startIcon={<TuneOutlined />}>Compare</Button>
-                        <Button variant="outlined" size="small" startIcon={<BookmarkBorderOutlined />}>Shortlist</Button>
+                        <Button
+                          variant={activeShortlists.some((item) => item.team.id === recommendation.team.id && item.status === 'COMPARED') ? 'contained' : 'outlined'}
+                          size="small"
+                          startIcon={<TuneOutlined />}
+                          onClick={() => recordShortlist(recommendation.team.id, 'COMPARED')}
+                          disabled={!selectedPackageId || upsertShortlist.isPending}
+                        >
+                          Compare
+                        </Button>
+                        <Button
+                          variant={activeShortlists.some((item) => item.team.id === recommendation.team.id) ? 'contained' : 'outlined'}
+                          size="small"
+                          startIcon={<BookmarkBorderOutlined />}
+                          onClick={() => recordShortlist(recommendation.team.id, 'ACTIVE')}
+                          disabled={!selectedPackageId || upsertShortlist.isPending}
+                        >
+                          Shortlist
+                        </Button>
                         <Button variant="contained" size="small" onClick={() => setSelectedTeamId(recommendation.team.id)}>Inspect</Button>
                       </Stack>
                     </Box>
@@ -479,7 +527,14 @@ export default function TeamsPage() {
           <Surface>
             <SectionTitle title="Your Shortlist" action={<VerifiedOutlined sx={{ color: appleColors.purple }} />} />
             <Stack spacing={1.5}>
-              {matchedTeams.slice(0, 3).map((item, index) => {
+              {(activeShortlists.length
+                ? activeShortlists.map((shortlist) => ({
+                    team: shortlist.team,
+                    score: matchedTeams.find((match) => match.team.id === shortlist.team.id)?.score || 0.82,
+                    status: shortlist.status,
+                  }))
+                : matchedTeams.slice(0, 3).map((item) => ({ team: item.team, score: item.score, status: 'SUGGESTED' }))
+              ).slice(0, 4).map((item, index) => {
                 const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
                 return (
                   <Stack key={item.team.id} direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
@@ -490,7 +545,10 @@ export default function TeamsPage() {
                       </Box>
                       <Typography sx={{ fontWeight: 800 }}>{item.team.name}</Typography>
                     </Stack>
-                    <Typography color="success.main" sx={{ fontWeight: 800 }}>{Math.round(item.score * 100)}%</Typography>
+                    <Stack alignItems="flex-end" spacing={0.25}>
+                      <Typography color="success.main" sx={{ fontWeight: 800 }}>{Math.round(item.score * 100)}%</Typography>
+                      <Typography variant="caption" color="text.secondary">{formatLabel(item.status)}</Typography>
+                    </Stack>
                   </Stack>
                 );
               })}

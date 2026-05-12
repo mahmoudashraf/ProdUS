@@ -14,3 +14,8 @@ export async function putJson<T, TPayload extends object>(url: string, payload: 
   const response = await apiClient.put<T>(url, payload);
   return response.data;
 }
+
+export async function deleteJson<T>(url: string): Promise<T> {
+  const response = await apiClient.delete<T>(url);
+  return response.data;
+}

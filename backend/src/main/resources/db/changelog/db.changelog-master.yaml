@@ -15,3 +15,5 @@ databaseChangeLog:
       file: db/changelog/V007__notifications_support_requests.yaml
   - include:
       file: db/changelog/V008__support_sla_notification_delivery.yaml
+  - include:
+      file: db/changelog/V009__team_shortlists.yaml

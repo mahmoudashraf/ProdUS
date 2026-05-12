@@ -29,6 +29,8 @@ import com.produs.product.ProductProfileRepository;
 import com.produs.repository.UserRepository;
 import com.produs.requirements.RequirementIntake;
 import com.produs.requirements.RequirementIntakeRepository;
+import com.produs.shortlist.TeamShortlist;
+import com.produs.shortlist.TeamShortlistRepository;
 import com.produs.teams.Team;
 import com.produs.teams.TeamCapability;
 import com.produs.teams.TeamCapabilityRepository;
@@ -84,6 +86,7 @@ public class PlatformDemoSeedService implements ApplicationRunner {
     private final MilestoneRepository milestoneRepository;
     private final DeliverableRepository deliverableRepository;
     private final QuoteProposalRepository proposalRepository;
+    private final TeamShortlistRepository shortlistRepository;
     private final SupportSubscriptionRepository supportSubscriptionRepository;
     private final SupportRequestRepository supportRequestRepository;
     private final TeamReputationEventRepository reputationRepository;
@@ -158,20 +161,20 @@ public class PlatformDemoSeedService implements ApplicationRunner {
 
     private Map<String, ServiceModule> seedCatalogModules(Map<String, ServiceCategory> categories) {
         List<ModuleSeed> seeds = List.of(
-                new ModuleSeed("validation", "requirement-analysis", "Requirement analysis", "Turn vague product needs into a structured requirement brief and risk map.", "Requirement brief; risk map; recommended service package; open questions.", "Owner confirms product state, business goal, assumptions, and next services.", 1),
-                new ModuleSeed("validation", "launch-readiness-review", "Launch readiness review", "Assess whether a SaaS product is ready for public launch or customer handoff.", "Launch readiness report; blockers; recommended milestone sequence.", "Report covers deployment, security, monitoring, backups, analytics, payments, support, and handoff.", 2),
-                new ModuleSeed("code-rewrite-refactor", "backend-rewrite-refactor", "Backend rewrite/refactor", "Stabilize or rebuild backend modules that block production readiness.", "Refactored backend modules; API notes; migration and deployment notes.", "Backend paths are documented, tested, deployable, and do not regress core workflows.", 1),
-                new ModuleSeed("code-rewrite-refactor", "frontend-rewrite-refactor", "Frontend rewrite/refactor", "Stabilize frontend architecture, screens, state, and release readiness.", "Refactored frontend flows; component cleanup; route and state notes.", "Core screens render without blocking errors and match agreed UX scope.", 2),
-                new ModuleSeed("scaling", "performance-audit", "Performance audit", "Find bottlenecks across app, database, API, and hosting.", "Performance report; prioritized bottlenecks; remediation plan.", "Findings include evidence, impact, and remediation sequence.", 1),
-                new ModuleSeed("cloud-devops", "cloud-deployment", "Cloud deployment", "Set up production/staging deployment with rollback and environment ownership.", "Production/staging environments; deployment notes; rollback process.", "Deployment can be repeated and rollback path is documented.", 1),
-                new ModuleSeed("cloud-devops", "ci-cd-setup", "CI/CD setup", "Create a deploy pipeline and basic release checks.", "Pipeline configuration; required checks; release notes.", "Pipeline runs on agreed branch events and blocks release on failing checks.", 2),
-                new ModuleSeed("cloud-devops", "monitoring-setup", "Monitoring setup", "Configure uptime, error, and operational monitoring for launch.", "Monitoring dashboard; alert rules; escalation notes.", "Alerts are configured for critical paths and response ownership is clear.", 3),
-                new ModuleSeed("database", "database-redesign", "Database redesign", "Improve schema, migration strategy, query health, and data integrity.", "Schema changes; migration scripts; data integrity notes.", "Migration path is documented, reversible where practical, and validated.", 1),
-                new ModuleSeed("database", "backup-restore", "Backup and restore", "Set backup policy and verify restore readiness.", "Backup schedule; restore runbook; verification evidence.", "Restore process is documented and tested against a non-production environment.", 2),
-                new ModuleSeed("security", "auth-access-control-review", "Auth and access control review", "Review authentication, authorization, roles, sessions, and sensitive flows.", "Findings; remediation plan; launch security checklist.", "Findings are evidence-backed and no unsupported compliance certification is claimed.", 1),
-                new ModuleSeed("security", "api-security-review", "API security review", "Review APIs, secrets, access control, and risky integrations.", "API security findings; prioritized fixes; verification notes.", "Critical API risks are documented with reproduction evidence or clear reasoning.", 2),
-                new ModuleSeed("launch-gtm-readiness", "analytics-payments-onboarding-readiness", "Analytics, payments, and onboarding readiness", "Prepare operational launch workflows around analytics, payments, onboarding, and admin readiness.", "Launch checklist; tracking/payment/onboarding notes; admin readiness notes.", "Launch-critical business flows have owner-approved acceptance criteria and handoff notes.", 1),
-                new ModuleSeed("operations-support", "support-package", "Support package", "Create ongoing support, monitoring, bug fixing, and incident response workflow.", "Support scope; SLA notes; monthly health report template; escalation path.", "Owner and team agree response expectations, support scope, known issues, and reporting format.", 1)
+                new ModuleSeed("validation", "requirement-analysis", "Requirement analysis", "Turn an early product idea or prototype into an implementation-ready brief with scope, risk, acceptance criteria, and evidence needs.", "Product summary, current workflow map, known blockers, target customer segment, repository or demo access.", "Requirement brief; capability map; risk register; recommended service package; open decision log.", "Owner confirms product state, business goal, assumptions, acceptance criteria, and next service sequence.", "3-5 business days", "$4K-$12K", 1),
+                new ModuleSeed("validation", "launch-readiness-review", "Launch readiness review", "Assess whether a SaaS product is ready for customer rollout, paid beta, enterprise pilot, or public launch.", "Deployment URL, staging access, release checklist, analytics plan, support path, payment/onboarding flow notes.", "Launch readiness report; blockers; go/no-go decision; recommended milestone sequence.", "Report covers deployment, security, monitoring, backups, analytics, payments, support, and owner handoff.", "1-2 weeks", "$8K-$24K", 2),
+                new ModuleSeed("code-rewrite-refactor", "backend-rewrite-refactor", "Backend rewrite/refactor", "Stabilize backend modules, APIs, jobs, and integration boundaries that block production reliability or maintainability.", "Repository access, API inventory, error logs, critical workflows, data model notes, deployment constraints.", "Refactored backend modules; API notes; migration and deployment notes; regression test evidence.", "Backend paths are documented, tested, deployable, observable, and do not regress core workflows.", "2-6 weeks", "$24K-$120K", 1),
+                new ModuleSeed("code-rewrite-refactor", "frontend-rewrite-refactor", "Frontend rewrite/refactor", "Improve frontend architecture, state, page flows, role views, accessibility, and release readiness.", "Current routes, design references, component library notes, API contracts, browser targets, priority workflows.", "Refactored frontend flows; component cleanup; route/state notes; responsive QA evidence.", "Core screens render without blocking errors, connect to APIs, and match agreed role-specific UX scope.", "2-5 weeks", "$18K-$90K", 2),
+                new ModuleSeed("scaling", "performance-audit", "Performance audit", "Find and prioritize bottlenecks across frontend rendering, backend APIs, database queries, queues, and hosting.", "Traffic assumptions, slow traces, logs, database metrics, hosting plan, top user journeys.", "Performance report; prioritized bottlenecks; benchmark evidence; remediation plan.", "Findings include reproduction steps, impact, tradeoffs, and a sequenced remediation path.", "1-3 weeks", "$10K-$45K", 1),
+                new ModuleSeed("cloud-devops", "cloud-deployment", "Cloud deployment", "Set up production and staging deployment with environment ownership, secrets discipline, rollback, and release controls.", "Cloud account, domain, environment variables, build command, runtime requirements, rollback expectations.", "Production/staging environments; deployment notes; rollback process; runtime ownership matrix.", "Deployment can be repeated, observed, rolled back, and handed off without undocumented operator knowledge.", "1-4 weeks", "$12K-$80K", 1),
+                new ModuleSeed("cloud-devops", "ci-cd-setup", "CI/CD setup", "Create a release pipeline with required checks, build artifacts, deployment gates, and failure feedback.", "Repository access, branch strategy, test commands, build commands, deployment target, secret policy.", "Pipeline configuration; required checks; release notes; failed-check triage guide.", "Pipeline runs on agreed branch events and blocks release on failing build, test, or security gates.", "1-3 weeks", "$8K-$40K", 2),
+                new ModuleSeed("cloud-devops", "monitoring-setup", "Monitoring setup", "Configure uptime, error, logs, metrics, synthetic checks, and alert ownership for production operation.", "Critical paths, expected traffic, incident channels, alert destinations, existing telemetry.", "Monitoring dashboard; alert rules; escalation notes; monthly health report template.", "Alerts cover critical paths, include runbook context, and have accountable response ownership.", "1-3 weeks", "$8K-$45K", 3),
+                new ModuleSeed("database", "database-redesign", "Database redesign", "Improve schema, migrations, query health, indexes, data integrity, and reporting foundations.", "Schema dump, high-volume queries, migration history, reporting needs, backup policy, data quality issues.", "Schema changes; migration scripts; query plan evidence; data integrity notes.", "Migration path is documented, validated, reversible where practical, and protects existing production data.", "2-6 weeks", "$20K-$110K", 1),
+                new ModuleSeed("database", "backup-restore", "Backup and restore", "Set backup policy and verify restore readiness for production incidents, migrations, and recovery drills.", "Database provider access, RPO/RTO target, retention requirements, storage restrictions, restore environment.", "Backup schedule; restore runbook; recovery drill evidence; retention policy.", "Restore process is documented and tested against a non-production environment with measurable recovery timing.", "1-2 weeks", "$6K-$24K", 2),
+                new ModuleSeed("security", "auth-access-control-review", "Auth and access control review", "Review authentication, authorization, roles, sessions, data boundaries, and sensitive workflows.", "Role matrix, auth provider setup, protected routes, API authorization logic, session policy, audit needs.", "Findings; remediation plan; launch security checklist; access-control test cases.", "Findings are evidence-backed, scoped to actual risk, and avoid unsupported compliance claims.", "1-3 weeks", "$12K-$55K", 1),
+                new ModuleSeed("security", "api-security-review", "API security review", "Review APIs, secrets, webhook handling, rate limits, tenant boundaries, and risky integrations.", "OpenAPI/API inventory, environment variables, webhook providers, auth rules, recent incidents.", "API security findings; prioritized fixes; verification notes; hardening checklist.", "Critical API risks are documented with reproduction evidence or clear reasoning and mapped to fixes.", "1-4 weeks", "$14K-$70K", 2),
+                new ModuleSeed("launch-gtm-readiness", "analytics-payments-onboarding-readiness", "Analytics, payments, and onboarding readiness", "Prepare operational launch workflows around activation, analytics, payments, onboarding, admin tooling, and customer handoff.", "Event taxonomy, payment provider access, onboarding flow, admin tasks, support policy, launch goals.", "Launch checklist; tracking/payment/onboarding notes; admin readiness notes; release acceptance criteria.", "Launch-critical business flows have owner-approved acceptance criteria, monitoring, and handoff notes.", "2-5 weeks", "$18K-$95K", 1),
+                new ModuleSeed("operations-support", "support-package", "Support package", "Create ongoing support, monitoring, bug triage, incident response, and owner reporting workflow.", "Known issues, support inbox/channel, SLA expectations, monitoring links, deployment ownership.", "Support scope; SLA notes; incident response workflow; monthly health report template; escalation path.", "Owner and team agree response expectations, support scope, known issues, reporting format, and escalation owners.", "Ongoing", "$6K-$25K/mo", 1)
         );
 
         Map<String, ServiceModule> modules = new LinkedHashMap<>();
@@ -181,10 +184,11 @@ public class PlatformDemoSeedService implements ApplicationRunner {
             module.setName(seed.name());
             module.setSlug(seed.slug());
             module.setDescription(seed.description());
+            module.setRequiredInputs(seed.requiredInputs());
             module.setExpectedDeliverables(seed.deliverables());
             module.setAcceptanceCriteria(seed.acceptanceCriteria());
-            module.setTimelineRange("1-3 weeks");
-            module.setPriceRange("$8K-$40K");
+            module.setTimelineRange(seed.timelineRange());
+            module.setPriceRange(seed.priceRange());
             module.setSortOrder(seed.sortOrder());
             module.setActive(true);
             modules.put(seed.slug(), moduleRepository.save(module));
@@ -260,33 +264,30 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         User manager = user("team@produs.com");
         User specialist = user("specialist@produs.com");
         User advisor = user("advisor@produs.com");
-        if (!productRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId()).isEmpty()) {
-            return;
-        }
-
         List<ProductSeed> products = List.of(
-                new ProductSeed("Payments Hub", "Payment orchestration and settlement platform moving from prototype into governed delivery.", ProductProfile.BusinessStage.VALIDATED, "React, Node.js, PostgreSQL, Stripe, Kafka", "Release evidence gaps, data quality checks, and API contract risk.", "analytics-payments-onboarding-readiness", PackageInstance.PackageStatus.ACTIVE_DELIVERY),
-                new ProductSeed("Analytics Pro", "AI-assisted analytics platform for business intelligence and data teams.", ProductProfile.BusinessStage.PROTOTYPE, "Next.js, Spring Boot, PostgreSQL, Redis", "Security scan and test coverage below launch threshold.", "backend-rewrite-refactor", PackageInstance.PackageStatus.MILESTONE_REVIEW),
-                new ProductSeed("Customer Portal", "Self-service customer account and support experience.", ProductProfile.BusinessStage.VALIDATED, "React, Supabase, PostgreSQL, S3", "UAT feedback, frontend integration risk, and support runbook gaps.", "frontend-rewrite-refactor", PackageInstance.PackageStatus.AWAITING_TEAM),
-                new ProductSeed("Billing Engine", "Recurring billing module for finance operations.", ProductProfile.BusinessStage.LIVE, "Java, PostgreSQL, Redis, Stripe", "Data migration dependencies and reconciliation evidence gaps.", "database-redesign", PackageInstance.PackageStatus.SCOPE_NEGOTIATION),
-                new ProductSeed("Inventory Sync", "Supply-chain synchronization service for operational teams.", ProductProfile.BusinessStage.PROTOTYPE, "Go, PostgreSQL, AWS, Terraform", "API permissions, secrets handling, and environment readiness.", "api-security-review", PackageInstance.PackageStatus.SCOPE_NEGOTIATION)
+                new ProductSeed("Payments Hub", "Payment orchestration and settlement platform moving from prototype into governed delivery for merchant onboarding, payout reconciliation, and risk review.", ProductProfile.BusinessStage.VALIDATED, "React, Node.js, PostgreSQL, Stripe, Kafka", "Release evidence gaps, data quality checks, settlement reconciliation, and API contract risk.", "analytics-payments-onboarding-readiness", PackageInstance.PackageStatus.ACTIVE_DELIVERY),
+                new ProductSeed("Analytics Pro", "AI-assisted analytics platform for business intelligence teams that need reliable ingestion, governed dashboards, and customer-facing reporting.", ProductProfile.BusinessStage.PROTOTYPE, "Next.js, Spring Boot, PostgreSQL, Redis", "Security scan findings, ingestion retry gaps, and test coverage below launch threshold.", "backend-rewrite-refactor", PackageInstance.PackageStatus.MILESTONE_REVIEW),
+                new ProductSeed("Customer Portal", "Self-service customer account and support experience for profile updates, billing visibility, ticket tracking, and onboarding tasks.", ProductProfile.BusinessStage.VALIDATED, "React, Supabase, PostgreSQL, S3", "UAT feedback, frontend integration risk, accessibility fixes, and support runbook gaps.", "frontend-rewrite-refactor", PackageInstance.PackageStatus.AWAITING_TEAM),
+                new ProductSeed("Billing Engine", "Recurring billing module for finance operations with subscription lifecycle, invoicing, proration, and revenue reporting.", ProductProfile.BusinessStage.LIVE, "Java, PostgreSQL, Redis, Stripe", "Data migration dependencies, invoice reconciliation evidence gaps, and rollback planning.", "database-redesign", PackageInstance.PackageStatus.SCOPE_NEGOTIATION),
+                new ProductSeed("Inventory Sync", "Supply-chain synchronization service that keeps warehouse, marketplace, and operations systems aligned across API boundaries.", ProductProfile.BusinessStage.PROTOTYPE, "Go, PostgreSQL, AWS, Terraform", "API permissions, secrets handling, environment readiness, and external dependency ownership.", "api-security-review", PackageInstance.PackageStatus.SCOPE_NEGOTIATION)
         );
 
+        Map<String, ProductProfile> existingProducts = productRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId()).stream()
+                .collect(Collectors.toMap(ProductProfile::getName, Function.identity(), (left, right) -> left));
         for (int index = 0; index < products.size(); index++) {
             ProductSeed seed = products.get(index);
-            ProductProfile product = createProduct(owner, seed);
-            RequirementIntake requirement = createRequirement(product, modules.get(seed.moduleSlug()), seed);
-            PackageInstance packageInstance = packageBuilderService.buildFromRequirement(owner, requirement.getId());
-            packageInstance.setName(seed.name() + " package");
-            packageInstance.setSummary("Governed productization package for " + seed.name() + " covering " + modules.get(seed.moduleSlug()).getName() + ".");
+            ProductProfile product = upsertProduct(owner, seed, existingProducts);
+            RequirementIntake requirement = upsertRequirement(product, modules.get(seed.moduleSlug()), seed);
+            PackageInstance packageInstance = upsertPackage(owner, requirement, seed, modules.get(seed.moduleSlug()));
             packageInstance.setStatus(seed.packageStatus());
             packageInstance = packageRepository.save(packageInstance);
             tunePackageModules(packageInstance, index);
             Team team = teams.get(index % teams.size());
-            createProposal(packageInstance, team, manager, index);
-            ProjectWorkspace workspace = createWorkspace(owner, packageInstance, team, specialist, advisor, index);
-            createSupport(owner, manager, team, workspace, index);
-            createReputation(owner, team, workspace, index);
+            upsertProposal(packageInstance, team, manager, index);
+            createShortlist(owner, packageInstance, team, index);
+            ProjectWorkspace workspace = upsertWorkspace(owner, packageInstance, team, specialist, advisor, index);
+            upsertSupport(owner, manager, team, workspace, index);
+            upsertReputation(owner, team, workspace, index);
         }
         createRecommendation(
                 admin,
@@ -305,8 +306,8 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         createAdminNotification(admin, manager);
     }
 
-    private ProductProfile createProduct(User owner, ProductSeed seed) {
-        ProductProfile product = new ProductProfile();
+    private ProductProfile upsertProduct(User owner, ProductSeed seed, Map<String, ProductProfile> existingProducts) {
+        ProductProfile product = existingProducts.getOrDefault(seed.name(), new ProductProfile());
         product.setOwner(owner);
         product.setName(seed.name());
         product.setSummary(seed.summary());
@@ -318,8 +319,12 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         return productRepository.save(product);
     }
 
-    private RequirementIntake createRequirement(ProductProfile product, ServiceModule module, ProductSeed seed) {
-        RequirementIntake requirement = new RequirementIntake();
+    private RequirementIntake upsertRequirement(ProductProfile product, ServiceModule module, ProductSeed seed) {
+        RequirementIntake requirement = requirementRepository.findByProductProfileOwnerIdOrderByCreatedAtDesc(product.getOwner().getId()).stream()
+                .filter(item -> item.getProductProfile().getId().equals(product.getId()))
+                .filter(item -> item.getRequestedServiceModule() != null && item.getRequestedServiceModule().getId().equals(module.getId()))
+                .findFirst()
+                .orElseGet(RequirementIntake::new);
         requirement.setProductProfile(product);
         requirement.setRequestedServiceModule(module);
         requirement.setBusinessGoal("Move " + seed.name() + " to production-ready delivery with evidence, owners, and clear milestones.");
@@ -329,6 +334,26 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         requirement.setRequirementBrief(seed.summary());
         requirement.setStatus(RequirementIntake.RequirementStatus.SUBMITTED);
         return requirementRepository.save(requirement);
+    }
+
+    private PackageInstance upsertPackage(User owner, RequirementIntake requirement, ProductSeed seed, ServiceModule module) {
+        PackageInstance packageInstance = packageRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId()).stream()
+                .filter(item -> item.getProductProfile().getId().equals(requirement.getProductProfile().getId()))
+                .findFirst()
+                .orElse(null);
+        if (packageInstance == null) {
+            packageInstance = packageBuilderService.buildFromRequirement(owner, requirement.getId());
+        }
+        packageInstance.setOwner(owner);
+        packageInstance.setProductProfile(requirement.getProductProfile());
+        packageInstance.setRequirementIntake(requirement);
+        packageInstance.setName(seed.name() + " production package");
+        packageInstance.setSummary("Governed productization package for " + seed.name()
+                + ": " + module.getName()
+                + " with dependency-aware milestones, evidence checkpoints, team selection, and support handoff.");
+        requirement.setStatus(RequirementIntake.RequirementStatus.PACKAGE_RECOMMENDED);
+        requirementRepository.save(requirement);
+        return packageRepository.save(packageInstance);
     }
 
     private void tunePackageModules(PackageInstance packageInstance, int packageIndex) {
@@ -342,18 +367,28 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         for (int index = 0; index < modules.size(); index++) {
             PackageModule module = modules.get(index);
             module.setStatus(statuses[(index + packageIndex) % statuses.length]);
+            module.setRationale(index == 0
+                    ? "Primary service selected from the owner intake and product risk profile."
+                    : "Dependency required to make the package production-ready instead of a one-off task.");
+            module.setDeliverables(module.getServiceModule().getExpectedDeliverables()
+                    + " Evidence must include owner-readable notes, links to implementation artifacts, and pass/fail acceptance status.");
+            module.setAcceptanceCriteria(module.getServiceModule().getAcceptanceCriteria()
+                    + " The owner can approve, reject, or request changes from evidence in the workspace.");
             packageModuleRepository.save(module);
         }
     }
 
-    private QuoteProposal createProposal(PackageInstance packageInstance, Team team, User manager, int index) {
-        QuoteProposal proposal = new QuoteProposal();
+    private QuoteProposal upsertProposal(PackageInstance packageInstance, Team team, User manager, int index) {
+        QuoteProposal proposal = proposalRepository.findByPackageInstanceIdOrderByCreatedAtDesc(packageInstance.getId()).stream()
+                .filter(item -> item.getTeam().getId().equals(team.getId()))
+                .findFirst()
+                .orElseGet(QuoteProposal::new);
         proposal.setPackageInstance(packageInstance);
         proposal.setTeam(team);
         proposal.setSubmittedBy(manager);
         proposal.setTitle(team.getName() + " proposal for " + packageInstance.getProductProfile().getName());
-        proposal.setScope("Deliver package milestones with weekly evidence review and owner checkpoints.");
-        proposal.setAssumptions("Owner provides access to staging, repository, product analytics, and deployment accounts.");
+        proposal.setScope("Deliver the service package through milestone-based implementation, weekly evidence review, deployment checks, and owner approval gates.");
+        proposal.setAssumptions("Owner provides staging access, repository access, product analytics, deployment accounts, and one accountable decision owner per milestone.");
         proposal.setTimelineDays(42 + index * 7);
         proposal.setCurrency("USD");
         proposal.setFixedPriceCents(9000000L + index * 1800000L);
@@ -362,8 +397,22 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         return proposalRepository.save(proposal);
     }
 
-    private ProjectWorkspace createWorkspace(User owner, PackageInstance packageInstance, Team team, User specialist, User advisor, int index) {
-        ProjectWorkspace workspace = new ProjectWorkspace();
+    private void createShortlist(User owner, PackageInstance packageInstance, Team team, int index) {
+        TeamShortlist shortlist = shortlistRepository.findByOwnerIdAndPackageInstanceIdAndTeamId(owner.getId(), packageInstance.getId(), team.getId())
+                .orElseGet(TeamShortlist::new);
+        shortlist.setOwner(owner);
+        shortlist.setPackageInstance(packageInstance);
+        shortlist.setTeam(team);
+        shortlist.setStatus(index == 0 ? TeamShortlist.ShortlistStatus.REQUESTED_PROPOSAL : TeamShortlist.ShortlistStatus.ACTIVE);
+        shortlist.setNotes("Seeded from package fit, verified capability evidence, and delivery reputation.");
+        shortlistRepository.save(shortlist);
+    }
+
+    private ProjectWorkspace upsertWorkspace(User owner, PackageInstance packageInstance, Team team, User specialist, User advisor, int index) {
+        ProjectWorkspace workspace = workspaceRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId()).stream()
+                .filter(item -> item.getPackageInstance().getId().equals(packageInstance.getId()))
+                .findFirst()
+                .orElseGet(ProjectWorkspace::new);
         workspace.setOwner(owner);
         workspace.setPackageInstance(packageInstance);
         workspace.setName(packageInstance.getProductProfile().getName() + " delivery");
@@ -390,22 +439,27 @@ public class PlatformDemoSeedService implements ApplicationRunner {
                 Milestone.MilestoneStatus.PLANNED
         };
         LocalDate now = LocalDate.now();
+        Map<String, Milestone> existingMilestones = milestoneRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspace.getId()).stream()
+                .collect(Collectors.toMap(Milestone::getTitle, Function.identity(), (left, right) -> left));
         for (int index = 0; index < packageModules.size(); index++) {
             PackageModule packageModule = packageModules.get(index);
-            Milestone milestone = new Milestone();
+            Milestone milestone = existingMilestones.getOrDefault(packageModule.getServiceModule().getName(), new Milestone());
             milestone.setWorkspace(workspace);
             milestone.setTitle(packageModule.getServiceModule().getName());
             milestone.setDescription(packageModule.getDeliverables());
             milestone.setDueDate(now.plusDays(7L * (index + packageIndex + 1)));
             milestone.setStatus(statuses[(index + packageIndex) % statuses.length]);
             milestone = milestoneRepository.save(milestone);
-            createDeliverable(milestone, "Evidence pack", packageModule.getAcceptanceCriteria(), index);
-            createDeliverable(milestone, "Owner review notes", "Acceptance notes and decision log.", index + 1);
+            upsertDeliverable(milestone, "Evidence pack", packageModule.getAcceptanceCriteria(), index);
+            upsertDeliverable(milestone, "Owner review notes", "Acceptance notes, tradeoffs, and decision log for the milestone.", index + 1);
         }
     }
 
-    private void createDeliverable(Milestone milestone, String title, String evidence, int index) {
-        Deliverable deliverable = new Deliverable();
+    private void upsertDeliverable(Milestone milestone, String title, String evidence, int index) {
+        Deliverable deliverable = deliverableRepository.findByMilestoneIdOrderByCreatedAtAsc(milestone.getId()).stream()
+                .filter(item -> item.getTitle().equals(title))
+                .findFirst()
+                .orElseGet(Deliverable::new);
         deliverable.setMilestone(milestone);
         deliverable.setTitle(title);
         deliverable.setEvidence(evidence);
@@ -413,14 +467,16 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         deliverableRepository.save(deliverable);
     }
 
-    private void createSupport(User owner, User actor, Team team, ProjectWorkspace workspace, int index) {
-        SupportSubscription subscription = new SupportSubscription();
+    private void upsertSupport(User owner, User actor, Team team, ProjectWorkspace workspace, int index) {
+        SupportSubscription subscription = supportSubscriptionRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId()).stream()
+                .findFirst()
+                .orElseGet(SupportSubscription::new);
         subscription.setWorkspace(workspace);
         subscription.setOwner(owner);
         subscription.setTeam(team);
         subscription.setCreatedBy(actor);
-        subscription.setPlanName("Launch support");
-        subscription.setSla("Critical response in 4 business hours; weekly health report.");
+        subscription.setPlanName("Production launch support");
+        subscription.setSla("Critical response in 4 business hours; high priority response in 1 business day; weekly health report.");
         subscription.setMonthlyAmountCents(1200000L + index * 150000L);
         subscription.setCurrency("USD");
         subscription.setStartsOn(LocalDate.now().minusDays(3));
@@ -428,14 +484,16 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         subscription.setStatus(SupportSubscription.SubscriptionStatus.ACTIVE);
         subscription = supportSubscriptionRepository.save(subscription);
 
-        SupportRequest request = new SupportRequest();
+        SupportRequest request = supportRequestRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId()).stream()
+                .findFirst()
+                .orElseGet(SupportRequest::new);
         request.setWorkspace(workspace);
         request.setSupportSubscription(subscription);
         request.setTeam(team);
         request.setOwner(owner);
         request.setOpenedBy(owner);
         request.setTitle(index % 2 == 0 ? "Release blocker review" : "Evidence gap follow-up");
-        request.setDescription("Track support and delivery risks before the next owner checkpoint.");
+        request.setDescription("Track production-readiness risk before the next owner checkpoint, including evidence, owner decision, and response owner.");
         request.setPriority(index == 4 ? SupportRequest.SupportPriority.URGENT : SupportRequest.SupportPriority.HIGH);
         request.setStatus(index == 4 ? SupportRequest.SupportStatus.IN_PROGRESS : SupportRequest.SupportStatus.OPEN);
         request.setSlaStatus(index == 4 ? SupportRequest.SlaStatus.OVERDUE : SupportRequest.SlaStatus.ON_TRACK);
@@ -443,20 +501,27 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         supportRequestRepository.save(request);
     }
 
-    private void createReputation(User owner, Team team, ProjectWorkspace workspace, int index) {
-        TeamReputationEvent event = new TeamReputationEvent();
+    private void upsertReputation(User owner, Team team, ProjectWorkspace workspace, int index) {
+        TeamReputationEvent event = reputationRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId()).stream()
+                .filter(item -> item.getTeam().getId().equals(team.getId()))
+                .findFirst()
+                .orElseGet(TeamReputationEvent::new);
         event.setTeam(team);
         event.setWorkspace(workspace);
         event.setCreatedBy(owner);
         event.setEventType(TeamReputationEvent.ReputationEventType.WORKSPACE_REVIEW);
         event.setRating(Math.max(4, 5 - index % 2));
         event.setVerified(true);
-        event.setNotes("Owner-reviewed delivery evidence and response quality.");
+        event.setNotes("Owner-reviewed delivery evidence, milestone response quality, and production handoff discipline.");
         reputationRepository.save(event);
     }
 
     private void createRecommendation(User user, String type, String sourceEntityType, String sourceEntityId, String rationale) {
-        AIRecommendation recommendation = new AIRecommendation();
+        AIRecommendation recommendation = recommendationRepository.findBySourceEntityTypeAndSourceEntityIdOrderByCreatedAtDesc(sourceEntityType, sourceEntityId).stream()
+                .filter(item -> item.getCreatedBy().getId().equals(user.getId()))
+                .filter(item -> type.equals(item.getRecommendationType()))
+                .findFirst()
+                .orElseGet(AIRecommendation::new);
         recommendation.setCreatedBy(user);
         recommendation.setRecommendationType(type);
         recommendation.setSourceEntityType(sourceEntityType);
@@ -544,8 +609,11 @@ public class PlatformDemoSeedService implements ApplicationRunner {
             String slug,
             String name,
             String description,
+            String requiredInputs,
             String deliverables,
             String acceptanceCriteria,
+            String timelineRange,
+            String priceRange,
             int sortOrder
     ) {}
 

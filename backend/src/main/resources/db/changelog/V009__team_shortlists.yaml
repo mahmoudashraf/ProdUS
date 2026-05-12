@@ -1,0 +1,46 @@
+databaseChangeLog:
+  - changeSet:
+      id: 900
+      author: produs
+      changes:
+        - createTable:
+            tableName: team_shortlists
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: package_instance_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: team_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: notes, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: team_shortlists
+            columnNames: owner_id, package_instance_id, team_id
+            constraintName: uk_team_shortlists_owner_package_team
+        - createIndex:
+            tableName: team_shortlists
+            indexName: idx_team_shortlists_owner_package
+            columns:
+              - column:
+                  name: owner_id
+              - column:
+                  name: package_instance_id
+        - addForeignKeyConstraint:
+            baseTableName: team_shortlists
+            baseColumnNames: owner_id
+            constraintName: fk_team_shortlists_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: team_shortlists
+            baseColumnNames: package_instance_id
+            constraintName: fk_team_shortlists_package
+            referencedTableName: package_instances
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: team_shortlists
+            baseColumnNames: team_id
+            constraintName: fk_team_shortlists_team
+            referencedTableName: teams
+            referencedColumnNames: id

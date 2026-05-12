@@ -1,10 +1,16 @@
 import { Avatar,
+  Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
   ClickAwayListener,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
   InputAdornment,
   List,
@@ -16,10 +22,12 @@ import { Avatar,
   Popper,
   Stack,
   Switch,
+  TextField,
   Typography,
  } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { IconLogout, IconSearch, IconSettings, IconUser } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 // material-ui
@@ -33,6 +41,8 @@ import useAuth from 'hooks/useAuth';
 import useConfig from 'hooks/useConfig';
 import MainCard from 'ui-component/cards/MainCard';
 import Transitions from 'ui-component/extended/Transitions';
+import apiClient from '@/lib/api-client';
+import { User } from '@/types/auth';
 
 import UpgradePlanCard from './UpgradePlanCard';
 
@@ -44,6 +54,7 @@ const User1 = '/assets/images/users/user-round.svg';
 
 const ProfileSection = () => {
   const theme = useTheme();
+  const router = useRouter();
   const { borderRadius } = useConfig();
   // const navigate = useNavigate();
 
@@ -51,8 +62,12 @@ const ProfileSection = () => {
   const [value, setValue] = useState('');
   const [notification, setNotification] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const { logout, user } = useAuth();
+  const { logout, user, refreshUser } = useAuth();
   const [open, setOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileValues, setProfileValues] = useState({ firstName: '', lastName: '' });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState('');
   /**
    * anchorRef is used on different components and specifying one type leads to other components throwing an error
    * */
@@ -81,9 +96,9 @@ const ProfileSection = () => {
     setSelectedIndex(index);
     handleClose(event);
 
-    // if (route && route !== '') {
-    //     navigate(route);
-    // }
+    if (_route) {
+      router.push(_route);
+    }
   };
   const handleToggle = () => {
     setOpen(prevOpen => !prevOpen);
@@ -97,6 +112,42 @@ const ProfileSection = () => {
 
     prevOpen.current = open;
   }, [open]);
+
+  useEffect(() => {
+    setProfileValues({
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
+    });
+  }, [user?.firstName, user?.lastName]);
+
+  const openAccountSettings = (event: React.MouseEvent<HTMLDivElement>) => {
+    setSelectedIndex(0);
+    handleClose(event);
+    setProfileError('');
+    setSettingsOpen(true);
+  };
+
+  const saveAccountSettings = async () => {
+    if (!user) return;
+    setProfileSaving(true);
+    setProfileError('');
+    try {
+      const response = await apiClient.put<User>('/users/me', {
+        ...user,
+        firstName: profileValues.firstName.trim(),
+        lastName: profileValues.lastName.trim(),
+      });
+      if (typeof window !== 'undefined' && localStorage.getItem('mock_user')) {
+        localStorage.setItem('mock_user', JSON.stringify(response.data));
+      }
+      await refreshUser();
+      setSettingsOpen(false);
+    } catch (error: any) {
+      setProfileError(error?.response?.data?.message || error?.message || 'Unable to save account settings.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   return (
     <>
@@ -182,7 +233,7 @@ const ProfileSection = () => {
                             {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.email}
                           </Typography>
                         </Stack>
-                        <Typography variant="subtitle2">Project Admin</Typography>
+                        <Typography variant="subtitle2">{user?.role?.replaceAll('_', ' ') || 'Platform user'}</Typography>
                       </Stack>
                       <OutlinedInput
                         sx={{ width: '100%', pr: 1, pl: 2, my: 2 }}
@@ -277,9 +328,7 @@ const ProfileSection = () => {
                           <ListItemButton
                             sx={{ borderRadius: `${borderRadius}px` }}
                             selected={selectedIndex === 0}
-                            onClick={(event: React.MouseEvent<HTMLDivElement>) =>
-                              handleListItemClick(event, 0, '/dashboard')
-                            }
+                            onClick={openAccountSettings}
                           >
                             <ListItemIcon>
                               <IconSettings stroke={1.5} size="20px" />
@@ -348,6 +397,34 @@ const ProfileSection = () => {
           </ClickAwayListener>
         )}
       </Popper>
+      <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Account settings</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {profileError && <Alert severity="error">{profileError}</Alert>}
+            <TextField label="Email" value={user?.email || ''} disabled fullWidth />
+            <TextField
+              label="First name"
+              value={profileValues.firstName}
+              onChange={(event) => setProfileValues((current) => ({ ...current, firstName: event.target.value }))}
+              fullWidth
+            />
+            <TextField
+              label="Last name"
+              value={profileValues.lastName}
+              onChange={(event) => setProfileValues((current) => ({ ...current, lastName: event.target.value }))}
+              fullWidth
+            />
+            <TextField label="Role" value={user?.role?.replaceAll('_', ' ') || ''} disabled fullWidth />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSettingsOpen(false)} disabled={profileSaving}>Cancel</Button>
+          <Button variant="contained" onClick={saveAccountSettings} disabled={profileSaving || !user}>
+            Save changes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

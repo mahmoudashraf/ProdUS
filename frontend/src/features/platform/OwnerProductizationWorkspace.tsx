@@ -46,6 +46,7 @@ import {
   ServiceModule,
   SupportRequest,
   TeamRecommendation,
+  TeamShortlist,
 } from './types';
 
 interface ProductProfilePayload {
@@ -67,6 +68,13 @@ interface RequirementPayload {
   riskSignals: string;
   requirementBrief: string;
   status: RequirementIntake['status'];
+}
+
+interface ShortlistPayload {
+  packageInstanceId: string;
+  teamId: string;
+  status: TeamShortlist['status'];
+  notes: string;
 }
 
 const productInitialValues: ProductProfilePayload = {
@@ -203,6 +211,11 @@ export default function OwnerProductizationWorkspace() {
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<Milestone[]>(`/workspaces/${selectedWorkspace?.id}/milestones`),
   });
+  const shortlists = useQuery({
+    queryKey: ['shortlists', selectedPackage?.id],
+    enabled: !!selectedPackage?.id,
+    queryFn: () => getJson<TeamShortlist[]>(`/shortlists?packageId=${selectedPackage?.id}`),
+  });
 
   const createProduct = useMutation({
     mutationFn: () => postJson<ProductProfile, ProductProfilePayload>('/products', productForm.values),
@@ -247,8 +260,15 @@ export default function OwnerProductizationWorkspace() {
       await queryClient.invalidateQueries({ queryKey: ['commerce-proposals'] });
     },
   });
+  const upsertShortlist = useMutation({
+    mutationFn: (payload: ShortlistPayload) => postJson<TeamShortlist, ShortlistPayload>('/shortlists', payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['shortlists', selectedPackage?.id] });
+    },
+  });
 
   const productProposals = (proposals.data || []).filter((proposal) => proposal.packageInstance?.productProfile?.id === selectedProduct?.id);
+  const activeShortlists = (shortlists.data || []).filter((shortlist) => shortlist.status !== 'ARCHIVED');
   const productSupport = (supportRequests.data || []).filter(
     (request) => request.workspace?.packageInstance?.productProfile?.id === selectedProduct?.id
   );
@@ -269,11 +289,24 @@ export default function OwnerProductizationWorkspace() {
   });
 
   const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations].some((query) => query.isLoading);
-  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, packageModules, teamRecommendations, milestones].find((query) => query.error)?.error
+  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
     || createProduct.error
     || createRequirement.error
     || buildPackage.error
-    || acceptProposal.error;
+    || acceptProposal.error
+    || upsertShortlist.error;
+
+  const recordShortlist = (teamId: string, status: TeamShortlist['status']) => {
+    if (!selectedPackage?.id) return;
+    upsertShortlist.mutate({
+      packageInstanceId: selectedPackage.id,
+      teamId,
+      status,
+      notes: status === 'COMPARED'
+        ? 'Owner compared this team against package needs, evidence, and commercial readiness.'
+        : 'Owner shortlisted this team for productization package review.',
+    });
+  };
 
   return (
     <>
@@ -325,7 +358,7 @@ export default function OwnerProductizationWorkspace() {
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1.5, mt: 2.5 }}>
                 <MetricTile label="Intakes" value={selectedProductRequirements.length} detail="Requirement records" accent={appleColors.purple} icon={<FactCheckOutlined />} />
                 <MetricTile label="Package" value={selectedPackage ? formatLabel(selectedPackage.status) : 'Not built'} detail={selectedPackage?.name || 'Build from intake'} accent={statusAccent(selectedPackage?.status)} icon={<RocketLaunchOutlined />} />
-                <MetricTile label="Shortlist" value={teamRecommendations.data?.length || productProposals.length} detail="Verified team options" accent={appleColors.cyan} icon={<CompareArrowsOutlined />} />
+                <MetricTile label="Shortlist" value={activeShortlists.length || teamRecommendations.data?.length || productProposals.length} detail="Verified team options" accent={appleColors.cyan} icon={<CompareArrowsOutlined />} />
                 <MetricTile label="Blockers" value={blockedMilestones + productSupport.filter((request) => request.slaStatus === 'OVERDUE').length} detail="Milestones and support" accent={blockedMilestones ? appleColors.red : appleColors.green} icon={<CheckCircleOutlineOutlined />} />
               </Box>
             </Surface>
@@ -503,7 +536,22 @@ export default function OwnerProductizationWorkspace() {
                         {recommendation.reasons.slice(0, 3).map((reason) => <DotLabel key={reason} label={reason} color={appleColors.green} />)}
                       </Stack>
                       <Stack spacing={1}>
-                        <Button variant="outlined" size="small">Compare</Button>
+                        <Button
+                          variant={activeShortlists.some((item) => item.team.id === recommendation.team.id && item.status === 'COMPARED') ? 'contained' : 'outlined'}
+                          size="small"
+                          onClick={() => recordShortlist(recommendation.team.id, 'COMPARED')}
+                          disabled={upsertShortlist.isPending}
+                        >
+                          Compare
+                        </Button>
+                        <Button
+                          variant={activeShortlists.some((item) => item.team.id === recommendation.team.id) ? 'contained' : 'outlined'}
+                          size="small"
+                          onClick={() => recordShortlist(recommendation.team.id, 'ACTIVE')}
+                          disabled={upsertShortlist.isPending}
+                        >
+                          Shortlist
+                        </Button>
                         {proposal?.status === 'SUBMITTED' ? (
                           <Button variant="contained" size="small" onClick={() => acceptProposal.mutate(proposal.id)} disabled={acceptProposal.isPending}>
                             Accept

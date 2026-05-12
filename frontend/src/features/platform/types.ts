@@ -117,6 +117,14 @@ export interface TeamRecommendation {
   reasons: string[];
 }
 
+export interface TeamShortlist extends BaseRecord {
+  owner?: CurrentUserSummary;
+  packageInstance?: PackageInstance;
+  team: Team;
+  status: 'ACTIVE' | 'COMPARED' | 'REQUESTED_PROPOSAL' | 'ARCHIVED';
+  notes?: string;
+}
+
 export interface ProjectWorkspace extends BaseRecord {
   packageInstance?: PackageInstance;
   name: string;

@@ -22,6 +22,7 @@ import com.produs.packages.PackageModule;
 import com.produs.packages.TeamMatchService;
 import com.produs.product.ProductProfile;
 import com.produs.requirements.RequirementIntake;
+import com.produs.shortlist.TeamShortlist;
 import com.produs.teams.Team;
 import com.produs.teams.TeamCapability;
 import com.produs.teams.TeamMember;
@@ -168,6 +169,17 @@ public final class PlatformDtos {
             TeamResponse team,
             double score,
             List<String> reasons
+    ) {}
+
+    public record TeamShortlistResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            CurrentUserSummary owner,
+            PackageInstanceResponse packageInstance,
+            TeamResponse team,
+            TeamShortlist.ShortlistStatus status,
+            String notes
     ) {}
 
     public record ProjectWorkspaceResponse(
@@ -692,6 +704,22 @@ public final class PlatformDtos {
                 toTeamResponse(recommendation.team()),
                 recommendation.score(),
                 recommendation.reasons()
+        );
+    }
+
+    public static TeamShortlistResponse toTeamShortlistResponse(TeamShortlist shortlist) {
+        if (shortlist == null) {
+            return null;
+        }
+        return new TeamShortlistResponse(
+                shortlist.getId(),
+                shortlist.getCreatedAt(),
+                shortlist.getUpdatedAt(),
+                toCurrentUserSummary(shortlist.getOwner()),
+                toPackageInstanceResponse(shortlist.getPackageInstance()),
+                toTeamResponse(shortlist.getTeam()),
+                shortlist.getStatus(),
+                shortlist.getNotes()
         );
     }
 

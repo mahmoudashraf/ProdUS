@@ -13,7 +13,7 @@ import { Box, Button, LinearProgress, MenuItem, Stack, TextField, Typography } f
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
-import { getJson, postJson } from './api';
+import { getJson, postJson, putJson } from './api';
 import {
   DotLabel,
   EmptyState,
@@ -88,6 +88,7 @@ export default function TeamDeliveryWorkspace() {
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const supportRequests = useQuery({ queryKey: ['commerce-support-requests'], queryFn: () => getJson<SupportRequest[]>('/commerce/support-requests') });
   const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
   const [memberEmail, setMemberEmail] = useState('');
   const [memberRole, setMemberRole] = useState<TeamMember['role']>('SPECIALIST');
 
@@ -120,7 +121,7 @@ export default function TeamDeliveryWorkspace() {
     queryFn: () => getJson<TeamReputationEvent[]>(`/commerce/teams/${selectedTeam?.id}/reputation`),
     retry: false,
   });
-  const selectedWorkspace = activeWorkspaces[0];
+  const selectedWorkspace = activeWorkspaces.find((workspace) => workspace.id === selectedWorkspaceId) || activeWorkspaces[0];
   const milestones = useQuery({
     queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'],
     enabled: !!selectedWorkspace?.id,
@@ -139,6 +140,14 @@ export default function TeamDeliveryWorkspace() {
       await queryClient.invalidateQueries({ queryKey: ['teams', selectedTeam?.id, 'members'] });
     },
   });
+  const updateSupportRequest = useMutation({
+    mutationFn: ({ requestId, status, resolution }: { requestId: string; status: SupportRequest['status']; resolution?: string }) =>
+      putJson<SupportRequest, { status: SupportRequest['status']; resolution?: string }>(`/commerce/support-requests/${requestId}/status`, { status, ...(resolution ? { resolution } : {}) }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['commerce-support-requests'] });
+      await queryClient.invalidateQueries({ queryKey: ['notification-summary'] });
+    },
+  });
 
   const score = teamScore(selectedTeam, capabilities.data, reputation.data);
   const blockedWorkspaces = activeWorkspaces.filter((workspace) => workspace.status === 'BLOCKED').length;
@@ -148,7 +157,7 @@ export default function TeamDeliveryWorkspace() {
     : 'New';
 
   const loading = [teamsMine, proposals, workspaces, supportRequests, capabilities, members, reputation, milestones].some((query) => query.isLoading);
-  const error = [teamsMine, proposals, workspaces, supportRequests, capabilities, members, reputation, milestones].find((query) => query.error)?.error || addMember.error;
+  const error = [teamsMine, proposals, workspaces, supportRequests, capabilities, members, reputation, milestones].find((query) => query.error)?.error || addMember.error || updateSupportRequest.error;
 
   return (
     <>
@@ -240,7 +249,13 @@ export default function TeamDeliveryWorkspace() {
                       sx={{ height: 8, borderRadius: 999, bgcolor: '#edf1f7', '& .MuiLinearProgress-bar': { bgcolor: statusAccent(workspace.status), borderRadius: 999 } }}
                     />
                     <DotLabel label={formatLabel(workspace.status)} color={statusAccent(workspace.status)} />
-                    <Button size="small" variant="outlined">Open evidence</Button>
+                    <Button
+                      size="small"
+                      variant={selectedWorkspace?.id === workspace.id ? 'contained' : 'outlined'}
+                      onClick={() => setSelectedWorkspaceId(workspace.id)}
+                    >
+                      Open evidence
+                    </Button>
                   </Box>
                 ))}
               </Stack>
@@ -274,12 +289,34 @@ export default function TeamDeliveryWorkspace() {
               {teamSupport.length ? (
                 <Stack spacing={1.25}>
                   {teamSupport.slice(0, 5).map((request) => (
-                    <Stack key={request.id} direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
+                    <Stack key={request.id} direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'flex-start' }} justifyContent="space-between">
                       <Box>
                         <Typography variant="body2" sx={{ fontWeight: 900 }}>{request.title}</Typography>
                         <Typography variant="caption" color="text.secondary">{formatLabel(request.status)} · {formatLabel(request.slaStatus)}</Typography>
                       </Box>
-                      <PastelChip label={formatLabel(request.priority)} accent={statusAccent(request.priority)} />
+                      <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+                        <PastelChip label={formatLabel(request.priority)} accent={statusAccent(request.priority)} />
+                        {request.status === 'OPEN' && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => updateSupportRequest.mutate({ requestId: request.id, status: 'ACKNOWLEDGED' })}
+                            disabled={updateSupportRequest.isPending}
+                          >
+                            Acknowledge
+                          </Button>
+                        )}
+                        {request.status !== 'RESOLVED' && (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => updateSupportRequest.mutate({ requestId: request.id, status: 'RESOLVED', resolution: 'Resolved from delivery control after evidence review.' })}
+                            disabled={updateSupportRequest.isPending}
+                          >
+                            Resolve
+                          </Button>
+                        )}
+                      </Stack>
                     </Stack>
                   ))}
                 </Stack>
