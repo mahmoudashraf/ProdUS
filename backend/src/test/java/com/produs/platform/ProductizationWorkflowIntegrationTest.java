@@ -108,6 +108,44 @@ class ProductizationWorkflowIntegrationTest {
         PlatformCatalog catalog = saveCatalog();
         Team recommendedTeam = saveRecommendedTeam(teamManager, catalog);
 
+        mockMvc.perform(get("/api/catalog/dependencies").with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].sourceModule.id").value(catalog.launchReadiness().getId().toString()))
+                .andExpect(jsonPath("$[0].dependsOnModule.id").value(catalog.securityReview().getId().toString()));
+
+        mockMvc.perform(get("/api/catalog/dependencies")
+                        .with(auth(owner))
+                        .param("moduleId", catalog.launchReadiness().getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+
+        mockMvc.perform(post("/api/mcp/invocations")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "toolName": "produs.product.create",
+                                  "requestId": "mcp-test-request",
+                                  "targetType": "PRODUCT_PROFILE",
+                                  "targetId": "pending",
+                                  "inputHash": "sha256:test",
+                                  "status": "SUCCEEDED",
+                                  "backendStatus": 200
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.toolName").value("produs.product.create"))
+                .andExpect(jsonPath("$.role").value("PRODUCT_OWNER"));
+
+        mockMvc.perform(get("/api/mcp/invocations").with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].toolName").value("produs.product.create"));
+
+        mockMvc.perform(get("/api/mcp/invocations").with(auth(anotherOwner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+
         mockMvc.perform(post("/api/teams/{id}/members", recommendedTeam.getId())
                         .with(auth(teamManager))
                         .contentType(MediaType.APPLICATION_JSON)

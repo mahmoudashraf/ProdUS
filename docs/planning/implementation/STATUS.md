@@ -1,6 +1,6 @@
 # ProdUS Implementation Status
 
-Date: 2026-05-11
+Date: 2026-05-12
 
 ## Current Pass
 
@@ -58,6 +58,10 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - S3-compatible storage hardening for sanitized keys, configurable public URLs, missing-object handling, and Docker MinIO credential alignment.
 - HTTP exception handling now preserves controller-level `ResponseStatusException` codes instead of collapsing callback auth failures into 500 responses.
 - Local development auth now auto-seeds an admin mock session, stabilizes the mock auth provider boundary, and allows both `localhost` and `127.0.0.1` frontend origins.
+- Standalone TypeScript MCP gateway with authenticated Streamable HTTP `/mcp`, 8 resources, 6 prompts, and 23 backend-backed tools for owner, team, support/specialist, and admin workflows.
+- MCP mutating tools require explicit confirmation and reason fields, forward bearer auth/request IDs/idempotency keys, and persist redacted invocation audit rows through the backend.
+- Backend MCP invocation audit persistence, API access controls, Liquibase migration coverage, and catalog dependency reads needed by MCP catalog search.
+- Docker image and Compose readiness for the MCP gateway in dev/default/prod service definitions.
 
 ## Verification Results
 
@@ -98,6 +102,10 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 - Notification provider adapters: `mvn test`, `npm run type-check`, `npm test -- --runInBand`, and `npm run build` passed after adding audit-log and signed webhook senders, admin provider config visibility, and dashboard provider status UI.
 - Live notification provider adapter smoke: fresh dev backend/frontend plus a local signed webhook receiver created a mock package/workspace/support subscription, escalated an overdue support request, dispatched 4 webhook email deliveries, validated every webhook signature, recorded live provider message IDs, and served `/dashboard`.
 - Docker notification provider adapter readiness: `docker build -t produs-backend:local ./backend` and `docker build -t produs-frontend:local ./frontend` passed after the provider adapter slice.
+- MCP gateway tests/build/audit: `npm run type-check`, `npm test`, `npm run build`, and `npm audit --omit=dev` passed in `mcp-server`.
+- Backend MCP audit/migration tests: `mvn clean test` passed after adding `mcp_tool_invocations`, MCP audit APIs, and catalog dependency coverage.
+- MCP Docker/Compose readiness: `docker compose -f docker-compose.dev.yml config`, `docker compose -f docker-compose.yml config`, `docker compose -f docker-compose.prod.yml config`, `docker build -t produs-mcp-server:local ./mcp-server`, and `docker build -t produs-backend:local ./backend` passed.
+- Live MCP smoke: dev backend and MCP gateway accepted an owner mock token, listed 23 tools, ran catalog search with dependencies, created a product through MCP, and returned one successful audit row from `/api/mcp/invocations`.
 
 ## Notes
 
@@ -110,5 +118,5 @@ Goal: make the cleaned ProdUS baseline work end-to-end for the first productizat
 ## Remaining Production Hardening Queue
 
 - Pending production readiness plan: `docs/planning/implementation/2026-05-11-pending-production-readiness.md`.
-- MCP server AI integration plan: `docs/planning/implementation/2026-05-12-mcp-server-ai-integration.md`.
+- MCP server production host registration and observability follow-ups are tracked in `docs/planning/implementation/2026-05-12-mcp-server-ai-integration.md`.
 - Future production integrations can add provider-specific Stripe/Adyen and DocuSign/PandaDoc payload adapters plus vendor-specific email/push payload mappers on top of the signed notification webhook adapter.

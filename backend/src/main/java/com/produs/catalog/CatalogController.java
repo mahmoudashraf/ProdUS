@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -45,7 +46,17 @@ public class CatalogController {
     }
 
     @GetMapping("/dependencies")
-    public List<ServiceDependencyResponse> dependencies(@RequestParam UUID moduleId) {
+    public List<ServiceDependencyResponse> dependencies(@RequestParam(required = false) UUID moduleId) {
+        if (moduleId == null) {
+            return dependencyRepository.findAll().stream()
+                    .sorted(Comparator
+                            .comparing((ServiceDependency dependency) -> dependency.getSourceModule().getSortOrder())
+                            .thenComparing(dependency -> dependency.getSourceModule().getName())
+                            .thenComparing(dependency -> dependency.getDependsOnModule().getSortOrder())
+                            .thenComparing(dependency -> dependency.getDependsOnModule().getName()))
+                    .map(dependency -> toServiceDependencyResponse(dependency))
+                    .toList();
+        }
         return dependencyRepository.findBySourceModuleId(moduleId).stream()
                 .map(dependency -> toServiceDependencyResponse(dependency))
                 .toList();

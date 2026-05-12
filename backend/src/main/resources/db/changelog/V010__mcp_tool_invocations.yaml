@@ -1,0 +1,40 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1000
+      author: produs
+      changes:
+        - createTable:
+            tableName: mcp_tool_invocations
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: role, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: tool_name, type: VARCHAR(160), constraints: { nullable: false } }
+              - column: { name: request_id, type: VARCHAR(120) }
+              - column: { name: target_type, type: VARCHAR(120) }
+              - column: { name: target_id, type: VARCHAR(120) }
+              - column: { name: input_hash, type: VARCHAR(128) }
+              - column: { name: status, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: backend_status, type: INT }
+              - column: { name: error_summary, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: mcp_tool_invocations
+            baseColumnNames: user_id
+            constraintName: fk_mcp_tool_invocations_user
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: mcp_tool_invocations
+            indexName: idx_mcp_tool_invocations_user_created
+            columns:
+              - column: { name: user_id }
+              - column: { name: created_at }
+        - createIndex:
+            tableName: mcp_tool_invocations
+            indexName: idx_mcp_tool_invocations_tool_status
+            columns:
+              - column: { name: tool_name }
+              - column: { name: status }
+              - column: { name: created_at }

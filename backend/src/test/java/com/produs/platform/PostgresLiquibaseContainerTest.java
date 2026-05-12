@@ -63,6 +63,7 @@ class PostgresLiquibaseContainerTest {
         assertTableExists("platform_notifications");
         assertTableExists("support_requests");
         assertTableExists("notification_deliveries");
+        assertTableExists("mcp_tool_invocations");
         assertColumnExists("support_requests", "sla_status");
         assertColumnExists("support_requests", "escalation_count");
 

@@ -2,7 +2,29 @@
 
 Date: 2026-05-12
 
-Status: planned
+Status: implemented
+
+## Implementation Status
+
+Completed in this implementation slice:
+
+- Added a standalone TypeScript MCP gateway in `mcp-server/` with Streamable HTTP at `/mcp`.
+- Added authenticated bearer-token forwarding to the Spring Boot API with request ID and MCP request ID propagation.
+- Added 8 MCP resources, 6 MCP prompts, and 23 launch-critical MCP tools covering owner, team, specialist/support, and admin workflows.
+- Required `confirm: true` and a human-readable `reason` for every mutating MCP tool.
+- Added stable redacted input hashing for audit records so secrets and tokens are not stored in audit payloads.
+- Added backend MCP invocation persistence and APIs at `/api/mcp/invocations`.
+- Added Liquibase migration coverage for `mcp_tool_invocations`.
+- Added Dockerfile and Docker Compose service wiring for the MCP gateway across dev/default/prod compose files.
+- Fixed catalog dependency reads so MCP catalog search can request the full dependency graph or a module-specific graph.
+
+Remaining production-readiness work:
+
+- Register the deployed MCP endpoint with the selected AI host and configure production origin/host allowlists per environment.
+- Decide whether the AI host requires OAuth/OIDC MCP auth metadata in addition to bearer-token forwarding.
+- Add persistent backend idempotency records for high-impact repeated mutations such as proposal acceptance and workspace creation.
+- Add operational dashboards for MCP invocation rate, latency, forbidden attempts, and failed backend calls.
+- Add role-aware tool filtering at the MCP host layer where supported; backend authorization remains the enforcement boundary.
 
 ## Objective
 
@@ -400,3 +422,11 @@ Acceptance:
 - Mutating tool calls are confirmed, audited, idempotency-aware, and request-ID correlated.
 - Owner, team, specialist, advisor, and admin flows pass with mock users in local integration tests.
 - Production deployment path documents auth, origins, monitoring, rollback, and emergency disablement.
+
+## Verification Results
+
+- MCP gateway: `npm run type-check`, `npm test`, `npm run build`, and `npm audit --omit=dev` passed in `mcp-server`.
+- Backend: `mvn clean test` passed, including Liquibase validation for `mcp_tool_invocations` and MCP audit API coverage.
+- Docker Compose: `docker compose -f docker-compose.dev.yml config`, `docker compose -f docker-compose.yml config`, and `docker compose -f docker-compose.prod.yml config` passed.
+- Docker images: `docker build -t produs-mcp-server:local ./mcp-server` and `docker build -t produs-backend:local ./backend` passed.
+- Live MCP smoke: dev backend plus MCP gateway accepted an owner mock token, listed 23 MCP tools, executed `produs.catalog.search`, created a product through `produs.product.create`, and persisted a successful MCP audit row.
