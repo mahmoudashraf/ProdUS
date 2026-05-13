@@ -181,6 +181,14 @@ public class TeamController {
                 .toList();
     }
 
+    @GetMapping("/invitations/mine")
+    @PreAuthorize("isAuthenticated()")
+    public List<TeamInvitationResponse> myInvitations(@AuthenticationPrincipal User user) {
+        return teamInvitationRepository.findByEmailOrderByCreatedAtDesc(user.getEmail().trim().toLowerCase()).stream()
+                .map(invitation -> toTeamInvitationResponse(invitation))
+                .toList();
+    }
+
     @PostMapping("/{id}/invitations")
     @PreAuthorize("hasAnyRole('TEAM_MANAGER','SPECIALIST','ADMIN')")
     public TeamInvitationResponse invite(
@@ -202,9 +210,41 @@ public class TeamController {
         invitation.setMessage(request.message());
         invitation.setStatus(TeamInvitation.InvitationStatus.PENDING);
 
-        userRepository.findByEmail(email).ifPresent(user -> ensureMember(team, user, invitation.getRole()));
+        userRepository.findByEmail(email).ifPresent(user -> {
+            ensureMember(team, user, invitation.getRole());
+            invitation.setStatus(TeamInvitation.InvitationStatus.ACCEPTED);
+        });
 
         return toTeamInvitationResponse(teamInvitationRepository.save(invitation));
+    }
+
+    @PutMapping("/invitations/{invitationId}")
+    @PreAuthorize("isAuthenticated()")
+    public TeamInvitationResponse reviewInvitation(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID invitationId,
+            @Valid @RequestBody TeamInvitationReviewRequest request
+    ) {
+        TeamInvitation invitation = teamInvitationRepository.findById(invitationId)
+                .orElseThrow(() -> new IllegalArgumentException("Invitation not found"));
+
+        if (request.status() == TeamInvitation.InvitationStatus.CANCELLED) {
+            requireManagerOrAdmin(user, invitation.getTeam());
+            invitation.setStatus(TeamInvitation.InvitationStatus.CANCELLED);
+            return toTeamInvitationResponse(teamInvitationRepository.save(invitation));
+        }
+        if (request.status() == TeamInvitation.InvitationStatus.ACCEPTED) {
+            requireInvitationRecipient(user, invitation);
+            ensureMember(invitation.getTeam(), user, invitation.getRole());
+            invitation.setStatus(TeamInvitation.InvitationStatus.ACCEPTED);
+            return toTeamInvitationResponse(teamInvitationRepository.save(invitation));
+        }
+        if (request.status() == TeamInvitation.InvitationStatus.DECLINED) {
+            requireInvitationRecipient(user, invitation);
+            invitation.setStatus(TeamInvitation.InvitationStatus.DECLINED);
+            return toTeamInvitationResponse(teamInvitationRepository.save(invitation));
+        }
+        throw new IllegalArgumentException("Unsupported invitation status");
     }
 
     @GetMapping("/{id}/join-requests")
@@ -311,6 +351,13 @@ public class TeamController {
         throw new AccessDeniedException("Team belongs to another manager");
     }
 
+    private void requireInvitationRecipient(User user, TeamInvitation invitation) {
+        if (invitation.getEmail().equalsIgnoreCase(user.getEmail())) {
+            return;
+        }
+        throw new AccessDeniedException("Invitation belongs to another user");
+    }
+
     private void requireManagerAdminOrMember(User user, Team team) {
         if (user.getRole() == User.UserRole.ADMIN
                 || team.getManager().getId().equals(user.getId())
@@ -377,6 +424,10 @@ public class TeamController {
             String email,
             TeamMember.MemberRole role,
             String message
+    ) {}
+    public record TeamInvitationReviewRequest(
+            @NotNull(message = "Invitation status is required")
+            TeamInvitation.InvitationStatus status
     ) {}
     public record TeamJoinRequestCreateRequest(String message) {}
     public record TeamJoinRequestReviewRequest(

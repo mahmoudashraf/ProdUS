@@ -8,5 +8,6 @@ import java.util.UUID;
 
 public interface TeamInvitationRepository extends JpaRepository<TeamInvitation, UUID> {
     List<TeamInvitation> findByTeamIdOrderByCreatedAtDesc(UUID teamId);
+    List<TeamInvitation> findByEmailOrderByCreatedAtDesc(String email);
     Optional<TeamInvitation> findByTeamIdAndEmail(UUID teamId, String email);
 }

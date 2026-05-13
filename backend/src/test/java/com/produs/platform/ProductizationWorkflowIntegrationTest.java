@@ -278,7 +278,7 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].role").value("LEAD"));
 
-        mockMvc.perform(post("/api/teams/{id}/invitations", soloTeamId)
+        MvcResult invitationResult = mockMvc.perform(post("/api/teams/{id}/invitations", soloTeamId)
                         .with(auth(soloExpert))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -291,7 +291,51 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(invitedSpecialist.getEmail()))
                 .andExpect(jsonPath("$.role").value("QUALITY_REVIEWER"))
-                .andExpect(jsonPath("$.status").value("PENDING"));
+                .andExpect(jsonPath("$.status").value("ACCEPTED"))
+                .andReturn();
+        UUID invitationId = readId(invitationResult);
+
+        mockMvc.perform(get("/api/teams/invitations/mine").with(auth(invitedSpecialist)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].team.id").value(soloTeamId.toString()))
+                .andExpect(jsonPath("$[0].status").value("ACCEPTED"));
+
+        mockMvc.perform(put("/api/teams/invitations/{invitationId}", invitationId)
+                        .with(auth(invitedSpecialist))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "ACCEPTED"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACCEPTED"));
+
+        MvcResult pendingInvitationResult = mockMvc.perform(post("/api/teams/{id}/invitations", soloTeamId)
+                        .with(auth(soloExpert))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "future.reviewer@produs.test",
+                                  "role": "ADVISOR",
+                                  "message": "Join after account creation."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andReturn();
+        UUID pendingInvitationId = readId(pendingInvitationResult);
+
+        mockMvc.perform(put("/api/teams/invitations/{invitationId}", pendingInvitationId)
+                        .with(auth(soloExpert))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "CANCELLED"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
 
         mockMvc.perform(get("/api/teams/{id}/members", soloTeamId).with(auth(invitedSpecialist)))
                 .andExpect(status().isOk())
