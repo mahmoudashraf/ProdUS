@@ -1,5 +1,5 @@
-import ProductProfilesPage from '@/features/platform/ProductProfilesPage';
+import { redirect } from 'next/navigation';
 
 export default function Page() {
-  return <ProductProfilesPage />;
+  redirect('/products');
 }

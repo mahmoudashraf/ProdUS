@@ -9,10 +9,9 @@ import {
   LocalShippingOutlined,
   WarningAmberOutlined,
 } from '@mui/icons-material';
-import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAdvancedForm } from '@/hooks/enterprise';
-import { getJson, postJson } from './api';
+import { Box, Button, Stack, Typography } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
+import { getJson } from './api';
 import {
   DotLabel,
   EmptyState,
@@ -21,38 +20,14 @@ import {
   PastelChip,
   ProgressRing,
   QueryState,
-  SaveButton,
   SectionTitle,
   Surface,
-  TextInput,
   appleColors,
   categoryPalette,
   clampScore,
   formatLabel,
 } from './PlatformComponents';
 import { PackageInstance, ProductProfile } from './types';
-
-const stages: ProductProfile['businessStage'][] = ['IDEA', 'PROTOTYPE', 'VALIDATED', 'LIVE', 'SCALING'];
-
-interface ProductProfilePayload {
-  name: string;
-  summary: string;
-  businessStage: ProductProfile['businessStage'];
-  techStack: string;
-  productUrl: string;
-  repositoryUrl: string;
-  riskProfile: string;
-}
-
-const initialProfileValues: ProductProfilePayload = {
-  name: '',
-  summary: '',
-  businessStage: 'PROTOTYPE',
-  techStack: '',
-  productUrl: '',
-  repositoryUrl: '',
-  riskProfile: '',
-};
 
 const productScore = (profile: ProductProfile, packages: PackageInstance[]) => {
   const packageInstance = packages.find((item) => item.productProfile?.id === profile.id);
@@ -71,27 +46,8 @@ const statusForScore = (score: number) => {
 };
 
 export default function ProductProfilesPage() {
-  const queryClient = useQueryClient();
   const profiles = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
-  const form = useAdvancedForm<ProductProfilePayload>({
-    initialValues: initialProfileValues,
-    validationRules: {
-      name: [{ type: 'required', message: 'Product name is required' }],
-    },
-  });
-
-  const createProfile = useMutation({
-    mutationFn: () => postJson<ProductProfile, ProductProfilePayload>('/products', form.values),
-    onSuccess: async () => {
-      form.resetForm();
-      await queryClient.invalidateQueries({ queryKey: ['products'] });
-    },
-  });
-
-  const submit = form.handleSubmit(() => {
-    createProfile.mutate();
-  });
   const productList = profiles.data || [];
   const packageList = packages.data || [];
   const healthyCount = productList.filter((profile) => productScore(profile, packageList) >= 80).length;
@@ -114,7 +70,7 @@ export default function ProductProfilesPage() {
           </Stack>
         }
       />
-      <QueryState isLoading={profiles.isLoading || packages.isLoading} error={profiles.error || packages.error || createProfile.error} />
+      <QueryState isLoading={profiles.isLoading || packages.isLoading} error={profiles.error || packages.error} />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 330px' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
@@ -191,38 +147,25 @@ export default function ProductProfilesPage() {
                 })}
               </Stack>
             ) : (
-              <EmptyState label="Create a product profile to start requirement intake." />
+              <EmptyState label="Create a product profile to start productization." />
             )}
           </Surface>
         </Stack>
 
         <Stack spacing={2.5}>
-          <Surface>
-            <SectionTitle title="Add Product" action={<AddOutlined sx={{ color: appleColors.purple }} />} />
-            <Box component="form" onSubmit={submit}>
-              <Stack spacing={2}>
-                <TextInput label="Product name" value={form.values.name} onChange={(name) => form.setValue('name', name)} />
-                <TextInput label="Summary" value={form.values.summary} onChange={(summary) => form.setValue('summary', summary)} multiline />
-                <TextField
-                  select
-                  fullWidth
-                  label="Business stage"
-                  value={form.values.businessStage}
-                  onChange={(event) => form.setValue('businessStage', event.target.value as ProductProfile['businessStage'])}
-                >
-                  {stages.map((stage) => (
-                    <MenuItem key={stage} value={stage}>
-                      {formatLabel(stage)}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextInput label="Tech stack" value={form.values.techStack} onChange={(techStack) => form.setValue('techStack', techStack)} />
-                <TextInput label="Product URL" value={form.values.productUrl} onChange={(productUrl) => form.setValue('productUrl', productUrl)} />
-                <TextInput label="Repository URL" value={form.values.repositoryUrl} onChange={(repositoryUrl) => form.setValue('repositoryUrl', repositoryUrl)} />
-                <TextInput label="Known risks" value={form.values.riskProfile} onChange={(riskProfile) => form.setValue('riskProfile', riskProfile)} multiline />
-                <SaveButton disabled={!form.values.name || createProfile.isPending} label="Create profile" />
-              </Stack>
-            </Box>
+          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
+            <SectionTitle title="Next Product Action" action={<AddOutlined sx={{ color: appleColors.purple }} />} />
+            <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
+              Product setup now lives in one guided flow. Create the product, add context, then continue into its product-centered workspace.
+            </Typography>
+            <Stack spacing={1.25} sx={{ mt: 2 }}>
+              <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44 }}>
+                Create product
+              </Button>
+              <Button component={NextLink} href="/owner/project-cart" variant="outlined" sx={{ minHeight: 42 }}>
+                Review draft cart
+              </Button>
+            </Stack>
           </Surface>
           <Surface>
             <SectionTitle title="AI Portfolio Summary" />

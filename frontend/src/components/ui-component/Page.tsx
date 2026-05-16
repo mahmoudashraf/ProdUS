@@ -19,7 +19,7 @@ const Page = forwardRef<HTMLDivElement, Props>(
         <title>{`${title} | ProdUS Platform`}</title>
         <meta name="description" content="ProdUS productization collaboration platform" key="desc" />
         <meta property="og:title" content="ProdUS Platform" />
-        <meta property="og:description" content="Service catalog, package builder, teams, and product workspaces." />
+        <meta property="og:description" content="Service catalog, service plans, teams, and product workspaces." />
         {meta}
       </Head>
 

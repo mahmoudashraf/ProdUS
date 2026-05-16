@@ -310,11 +310,16 @@ Useful routes:
 ```text
 /                         Landing page.
 /dashboard                Role-aware dashboard.
-/catalog                  Service catalog.
-/owner/products           Owner product profiles.
+/catalog                  Service catalog alias.
+/services                 Lifecycle service catalog.
+/products                 Owner product profiles.
+/products/new             Guided product creation.
+/owner/project-cart       Draft cart for services and delivery talent.
 /owner/requirements       Requirement intake.
-/packages                 Package builder/details and commerce.
+/packages                 Service plan builder/details and commerce.
+/packages/new             Service plan creation entry point.
 /teams                    Team matching and team management.
+/solo-experts             Solo expert discovery and profiles.
 /workspaces               Unified workspace/delivery surface.
 /admin/catalog            Admin catalog management.
 /admin/recommendations    AI recommendation audit.
