@@ -1,20 +1,27 @@
 'use client';
 
+import NextLink from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AddOutlined,
+  AddShoppingCartOutlined,
   AutoAwesomeOutlined,
   CheckCircleOutlineOutlined,
   CompareArrowsOutlined,
+  DeleteOutlineOutlined,
   FactCheckOutlined,
+  GroupAddOutlined,
   Inventory2Outlined,
+  OpenInNewOutlined,
+  PersonAddAltOutlined,
   RocketLaunchOutlined,
   SendOutlined,
+  ShoppingCartOutlined,
 } from '@mui/icons-material';
-import { Box, Button, LinearProgress, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Divider, IconButton, LinearProgress, MenuItem, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
-import { getJson, postJson, putJson } from './api';
+import { deleteJson, getJson, postJson, putJson } from './api';
 import {
   DotLabel,
   EmptyState,
@@ -39,12 +46,16 @@ import {
   PackageInstance,
   PackageModule,
   ProductProfile,
+  ProductizationCart,
+  ProductizationCartConvertResponse,
   ProjectWorkspace,
   QuoteProposal,
   RequirementIntake,
   ServiceCategory,
   ServiceModule,
   SupportRequest,
+  ExpertProfile,
+  Team,
   TeamRecommendation,
   TeamShortlist,
 } from './types';
@@ -75,6 +86,28 @@ interface ShortlistPayload {
   teamId: string;
   status: TeamShortlist['status'];
   notes: string;
+}
+
+interface CartServicePayload {
+  serviceModuleId: string;
+  notes?: string;
+}
+
+interface CartUpdatePayload {
+  productProfileId?: string;
+  title?: string;
+  businessGoal?: string;
+}
+
+interface CartTalentPayload {
+  itemType: 'TEAM' | 'EXPERT';
+  teamId?: string;
+  expertProfileId?: string;
+  notes?: string;
+}
+
+interface CartConvertPayload {
+  projectName: string;
 }
 
 const productInitialValues: ProductProfilePayload = {
@@ -187,10 +220,15 @@ export default function OwnerProductizationWorkspace() {
   const proposals = useQuery({ queryKey: ['commerce-proposals'], queryFn: () => getJson<QuoteProposal[]>('/commerce/proposals') });
   const supportRequests = useQuery({ queryKey: ['commerce-support-requests'], queryFn: () => getJson<SupportRequest[]>('/commerce/support-requests') });
   const recommendations = useQuery({ queryKey: ['ai-recommendations'], queryFn: () => getJson<AIRecommendation[]>('/ai/recommendations') });
+  const teams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
+  const experts = useQuery({ queryKey: ['expert-profiles'], queryFn: () => getJson<ExpertProfile[]>('/expert-profiles') });
+  const cart = useQuery({ queryKey: ['productization-cart'], queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
 
   const [selectedProductId, setSelectedProductId] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [pendingRequirementId, setPendingRequirementId] = useState('');
+  const [projectName, setProjectName] = useState('');
+  const [cartNotice, setCartNotice] = useState('');
 
   const productForm = useAdvancedForm<ProductProfilePayload>({
     initialValues: productInitialValues,
@@ -310,6 +348,58 @@ export default function OwnerProductizationWorkspace() {
       await queryClient.invalidateQueries({ queryKey: ['shortlists', selectedPackage?.id] });
     },
   });
+  const updateCart = useMutation({
+    mutationFn: (payload: CartUpdatePayload) => putJson<ProductizationCart, CartUpdatePayload>('/productization-cart/current', payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
+  const addServiceToCart = useMutation({
+    mutationFn: (payload: CartServicePayload) => postJson<ProductizationCart, CartServicePayload>('/productization-cart/services', payload),
+    onSuccess: async () => {
+      setCartNotice('Service added to project cart.');
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
+  const removeServiceFromCart = useMutation({
+    mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
+    onSuccess: async () => {
+      setCartNotice('Service removed from project cart.');
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
+  const addTalentToCart = useMutation({
+    mutationFn: (payload: CartTalentPayload) => postJson<ProductizationCart, CartTalentPayload>('/productization-cart/talent', payload),
+    onSuccess: async () => {
+      setCartNotice('Delivery talent added to project cart.');
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
+  const removeTalentFromCart = useMutation({
+    mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/talent/${itemId}`),
+    onSuccess: async () => {
+      setCartNotice('Delivery talent removed from project cart.');
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
+  const convertCart = useMutation({
+    mutationFn: () =>
+      postJson<ProductizationCartConvertResponse, CartConvertPayload>('/productization-cart/convert', {
+        projectName: projectName || `${selectedProduct?.name || 'Product'} productization workspace`,
+      }),
+    onSuccess: async (result) => {
+      setCartNotice('Project workspace created. Open the workspace to manage milestones, evidence, and participants.');
+      setSelectedPackageId(result.packageInstance.id);
+      setProjectName('');
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+      await queryClient.invalidateQueries({ queryKey: ['packages'] });
+      await queryClient.invalidateQueries({ queryKey: ['requirements'] });
+      await queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      await queryClient.invalidateQueries({ queryKey: ['workspaces', result.workspace.id, 'milestones'] });
+      await queryClient.invalidateQueries({ queryKey: ['shortlists', result.packageInstance.id] });
+      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
+    },
+  });
 
   const productProposals = (proposals.data || []).filter((proposal) => proposal.packageInstance?.productProfile?.id === selectedProduct?.id);
   const activeShortlists = (shortlists.data || []).filter((shortlist) => shortlist.status !== 'ARCHIVED');
@@ -319,6 +409,11 @@ export default function OwnerProductizationWorkspace() {
   const recommendedServices = packageModules.data?.length
     ? packageModules.data.map((module) => module.serviceModule)
     : selectedProductRequirements.map((requirement) => requirement.requestedServiceModule).filter(Boolean) as ServiceModule[];
+  const cartServiceItems = cart.data?.serviceItems || [];
+  const cartTalentItems = cart.data?.talentItems || [];
+  const cartServiceIds = new Set(cartServiceItems.map((item) => item.serviceModule.id));
+  const suggestedTeams = (teams.data || []).slice(0, 3);
+  const suggestedExperts = (experts.data || []).filter((expert) => expert.active).slice(0, 3);
   const health = productHealth(selectedProduct, selectedPackage, packageModules.data);
   const blockedMilestones = (milestones.data || []).filter((milestone) => milestone.status === 'BLOCKED').length;
   const submittedRequirement = selectedProductRequirements.find((requirement) => requirement.status === 'SUBMITTED' || requirement.status === 'PACKAGE_RECOMMENDED');
@@ -332,13 +427,19 @@ export default function OwnerProductizationWorkspace() {
     }
   });
 
-  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations].some((query) => query.isLoading);
-  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
+  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart].some((query) => query.isLoading);
+  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
     || createProduct.error
     || createRequirement.error
     || buildPackage.error
     || acceptProposal.error
-    || upsertShortlist.error;
+    || upsertShortlist.error
+    || updateCart.error
+    || addServiceToCart.error
+    || removeServiceFromCart.error
+    || addTalentToCart.error
+    || removeTalentFromCart.error
+    || convertCart.error;
 
   const recordShortlist = (teamId: string, status: TeamShortlist['status']) => {
     if (!selectedPackage?.id) return;
@@ -352,11 +453,75 @@ export default function OwnerProductizationWorkspace() {
     });
   };
 
+  const addLifecycleService = (serviceModule: ServiceModule, categoryName?: string) => {
+    if (!selectedProduct?.id) return;
+    const businessGoal = `Add ${serviceModule.name} to ${selectedProduct.name} so the product can move toward production-ready delivery.`;
+    requirementForm.setValue('requestedServiceModuleId', serviceModule.id);
+    requirementForm.setValue('businessGoal', businessGoal);
+    if (cart.data?.productProfile?.id !== selectedProduct.id) {
+      updateCart.mutate({
+        productProfileId: selectedProduct.id,
+        title: `${selectedProduct.name} productization plan`,
+        businessGoal,
+      });
+    }
+    addServiceToCart.mutate({
+      serviceModuleId: serviceModule.id,
+      notes: categoryName ? `Owner selected from ${categoryName}.` : 'Owner selected from lifecycle services.',
+    });
+  };
+
+  const addRecommendationTeamToCart = (recommendation: TeamRecommendation) => {
+    addTalentToCart.mutate({
+      itemType: 'TEAM',
+      teamId: recommendation.team.id,
+      notes: `Owner saved team from package matching. Match score ${Math.round(recommendation.score * 100)}%.`,
+    });
+  };
+
+  const addTeamToCart = (team: Team) => {
+    addTalentToCart.mutate({
+      itemType: 'TEAM',
+      teamId: team.id,
+      notes: 'Owner saved team from productization workspace recommendations.',
+    });
+  };
+
+  const addExpertToCart = (expert: ExpertProfile) => {
+    addTalentToCart.mutate({
+      itemType: 'EXPERT',
+      expertProfileId: expert.id,
+      notes: 'Owner saved solo expert from productization workspace recommendations.',
+    });
+  };
+
+  const selectProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    const product = productList.find((item) => item.id === productId);
+    if (product) {
+      updateCart.mutate({
+        productProfileId: product.id,
+        title: `${product.name} productization plan`,
+        businessGoal: cart.data?.businessGoal || `Move ${product.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (selectedProduct?.id && cart.data?.status === 'DRAFT' && cart.data.productProfile?.id !== selectedProduct.id && !updateCart.isPending) {
+      updateCart.mutate({
+        productProfileId: selectedProduct.id,
+        title: `${selectedProduct.name} productization plan`,
+        businessGoal: cart.data?.businessGoal || `Move ${selectedProduct.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
+      });
+    }
+  }, [cart.data?.businessGoal, cart.data?.productProfile?.id, cart.data?.status, selectedProduct?.id]);
+
   return (
     <>
       <PageHeader
         title="Productization Workspace"
-        description="One product-centered command surface for lifecycle service selection, package creation, team comparison, proposal decisions, and delivery evidence."
+        description="One product-centered command surface for lifecycle service selection, project cart decisions, team comparison, and delivery evidence."
         action={
           productList.length ? (
             <TextField
@@ -364,7 +529,7 @@ export default function OwnerProductizationWorkspace() {
               size="small"
               label="Product"
               value={selectedProduct?.id || ''}
-              onChange={(event) => setSelectedProductId(event.target.value)}
+              onChange={(event) => selectProduct(event.target.value)}
               sx={{ minWidth: { xs: '100%', md: 300 } }}
             >
               {productList.map((product) => (
@@ -401,7 +566,7 @@ export default function OwnerProductizationWorkspace() {
               </Stack>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1.5, mt: 2.5 }}>
                 <MetricTile label="Intakes" value={selectedProductRequirements.length} detail="Requirement records" accent={appleColors.purple} icon={<FactCheckOutlined />} />
-                <MetricTile label="Package" value={selectedPackage ? formatLabel(selectedPackage.status) : 'Not built'} detail={selectedPackage?.name || 'Build from intake'} accent={statusAccent(selectedPackage?.status)} icon={<RocketLaunchOutlined />} />
+                <MetricTile label="Service plan" value={selectedPackage ? formatLabel(selectedPackage.status) : 'Not created'} detail={selectedPackage?.name || 'Create from brief or cart'} accent={statusAccent(selectedPackage?.status)} icon={<RocketLaunchOutlined />} />
                 <MetricTile label="Shortlist" value={activeShortlists.length || teamRecommendations.data?.length || productProposals.length} detail="Verified team options" accent={appleColors.cyan} icon={<CompareArrowsOutlined />} />
                 <MetricTile label="Blockers" value={blockedMilestones + productSupport.filter((request) => request.slaStatus === 'OVERDUE').length} detail="Milestones and support" accent={blockedMilestones ? appleColors.red : appleColors.green} icon={<CheckCircleOutlineOutlined />} />
               </Box>
@@ -416,8 +581,8 @@ export default function OwnerProductizationWorkspace() {
               {(categories.data || []).map((category, index) => {
                 const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
                 const categoryModules = (catalogModules.data || []).filter((module) => module.category?.id === category.id);
-                const selected = recommendedServices.some((module) => module.category?.id === category.id);
-                const firstModule = categoryModules[0];
+                const selected = recommendedServices.some((module) => module.category?.id === category.id)
+                  || categoryModules.some((module) => cartServiceIds.has(module.id));
 
                 return (
                   <Box
@@ -443,24 +608,67 @@ export default function OwnerProductizationWorkspace() {
                       <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
                         {category.description || 'Specialist service category.'}
                       </Typography>
-                      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                        {categoryModules.slice(0, 3).map((module) => (
-                          <PastelChip key={module.id} label={module.name} accent={palette.accent} bg={palette.bg} />
-                        ))}
+                      <Stack spacing={0.75}>
+                        {categoryModules.slice(0, 3).map((module) => {
+                          const cartItem = cartServiceItems.find((item) => item.serviceModule.id === module.id);
+                          const inCart = !!cartItem;
+                          return (
+                            <Box
+                              key={module.id}
+                              sx={{
+                                display: 'grid',
+                                gridTemplateColumns: 'minmax(0, 1fr) 38px',
+                                alignItems: 'center',
+                                gap: 0.75,
+                                minHeight: 42,
+                                px: 1,
+                                py: 0.75,
+                                borderRadius: 1,
+                                border: '1px solid',
+                                borderColor: inCart ? `${palette.accent}55` : '#e5edf7',
+                                bgcolor: inCart ? palette.bg : '#fff',
+                              }}
+                            >
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 850, color: appleColors.ink }} noWrap>
+                                  {module.name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" noWrap>
+                                  {module.timelineRange || module.priceRange || 'Lifecycle module'}
+                                </Typography>
+                              </Box>
+                              <Tooltip title={inCart ? 'Remove from project cart' : 'Add to project cart'}>
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    disabled={!selectedProduct || addServiceToCart.isPending || removeServiceFromCart.isPending}
+                                    onClick={() => {
+                                      if (cartItem) {
+                                        removeServiceFromCart.mutate(cartItem.id);
+                                      } else {
+                                        addLifecycleService(module, category.name);
+                                      }
+                                    }}
+                                    sx={{
+                                      width: 34,
+                                      height: 34,
+                                      borderRadius: 1,
+                                      color: inCart ? appleColors.red : palette.accent,
+                                      bgcolor: inCart ? '#fff7f8' : palette.bg,
+                                      border: '1px solid',
+                                      borderColor: inCart ? '#fecdd3' : `${palette.accent}24`,
+                                    }}
+                                  >
+                                    {inCart ? <DeleteOutlineOutlined fontSize="small" /> : <AddShoppingCartOutlined fontSize="small" />}
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            </Box>
+                          );
+                        })}
                       </Stack>
                     </Stack>
-                    <Button
-                      size="small"
-                      variant={requirementForm.values.requestedServiceModuleId === firstModule?.id ? 'contained' : 'outlined'}
-                      sx={{ mt: 2, alignSelf: 'flex-start' }}
-                      disabled={!firstModule || !selectedProduct}
-                      onClick={() => {
-                        requirementForm.setValue('requestedServiceModuleId', firstModule?.id || null);
-                        requirementForm.setValue('businessGoal', `Add ${category.name} to ${selectedProduct?.name || 'this product'} so it can move toward production readiness.`);
-                      }}
-                    >
-                      {selected ? 'In plan' : 'Select'}
-                    </Button>
+                    <DotLabel label={selected ? 'Selected for plan' : 'Available'} color={selected ? palette.accent : appleColors.muted} />
                   </Box>
                 );
               })}
@@ -487,7 +695,7 @@ export default function OwnerProductizationWorkspace() {
             </Surface>
 
             <Surface>
-              <SectionTitle title="Intake to Package" action={<PastelChip label={`${selectedProductRequirements.length} intakes`} accent={appleColors.blue} />} />
+              <SectionTitle title="Product Brief to Service Plan" action={<PastelChip label={`${selectedProductRequirements.length} intakes`} accent={appleColors.blue} />} />
               <Box component="form" onSubmit={submitRequirement} sx={{ mb: 2 }}>
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(210px, 1fr) minmax(240px, 1fr) 132px' }, gap: 1.25, alignItems: 'start' }}>
                   <TextField
@@ -558,13 +766,13 @@ export default function OwnerProductizationWorkspace() {
                       <Stack direction="row" spacing={1} alignItems="center" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} sx={{ minWidth: { md: 282 } }}>
                         <StatusChip label={requirement.status} />
                         <Button size="small" variant="contained" onClick={() => buildPackage.mutate(requirement.id)} disabled={buildPackage.isPending} sx={intakeActionButtonSx}>
-                          Build Package
+                          Create Plan
                         </Button>
                       </Stack>
                     </Box>
                   ))
                 ) : (
-                  <Typography variant="body2" color="text.secondary">Select a lifecycle service and submit an intake to generate a governed package.</Typography>
+                  <Typography variant="body2" color="text.secondary">Add lifecycle services to the cart, then submit a product brief or create the project workspace directly.</Typography>
                 )}
               </Stack>
             </Surface>
@@ -597,7 +805,7 @@ export default function OwnerProductizationWorkspace() {
                 </Box>
               </Stack>
             ) : (
-              <EmptyState label="No package exists for this product yet. Build one from a requirement intake." />
+              <EmptyState label="No service plan exists for this product yet. Create one from a product brief or convert the cart into a project workspace." />
             )}
           </Surface>
 
@@ -607,6 +815,7 @@ export default function OwnerProductizationWorkspace() {
               <Stack spacing={1.5}>
                 {teamRecommendations.data.slice(0, 4).map((recommendation, index) => {
                   const proposal = productProposals.find((item) => item.team.id === recommendation.team.id);
+                  const cartTeamItem = cartTalentItems.find((item) => item.team?.id === recommendation.team.id);
                   return (
                     <Box key={recommendation.team.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '82px 1.2fr 1.5fr auto' }, gap: 1.5, alignItems: 'center', py: 1.5, borderTop: index === 0 ? 0 : '1px solid', borderColor: 'divider' }}>
                       <ProgressRing value={Math.round(recommendation.score * 100)} size={72} color={appleColors.cyan} label="match" />
@@ -619,6 +828,21 @@ export default function OwnerProductizationWorkspace() {
                         {recommendation.reasons.slice(0, 3).map((reason) => <DotLabel key={reason} label={reason} color={appleColors.green} />)}
                       </Stack>
                       <Stack spacing={1}>
+                        <Button
+                          variant={cartTeamItem ? 'contained' : 'outlined'}
+                          size="small"
+                          startIcon={cartTeamItem ? <DeleteOutlineOutlined /> : <AddShoppingCartOutlined />}
+                          onClick={() => {
+                            if (cartTeamItem) {
+                              removeTalentFromCart.mutate(cartTeamItem.id);
+                            } else {
+                              addRecommendationTeamToCart(recommendation);
+                            }
+                          }}
+                          disabled={addTalentToCart.isPending || removeTalentFromCart.isPending}
+                        >
+                          {cartTeamItem ? 'Remove Team' : 'Add Team'}
+                        </Button>
                         <Button
                           variant={activeShortlists.some((item) => item.team.id === recommendation.team.id && item.status === 'COMPARED') ? 'contained' : 'outlined'}
                           size="small"
@@ -648,12 +872,182 @@ export default function OwnerProductizationWorkspace() {
                 })}
               </Stack>
             ) : (
-              <EmptyState label={selectedPackage ? 'No team recommendations available yet.' : 'Build a package before comparing specialist teams.'} />
+              <Stack spacing={1.5}>
+                <EmptyState label={selectedPackage ? 'No team recommendations available yet.' : 'Create a service plan to unlock ranked matches. You can still add promising teams or solo experts to the project cart now.'} />
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 1.5 }}>
+                  <Box>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                      <GroupAddOutlined sx={{ color: appleColors.cyan }} />
+                      <Typography sx={{ fontWeight: 900 }}>Teams to consider</Typography>
+                    </Stack>
+                    <Stack spacing={1}>
+                      {suggestedTeams.map((team) => {
+                        const cartTeamItem = cartTalentItems.find((item) => item.team?.id === team.id);
+                        return (
+                          <Stack key={team.id} direction="row" spacing={1} justifyContent="space-between" alignItems="center" sx={{ border: '1px solid', borderColor: appleColors.line, borderRadius: 1, p: 1 }}>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{team.name}</Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap>{team.headline || team.typicalProjectSize}</Typography>
+                            </Box>
+                            <IconButton
+                              size="small"
+                              onClick={() => cartTeamItem ? removeTalentFromCart.mutate(cartTeamItem.id) : addTeamToCart(team)}
+                              disabled={addTalentToCart.isPending || removeTalentFromCart.isPending}
+                              sx={{ borderRadius: 1, color: cartTeamItem ? appleColors.red : appleColors.cyan, bgcolor: cartTeamItem ? '#fff7f8' : '#e4f9fd' }}
+                            >
+                              {cartTeamItem ? <DeleteOutlineOutlined fontSize="small" /> : <AddShoppingCartOutlined fontSize="small" />}
+                            </IconButton>
+                          </Stack>
+                        );
+                      })}
+                    </Stack>
+                  </Box>
+                  <Box>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                      <PersonAddAltOutlined sx={{ color: appleColors.purple }} />
+                      <Typography sx={{ fontWeight: 900 }}>Solo experts</Typography>
+                    </Stack>
+                    <Stack spacing={1}>
+                      {suggestedExperts.map((expert) => {
+                        const cartExpertItem = cartTalentItems.find((item) => item.expertProfile?.id === expert.id);
+                        return (
+                          <Stack key={expert.id} direction="row" spacing={1} justifyContent="space-between" alignItems="center" sx={{ border: '1px solid', borderColor: appleColors.line, borderRadius: 1, p: 1 }}>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{expert.displayName}</Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap>{expert.headline || expert.skills}</Typography>
+                            </Box>
+                            <IconButton
+                              size="small"
+                              onClick={() => cartExpertItem ? removeTalentFromCart.mutate(cartExpertItem.id) : addExpertToCart(expert)}
+                              disabled={addTalentToCart.isPending || removeTalentFromCart.isPending}
+                              sx={{ borderRadius: 1, color: cartExpertItem ? appleColors.red : appleColors.purple, bgcolor: cartExpertItem ? '#fff7f8' : '#f1efff' }}
+                            >
+                              {cartExpertItem ? <DeleteOutlineOutlined fontSize="small" /> : <AddShoppingCartOutlined fontSize="small" />}
+                            </IconButton>
+                          </Stack>
+                        );
+                      })}
+                    </Stack>
+                  </Box>
+                </Box>
+              </Stack>
             )}
           </Surface>
         </Stack>
 
         <Stack spacing={2.5}>
+          <Surface>
+            <SectionTitle
+              title="Project Cart"
+              action={<ShoppingCartOutlined sx={{ color: appleColors.purple }} />}
+            />
+            <Stack spacing={1.5}>
+              {cartNotice && (
+                <Alert severity="success" onClose={() => setCartNotice('')} sx={{ borderRadius: 1 }}>
+                  {cartNotice}
+                </Alert>
+              )}
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  {selectedProduct ? `For ${selectedProduct.name}` : 'Select a product before project creation'}
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                  <PastelChip label={`${cart.data?.serviceItems.length || 0} services`} accent={appleColors.purple} />
+                  <PastelChip label={`${cart.data?.talentItems.length || 0} teams / experts`} accent={appleColors.cyan} bg="#e4f9fd" />
+                </Stack>
+              </Box>
+
+              {(cart.data?.serviceItems || []).length ? (
+                <Stack spacing={0.75}>
+                  {(cart.data?.serviceItems || []).map((item) => (
+                    <Stack
+                      key={item.id}
+                      direction="row"
+                      spacing={1}
+                      justifyContent="space-between"
+                      alignItems="center"
+                      sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>
+                          {item.serviceModule.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.serviceModule.category?.name || 'Lifecycle service'}
+                        </Typography>
+                      </Box>
+                      <Button
+                        size="small"
+                        variant="text"
+                        color="error"
+                        onClick={() => removeServiceFromCart.mutate(item.id)}
+                        disabled={removeServiceFromCart.isPending}
+                        sx={{ minHeight: 32, minWidth: 72 }}
+                      >
+                        Remove
+                      </Button>
+                    </Stack>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Use the add-to-cart buttons on lifecycle services to collect the work needed for this product.
+                </Typography>
+              )}
+
+              {(cart.data?.talentItems || []).length ? (
+                <Stack spacing={0.75}>
+                  {(cart.data?.talentItems || []).map((item) => (
+                    <Stack key={item.id} direction="row" spacing={1} justifyContent="space-between" alignItems="center" sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>
+                          {item.team?.name || item.expertProfile?.displayName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">{formatLabel(item.itemType)}</Typography>
+                      </Box>
+                      <IconButton
+                        size="small"
+                        onClick={() => removeTalentFromCart.mutate(item.id)}
+                        disabled={removeTalentFromCart.isPending}
+                        sx={{ width: 34, height: 34, borderRadius: 1, color: appleColors.red, bgcolor: '#fff7f8' }}
+                      >
+                        <DeleteOutlineOutlined fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Add matched teams here after the service plan exists, or from public profiles.
+                </Typography>
+              )}
+
+              <Divider />
+              <TextField
+                size="small"
+                label="Project workspace name"
+                value={projectName}
+                onChange={(event) => setProjectName(event.target.value)}
+                placeholder={selectedProduct ? `${selectedProduct.name} productization workspace` : 'Productization workspace'}
+              />
+
+              <Button
+                variant="contained"
+                startIcon={<RocketLaunchOutlined />}
+                disabled={!selectedProduct || !(cart.data?.serviceItems || []).length || convertCart.isPending}
+                onClick={() => convertCart.mutate()}
+                sx={{ minHeight: 44 }}
+              >
+                {convertCart.isPending ? 'Creating...' : 'Start Project Workspace'}
+              </Button>
+              {(selectedWorkspace || cart.data?.convertedWorkspace) && (
+                <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>
+                  Open Project Workspace
+                </Button>
+              )}
+            </Stack>
+          </Surface>
+
           <Surface>
             <SectionTitle title="AI Owner Brief" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
             <Stack direction="row" spacing={2} alignItems="center">
@@ -682,6 +1076,9 @@ export default function OwnerProductizationWorkspace() {
                     <StatusChip label={milestone.status} />
                   </Stack>
                 ))}
+                <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>
+                  Manage workspace
+                </Button>
               </Stack>
             ) : (
               <Typography variant="body2" color="text.secondary">A workspace appears after package handoff.</Typography>
@@ -710,12 +1107,12 @@ export default function OwnerProductizationWorkspace() {
           <Surface>
             <SectionTitle title="Next Decision" />
             <Stack spacing={1.25}>
-              {!selectedPackage && <DotLabel label="Build the service package" color={appleColors.amber} />}
+              {!selectedPackage && <DotLabel label="Create the service plan" color={appleColors.amber} />}
               {selectedPackage && !productProposals.some((proposal) => proposal.status === 'OWNER_ACCEPTED') && <DotLabel label="Compare and accept a team proposal" color={appleColors.purple} />}
               {selectedPackage && selectedWorkspace && <DotLabel label="Review milestone evidence" color={blockedMilestones ? appleColors.red : appleColors.green} />}
               {buildTargetRequirementId && !selectedPackage && (
                 <Button variant="contained" startIcon={<SendOutlined />} onClick={() => buildPackage.mutate(buildTargetRequirementId)} disabled={buildPackage.isPending}>
-                  Build package now
+                  Create service plan
                 </Button>
               )}
             </Stack>

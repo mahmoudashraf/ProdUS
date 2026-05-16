@@ -1,0 +1,110 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1200
+      author: produs
+      changes:
+        - createTable:
+            tableName: productization_carts
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: product_profile_id, type: UUID }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: business_goal, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: converted_package_id, type: UUID }
+              - column: { name: converted_workspace_id, type: UUID }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createTable:
+            tableName: productization_cart_service_items
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: cart_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: service_module_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: sequence_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: notes, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createTable:
+            tableName: productization_cart_talent_items
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: cart_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: item_type, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: team_id, type: UUID }
+              - column: { name: expert_profile_id, type: UUID }
+              - column: { name: notes, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: productization_cart_service_items
+            columnNames: cart_id, service_module_id
+            constraintName: uk_cart_service_items_cart_module
+        - createIndex:
+            tableName: productization_carts
+            indexName: idx_productization_carts_owner_status
+            columns:
+              - column: { name: owner_id }
+              - column: { name: status }
+              - column: { name: created_at }
+        - createIndex:
+            tableName: productization_cart_talent_items
+            indexName: idx_cart_talent_items_cart
+            columns:
+              - column: { name: cart_id }
+              - column: { name: created_at }
+        - addForeignKeyConstraint:
+            baseTableName: productization_carts
+            baseColumnNames: owner_id
+            constraintName: fk_productization_carts_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: productization_carts
+            baseColumnNames: product_profile_id
+            constraintName: fk_productization_carts_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: productization_carts
+            baseColumnNames: converted_package_id
+            constraintName: fk_productization_carts_package
+            referencedTableName: package_instances
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: productization_carts
+            baseColumnNames: converted_workspace_id
+            constraintName: fk_productization_carts_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: productization_cart_service_items
+            baseColumnNames: cart_id
+            constraintName: fk_cart_service_items_cart
+            referencedTableName: productization_carts
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: productization_cart_service_items
+            baseColumnNames: service_module_id
+            constraintName: fk_cart_service_items_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: productization_cart_talent_items
+            baseColumnNames: cart_id
+            constraintName: fk_cart_talent_items_cart
+            referencedTableName: productization_carts
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: productization_cart_talent_items
+            baseColumnNames: team_id
+            constraintName: fk_cart_talent_items_team
+            referencedTableName: teams
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: productization_cart_talent_items
+            baseColumnNames: expert_profile_id
+            constraintName: fk_cart_talent_items_expert
+            referencedTableName: expert_profiles
+            referencedColumnNames: id

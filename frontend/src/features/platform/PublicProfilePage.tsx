@@ -4,6 +4,7 @@ import NextLink from 'next/link';
 import { useParams } from 'next/navigation';
 import { ReactNode } from 'react';
 import {
+  AddShoppingCartOutlined,
   AutoAwesomeOutlined,
   LanguageOutlined,
   LaunchOutlined,
@@ -11,9 +12,9 @@ import {
   VerifiedOutlined,
 } from '@mui/icons-material';
 import { Avatar, Box, Button, Stack, Typography } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
-import { getJson } from './api';
+import { getJson, postJson } from './api';
 import {
   DotLabel,
   EmptyState,
@@ -28,7 +29,7 @@ import {
   categoryPalette,
   formatLabel,
 } from './PlatformComponents';
-import { ExpertProfile, Team, TeamCapability } from './types';
+import { ExpertProfile, ProductizationCart, Team, TeamCapability } from './types';
 
 type ProfileKind = 'team' | 'expert';
 
@@ -117,7 +118,21 @@ function ProfileHero({
   );
 }
 
-function TeamProfile({ team, capabilities, isLoggedIn }: { team: Team; capabilities: TeamCapability[]; isLoggedIn: boolean }) {
+function TeamProfile({
+  team,
+  capabilities,
+  isLoggedIn,
+  inCart,
+  onAddTeam,
+  isAdding,
+}: {
+  team: Team;
+  capabilities: TeamCapability[];
+  isLoggedIn: boolean;
+  inCart: boolean;
+  onAddTeam: () => void;
+  isAdding: boolean;
+}) {
   const tags = splitTags(team.capabilitiesSummary || team.description);
 
   return (
@@ -135,11 +150,23 @@ function TeamProfile({ team, capabilities, isLoggedIn }: { team: Team; capabilit
         badge={<StatusChip label={team.verificationStatus} />}
       >
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          <Button component={NextLink} href={isLoggedIn ? '/teams' : '/login'} variant="contained" sx={{ minHeight: 44, minWidth: 150 }}>
-            {isLoggedIn ? 'Open Matching' : 'Sign In To Shortlist'}
+          <Button
+            component={NextLink}
+            href={isLoggedIn ? '#' : '/login'}
+            variant="contained"
+            startIcon={<AddShoppingCartOutlined />}
+            disabled={isLoggedIn && isAdding}
+            onClick={(event) => {
+              if (!isLoggedIn) return;
+              event.preventDefault();
+              onAddTeam();
+            }}
+            sx={{ minHeight: 44, minWidth: 180 }}
+          >
+            {isLoggedIn ? (inCart ? 'In Project Cart' : 'Add Team To Cart') : 'Sign In To Add Team'}
           </Button>
-          <Button component={NextLink} href={isLoggedIn ? '/packages' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 150 }}>
-            Build Package
+          <Button component={NextLink} href={isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
+            {isLoggedIn ? 'Open Project Cart' : 'Sign In To Start'}
           </Button>
         </Stack>
       </ProfileHero>
@@ -235,7 +262,19 @@ function TeamProfile({ team, capabilities, isLoggedIn }: { team: Team; capabilit
   );
 }
 
-function ExpertProfileView({ expert, isLoggedIn }: { expert: ExpertProfile; isLoggedIn: boolean }) {
+function ExpertProfileView({
+  expert,
+  isLoggedIn,
+  inCart,
+  onAddExpert,
+  isAdding,
+}: {
+  expert: ExpertProfile;
+  isLoggedIn: boolean;
+  inCart: boolean;
+  onAddExpert: () => void;
+  isAdding: boolean;
+}) {
   const skills = splitTags(expert.skills);
 
   return (
@@ -253,8 +292,20 @@ function ExpertProfileView({ expert, isLoggedIn }: { expert: ExpertProfile; isLo
         badge={<StatusChip label={expert.availability} />}
       >
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          <Button component={NextLink} href={isLoggedIn ? '/teams' : '/login'} variant="contained" sx={{ minHeight: 44, minWidth: 150 }}>
-            {isLoggedIn ? 'Invite Expert' : 'Sign In To Invite'}
+          <Button
+            component={NextLink}
+            href={isLoggedIn ? '#' : '/login'}
+            variant="contained"
+            startIcon={<AddShoppingCartOutlined />}
+            disabled={isLoggedIn && isAdding}
+            onClick={(event) => {
+              if (!isLoggedIn) return;
+              event.preventDefault();
+              onAddExpert();
+            }}
+            sx={{ minHeight: 44, minWidth: 180 }}
+          >
+            {isLoggedIn ? (inCart ? 'In Project Cart' : 'Add Expert To Cart') : 'Sign In To Add Expert'}
           </Button>
           <Button component={NextLink} href="/solo-experts" variant="outlined" sx={{ minHeight: 44, minWidth: 150 }}>
             Browse Experts
@@ -304,8 +355,8 @@ function ExpertProfileView({ expert, isLoggedIn }: { expert: ExpertProfile; isLo
                   Portfolio
                 </Button>
               )}
-              <Button component={NextLink} href={isLoggedIn ? '/packages' : '/login'} variant="contained" startIcon={<RocketLaunchOutlined />} sx={{ minHeight: 42 }}>
-                Build Package
+              <Button component={NextLink} href={isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<RocketLaunchOutlined />} sx={{ minHeight: 42 }}>
+                {isLoggedIn ? 'Open Project Cart' : 'Sign In To Start'}
               </Button>
             </Stack>
           </Surface>
@@ -316,6 +367,7 @@ function ExpertProfileView({ expert, isLoggedIn }: { expert: ExpertProfile; isLo
 }
 
 export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
+  const queryClient = useQueryClient();
   const { isLoggedIn } = useAuth();
   const params = useParams<{ id: string }>();
   const id = params?.id || '';
@@ -335,17 +387,47 @@ export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
     enabled: kind === 'expert' && !!id,
     queryFn: () => getJson<ExpertProfile>(`/expert-profiles/${id}`),
   });
+  const cart = useQuery({ queryKey: ['productization-cart'], enabled: isLoggedIn, queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
+  const addTeamToCart = useMutation({
+    mutationFn: (payload: { teamId: string; notes: string }) => postJson<ProductizationCart, { itemType: 'TEAM'; teamId: string; notes: string }>('/productization-cart/talent', { itemType: 'TEAM', ...payload }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
+  const addExpertToCart = useMutation({
+    mutationFn: (payload: { expertProfileId: string; notes: string }) => postJson<ProductizationCart, { itemType: 'EXPERT'; expertProfileId: string; notes: string }>('/productization-cart/talent', { itemType: 'EXPERT', ...payload }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
 
   const isLoading = kind === 'team' ? team.isLoading || capabilities.isLoading : expert.isLoading;
-  const error = kind === 'team' ? team.error || capabilities.error : expert.error;
+  const error = (kind === 'team' ? team.error || capabilities.error : expert.error) || cart.error || addTeamToCart.error || addExpertToCart.error;
+  const cartTeamIds = new Set((cart.data?.talentItems || []).map((item) => item.team?.id).filter(Boolean) as string[]);
+  const cartExpertIds = new Set((cart.data?.talentItems || []).map((item) => item.expertProfile?.id).filter(Boolean) as string[]);
 
   return (
     <>
       <QueryState isLoading={isLoading} error={error} />
       {kind === 'team' && team.data && (
-        <TeamProfile team={team.data} capabilities={capabilities.data || []} isLoggedIn={isLoggedIn} />
+        <TeamProfile
+          team={team.data}
+          capabilities={capabilities.data || []}
+          isLoggedIn={isLoggedIn}
+          inCart={cartTeamIds.has(team.data.id)}
+          isAdding={addTeamToCart.isPending}
+          onAddTeam={() => addTeamToCart.mutate({ teamId: team.data.id, notes: 'Owner saved team from public profile.' })}
+        />
       )}
-      {kind === 'expert' && expert.data && <ExpertProfileView expert={expert.data} isLoggedIn={isLoggedIn} />}
+      {kind === 'expert' && expert.data && (
+        <ExpertProfileView
+          expert={expert.data}
+          isLoggedIn={isLoggedIn}
+          inCart={cartExpertIds.has(expert.data.id)}
+          isAdding={addExpertToCart.isPending}
+          onAddExpert={() => addExpertToCart.mutate({ expertProfileId: expert.data.id, notes: 'Owner saved solo expert from public profile.' })}
+        />
+      )}
       {!isLoading && !team.data && !expert.data && !error && (
         <EmptyState label="This public profile is not available." />
       )}
@@ -355,7 +437,7 @@ export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
             <AutoAwesomeOutlined sx={{ color: appleColors.purple }} />
             <Box>
               <Typography variant="h4">Need a governed production path?</Typography>
-              <Typography color="text.secondary">Compare profiles, shortlist delivery partners, and run the package workflow after sign in.</Typography>
+              <Typography color="text.secondary">Compare profiles, save delivery partners to the project cart, and open a governed workspace after sign in.</Typography>
             </Box>
           </Stack>
           <Button component={NextLink} href={isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<VerifiedOutlined />} sx={{ minHeight: 44, minWidth: 160 }}>

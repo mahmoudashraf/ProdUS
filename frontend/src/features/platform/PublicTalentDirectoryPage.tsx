@@ -2,6 +2,7 @@
 
 import NextLink from 'next/link';
 import {
+  AddShoppingCartOutlined,
   AutoAwesomeOutlined,
   GroupsOutlined,
   PersonSearchOutlined,
@@ -9,9 +10,9 @@ import {
   VerifiedOutlined,
 } from '@mui/icons-material';
 import { Avatar, Box, Button, Stack, Typography } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
-import { getJson } from './api';
+import { getJson, postJson } from './api';
 import {
   DotLabel,
   EmptyState,
@@ -26,7 +27,7 @@ import {
   categoryPalette,
   formatLabel,
 } from './PlatformComponents';
-import { ExpertProfile, ServiceCategory, ServiceModule, Team } from './types';
+import { ExpertProfile, ProductizationCart, ServiceCategory, ServiceModule, Team } from './types';
 
 type DirectoryView = 'directory' | 'experts';
 
@@ -55,7 +56,19 @@ const availabilityColor = (availability: ExpertProfile['availability']) => {
   return appleColors.muted;
 };
 
-function PublicTeamCard({ team, isLoggedIn }: { team: Team; isLoggedIn: boolean }) {
+function PublicTeamCard({
+  team,
+  isLoggedIn,
+  inCart,
+  onAdd,
+  isAdding,
+}: {
+  team: Team;
+  isLoggedIn: boolean;
+  inCart: boolean;
+  onAdd: () => void;
+  isAdding: boolean;
+}) {
   const tags = splitTags(team.capabilitiesSummary || team.description).slice(0, 5);
 
   return (
@@ -113,12 +126,19 @@ function PublicTeamCard({ team, isLoggedIn }: { team: Team; isLoggedIn: boolean 
           </Button>
           <Button
             component={NextLink}
-            href={isLoggedIn ? '/teams' : '/login'}
+            href={isLoggedIn ? '#' : '/login'}
             variant="contained"
             fullWidth
+            startIcon={<AddShoppingCartOutlined />}
+            disabled={isLoggedIn && isAdding}
+            onClick={(event) => {
+              if (!isLoggedIn) return;
+              event.preventDefault();
+              onAdd();
+            }}
             sx={{ minHeight: 42 }}
           >
-            {isLoggedIn ? 'Open Matching' : 'Sign In To Shortlist'}
+            {isLoggedIn ? (inCart ? 'In Project Cart' : 'Add Team To Cart') : 'Sign In To Add Team'}
           </Button>
         </Stack>
       </Stack>
@@ -126,7 +146,19 @@ function PublicTeamCard({ team, isLoggedIn }: { team: Team; isLoggedIn: boolean 
   );
 }
 
-function ExpertCard({ expert, isLoggedIn }: { expert: ExpertProfile; isLoggedIn: boolean }) {
+function ExpertCard({
+  expert,
+  isLoggedIn,
+  inCart,
+  onAdd,
+  isAdding,
+}: {
+  expert: ExpertProfile;
+  isLoggedIn: boolean;
+  inCart: boolean;
+  onAdd: () => void;
+  isAdding: boolean;
+}) {
   const skills = splitTags(expert.skills).slice(0, 5);
   const accent = availabilityColor(expert.availability);
 
@@ -184,12 +216,19 @@ function ExpertCard({ expert, isLoggedIn }: { expert: ExpertProfile; isLoggedIn:
           </Button>
           <Button
             component={NextLink}
-            href={isLoggedIn ? '/teams' : '/login'}
+            href={isLoggedIn ? '#' : '/login'}
             variant="contained"
             fullWidth
+            startIcon={<AddShoppingCartOutlined />}
+            disabled={isLoggedIn && isAdding}
+            onClick={(event) => {
+              if (!isLoggedIn) return;
+              event.preventDefault();
+              onAdd();
+            }}
             sx={{ minHeight: 42 }}
           >
-            {isLoggedIn ? 'Invite Expert' : 'Sign In To Invite'}
+            {isLoggedIn ? (inCart ? 'In Project Cart' : 'Add Expert To Cart') : 'Sign In To Add Expert'}
           </Button>
         </Stack>
       </Stack>
@@ -254,17 +293,33 @@ function ServiceStrip({ categories, modules }: { categories: ServiceCategory[]; 
 }
 
 export default function PublicTalentDirectoryPage({ view = 'directory' }: { view?: DirectoryView }) {
+  const queryClient = useQueryClient();
   const { isLoggedIn } = useAuth();
   const teams = useQuery({ queryKey: ['public-teams'], queryFn: () => getJson<Team[]>('/teams') });
   const experts = useQuery({ queryKey: ['public-expert-profiles'], queryFn: () => getJson<ExpertProfile[]>('/expert-profiles') });
   const categories = useQuery({ queryKey: ['public-catalog-categories'], queryFn: () => getJson<ServiceCategory[]>('/catalog/categories') });
   const modules = useQuery({ queryKey: ['public-catalog-modules'], queryFn: () => getJson<ServiceModule[]>('/catalog/modules') });
+  const cart = useQuery({ queryKey: ['productization-cart'], enabled: isLoggedIn, queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
+  const addTeamToCart = useMutation({
+    mutationFn: (payload: { teamId: string; notes: string }) => postJson<ProductizationCart, { itemType: 'TEAM'; teamId: string; notes: string }>('/productization-cart/talent', { itemType: 'TEAM', ...payload }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
+  const addExpertToCart = useMutation({
+    mutationFn: (payload: { expertProfileId: string; notes: string }) => postJson<ProductizationCart, { itemType: 'EXPERT'; expertProfileId: string; notes: string }>('/productization-cart/talent', { itemType: 'EXPERT', ...payload }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
 
   const teamList = teams.data || [];
   const soloExperts = (experts.data || []).filter((expert) => expert.soloMode && expert.active);
   const categoryList = (categories.data || []).filter((category) => category.active);
   const moduleList = (modules.data || []).filter((module) => module.active);
   const showingExpertsOnly = view === 'experts';
+  const cartTeamIds = new Set((cart.data?.talentItems || []).map((item) => item.team?.id).filter(Boolean) as string[]);
+  const cartExpertIds = new Set((cart.data?.talentItems || []).map((item) => item.expertProfile?.id).filter(Boolean) as string[]);
 
   return (
     <Stack spacing={3}>
@@ -286,7 +341,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
               variant="contained"
               sx={{ minHeight: 42, minWidth: 130 }}
             >
-              Start Package
+              {isLoggedIn ? 'Open Project Cart' : 'Sign In To Start'}
             </Button>
           </Stack>
         }
@@ -352,7 +407,14 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
               }}
             >
               {teamList.map((team) => (
-                <PublicTeamCard key={team.id} team={team} isLoggedIn={isLoggedIn} />
+                <PublicTeamCard
+                  key={team.id}
+                  team={team}
+                  isLoggedIn={isLoggedIn}
+                  inCart={cartTeamIds.has(team.id)}
+                  isAdding={addTeamToCart.isPending}
+                  onAdd={() => addTeamToCart.mutate({ teamId: team.id, notes: 'Owner saved team from public directory.' })}
+                />
               ))}
             </Box>
           ) : (
@@ -381,7 +443,14 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
             }}
           >
             {soloExperts.map((expert) => (
-              <ExpertCard key={expert.id} expert={expert} isLoggedIn={isLoggedIn} />
+              <ExpertCard
+                key={expert.id}
+                expert={expert}
+                isLoggedIn={isLoggedIn}
+                inCart={cartExpertIds.has(expert.id)}
+                isAdding={addExpertToCart.isPending}
+                onAdd={() => addExpertToCart.mutate({ expertProfileId: expert.id, notes: 'Owner saved solo expert from public directory.' })}
+              />
             ))}
           </Box>
         ) : (
@@ -398,7 +467,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
             <Box>
               <Typography variant="h4">Ready to turn discovery into a governed package?</Typography>
               <Typography color="text.secondary">
-                Sign in to create a product brief, shortlist teams, compare experts, and track decisions from one workspace.
+                Sign in to create a product brief, save teams and experts to a project cart, and track decisions from one workspace.
               </Typography>
             </Box>
           </Stack>

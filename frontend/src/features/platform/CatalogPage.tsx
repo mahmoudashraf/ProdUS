@@ -2,6 +2,7 @@
 
 import NextLink from 'next/link';
 import {
+  AddShoppingCartOutlined,
   CloudQueueOutlined,
   CodeOutlined,
   HeadsetMicOutlined,
@@ -12,20 +13,19 @@ import {
   TrendingUpOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
-import { getJson } from './api';
+import { getJson, postJson } from './api';
 import {
   DotLabel,
   EmptyState,
   PageHeader,
-  PastelChip,
   QueryState,
   Surface,
   appleColors,
   categoryPalette,
 } from './PlatformComponents';
-import { ServiceCategory, ServiceModule } from './types';
+import { ProductizationCart, ServiceCategory, ServiceModule } from './types';
 
 const iconBySlug = {
   validation: TaskAltOutlined,
@@ -58,6 +58,7 @@ const shortModuleName = (name: string) =>
     .replace(' and ', ' & ');
 
 export default function CatalogPage() {
+  const queryClient = useQueryClient();
   const { isLoggedIn } = useAuth();
   const categories = useQuery({
     queryKey: ['catalog-categories'],
@@ -66,6 +67,17 @@ export default function CatalogPage() {
   const modules = useQuery({
     queryKey: ['catalog-modules'],
     queryFn: () => getJson<ServiceModule[]>('/catalog/modules'),
+  });
+  const cart = useQuery({
+    queryKey: ['productization-cart'],
+    enabled: isLoggedIn,
+    queryFn: () => getJson<ProductizationCart>('/productization-cart/current'),
+  });
+  const addServiceToCart = useMutation({
+    mutationFn: (payload: { serviceModuleId: string; notes: string }) => postJson<ProductizationCart, { serviceModuleId: string; notes: string }>('/productization-cart/services', payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
   });
 
   const modulesByCategory = (modules.data || []).reduce<Record<string, ServiceModule[]>>((grouped, module) => {
@@ -76,6 +88,7 @@ export default function CatalogPage() {
   const catalogCategories = (categories.data || []).filter(
     (category) => category.slug.trim().length > 2 && category.name.trim().length > 2
   );
+  const cartServiceIds = new Set((cart.data?.serviceItems || []).map((item) => item.serviceModule.id));
 
   return (
     <>
@@ -85,11 +98,11 @@ export default function CatalogPage() {
         action={
           <Button
             component={NextLink}
-            href={isLoggedIn ? '/packages' : '/login'}
+            href={isLoggedIn ? '/dashboard' : '/login'}
             variant="contained"
             sx={{ minHeight: 42, minWidth: 140 }}
           >
-            Build Package
+            {isLoggedIn ? 'Open Project Cart' : 'Sign In To Start'}
           </Button>
         }
       />
@@ -144,15 +157,44 @@ export default function CatalogPage() {
                         {category.description || 'Production readiness workstream.'}
                       </Typography>
                     </Box>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                      {categoryModules.slice(0, 4).map((module) => (
-                        <PastelChip
-                          key={module.id}
-                          label={shortModuleName(module.name)}
-                          accent={palette.accent}
-                          bg={palette.bg}
-                        />
-                      ))}
+                    <Stack spacing={0.75}>
+                      {categoryModules.slice(0, 4).map((module) => {
+                        const inCart = cartServiceIds.has(module.id);
+                        return (
+                          <Button
+                            key={module.id}
+                            component={NextLink}
+                            href={isLoggedIn ? '#' : '/login'}
+                            type="button"
+                            variant={inCart ? 'contained' : 'outlined'}
+                            size="small"
+                            startIcon={<AddShoppingCartOutlined />}
+                            disabled={isLoggedIn && addServiceToCart.isPending}
+                            onClick={(event) => {
+                              if (!isLoggedIn) return;
+                              event.preventDefault();
+                              addServiceToCart.mutate({
+                                serviceModuleId: module.id,
+                                notes: `Saved from ${category.name} service catalog.`,
+                              });
+                            }}
+                            sx={{
+                              justifyContent: 'flex-start',
+                              minHeight: 36,
+                              textTransform: 'none',
+                              color: inCart ? '#fff' : palette.accent,
+                              borderColor: `${palette.accent}55`,
+                              bgcolor: inCart ? palette.accent : '#fff',
+                              '&:hover': {
+                                borderColor: palette.accent,
+                                bgcolor: inCart ? palette.accent : palette.bg,
+                              },
+                            }}
+                          >
+                            {isLoggedIn ? (inCart ? 'In cart' : 'Add to project cart') : 'Sign in to add'} · {shortModuleName(module.name)}
+                          </Button>
+                        );
+                      })}
                     </Stack>
                     <DotLabel label={demand.label} color={demand.color} />
                   </Stack>

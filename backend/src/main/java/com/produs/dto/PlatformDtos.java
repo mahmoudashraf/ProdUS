@@ -2,6 +2,9 @@ package com.produs.dto;
 
 import com.produs.ai.AIRecommendation;
 import com.produs.attachments.EvidenceAttachment;
+import com.produs.cart.ProductizationCart;
+import com.produs.cart.ProductizationCartServiceItem;
+import com.produs.cart.ProductizationCartTalentItem;
 import com.produs.catalog.ServiceCategory;
 import com.produs.catalog.ServiceDependency;
 import com.produs.catalog.ServiceModule;
@@ -223,6 +226,46 @@ public final class PlatformDtos {
             TeamResponse team,
             double score,
             List<String> reasons
+    ) {}
+
+    public record ProductizationCartServiceItemResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            ServiceModuleResponse serviceModule,
+            Integer sequenceOrder,
+            String notes
+    ) {}
+
+    public record ProductizationCartTalentItemResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            ProductizationCartTalentItem.TalentItemType itemType,
+            TeamResponse team,
+            ExpertProfileResponse expertProfile,
+            String notes
+    ) {}
+
+    public record ProductizationCartResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            CurrentUserSummary owner,
+            ProductProfileResponse productProfile,
+            String title,
+            String businessGoal,
+            ProductizationCart.CartStatus status,
+            List<ProductizationCartServiceItemResponse> serviceItems,
+            List<ProductizationCartTalentItemResponse> talentItems,
+            PackageInstanceResponse convertedPackage,
+            ProjectWorkspaceResponse convertedWorkspace
+    ) {}
+
+    public record ProductizationCartConvertResponse(
+            ProductizationCartResponse cart,
+            PackageInstanceResponse packageInstance,
+            ProjectWorkspaceResponse workspace
     ) {}
 
     public record TeamShortlistResponse(
@@ -824,6 +867,59 @@ public final class PlatformDtos {
                 toTeamResponse(recommendation.team()),
                 recommendation.score(),
                 recommendation.reasons()
+        );
+    }
+
+    public static ProductizationCartServiceItemResponse toProductizationCartServiceItemResponse(ProductizationCartServiceItem item) {
+        if (item == null) {
+            return null;
+        }
+        return new ProductizationCartServiceItemResponse(
+                item.getId(),
+                item.getCreatedAt(),
+                item.getUpdatedAt(),
+                toServiceModuleResponse(item.getServiceModule()),
+                item.getSequenceOrder(),
+                item.getNotes()
+        );
+    }
+
+    public static ProductizationCartTalentItemResponse toProductizationCartTalentItemResponse(ProductizationCartTalentItem item) {
+        if (item == null) {
+            return null;
+        }
+        return new ProductizationCartTalentItemResponse(
+                item.getId(),
+                item.getCreatedAt(),
+                item.getUpdatedAt(),
+                item.getItemType(),
+                toTeamResponse(item.getTeam()),
+                toExpertProfileResponse(item.getExpertProfile()),
+                item.getNotes()
+        );
+    }
+
+    public static ProductizationCartResponse toProductizationCartResponse(
+            ProductizationCart cart,
+            List<ProductizationCartServiceItem> serviceItems,
+            List<ProductizationCartTalentItem> talentItems
+    ) {
+        if (cart == null) {
+            return null;
+        }
+        return new ProductizationCartResponse(
+                cart.getId(),
+                cart.getCreatedAt(),
+                cart.getUpdatedAt(),
+                toCurrentUserSummary(cart.getOwner()),
+                toProductProfileResponse(cart.getProductProfile()),
+                cart.getTitle(),
+                cart.getBusinessGoal(),
+                cart.getStatus(),
+                serviceItems.stream().map(PlatformDtos::toProductizationCartServiceItemResponse).toList(),
+                talentItems.stream().map(PlatformDtos::toProductizationCartTalentItemResponse).toList(),
+                toPackageInstanceResponse(cart.getConvertedPackage()),
+                toProjectWorkspaceResponse(cart.getConvertedWorkspace())
         );
     }
 

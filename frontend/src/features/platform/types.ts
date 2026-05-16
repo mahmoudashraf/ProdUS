@@ -167,6 +167,37 @@ export interface TeamShortlist extends BaseRecord {
   notes?: string;
 }
 
+export interface ProductizationCartServiceItem extends BaseRecord {
+  serviceModule: ServiceModule;
+  sequenceOrder: number;
+  notes?: string;
+}
+
+export interface ProductizationCartTalentItem extends BaseRecord {
+  itemType: 'TEAM' | 'EXPERT';
+  team?: Team;
+  expertProfile?: ExpertProfile;
+  notes?: string;
+}
+
+export interface ProductizationCart extends BaseRecord {
+  owner?: CurrentUserSummary;
+  productProfile?: ProductProfile;
+  title: string;
+  businessGoal?: string;
+  status: 'DRAFT' | 'CONVERTED' | 'ARCHIVED';
+  serviceItems: ProductizationCartServiceItem[];
+  talentItems: ProductizationCartTalentItem[];
+  convertedPackage?: PackageInstance;
+  convertedWorkspace?: ProjectWorkspace;
+}
+
+export interface ProductizationCartConvertResponse {
+  cart: ProductizationCart;
+  packageInstance: PackageInstance;
+  workspace: ProjectWorkspace;
+}
+
 export interface ProjectWorkspace extends BaseRecord {
   packageInstance?: PackageInstance;
   name: string;

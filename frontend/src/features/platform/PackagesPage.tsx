@@ -549,7 +549,7 @@ export default function PackagesPage() {
           </Surface>
 
           <Surface>
-            <SectionTitle title="Build Package" action={<SaveOutlined sx={{ color: appleColors.blue }} />} />
+            <SectionTitle title="Service Plan Builder" action={<SaveOutlined sx={{ color: appleColors.blue }} />} />
             <Box component="form" onSubmit={submit}>
               <Stack spacing={1.5}>
                 <TextField select fullWidth label="Requirement intake" value={form.values.requirementId} onChange={(event) => form.setValue('requirementId', event.target.value)}>
@@ -560,7 +560,7 @@ export default function PackagesPage() {
                   ))}
                 </TextField>
                 <Button type="submit" variant="contained" disabled={!form.values.requirementId || buildPackage.isPending} startIcon={<SendOutlined />}>
-                  Build package
+                  Create service plan
                 </Button>
               </Stack>
             </Box>
