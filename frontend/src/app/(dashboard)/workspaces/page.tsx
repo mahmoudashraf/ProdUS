@@ -1,5 +1,5 @@
-import WorkspacesPage from '@/features/platform/WorkspacesPage';
+import WorkspaceCommandPage from '@/features/platform/WorkspaceCommandPage';
 
 export default function Page() {
-  return <WorkspacesPage />;
+  return <WorkspaceCommandPage />;
 }
