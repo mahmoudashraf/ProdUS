@@ -43,7 +43,7 @@ export default function AdminCatalogPage() {
 
   return (
     <>
-      <PageHeader title="Admin Catalog" description="Manage service taxonomy before package-builder rules consume it." />
+      <PageHeader title="Admin Catalog" description="Manage service taxonomy before service-plan rules consume it." />
       <QueryState isLoading={categories.isLoading} error={categories.error || createCategory.error} />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '360px 1fr' }, gap: 2 }}>
         <Surface>

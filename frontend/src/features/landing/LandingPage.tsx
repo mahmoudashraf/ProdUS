@@ -21,14 +21,14 @@ const services = [
     color: '#625cff',
   },
   {
-    title: 'Package',
-    description: 'Build a governed service package with dependencies, milestones, deliverables, acceptance criteria, and budget range.',
+    title: 'Plan',
+    description: 'Build a governed service plan with dependencies, milestones, deliverables, acceptance criteria, and budget range.',
     icon: <Inventory2Outlined />,
     color: '#0ea5e9',
   },
   {
     title: 'Match',
-    description: 'Compare verified teams against package needs, capability evidence, reputation, timeline, and operating fit.',
+    description: 'Compare verified teams against service-plan needs, capability evidence, reputation, timeline, and operating fit.',
     icon: <GroupsOutlined />,
     color: '#14b8a6',
   },
@@ -140,7 +140,7 @@ export default function LandingPage() {
                 </Box>
                 <Box sx={{ p: 2, border: '1px solid #e4eaf5', borderRadius: 1 }}>
                   <Typography sx={{ fontWeight: 900 }}>Recommended next step</Typography>
-                  <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.6 }}>Build a dependency-aware package and shortlist two verified teams.</Typography>
+                  <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.6 }}>Build a dependency-aware service plan and shortlist two verified teams.</Typography>
                 </Box>
               </Box>
             </Stack>

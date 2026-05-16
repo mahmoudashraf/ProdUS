@@ -158,7 +158,7 @@ function AdminOperationsDashboard() {
             <MetricTile
               label="Portfolio health"
               value={`${averageHealth || 68}/100`}
-              detail={packageList.length ? 'Derived from package states' : 'Seed demo data for local review'}
+              detail={packageList.length ? 'Derived from service-plan states' : 'Seed demo data for local review'}
               accent={appleColors.green}
               icon={<CheckCircleOutlineOutlined />}
               sparkline
@@ -183,8 +183,8 @@ function AdminOperationsDashboard() {
 
           <Surface>
             <SectionTitle
-              title="Package Pipeline"
-              action={<PastelChip label={`${packageList.length} packages`} accent={appleColors.purple} />}
+              title="Service Plan Pipeline"
+              action={<PastelChip label={`${packageList.length} service plans`} accent={appleColors.purple} />}
             />
             {packageList.length ? (
               <Stack spacing={0}>
@@ -209,7 +209,7 @@ function AdminOperationsDashboard() {
                       <Box>
                         <Typography variant="h4">{item.name}</Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {item.summary || 'Package summary pending.'}
+                          {item.summary || 'Service plan summary pending.'}
                         </Typography>
                       </Box>
                       <Box>
@@ -233,7 +233,7 @@ function AdminOperationsDashboard() {
                 })}
               </Stack>
             ) : (
-              <EmptyState label="No packages yet. Create a requirement intake and build a package to activate delivery tracking." />
+              <EmptyState label="No service plans yet. Create a product brief or convert the draft cart to activate delivery tracking." />
             )}
           </Surface>
 
@@ -313,7 +313,7 @@ function AdminOperationsDashboard() {
               </Box>
             </Stack>
             <Typography color="text.secondary" sx={{ mt: 2, lineHeight: 1.7 }}>
-              Focus on blocked support requests, release evidence, and package modules that are still in review.
+              Focus on blocked support requests, release evidence, and service-plan modules that are still in review.
             </Typography>
           </Surface>
 

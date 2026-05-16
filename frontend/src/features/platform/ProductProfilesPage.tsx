@@ -180,7 +180,7 @@ export default function ProductProfilesPage() {
                       <Box>
                         <Typography sx={{ fontWeight: 800 }}>{packageInstance?.name || 'No service plan yet'}</Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {packageInstance ? formatLabel(packageInstance.status) : 'Create a requirement intake'}
+                          {packageInstance ? formatLabel(packageInstance.status) : 'Create a product brief'}
                         </Typography>
                       </Box>
                       <Button component={NextLink} href={`/products/${profile.id}`} variant="outlined" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 38 }}>

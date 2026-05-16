@@ -1,5 +1,5 @@
-import OwnerProductizationWorkspace from '@/features/platform/OwnerProductizationWorkspace';
+import ServicePlanStartPage from '@/features/platform/ServicePlanStartPage';
 
 export default function Page() {
-  return <OwnerProductizationWorkspace />;
+  return <ServicePlanStartPage />;
 }

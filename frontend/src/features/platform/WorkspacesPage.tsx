@@ -271,7 +271,7 @@ export default function WorkspacesPage() {
   const workspaceForm = useAdvancedForm<WorkspacePayload>({
     initialValues: initialWorkspaceValues,
     validationRules: {
-      packageInstanceId: [{ type: 'required', message: 'Package is required' }],
+  packageInstanceId: [{ type: 'required', message: 'Service plan is required' }],
     },
   });
   const milestoneForm = useAdvancedForm<MilestonePayload>({
@@ -661,7 +661,7 @@ export default function WorkspacesPage() {
               <Box>
                 <Typography variant="h3">{selectedWorkspace.name}</Typography>
                 <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                  {selectedWorkspace.packageInstance?.name || 'Workspace package'} · {milestoneList.length} milestones · {deliverables.data?.length || 0} deliverables in focus
+                  {selectedWorkspace.packageInstance?.name || 'Workspace service plan'} · {milestoneList.length} milestones · {deliverables.data?.length || 0} deliverables in focus
                 </Typography>
               </Box>
             </Stack>
@@ -686,7 +686,7 @@ export default function WorkspacesPage() {
                 <TextField
                   select
                   fullWidth
-                  label="Package"
+                  label="Service plan"
                   value={workspaceForm.values.packageInstanceId}
                   onChange={(event) => workspaceForm.setValue('packageInstanceId', event.target.value)}
                 >

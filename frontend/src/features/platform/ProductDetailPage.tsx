@@ -6,5 +6,9 @@ import OwnerProductizationWorkspace from './OwnerProductizationWorkspace';
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
 
-  return params?.id ? <OwnerProductizationWorkspace productId={params.id} /> : <OwnerProductizationWorkspace />;
+  return params?.id ? (
+    <OwnerProductizationWorkspace productId={params.id} showProductCreation={false} />
+  ) : (
+    <OwnerProductizationWorkspace showProductCreation={false} />
+  );
 }

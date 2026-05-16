@@ -209,7 +209,13 @@ const productHealth = (product?: ProductProfile, packageInstance?: PackageInstan
   return packageScore(packageInstance, modules);
 };
 
-export default function OwnerProductizationWorkspace({ productId }: { productId?: string } = {}) {
+export default function OwnerProductizationWorkspace({
+  productId,
+  showProductCreation = true,
+}: {
+  productId?: string;
+  showProductCreation?: boolean;
+} = {}) {
   const queryClient = useQueryClient();
   const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const requirements = useQuery({ queryKey: ['requirements'], queryFn: () => getJson<RequirementIntake[]>('/requirements') });
@@ -681,24 +687,26 @@ export default function OwnerProductizationWorkspace({ productId }: { productId?
             </Box>
           </Surface>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '420px 1fr' }, gap: 2.5 }}>
-            <Surface>
-              <SectionTitle title="Add Product" action={<AddOutlined sx={{ color: appleColors.purple }} />} />
-              <Box component="form" onSubmit={submitProduct}>
-                <Stack spacing={1.5}>
-                  <TextInput label="Name" value={productForm.values.name} onChange={(value) => productForm.setValue('name', value)} />
-                  <TextInput label="Summary" value={productForm.values.summary} onChange={(value) => productForm.setValue('summary', value)} multiline />
-                  <TextField select fullWidth label="Stage" value={productForm.values.businessStage} onChange={(event) => productForm.setValue('businessStage', event.target.value as ProductProfile['businessStage'])}>
-                    {stageOptions.map((stage) => (
-                      <MenuItem key={stage} value={stage}>{formatLabel(stage)}</MenuItem>
-                    ))}
-                  </TextField>
-                  <TextInput label="Tech stack" value={productForm.values.techStack} onChange={(value) => productForm.setValue('techStack', value)} />
-                  <TextInput label="Known risks" value={productForm.values.riskProfile} onChange={(value) => productForm.setValue('riskProfile', value)} multiline />
-                  <SaveButton disabled={!productForm.values.name || createProduct.isPending} label="Create product" />
-                </Stack>
-              </Box>
-            </Surface>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: showProductCreation ? '420px 1fr' : '1fr' }, gap: 2.5 }}>
+            {showProductCreation && (
+              <Surface>
+                <SectionTitle title="Add Product" action={<AddOutlined sx={{ color: appleColors.purple }} />} />
+                <Box component="form" onSubmit={submitProduct}>
+                  <Stack spacing={1.5}>
+                    <TextInput label="Name" value={productForm.values.name} onChange={(value) => productForm.setValue('name', value)} />
+                    <TextInput label="Summary" value={productForm.values.summary} onChange={(value) => productForm.setValue('summary', value)} multiline />
+                    <TextField select fullWidth label="Stage" value={productForm.values.businessStage} onChange={(event) => productForm.setValue('businessStage', event.target.value as ProductProfile['businessStage'])}>
+                      {stageOptions.map((stage) => (
+                        <MenuItem key={stage} value={stage}>{formatLabel(stage)}</MenuItem>
+                      ))}
+                    </TextField>
+                    <TextInput label="Tech stack" value={productForm.values.techStack} onChange={(value) => productForm.setValue('techStack', value)} />
+                    <TextInput label="Known risks" value={productForm.values.riskProfile} onChange={(value) => productForm.setValue('riskProfile', value)} multiline />
+                    <SaveButton disabled={!productForm.values.name || createProduct.isPending} label="Create product" />
+                  </Stack>
+                </Box>
+              </Surface>
+            )}
 
             <Surface>
               <SectionTitle title="Product Brief to Service Plan" action={<PastelChip label={`${selectedProductRequirements.length} intakes`} accent={appleColors.blue} />} />

@@ -98,7 +98,7 @@ export default function CatalogPage() {
     <>
       <PageHeader
         title="Service Categories"
-        description="Specialist workstreams for production-ready products, powered by the live catalog API and dependency-aware package builder."
+        description="Specialist workstreams for production-ready products, powered by the live catalog API and dependency-aware service-plan builder."
         action={
           <Button
             component={NextLink}

@@ -296,7 +296,7 @@ function MatchedTeamsPage() {
       teamId,
       status,
       notes: status === 'COMPARED'
-        ? 'Compared against this package requirements, team capabilities, delivery history, and expected budget.'
+        ? 'Compared against this service plan, team capabilities, delivery history, and expected budget.'
         : 'Shortlisted for owner review and proposal follow-up.',
     });
   };
@@ -305,7 +305,7 @@ function MatchedTeamsPage() {
     <>
       <PageHeader
         title="Matched Teams"
-        description="Rank verified specialist teams against package needs, maintain capability evidence, and capture workspace-backed reputation."
+        description="Rank verified specialist teams against service-plan needs, maintain capability evidence, and capture workspace-backed reputation."
       />
       <QueryState
         isLoading={teams.isLoading || packages.isLoading || categories.isLoading || modules.isLoading || workspaces.isLoading}
@@ -475,7 +475,7 @@ function MatchedTeamsPage() {
                         ))}
                       </Stack>
                     ) : (
-                      <Typography variant="body2" color="text.secondary">Add service capabilities so packages can recommend this team.</Typography>
+                      <Typography variant="body2" color="text.secondary">Add service capabilities so service plans can recommend this team.</Typography>
                     )}
                   </Box>
 
@@ -588,7 +588,7 @@ function MatchedTeamsPage() {
           <Surface sx={{ background: '#f4fdfe' }}>
             <SectionTitle title="How We Match" />
             <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-              Matching combines package modules, catalog categories, verification status, capability evidence, and workspace reputation.
+              Matching combines service-plan modules, catalog categories, verification status, capability evidence, and workspace reputation.
             </Typography>
           </Surface>
         </Stack>

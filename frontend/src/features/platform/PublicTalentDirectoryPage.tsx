@@ -475,7 +475,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
           <Stack direction="row" spacing={1.5} alignItems="center">
             <AutoAwesomeOutlined sx={{ color: appleColors.purple }} />
             <Box>
-              <Typography variant="h4">Ready to turn discovery into a governed package?</Typography>
+              <Typography variant="h4">Ready to turn discovery into a governed workspace?</Typography>
               <Typography color="text.secondary">
                 Sign in to create a product brief, save teams and experts to a draft cart, and convert it into a project workspace.
               </Typography>
