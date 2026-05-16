@@ -15,6 +15,7 @@ import {
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
+import { UserRole } from '@/types/auth';
 import { getJson, postJson } from './api';
 import {
   DotLabel,
@@ -59,7 +60,10 @@ const shortModuleName = (name: string) =>
 
 export default function CatalogPage() {
   const queryClient = useQueryClient();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
+  const canUseProjectCart = user?.role === UserRole.PRODUCT_OWNER;
+  const cartHref = canUseProjectCart ? '/owner/project-cart#project-cart' : isLoggedIn ? '/dashboard' : '/login';
+  const cartActionLabel = canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
   const categories = useQuery({
     queryKey: ['catalog-categories'],
     queryFn: () => getJson<ServiceCategory[]>('/catalog/categories'),
@@ -70,7 +74,7 @@ export default function CatalogPage() {
   });
   const cart = useQuery({
     queryKey: ['productization-cart'],
-    enabled: isLoggedIn,
+    enabled: canUseProjectCart,
     queryFn: () => getJson<ProductizationCart>('/productization-cart/current'),
   });
   const addServiceToCart = useMutation({
@@ -98,11 +102,11 @@ export default function CatalogPage() {
         action={
           <Button
             component={NextLink}
-            href={isLoggedIn ? '/dashboard' : '/login'}
+            href={cartHref}
             variant="contained"
             sx={{ minHeight: 42, minWidth: 140 }}
           >
-            {isLoggedIn ? 'Open Project Cart' : 'Sign In To Start'}
+            {cartActionLabel}
           </Button>
         }
       />
@@ -164,14 +168,14 @@ export default function CatalogPage() {
                           <Button
                             key={module.id}
                             component={NextLink}
-                            href={isLoggedIn ? '#' : '/login'}
+                            href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
                             type="button"
                             variant={inCart ? 'contained' : 'outlined'}
                             size="small"
                             startIcon={<AddShoppingCartOutlined />}
-                            disabled={isLoggedIn && addServiceToCart.isPending}
+                            disabled={canUseProjectCart && addServiceToCart.isPending}
                             onClick={(event) => {
-                              if (!isLoggedIn) return;
+                              if (!canUseProjectCart) return;
                               event.preventDefault();
                               addServiceToCart.mutate({
                                 serviceModuleId: module.id,
@@ -191,7 +195,7 @@ export default function CatalogPage() {
                               },
                             }}
                           >
-                            {isLoggedIn ? (inCart ? 'In cart' : 'Add to project cart') : 'Sign in to add'} · {shortModuleName(module.name)}
+                            {!isLoggedIn ? 'Sign in to add' : canUseProjectCart ? (inCart ? 'In draft cart' : 'Add to draft cart') : 'Owner cart only'} · {shortModuleName(module.name)}
                           </Button>
                         );
                       })}

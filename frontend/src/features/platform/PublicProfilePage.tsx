@@ -14,6 +14,7 @@ import {
 import { Avatar, Box, Button, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
+import { UserRole } from '@/types/auth';
 import { getJson, postJson } from './api';
 import {
   DotLabel,
@@ -122,6 +123,7 @@ function TeamProfile({
   team,
   capabilities,
   isLoggedIn,
+  canUseProjectCart,
   inCart,
   onAddTeam,
   isAdding,
@@ -129,6 +131,7 @@ function TeamProfile({
   team: Team;
   capabilities: TeamCapability[];
   isLoggedIn: boolean;
+  canUseProjectCart: boolean;
   inCart: boolean;
   onAddTeam: () => void;
   isAdding: boolean;
@@ -152,21 +155,21 @@ function TeamProfile({
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
           <Button
             component={NextLink}
-            href={isLoggedIn ? '#' : '/login'}
+            href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
             variant="contained"
             startIcon={<AddShoppingCartOutlined />}
-            disabled={isLoggedIn && isAdding}
+            disabled={canUseProjectCart && isAdding}
             onClick={(event) => {
-              if (!isLoggedIn) return;
+              if (!canUseProjectCart) return;
               event.preventDefault();
               onAddTeam();
             }}
             sx={{ minHeight: 44, minWidth: 180 }}
           >
-            {isLoggedIn ? (inCart ? 'In Project Cart' : 'Add Team To Cart') : 'Sign In To Add Team'}
+            {!isLoggedIn ? 'Sign In To Add Team' : canUseProjectCart ? (inCart ? 'In Draft Cart' : 'Add Team To Draft') : 'Open Dashboard'}
           </Button>
-          <Button component={NextLink} href={isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
-            {isLoggedIn ? 'Open Project Cart' : 'Sign In To Start'}
+          <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart#project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
+            {canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
           </Button>
         </Stack>
       </ProfileHero>
@@ -265,12 +268,14 @@ function TeamProfile({
 function ExpertProfileView({
   expert,
   isLoggedIn,
+  canUseProjectCart,
   inCart,
   onAddExpert,
   isAdding,
 }: {
   expert: ExpertProfile;
   isLoggedIn: boolean;
+  canUseProjectCart: boolean;
   inCart: boolean;
   onAddExpert: () => void;
   isAdding: boolean;
@@ -294,18 +299,18 @@ function ExpertProfileView({
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
           <Button
             component={NextLink}
-            href={isLoggedIn ? '#' : '/login'}
+            href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
             variant="contained"
             startIcon={<AddShoppingCartOutlined />}
-            disabled={isLoggedIn && isAdding}
+            disabled={canUseProjectCart && isAdding}
             onClick={(event) => {
-              if (!isLoggedIn) return;
+              if (!canUseProjectCart) return;
               event.preventDefault();
               onAddExpert();
             }}
             sx={{ minHeight: 44, minWidth: 180 }}
           >
-            {isLoggedIn ? (inCart ? 'In Project Cart' : 'Add Expert To Cart') : 'Sign In To Add Expert'}
+            {!isLoggedIn ? 'Sign In To Add Expert' : canUseProjectCart ? (inCart ? 'In Draft Cart' : 'Add Expert To Draft') : 'Open Dashboard'}
           </Button>
           <Button component={NextLink} href="/solo-experts" variant="outlined" sx={{ minHeight: 44, minWidth: 150 }}>
             Browse Experts
@@ -355,8 +360,8 @@ function ExpertProfileView({
                   Portfolio
                 </Button>
               )}
-              <Button component={NextLink} href={isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<RocketLaunchOutlined />} sx={{ minHeight: 42 }}>
-                {isLoggedIn ? 'Open Project Cart' : 'Sign In To Start'}
+              <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart#project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<RocketLaunchOutlined />} sx={{ minHeight: 42 }}>
+                {canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
               </Button>
             </Stack>
           </Surface>
@@ -368,7 +373,8 @@ function ExpertProfileView({
 
 export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
   const queryClient = useQueryClient();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
+  const canUseProjectCart = user?.role === UserRole.PRODUCT_OWNER;
   const params = useParams<{ id: string }>();
   const id = params?.id || '';
 
@@ -387,7 +393,7 @@ export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
     enabled: kind === 'expert' && !!id,
     queryFn: () => getJson<ExpertProfile>(`/expert-profiles/${id}`),
   });
-  const cart = useQuery({ queryKey: ['productization-cart'], enabled: isLoggedIn, queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
+  const cart = useQuery({ queryKey: ['productization-cart'], enabled: canUseProjectCart, queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
   const addTeamToCart = useMutation({
     mutationFn: (payload: { teamId: string; notes: string }) => postJson<ProductizationCart, { itemType: 'TEAM'; teamId: string; notes: string }>('/productization-cart/talent', { itemType: 'TEAM', ...payload }),
     onSuccess: async () => {
@@ -414,6 +420,7 @@ export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
           team={team.data}
           capabilities={capabilities.data || []}
           isLoggedIn={isLoggedIn}
+          canUseProjectCart={canUseProjectCart}
           inCart={cartTeamIds.has(team.data.id)}
           isAdding={addTeamToCart.isPending}
           onAddTeam={() => addTeamToCart.mutate({ teamId: team.data.id, notes: 'Owner saved team from public profile.' })}
@@ -423,6 +430,7 @@ export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
         <ExpertProfileView
           expert={expert.data}
           isLoggedIn={isLoggedIn}
+          canUseProjectCart={canUseProjectCart}
           inCart={cartExpertIds.has(expert.data.id)}
           isAdding={addExpertToCart.isPending}
           onAddExpert={() => addExpertToCart.mutate({ expertProfileId: expert.data.id, notes: 'Owner saved solo expert from public profile.' })}
@@ -437,11 +445,11 @@ export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
             <AutoAwesomeOutlined sx={{ color: appleColors.purple }} />
             <Box>
               <Typography variant="h4">Need a governed production path?</Typography>
-              <Typography color="text.secondary">Compare profiles, save delivery partners to the project cart, and open a governed workspace after sign in.</Typography>
+              <Typography color="text.secondary">Compare profiles, save delivery partners to a draft cart, and convert it into a governed workspace after sign in.</Typography>
             </Box>
           </Stack>
-          <Button component={NextLink} href={isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<VerifiedOutlined />} sx={{ minHeight: 44, minWidth: 160 }}>
-            {isLoggedIn ? 'Dashboard' : 'Sign In'}
+          <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart#project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<VerifiedOutlined />} sx={{ minHeight: 44, minWidth: 160 }}>
+            {canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Dashboard' : 'Sign in'}
           </Button>
         </Stack>
       </Surface>

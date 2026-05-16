@@ -12,6 +12,7 @@ import {
 import { Avatar, Box, Button, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
+import { UserRole } from '@/types/auth';
 import { getJson, postJson } from './api';
 import {
   DotLabel,
@@ -59,12 +60,14 @@ const availabilityColor = (availability: ExpertProfile['availability']) => {
 function PublicTeamCard({
   team,
   isLoggedIn,
+  canUseProjectCart,
   inCart,
   onAdd,
   isAdding,
 }: {
   team: Team;
   isLoggedIn: boolean;
+  canUseProjectCart: boolean;
   inCart: boolean;
   onAdd: () => void;
   isAdding: boolean;
@@ -126,19 +129,19 @@ function PublicTeamCard({
           </Button>
           <Button
             component={NextLink}
-            href={isLoggedIn ? '#' : '/login'}
+            href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
             variant="contained"
             fullWidth
             startIcon={<AddShoppingCartOutlined />}
-            disabled={isLoggedIn && isAdding}
+            disabled={canUseProjectCart && isAdding}
             onClick={(event) => {
-              if (!isLoggedIn) return;
+              if (!canUseProjectCart) return;
               event.preventDefault();
               onAdd();
             }}
             sx={{ minHeight: 42 }}
           >
-            {isLoggedIn ? (inCart ? 'In Project Cart' : 'Add Team To Cart') : 'Sign In To Add Team'}
+            {!isLoggedIn ? 'Sign In To Add Team' : canUseProjectCart ? (inCart ? 'In Draft Cart' : 'Add Team To Draft') : 'Open Dashboard'}
           </Button>
         </Stack>
       </Stack>
@@ -149,12 +152,14 @@ function PublicTeamCard({
 function ExpertCard({
   expert,
   isLoggedIn,
+  canUseProjectCart,
   inCart,
   onAdd,
   isAdding,
 }: {
   expert: ExpertProfile;
   isLoggedIn: boolean;
+  canUseProjectCart: boolean;
   inCart: boolean;
   onAdd: () => void;
   isAdding: boolean;
@@ -216,19 +221,19 @@ function ExpertCard({
           </Button>
           <Button
             component={NextLink}
-            href={isLoggedIn ? '#' : '/login'}
+            href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
             variant="contained"
             fullWidth
             startIcon={<AddShoppingCartOutlined />}
-            disabled={isLoggedIn && isAdding}
+            disabled={canUseProjectCart && isAdding}
             onClick={(event) => {
-              if (!isLoggedIn) return;
+              if (!canUseProjectCart) return;
               event.preventDefault();
               onAdd();
             }}
             sx={{ minHeight: 42 }}
           >
-            {isLoggedIn ? (inCart ? 'In Project Cart' : 'Add Expert To Cart') : 'Sign In To Add Expert'}
+            {!isLoggedIn ? 'Sign In To Add Expert' : canUseProjectCart ? (inCart ? 'In Draft Cart' : 'Add Expert To Draft') : 'Open Dashboard'}
           </Button>
         </Stack>
       </Stack>
@@ -294,12 +299,15 @@ function ServiceStrip({ categories, modules }: { categories: ServiceCategory[]; 
 
 export default function PublicTalentDirectoryPage({ view = 'directory' }: { view?: DirectoryView }) {
   const queryClient = useQueryClient();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
+  const canUseProjectCart = user?.role === UserRole.PRODUCT_OWNER;
+  const cartHref = canUseProjectCart ? '/owner/project-cart#project-cart' : isLoggedIn ? '/dashboard' : '/login';
+  const cartActionLabel = canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
   const teams = useQuery({ queryKey: ['public-teams'], queryFn: () => getJson<Team[]>('/teams') });
   const experts = useQuery({ queryKey: ['public-expert-profiles'], queryFn: () => getJson<ExpertProfile[]>('/expert-profiles') });
   const categories = useQuery({ queryKey: ['public-catalog-categories'], queryFn: () => getJson<ServiceCategory[]>('/catalog/categories') });
   const modules = useQuery({ queryKey: ['public-catalog-modules'], queryFn: () => getJson<ServiceModule[]>('/catalog/modules') });
-  const cart = useQuery({ queryKey: ['productization-cart'], enabled: isLoggedIn, queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
+  const cart = useQuery({ queryKey: ['productization-cart'], enabled: canUseProjectCart, queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
   const addTeamToCart = useMutation({
     mutationFn: (payload: { teamId: string; notes: string }) => postJson<ProductizationCart, { itemType: 'TEAM'; teamId: string; notes: string }>('/productization-cart/talent', { itemType: 'TEAM', ...payload }),
     onSuccess: async () => {
@@ -328,7 +336,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
         description={
           showingExpertsOnly
             ? 'Browse independent productization experts with service focus, availability, proof, and clear project fit before signing in.'
-            : 'Browse verified teams, independent experts, and lifecycle services before creating an account or starting a productization package.'
+            : 'Browse verified teams, independent experts, and lifecycle services before creating an account or starting a productization workspace.'
         }
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -337,11 +345,11 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
             </Button>
             <Button
               component={NextLink}
-              href={isLoggedIn ? '/packages' : '/login'}
+              href={cartHref}
               variant="contained"
               sx={{ minHeight: 42, minWidth: 130 }}
             >
-              {isLoggedIn ? 'Open Project Cart' : 'Sign In To Start'}
+              {cartActionLabel}
             </Button>
           </Stack>
         }
@@ -411,6 +419,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
                   key={team.id}
                   team={team}
                   isLoggedIn={isLoggedIn}
+                  canUseProjectCart={canUseProjectCart}
                   inCart={cartTeamIds.has(team.id)}
                   isAdding={addTeamToCart.isPending}
                   onAdd={() => addTeamToCart.mutate({ teamId: team.id, notes: 'Owner saved team from public directory.' })}
@@ -447,6 +456,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
                 key={expert.id}
                 expert={expert}
                 isLoggedIn={isLoggedIn}
+                canUseProjectCart={canUseProjectCart}
                 inCart={cartExpertIds.has(expert.id)}
                 isAdding={addExpertToCart.isPending}
                 onAdd={() => addExpertToCart.mutate({ expertProfileId: expert.id, notes: 'Owner saved solo expert from public directory.' })}
@@ -467,7 +477,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
             <Box>
               <Typography variant="h4">Ready to turn discovery into a governed package?</Typography>
               <Typography color="text.secondary">
-                Sign in to create a product brief, save teams and experts to a project cart, and track decisions from one workspace.
+                Sign in to create a product brief, save teams and experts to a draft cart, and convert it into a project workspace.
               </Typography>
             </Box>
           </Stack>

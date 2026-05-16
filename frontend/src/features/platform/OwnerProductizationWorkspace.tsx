@@ -357,28 +357,28 @@ export default function OwnerProductizationWorkspace() {
   const addServiceToCart = useMutation({
     mutationFn: (payload: CartServicePayload) => postJson<ProductizationCart, CartServicePayload>('/productization-cart/services', payload),
     onSuccess: async () => {
-      setCartNotice('Service added to project cart.');
+      setCartNotice('Service added to the draft cart.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const removeServiceFromCart = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
     onSuccess: async () => {
-      setCartNotice('Service removed from project cart.');
+      setCartNotice('Service removed from the draft cart.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const addTalentToCart = useMutation({
     mutationFn: (payload: CartTalentPayload) => postJson<ProductizationCart, CartTalentPayload>('/productization-cart/talent', payload),
     onSuccess: async () => {
-      setCartNotice('Delivery talent added to project cart.');
+      setCartNotice('Delivery talent added to the draft cart.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const removeTalentFromCart = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/talent/${itemId}`),
     onSuccess: async () => {
-      setCartNotice('Delivery talent removed from project cart.');
+      setCartNotice('Delivery talent removed from the draft cart.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -521,7 +521,7 @@ export default function OwnerProductizationWorkspace() {
     <>
       <PageHeader
         title="Productization Workspace"
-        description="One product-centered command surface for lifecycle service selection, project cart decisions, team comparison, and delivery evidence."
+        description="One product-centered command surface for lifecycle service selection, draft cart decisions, team comparison, and delivery evidence."
         action={
           productList.length ? (
             <TextField
@@ -637,7 +637,7 @@ export default function OwnerProductizationWorkspace() {
                                   {module.timelineRange || module.priceRange || 'Lifecycle module'}
                                 </Typography>
                               </Box>
-                              <Tooltip title={inCart ? 'Remove from project cart' : 'Add to project cart'}>
+                              <Tooltip title={inCart ? 'Remove from draft cart' : 'Add to draft cart for this product'}>
                                 <span>
                                   <IconButton
                                     size="small"
@@ -772,7 +772,7 @@ export default function OwnerProductizationWorkspace() {
                     </Box>
                   ))
                 ) : (
-                  <Typography variant="body2" color="text.secondary">Add lifecycle services to the cart, then submit a product brief or create the project workspace directly.</Typography>
+                  <Typography variant="body2" color="text.secondary">Add lifecycle services to the draft cart, then submit a product brief or create the project workspace directly.</Typography>
                 )}
               </Stack>
             </Surface>
@@ -873,7 +873,7 @@ export default function OwnerProductizationWorkspace() {
               </Stack>
             ) : (
               <Stack spacing={1.5}>
-                <EmptyState label={selectedPackage ? 'No team recommendations available yet.' : 'Create a service plan to unlock ranked matches. You can still add promising teams or solo experts to the project cart now.'} />
+                <EmptyState label={selectedPackage ? 'No team recommendations available yet.' : 'Create a service plan to unlock ranked matches. You can still add promising teams or solo experts to the draft cart now.'} />
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 1.5 }}>
                   <Box>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
@@ -936,9 +936,10 @@ export default function OwnerProductizationWorkspace() {
         </Stack>
 
         <Stack spacing={2.5}>
+          <Box id="project-cart" sx={{ scrollMarginTop: 96 }}>
           <Surface>
             <SectionTitle
-              title="Project Cart"
+              title="Draft Project Cart"
               action={<ShoppingCartOutlined sx={{ color: appleColors.purple }} />}
             />
             <Stack spacing={1.5}>
@@ -949,7 +950,7 @@ export default function OwnerProductizationWorkspace() {
               )}
               <Box>
                 <Typography variant="body2" color="text.secondary">
-                  {selectedProduct ? `For ${selectedProduct.name}` : 'Select a product before project creation'}
+                  {selectedProduct ? `Draft for ${selectedProduct.name}` : 'Select a product before starting a workspace'}
                 </Typography>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                   <PastelChip label={`${cart.data?.serviceItems.length || 0} services`} accent={appleColors.purple} />
@@ -991,7 +992,7 @@ export default function OwnerProductizationWorkspace() {
                 </Stack>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  Use the add-to-cart buttons on lifecycle services to collect the work needed for this product.
+                  Use the add-to-cart buttons on lifecycle services to collect the work needed before this becomes a project.
                 </Typography>
               )}
 
@@ -1018,7 +1019,7 @@ export default function OwnerProductizationWorkspace() {
                 </Stack>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  Add matched teams here after the service plan exists, or from public profiles.
+                  Add matched teams or solo experts before converting this draft into a project workspace.
                 </Typography>
               )}
 
@@ -1047,6 +1048,7 @@ export default function OwnerProductizationWorkspace() {
               )}
             </Stack>
           </Surface>
+          </Box>
 
           <Surface>
             <SectionTitle title="AI Owner Brief" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
