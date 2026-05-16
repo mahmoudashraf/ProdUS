@@ -1,5 +1,5 @@
-import OwnerProductizationWorkspace from '@/features/platform/OwnerProductizationWorkspace';
+import DraftProjectCartPage from '@/features/platform/DraftProjectCartPage';
 
 export default function Page() {
-  return <OwnerProductizationWorkspace />;
+  return <DraftProjectCartPage />;
 }
