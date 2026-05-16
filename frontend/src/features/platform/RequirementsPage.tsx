@@ -83,12 +83,12 @@ export default function RequirementsPage() {
 
   return (
     <>
-      <PageHeader title="Requirement Intake" description="Convert product pain into structured service needs, risk signals, and package-builder inputs." />
+      <PageHeader title="Product Briefs" description="Convert product pain into structured service needs, risk signals, and service-plan inputs." />
       <QueryState isLoading={products.isLoading || modules.isLoading || requirements.isLoading} error={products.error || modules.error || requirements.error || createRequirement.error} />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 2, mb: 2.5 }}>
         <MetricTile label="Intakes" value={requirementList.length} detail={`${products.data?.length || 0} products available`} accent={appleColors.purple} />
-        <MetricTile label="Submitted" value={submittedCount} detail="Ready for package composition" accent={appleColors.blue} />
-        <MetricTile label="Package ready" value={packageReadyCount} detail="AI-backed package generated" accent={appleColors.green} />
+        <MetricTile label="Submitted" value={submittedCount} detail="Ready for service-plan composition" accent={appleColors.blue} />
+        <MetricTile label="Plan ready" value={packageReadyCount} detail="AI-backed service plan generated" accent={appleColors.green} />
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '420px 1fr' }, gap: 2.5 }}>
         <Surface>

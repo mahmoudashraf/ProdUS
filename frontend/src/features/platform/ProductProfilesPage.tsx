@@ -1,13 +1,15 @@
 'use client';
 
+import NextLink from 'next/link';
 import {
   AddOutlined,
+  ArrowForwardOutlined,
   FavoriteBorderOutlined,
   Inventory2Outlined,
   LocalShippingOutlined,
   WarningAmberOutlined,
 } from '@mui/icons-material';
-import { Box, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import { getJson, postJson } from './api';
@@ -101,6 +103,16 @@ export default function ProductProfilesPage() {
       <PageHeader
         title="My Products"
         description="Monitor portfolio health, delivery progress, and recommended productization actions."
+        action={
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 42, minWidth: 140 }}>
+              New product
+            </Button>
+            <Button component={NextLink} href="/owner/project-cart#project-cart" variant="outlined" sx={{ minHeight: 42, minWidth: 160 }}>
+              Review draft cart
+            </Button>
+          </Stack>
+        }
       />
       <QueryState isLoading={profiles.isLoading || packages.isLoading} error={profiles.error || packages.error || createProfile.error} />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 330px' }, gap: 2.5 }}>
@@ -127,7 +139,7 @@ export default function ProductProfilesPage() {
                       key={profile.id}
                       sx={{
                         display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', lg: '1.6fr 120px 130px 1.3fr 1fr' },
+                        gridTemplateColumns: { xs: '1fr', lg: '1.6fr 120px 130px 1.3fr 1fr auto' },
                         gap: 2,
                         alignItems: 'center',
                         py: 2,
@@ -166,11 +178,14 @@ export default function ProductProfilesPage() {
                         </Typography>
                       </Box>
                       <Box>
-                        <Typography sx={{ fontWeight: 800 }}>{packageInstance?.name || 'No package yet'}</Typography>
+                        <Typography sx={{ fontWeight: 800 }}>{packageInstance?.name || 'No service plan yet'}</Typography>
                         <Typography variant="body2" color="text.secondary">
                           {packageInstance ? formatLabel(packageInstance.status) : 'Create a requirement intake'}
                         </Typography>
                       </Box>
+                      <Button component={NextLink} href={`/products/${profile.id}`} variant="outlined" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 38 }}>
+                        Open
+                      </Button>
                     </Box>
                   );
                 })}
@@ -225,7 +240,7 @@ export default function ProductProfilesPage() {
               </Box>
             </Stack>
             <Typography color="text.secondary" sx={{ mt: 2, lineHeight: 1.7 }}>
-              Resolve at-risk areas before milestone review and keep package evidence attached to each delivery.
+              Resolve at-risk areas before milestone review and keep service plan evidence attached to each delivery.
             </Typography>
           </Surface>
         </Stack>

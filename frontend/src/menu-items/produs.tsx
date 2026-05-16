@@ -72,11 +72,20 @@ const produs: NavItemType = {
     },
     {
       id: 'products',
-      title: 'Product Profiles',
+      title: 'Products',
       type: 'item',
-      url: '/owner/products',
+      url: '/products',
       icon: icons.IconBriefcase,
-      roles: [UserRole.ADMIN],
+      roles: [UserRole.ADMIN, UserRole.PRODUCT_OWNER],
+      breadcrumbs: true
+    },
+    {
+      id: 'draft-cart',
+      title: 'Draft Cart',
+      type: 'item',
+      url: '/owner/project-cart',
+      icon: icons.IconPackage,
+      roles: [UserRole.PRODUCT_OWNER],
       breadcrumbs: true
     },
     {
@@ -85,16 +94,16 @@ const produs: NavItemType = {
       type: 'item',
       url: '/owner/requirements',
       icon: icons.IconChecklist,
-      roles: [UserRole.ADMIN],
+      roles: [UserRole.ADMIN, UserRole.PRODUCT_OWNER],
       breadcrumbs: true
     },
     {
       id: 'packages',
-      title: 'Packages',
+      title: 'Service Plans',
       type: 'item',
       url: '/packages',
       icon: icons.IconPackage,
-      roles: [UserRole.ADMIN],
+      roles: [UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER],
       breadcrumbs: true
     },
     {
@@ -112,7 +121,7 @@ const produs: NavItemType = {
       type: 'item',
       url: '/workspaces',
       icon: icons.IconBuildingCommunity,
-      roles: [UserRole.ADMIN, UserRole.TEAM_MANAGER, UserRole.SPECIALIST, UserRole.ADVISOR],
+      roles: [UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER, UserRole.SPECIALIST, UserRole.ADVISOR],
       breadcrumbs: true
     },
     {

@@ -275,8 +275,8 @@ export default function PackagesPage() {
   return (
     <>
       <PageHeader
-        title="Package Builder"
-        description="Configure services, dependencies, milestones, teams, proposals, and commercial handoff from real package records."
+        title="Service Plan Builder"
+        description="Configure services, dependencies, milestones, teams, proposals, and commercial handoff from real service plan records."
       />
       <QueryState
         isLoading={packages.isLoading || requirements.isLoading || teams.isLoading || workspaces.isLoading || contracts.isLoading || invoices.isLoading}
@@ -288,7 +288,7 @@ export default function PackagesPage() {
           <Surface>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ md: 'center' }}>
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ md: 'center' }}>
-                <Typography color="text.secondary" sx={{ fontWeight: 800 }}>Package</Typography>
+                <Typography color="text.secondary" sx={{ fontWeight: 800 }}>Service plan</Typography>
                 <TextField
                   select
                   size="small"
@@ -314,7 +314,7 @@ export default function PackagesPage() {
                   <Box>
                     <Typography variant="h2" sx={{ mb: 0.75 }}>{selectedPackage.name}</Typography>
                     <Typography color="text.secondary" sx={{ maxWidth: 720, lineHeight: 1.7 }}>
-                      {selectedPackage.summary || 'No package summary yet.'}
+                      {selectedPackage.summary || 'No service plan summary yet.'}
                     </Typography>
                   </Box>
                   <ProgressRing value={score} size={96} color={statusAccent(selectedPackage.status)} label="confidence" />
@@ -355,7 +355,7 @@ export default function PackagesPage() {
                       })}
                     </Stack>
                   ) : (
-                    <EmptyState label="No service modules are attached to this package yet." />
+                    <EmptyState label="No service modules are attached to this service plan yet." />
                   )}
                 </Box>
 
@@ -397,7 +397,7 @@ export default function PackagesPage() {
                 </Box>
               </Stack>
             ) : (
-              <EmptyState label="Select or generate a package to inspect its service sequence." />
+              <EmptyState label="Select or generate a service plan to inspect its service sequence." />
             )}
           </Surface>
 
@@ -467,7 +467,7 @@ export default function PackagesPage() {
                   </Box>
                 ))
               ) : (
-                <Typography variant="body2" color="text.secondary">No proposals have been submitted for this package yet.</Typography>
+                <Typography variant="body2" color="text.secondary">No proposals have been submitted for this service plan yet.</Typography>
               )}
             </Stack>
 
@@ -522,7 +522,7 @@ export default function PackagesPage() {
 
         <Stack spacing={2.5}>
           <Surface>
-            <SectionTitle title="Recommended Package" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
+            <SectionTitle title="Recommended Service Plan" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
             <Stack direction="row" spacing={2} alignItems="center">
               <ProgressRing value={score || 86} size={94} color={appleColors.purple} label="/100" />
               <Box>
@@ -567,7 +567,7 @@ export default function PackagesPage() {
           </Surface>
 
           <Surface>
-            <SectionTitle title="Package Summary" />
+            <SectionTitle title="Service Plan Summary" />
             <Stack spacing={1.25}>
               <Stack direction="row" justifyContent="space-between">
                 <Typography color="text.secondary">Included services</Typography>

@@ -209,7 +209,7 @@ const productHealth = (product?: ProductProfile, packageInstance?: PackageInstan
   return packageScore(packageInstance, modules);
 };
 
-export default function OwnerProductizationWorkspace() {
+export default function OwnerProductizationWorkspace({ productId }: { productId?: string } = {}) {
   const queryClient = useQueryClient();
   const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const requirements = useQuery({ queryKey: ['requirements'], queryFn: () => getJson<RequirementIntake[]>('/requirements') });
@@ -224,7 +224,7 @@ export default function OwnerProductizationWorkspace() {
   const experts = useQuery({ queryKey: ['expert-profiles'], queryFn: () => getJson<ExpertProfile[]>('/expert-profiles') });
   const cart = useQuery({ queryKey: ['productization-cart'], queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
 
-  const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState(productId || '');
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [pendingRequirementId, setPendingRequirementId] = useState('');
   const [projectName, setProjectName] = useState('');
@@ -448,8 +448,8 @@ export default function OwnerProductizationWorkspace() {
       teamId,
       status,
       notes: status === 'COMPARED'
-        ? 'Owner compared this team against package needs, evidence, and commercial readiness.'
-        : 'Owner shortlisted this team for productization package review.',
+        ? 'Owner compared this team against service plan needs, evidence, and commercial readiness.'
+        : 'Owner shortlisted this team for productization service plan review.',
     });
   };
 
@@ -475,7 +475,7 @@ export default function OwnerProductizationWorkspace() {
     addTalentToCart.mutate({
       itemType: 'TEAM',
       teamId: recommendation.team.id,
-      notes: `Owner saved team from package matching. Match score ${Math.round(recommendation.score * 100)}%.`,
+      notes: `Owner saved team from service plan matching. Match score ${Math.round(recommendation.score * 100)}%.`,
     });
   };
 
@@ -506,6 +506,12 @@ export default function OwnerProductizationWorkspace() {
       });
     }
   };
+
+  useEffect(() => {
+    if (productId && productId !== selectedProductId) {
+      setSelectedProductId(productId);
+    }
+  }, [productId, selectedProductId]);
 
   useEffect(() => {
     if (selectedProduct?.id && cart.data?.status === 'DRAFT' && cart.data.productProfile?.id !== selectedProduct.id && !updateCart.isPending) {
@@ -779,7 +785,7 @@ export default function OwnerProductizationWorkspace() {
           </Box>
 
           <Surface>
-            <SectionTitle title="Package Plan" action={selectedPackage && <StatusChip label={selectedPackage.status} />} />
+            <SectionTitle title="Service Plan" action={selectedPackage && <StatusChip label={selectedPackage.status} />} />
             {selectedPackage ? (
               <Stack spacing={2}>
                 {(packageModules.isFetching || teamRecommendations.isFetching) && <LinearProgress sx={{ borderRadius: 999 }} />}
@@ -1060,7 +1066,7 @@ export default function OwnerProductizationWorkspace() {
               </Box>
             </Stack>
             <Typography color="text.secondary" sx={{ mt: 2, lineHeight: 1.7 }}>
-              {recommendations.data?.[0]?.rationale || 'Use lifecycle services, package evidence, and verified teams to keep productization decisions concrete.'}
+              {recommendations.data?.[0]?.rationale || 'Use lifecycle services, plan evidence, and verified teams to keep productization decisions concrete.'}
             </Typography>
           </Surface>
 
@@ -1083,7 +1089,7 @@ export default function OwnerProductizationWorkspace() {
                 </Button>
               </Stack>
             ) : (
-              <Typography variant="body2" color="text.secondary">A workspace appears after package handoff.</Typography>
+              <Typography variant="body2" color="text.secondary">A workspace appears after service plan handoff.</Typography>
             )}
           </Surface>
 

@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson } from './api';
-import OwnerProductizationWorkspace from './OwnerProductizationWorkspace';
+import ProductizationLaunchpad from './ProductizationLaunchpad';
 import TeamDeliveryWorkspace from './TeamDeliveryWorkspace';
 import {
   DotLabel,
@@ -64,7 +64,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
 
   if (user?.role === UserRole.PRODUCT_OWNER) {
-    return <OwnerProductizationWorkspace />;
+    return <ProductizationLaunchpad />;
   }
 
   if (user?.role === UserRole.TEAM_MANAGER || user?.role === UserRole.SPECIALIST || user?.role === UserRole.ADVISOR) {
