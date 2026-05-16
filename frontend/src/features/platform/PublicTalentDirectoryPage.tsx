@@ -301,7 +301,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
   const queryClient = useQueryClient();
   const { isLoggedIn, user } = useAuth();
   const canUseProjectCart = user?.role === UserRole.PRODUCT_OWNER;
-  const cartHref = canUseProjectCart ? '/owner/project-cart#project-cart' : isLoggedIn ? '/dashboard' : '/login';
+  const cartHref = canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login';
   const cartActionLabel = canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
   const teams = useQuery({ queryKey: ['public-teams'], queryFn: () => getJson<Team[]>('/teams') });
   const experts = useQuery({ queryKey: ['public-expert-profiles'], queryFn: () => getJson<ExpertProfile[]>('/expert-profiles') });

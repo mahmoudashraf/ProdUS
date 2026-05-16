@@ -64,7 +64,7 @@ export default function ProductProfilesPage() {
             <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 42, minWidth: 140 }}>
               New product
             </Button>
-            <Button component={NextLink} href="/owner/project-cart#project-cart" variant="outlined" sx={{ minHeight: 42, minWidth: 160 }}>
+            <Button component={NextLink} href="/owner/project-cart" variant="outlined" sx={{ minHeight: 42, minWidth: 160 }}>
               Review draft cart
             </Button>
           </Stack>

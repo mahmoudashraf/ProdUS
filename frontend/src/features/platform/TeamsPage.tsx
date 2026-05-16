@@ -1,5 +1,6 @@
 'use client';
 
+import NextLink from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   BookmarkBorderOutlined,
@@ -141,6 +142,7 @@ export default function TeamsPage() {
 function MatchedTeamsPage() {
   const queryClient = useQueryClient();
   const { hasRole } = useAuth();
+  const canManageTeams = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
   const canManageTeamRoster = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
   const canCreateReputation = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER]);
   const teams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
@@ -309,7 +311,7 @@ function MatchedTeamsPage() {
       />
       <QueryState
         isLoading={teams.isLoading || packages.isLoading || categories.isLoading || modules.isLoading || workspaces.isLoading}
-        error={teams.error || packages.error || categories.error || modules.error || workspaces.error || recommendations.error || capabilities.error || reputation.error || shortlists.error || (canManageTeamRoster ? members.error : null) || createTeam.error || createCapability.error || addMember.error || addReputation.error || upsertShortlist.error}
+        error={teams.error || packages.error || categories.error || modules.error || workspaces.error || recommendations.error || capabilities.error || reputation.error || shortlists.error || (canManageTeamRoster ? members.error : null) || (canManageTeams ? createTeam.error || createCapability.error : null) || (canManageTeamRoster ? addMember.error : null) || addReputation.error || upsertShortlist.error}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 330px' }, gap: 2.5 }}>
@@ -324,7 +326,9 @@ function MatchedTeamsPage() {
                   ))}
                 </TextField>
               </Stack>
-              <PastelChip label="Adjust requirements" accent={appleColors.purple} />
+              <Button component={NextLink} href="/packages" variant="outlined" size="small" sx={{ minHeight: 36 }}>
+                Adjust service plan
+              </Button>
             </Stack>
           </Surface>
 
@@ -401,25 +405,27 @@ function MatchedTeamsPage() {
             </Stack>
           </Surface>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '380px 1fr' }, gap: 2.5 }}>
-            <Surface>
-              <SectionTitle title="Create Team" action={<ManageAccountsOutlined sx={{ color: appleColors.purple }} />} />
-              <Box component="form" onSubmit={submit}>
-                <Stack spacing={1.5}>
-                  <TextInput label="Team name" value={teamForm.values.name} onChange={(name) => teamForm.setValue('name', name)} />
-                  <TextInput label="Description" value={teamForm.values.description} onChange={(description) => teamForm.setValue('description', description)} multiline />
-                  <TextInput label="Location / timezone" value={teamForm.values.timezone} onChange={(timezone) => teamForm.setValue('timezone', timezone)} />
-                  <TextInput label="Capabilities" value={teamForm.values.capabilitiesSummary} onChange={(capabilitiesSummary) => teamForm.setValue('capabilitiesSummary', capabilitiesSummary)} multiline />
-                  <TextInput label="Typical project size" value={teamForm.values.typicalProjectSize} onChange={(typicalProjectSize) => teamForm.setValue('typicalProjectSize', typicalProjectSize)} />
-                  <TextField select fullWidth label="Verification" value={teamForm.values.verificationStatus} onChange={(event) => teamForm.setValue('verificationStatus', event.target.value as Team['verificationStatus'])}>
-                    {statuses.map((status) => (
-                      <MenuItem key={status} value={status}>{formatLabel(status)}</MenuItem>
-                    ))}
-                  </TextField>
-                  <SaveButton disabled={!teamForm.values.name || createTeam.isPending} label="Create team" />
-                </Stack>
-              </Box>
-            </Surface>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: canManageTeams ? '380px 1fr' : '1fr' }, gap: 2.5 }}>
+            {canManageTeams && (
+              <Surface>
+                <SectionTitle title="Create Team" action={<ManageAccountsOutlined sx={{ color: appleColors.purple }} />} />
+                <Box component="form" onSubmit={submit}>
+                  <Stack spacing={1.5}>
+                    <TextInput label="Team name" value={teamForm.values.name} onChange={(name) => teamForm.setValue('name', name)} />
+                    <TextInput label="Description" value={teamForm.values.description} onChange={(description) => teamForm.setValue('description', description)} multiline />
+                    <TextInput label="Location / timezone" value={teamForm.values.timezone} onChange={(timezone) => teamForm.setValue('timezone', timezone)} />
+                    <TextInput label="Capabilities" value={teamForm.values.capabilitiesSummary} onChange={(capabilitiesSummary) => teamForm.setValue('capabilitiesSummary', capabilitiesSummary)} multiline />
+                    <TextInput label="Typical project size" value={teamForm.values.typicalProjectSize} onChange={(typicalProjectSize) => teamForm.setValue('typicalProjectSize', typicalProjectSize)} />
+                    <TextField select fullWidth label="Verification" value={teamForm.values.verificationStatus} onChange={(event) => teamForm.setValue('verificationStatus', event.target.value as Team['verificationStatus'])}>
+                      {statuses.map((status) => (
+                        <MenuItem key={status} value={status}>{formatLabel(status)}</MenuItem>
+                      ))}
+                    </TextField>
+                    <SaveButton disabled={!teamForm.values.name || createTeam.isPending} label="Create team" />
+                  </Stack>
+                </Box>
+              </Surface>
+            )}
 
             <Surface>
               <SectionTitle title={selectedTeam?.name || 'Team Profile'} action={selectedTeam && <StatusChip label={selectedTeam.verificationStatus} color="success" />} />
@@ -434,33 +440,35 @@ function MatchedTeamsPage() {
                     </Box>
                   </Stack>
 
-                  <Box component="form" onSubmit={submitCapability}>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr auto' }, gap: 1 }}>
-                      <TextField
-                        select
-                        size="small"
-                        label="Category"
-                        value={capabilityForm.values.serviceCategoryId}
-                        onChange={(event) => {
-                          capabilityForm.setValue('serviceCategoryId', event.target.value);
-                          capabilityForm.setValue('serviceModuleId', null);
-                        }}
-                      >
-                        {(categories.data || []).map((category) => (
-                          <MenuItem key={category.id} value={category.id}>{category.name}</MenuItem>
-                        ))}
-                      </TextField>
-                      <TextField select size="small" label="Module" value={capabilityForm.values.serviceModuleId || ''} onChange={(event) => capabilityForm.setValue('serviceModuleId', event.target.value || null)}>
-                        <MenuItem value="">Category level</MenuItem>
-                        {(modules.data || [])
-                          .filter((module) => !capabilityForm.values.serviceCategoryId || module.category?.id === capabilityForm.values.serviceCategoryId)
-                          .map((module) => (
-                            <MenuItem key={module.id} value={module.id}>{module.name}</MenuItem>
+                  {canManageTeams && (
+                    <Box component="form" onSubmit={submitCapability}>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr auto' }, gap: 1 }}>
+                        <TextField
+                          select
+                          size="small"
+                          label="Category"
+                          value={capabilityForm.values.serviceCategoryId}
+                          onChange={(event) => {
+                            capabilityForm.setValue('serviceCategoryId', event.target.value);
+                            capabilityForm.setValue('serviceModuleId', null);
+                          }}
+                        >
+                          {(categories.data || []).map((category) => (
+                            <MenuItem key={category.id} value={category.id}>{category.name}</MenuItem>
                           ))}
-                      </TextField>
-                      <Button type="submit" variant="outlined" disabled={!capabilityForm.values.serviceCategoryId || createCapability.isPending}>Add</Button>
+                        </TextField>
+                        <TextField select size="small" label="Module" value={capabilityForm.values.serviceModuleId || ''} onChange={(event) => capabilityForm.setValue('serviceModuleId', event.target.value || null)}>
+                          <MenuItem value="">Category level</MenuItem>
+                          {(modules.data || [])
+                            .filter((module) => !capabilityForm.values.serviceCategoryId || module.category?.id === capabilityForm.values.serviceCategoryId)
+                            .map((module) => (
+                              <MenuItem key={module.id} value={module.id}>{module.name}</MenuItem>
+                            ))}
+                        </TextField>
+                        <Button type="submit" variant="outlined" disabled={!capabilityForm.values.serviceCategoryId || createCapability.isPending}>Add</Button>
+                      </Box>
                     </Box>
-                  </Box>
+                  )}
 
                   <Box>
                     <SectionTitle title="Verified Capabilities" />
@@ -475,7 +483,9 @@ function MatchedTeamsPage() {
                         ))}
                       </Stack>
                     ) : (
-                      <Typography variant="body2" color="text.secondary">Add service capabilities so service plans can recommend this team.</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Capability evidence is maintained by team leads and platform operations.
+                      </Typography>
                     )}
                   </Box>
 
@@ -531,7 +541,7 @@ function MatchedTeamsPage() {
                   </Box>
                 </Stack>
               ) : (
-                <EmptyState label="Create or select a team to manage capabilities." />
+                <EmptyState label="Select a team to inspect capabilities, shortlist fit, and workspace-backed reputation." />
               )}
             </Surface>
           </Box>

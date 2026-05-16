@@ -168,7 +168,7 @@ function TeamProfile({
           >
             {!isLoggedIn ? 'Sign In To Add Team' : canUseProjectCart ? (inCart ? 'In Draft Cart' : 'Add Team To Draft') : 'Open Dashboard'}
           </Button>
-          <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart#project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
+          <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
             {canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
           </Button>
         </Stack>
@@ -360,7 +360,7 @@ function ExpertProfileView({
                   Portfolio
                 </Button>
               )}
-              <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart#project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<RocketLaunchOutlined />} sx={{ minHeight: 42 }}>
+              <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<RocketLaunchOutlined />} sx={{ minHeight: 42 }}>
                 {canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
               </Button>
             </Stack>
@@ -448,7 +448,7 @@ export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
               <Typography color="text.secondary">Compare profiles, save delivery partners to a draft cart, and convert it into a governed workspace after sign in.</Typography>
             </Box>
           </Stack>
-          <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart#project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<VerifiedOutlined />} sx={{ minHeight: 44, minWidth: 160 }}>
+          <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<VerifiedOutlined />} sx={{ minHeight: 44, minWidth: 160 }}>
             {canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Dashboard' : 'Sign in'}
           </Button>
         </Stack>

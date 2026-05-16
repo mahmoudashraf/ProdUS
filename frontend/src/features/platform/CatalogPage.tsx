@@ -62,7 +62,7 @@ export default function CatalogPage() {
   const queryClient = useQueryClient();
   const { isLoggedIn, user } = useAuth();
   const canUseProjectCart = user?.role === UserRole.PRODUCT_OWNER;
-  const cartHref = canUseProjectCart ? '/owner/project-cart#project-cart' : isLoggedIn ? '/dashboard' : '/login';
+  const cartHref = canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login';
   const cartActionLabel = canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
   const categories = useQuery({
     queryKey: ['catalog-categories'],

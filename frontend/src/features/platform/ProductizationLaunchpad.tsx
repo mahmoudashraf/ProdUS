@@ -74,7 +74,7 @@ const steps = [
   {
     title: 'Start workspace',
     detail: 'Convert the draft cart into milestones, participants, and delivery evidence.',
-    href: '/owner/project-cart#project-cart',
+    href: '/owner/project-cart',
     icon: WorkspacesOutlined,
     accent: appleColors.amber,
   },
@@ -110,7 +110,7 @@ export default function ProductizationLaunchpad() {
             <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44, minWidth: 150 }}>
               New product
             </Button>
-            <Button component={NextLink} href="/owner/project-cart#project-cart" variant="outlined" startIcon={<ShoppingCartOutlined />} sx={{ minHeight: 44, minWidth: 168 }}>
+            <Button component={NextLink} href="/owner/project-cart" variant="outlined" startIcon={<ShoppingCartOutlined />} sx={{ minHeight: 44, minWidth: 168 }}>
               Review draft cart
             </Button>
           </Stack>
@@ -162,7 +162,7 @@ export default function ProductizationLaunchpad() {
                     <PastelChip label={`${draftTalent} teams / experts`} accent={appleColors.cyan} bg="#e4f9fd" />
                     <PastelChip label={formatLabel(cart.data?.status || 'DRAFT')} accent={statusAccent(cart.data?.status)} />
                   </Stack>
-                  <Button component={NextLink} href="/owner/project-cart#project-cart" variant="outlined" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 42 }}>
+                  <Button component={NextLink} href="/owner/project-cart" variant="outlined" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 42 }}>
                     Review and start workspace
                   </Button>
                 </Stack>
@@ -278,7 +278,7 @@ export default function ProductizationLaunchpad() {
             </Typography>
             <Button
               component={NextLink}
-              href={draftServices ? '/owner/project-cart#project-cart' : productList.length ? '/services' : '/products/new'}
+              href={draftServices ? '/owner/project-cart' : productList.length ? '/services' : '/products/new'}
               variant="contained"
               sx={{ mt: 2, minHeight: 44 }}
             >
