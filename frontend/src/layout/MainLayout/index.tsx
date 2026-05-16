@@ -56,18 +56,14 @@ const Main = styled('main', {
     marginLeft: 0,
     padding: '16px',
     marginTop: 88,
-    ...(!$open && {
-      width: `calc(100% - ${drawerWidth}px)`,
-    }),
+    width: '100%',
   },
   [theme.breakpoints.down('sm')]: {
     marginLeft: 0,
     marginRight: 0,
     padding: '16px',
     marginTop: 88,
-    ...(!$open && {
-      width: `calc(100% - ${drawerWidth}px)`,
-    }),
+    width: '100%',
   },
 }));
 
@@ -87,27 +83,15 @@ const MainLayout: FC<Props> = ({ children }) => {
   const { drawerType, container, layout } = useConfig();
 
   useEffect(() => {
-    if (drawerType === LAYOUT_CONST.DEFAULT_DRAWER) {
+    if (matchDownMd) {
+      setDrawerOpen(false);
+    } else if (drawerType === LAYOUT_CONST.DEFAULT_DRAWER) {
       setDrawerOpen(true);
     } else {
       setDrawerOpen(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawerType]);
-
-  useEffect(() => {
-    if (drawerType === LAYOUT_CONST.DEFAULT_DRAWER) {
-      setDrawerOpen(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (matchDownMd) {
-      setDrawerOpen(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matchDownMd]);
+  }, [drawerType, matchDownMd]);
 
   const condition = layout === LAYOUT_CONST.HORIZONTAL_LAYOUT && !matchDownMd;
 

@@ -14,6 +14,7 @@ import {
 import { Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getJson } from './api';
+import { isPlaceholderProduct, sortPackagesForOwner, sortProductsForOwner, sortWorkspacesForOwner } from './displayOrder';
 import {
   DotLabel,
   EmptyState,
@@ -87,9 +88,9 @@ export default function ProductizationLaunchpad() {
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const cart = useQuery({ queryKey: ['productization-cart'], queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
 
-  const productList = products.data || [];
-  const packageList = packages.data || [];
-  const workspaceList = workspaces.data || [];
+  const packageList = sortPackagesForOwner(packages.data || []);
+  const productList = sortProductsForOwner(products.data || [], packageList);
+  const workspaceList = sortWorkspacesForOwner(workspaces.data || []);
   const activeWorkspaces = workspaceList.filter((workspace) => workspace.status !== 'CLOSED' && workspace.status !== 'DELIVERED');
   const draftServices = cart.data?.serviceItems.length || 0;
   const draftTalent = cart.data?.talentItems.length || 0;
@@ -98,7 +99,13 @@ export default function ProductizationLaunchpad() {
     : productList.length
       ? 58
       : 0;
-  const nextProduct = cart.data?.productProfile || productList[0];
+  const cartProduct = cart.data?.productProfile;
+  const nextProduct = cartProduct && !isPlaceholderProduct(cartProduct) ? cartProduct : productList[0];
+  const currentDraftTitle = cartProduct && !isPlaceholderProduct(cartProduct)
+    ? cart.data?.title || `${cartProduct.name} productization draft`
+    : nextProduct
+      ? `${nextProduct.name} productization draft`
+      : 'Draft productization cart';
 
   return (
     <>
@@ -151,7 +158,7 @@ export default function ProductizationLaunchpad() {
                   <Stack direction="row" spacing={2} alignItems="center">
                     <ProgressRing value={clampScore((draftServices * 18) + (draftTalent * 14) + (nextProduct ? 28 : 0))} size={92} color={appleColors.purple} label="ready" />
                     <Box>
-                      <Typography variant="h4">{cart.data?.title || 'Draft productization cart'}</Typography>
+                      <Typography variant="h4">{currentDraftTitle}</Typography>
                       <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                         {nextProduct ? `Prepared for ${nextProduct.name}` : 'Create or select a product to make this draft actionable.'}
                       </Typography>

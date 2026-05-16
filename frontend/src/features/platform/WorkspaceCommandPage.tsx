@@ -16,6 +16,7 @@ import useAuth from '@/hooks/useAuth';
 import { uploadService } from '@/services/uploadService';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
+import { sortWorkspacesForOwner } from './displayOrder';
 import {
   DotLabel,
   EmptyState,
@@ -102,25 +103,6 @@ const supportPriorities: SupportRequest['priority'][] = ['LOW', 'MEDIUM', 'HIGH'
 const supportStatuses: SupportRequest['status'][] = ['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'WAITING_ON_OWNER', 'RESOLVED', 'CANCELLED'];
 const disputeSeverities: DisputeCase['severity'][] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const disputeStatuses: DisputeCase['status'][] = ['OPEN', 'UNDER_REVIEW', 'OWNER_RESPONSE_NEEDED', 'TEAM_RESPONSE_NEEDED', 'RESOLVED', 'CANCELLED'];
-
-const workspaceStatusRank: Record<ProjectWorkspace['status'], number> = {
-  ACTIVE_DELIVERY: 0,
-  MILESTONE_REVIEW: 1,
-  BLOCKED: 2,
-  SUPPORT_HANDOFF: 3,
-  SCOPE_NEGOTIATION: 4,
-  AWAITING_TEAM_PROPOSAL: 5,
-  DRAFT_PACKAGE: 6,
-  DELIVERED: 7,
-  CLOSED: 8,
-};
-
-const isThrowawayWorkspace = (workspace: ProjectWorkspace) => {
-  const name = workspace.name.trim().toLowerCase();
-  return name === 'name' || /^t{3,}$/.test(name) || /^redesign smoke \d+/.test(name);
-};
-
-const workspaceTime = (workspace: ProjectWorkspace) => Date.parse(workspace.updatedAt || workspace.createdAt || '') || 0;
 
 const workspaceAccent = (status?: string) => {
   if (!status) return appleColors.purple;
@@ -212,17 +194,7 @@ export default function WorkspaceCommandPage() {
     },
   });
 
-  const workspaceList = useMemo(
-    () =>
-      [...(workspaces.data || [])].sort((a, b) => {
-        const statusDelta = (workspaceStatusRank[a.status] ?? 99) - (workspaceStatusRank[b.status] ?? 99);
-        if (statusDelta) return statusDelta;
-        const throwawayDelta = Number(isThrowawayWorkspace(a)) - Number(isThrowawayWorkspace(b));
-        if (throwawayDelta) return throwawayDelta;
-        return workspaceTime(b) - workspaceTime(a);
-      }),
-    [workspaces.data]
-  );
+  const workspaceList = useMemo(() => sortWorkspacesForOwner(workspaces.data || []), [workspaces.data]);
   const selectedWorkspace = useMemo(
     () => workspaceList.find((workspace) => workspace.id === selectedWorkspaceId) || workspaceList[0],
     [workspaceList, selectedWorkspaceId]

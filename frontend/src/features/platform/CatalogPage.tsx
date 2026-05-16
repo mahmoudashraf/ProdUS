@@ -195,7 +195,13 @@ export default function CatalogPage() {
                               },
                             }}
                           >
-                            {!isLoggedIn ? 'Sign in to add' : canUseProjectCart ? (inCart ? 'In draft cart' : 'Add to draft cart') : 'Owner cart only'} · {shortModuleName(module.name)}
+                            {!isLoggedIn
+                              ? `Sign in to add ${shortModuleName(module.name)}`
+                              : canUseProjectCart
+                                ? inCart
+                                  ? `${shortModuleName(module.name)} in draft cart`
+                                  : `Add ${shortModuleName(module.name)}`
+                                : `Open dashboard for ${shortModuleName(module.name)}`}
                           </Button>
                         );
                       })}

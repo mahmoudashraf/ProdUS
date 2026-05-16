@@ -12,6 +12,7 @@ import {
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getJson } from './api';
+import { sortProductsForOwner } from './displayOrder';
 import {
   DotLabel,
   EmptyState,
@@ -48,8 +49,8 @@ const statusForScore = (score: number) => {
 export default function ProductProfilesPage() {
   const profiles = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
-  const productList = profiles.data || [];
   const packageList = packages.data || [];
+  const productList = sortProductsForOwner(profiles.data || [], packageList);
   const healthyCount = productList.filter((profile) => productScore(profile, packageList) >= 80).length;
   const attentionCount = productList.filter((profile) => productScore(profile, packageList) < 65).length;
   const inDeliveryCount = packageList.filter((item) => item.status === 'ACTIVE_DELIVERY' || item.status === 'MILESTONE_REVIEW').length;

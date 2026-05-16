@@ -18,6 +18,7 @@ import {
 import { Alert, Box, Button, Divider, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { deleteJson, getJson, postJson, putJson } from './api';
+import { isPlaceholderProduct, sortProductsForOwner } from './displayOrder';
 import {
   DotLabel,
   EmptyState,
@@ -95,12 +96,14 @@ export default function DraftProjectCartPage() {
     },
   });
 
-  const productList = products.data || [];
   const currentCart = cart.data;
+  const productList = sortProductsForOwner(products.data || []);
+  const selectableProducts = productList.filter((item) => !isPlaceholderProduct(item));
   const product = currentCart?.productProfile;
+  const hasPlaceholderProduct = isPlaceholderProduct(product);
   const serviceCount = currentCart?.serviceItems.length || 0;
   const talentCount = currentCart?.talentItems.length || 0;
-  const canStartWorkspace = !!product && serviceCount > 0;
+  const canStartWorkspace = !!product && !hasPlaceholderProduct && serviceCount > 0;
   const score = readinessScore(currentCart);
 
   const selectProduct = (productId: string) => {
@@ -139,11 +142,11 @@ export default function DraftProjectCartPage() {
           <Surface sx={{ p: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
             <Box sx={{ p: { xs: 2.5, md: 3 }, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.75fr 1.25fr' }, gap: 3, alignItems: 'center' }}>
               <Stack spacing={2}>
-                <PastelChip label="Draft only" accent={appleColors.purple} />
+                <PastelChip label={hasPlaceholderProduct ? 'Needs product selection' : 'Draft only'} accent={hasPlaceholderProduct ? appleColors.amber : appleColors.purple} />
                 <Stack direction="row" spacing={2} alignItems="center">
                   <ProgressRing value={score} size={108} color={canStartWorkspace ? appleColors.green : appleColors.purple} label="ready" />
                   <Box>
-                    <Typography variant="h2">{currentCart?.title || 'Productization draft'}</Typography>
+                    <Typography variant="h2">{hasPlaceholderProduct ? 'Choose a real product for this draft' : currentCart?.title || 'Productization draft'}</Typography>
                     <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
                       Nothing becomes a project until you press Start Project Workspace.
                     </Typography>
@@ -157,21 +160,29 @@ export default function DraftProjectCartPage() {
                     {notice}
                   </Alert>
                 )}
+                {hasPlaceholderProduct && (
+                  <Alert severity="warning" sx={{ borderRadius: 1 }}>
+                    This draft is attached to a temporary test product. Select a production product below before starting a workspace.
+                  </Alert>
+                )}
                 <TextField
                   select
                   fullWidth
                   label="Product this draft belongs to"
-                  value={product?.id || ''}
+                  value={hasPlaceholderProduct ? '' : product?.id || ''}
                   onChange={(event) => selectProduct(event.target.value)}
                   disabled={updateCart.isPending}
                 >
-                  {productList.map((item) => (
+                  <MenuItem value="" disabled>
+                    Choose product
+                  </MenuItem>
+                  {(selectableProducts.length ? selectableProducts : productList).map((item) => (
                     <MenuItem key={item.id} value={item.id}>
                       {item.name}
                     </MenuItem>
                   ))}
                 </TextField>
-                {product ? (
+                {product && !hasPlaceholderProduct ? (
                   <Surface sx={{ boxShadow: 'none', background: '#fff' }}>
                     <Stack direction="row" spacing={1.5} alignItems="flex-start">
                       <Box sx={{ width: 46, height: 46, borderRadius: 1, display: 'grid', placeItems: 'center', bgcolor: '#f1efff', color: appleColors.purple }}>
@@ -190,7 +201,7 @@ export default function DraftProjectCartPage() {
                     </Stack>
                   </Surface>
                 ) : (
-                  <EmptyState label="Select or create a product before this draft can become a workspace." />
+                  <EmptyState label="Select or create a production product before this draft can become a workspace." />
                 )}
               </Stack>
             </Box>
@@ -319,7 +330,7 @@ export default function DraftProjectCartPage() {
               >
                 {convertCart.isPending ? 'Starting...' : 'Start Project Workspace'}
               </Button>
-              {!product && <DotLabel label="Select a product first" color={appleColors.amber} />}
+              {(!product || hasPlaceholderProduct) && <DotLabel label="Select a production product first" color={appleColors.amber} />}
               {product && !serviceCount && <DotLabel label="Add at least one service" color={appleColors.amber} />}
               {(createdWorkspace || currentCart?.convertedWorkspace) && (
                 <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>

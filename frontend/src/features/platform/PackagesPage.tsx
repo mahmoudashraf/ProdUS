@@ -13,6 +13,7 @@ import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
+import { sortPackagesForOwner } from './displayOrder';
 import {
   DotLabel,
   EmptyState,
@@ -181,7 +182,7 @@ export default function PackagesPage() {
     },
   });
 
-  const packageList = packages.data || [];
+  const packageList = sortPackagesForOwner(packages.data || []);
   const selectedPackage = useMemo(
     () => packageList.find((item) => item.id === selectedPackageId) || packageList[0],
     [packageList, selectedPackageId]

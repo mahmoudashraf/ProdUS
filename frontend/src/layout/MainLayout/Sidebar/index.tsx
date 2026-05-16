@@ -87,7 +87,7 @@ const Sidebar = () => {
           variant={matchUpMd ? 'persistent' : 'temporary'}
           anchor="left"
           open={drawerOpen}
-          onClose={() => setDrawerOpen(!drawerOpen)}
+          onClose={() => setDrawerOpen(false)}
           sx={{
             '& .MuiDrawer-paper': {
               mt: matchDownMd ? 0 : 11,

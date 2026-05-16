@@ -14,6 +14,7 @@ import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson } from './api';
+import { sortPackagesForOwner } from './displayOrder';
 import PublicTalentDirectoryPage from './PublicTalentDirectoryPage';
 import TeamProfilesPage from './TeamProfilesPage';
 import {
@@ -181,7 +182,7 @@ function MatchedTeamsPage() {
     },
   });
 
-  const packageList = packages.data || [];
+  const packageList = sortPackagesForOwner(packages.data || []);
   useEffect(() => {
     if (!selectedPackageId && packageList[0]) {
       setSelectedPackageId(packageList[0].id);
@@ -284,8 +285,8 @@ function MatchedTeamsPage() {
     }
   });
 
-  const matchedTeams = recommendations.data?.length
-    ? recommendations.data
+  const matchedTeams = selectedPackageId
+    ? recommendations.data || []
     : teamList.map((team) => ({ team, score: verificationScore(team) / 100, reasons: [team.capabilitiesSummary || team.description || 'Verified profile available'] }));
   const avgMatch = matchedTeams.length
     ? Math.round((matchedTeams.reduce((total, item) => total + item.score, 0) / matchedTeams.length) * 100)
@@ -334,7 +335,9 @@ function MatchedTeamsPage() {
 
           <Surface>
             <Stack spacing={0}>
-              {matchedTeams.length ? (
+              {recommendations.isLoading || recommendations.isFetching ? (
+                <EmptyState label="Matching verified teams against the selected service plan..." />
+              ) : matchedTeams.length ? (
                 matchedTeams.slice(0, 6).map((recommendation, index) => {
                   const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
                   const score = Math.round(recommendation.score * 100);
@@ -400,7 +403,7 @@ function MatchedTeamsPage() {
                   );
                 })
               ) : (
-                <EmptyState label="No teams have been added yet." />
+                <EmptyState label={selectedPackageId ? 'No verified team matches for this service plan yet.' : 'No teams have been added yet.'} />
               )}
             </Stack>
           </Surface>
