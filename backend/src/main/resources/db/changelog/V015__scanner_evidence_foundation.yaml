@@ -1,0 +1,313 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1500
+      author: produs
+      changes:
+        - createTable:
+            tableName: scan_sources
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: provider_type, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: display_name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: external_reference, type: VARCHAR(1000) }
+              - column: { name: authorization_status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: scope_note, type: TEXT }
+              - column: { name: created_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: scan_sources
+            baseColumnNames: owner_id
+            constraintName: fk_scan_sources_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scan_sources
+            baseColumnNames: product_profile_id
+            constraintName: fk_scan_sources_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scan_sources
+            baseColumnNames: workspace_id
+            constraintName: fk_scan_sources_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scan_sources
+            baseColumnNames: created_by
+            constraintName: fk_scan_sources_created_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: scan_sources
+            indexName: idx_scan_sources_product
+            columns:
+              - column: { name: product_profile_id }
+        - createIndex:
+            tableName: scan_sources
+            indexName: idx_scan_sources_workspace
+            columns:
+              - column: { name: workspace_id }
+
+  - changeSet:
+      id: 1501
+      author: produs
+      changes:
+        - createTable:
+            tableName: scan_runs
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: scan_source_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: trigger_type, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: depth, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: started_at, type: TIMESTAMP }
+              - column: { name: completed_at, type: TIMESTAMP }
+              - column: { name: requested_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: failure_summary, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: scan_runs
+            baseColumnNames: scan_source_id
+            constraintName: fk_scan_runs_source
+            referencedTableName: scan_sources
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scan_runs
+            baseColumnNames: product_profile_id
+            constraintName: fk_scan_runs_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scan_runs
+            baseColumnNames: workspace_id
+            constraintName: fk_scan_runs_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scan_runs
+            baseColumnNames: requested_by
+            constraintName: fk_scan_runs_requested_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: scan_runs
+            indexName: idx_scan_runs_product_status
+            columns:
+              - column: { name: product_profile_id }
+              - column: { name: status }
+        - createIndex:
+            tableName: scan_runs
+            indexName: idx_scan_runs_workspace
+            columns:
+              - column: { name: workspace_id }
+
+  - changeSet:
+      id: 1502
+      author: produs
+      changes:
+        - createTable:
+            tableName: tool_runs
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: scan_run_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: tool_name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: tool_version, type: VARCHAR(255) }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: started_at, type: TIMESTAMP }
+              - column: { name: completed_at, type: TIMESTAMP }
+              - column: { name: raw_artifact_ref, type: VARCHAR(1000) }
+              - column: { name: storage_key, type: VARCHAR(1000) }
+              - column: { name: normalized_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: error_summary, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: tool_runs
+            baseColumnNames: scan_run_id
+            constraintName: fk_tool_runs_scan_run
+            referencedTableName: scan_runs
+            referencedColumnNames: id
+        - createIndex:
+            tableName: tool_runs
+            indexName: idx_tool_runs_scan_run
+            columns:
+              - column: { name: scan_run_id }
+
+  - changeSet:
+      id: 1503
+      author: produs
+      changes:
+        - createTable:
+            tableName: normalized_findings
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: scan_run_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: tool_run_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: fingerprint, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: source_tool, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: source_rule_id, type: VARCHAR(255) }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT, constraints: { nullable: false } }
+              - column: { name: severity, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: affected_component, type: VARCHAR(1000) }
+              - column: { name: evidence_item_id, type: UUID }
+              - column: { name: recommended_module_id, type: UUID }
+              - column: { name: confidence_basis, type: TEXT }
+              - column: { name: risk_acceptance_reason, type: TEXT }
+              - column: { name: risk_review_due_on, type: DATE }
+              - column: { name: reviewed_by, type: UUID }
+              - column: { name: reviewed_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: normalized_findings
+            baseColumnNames: product_profile_id
+            constraintName: fk_normalized_findings_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: normalized_findings
+            baseColumnNames: workspace_id
+            constraintName: fk_normalized_findings_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: normalized_findings
+            baseColumnNames: scan_run_id
+            constraintName: fk_normalized_findings_scan_run
+            referencedTableName: scan_runs
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: normalized_findings
+            baseColumnNames: tool_run_id
+            constraintName: fk_normalized_findings_tool_run
+            referencedTableName: tool_runs
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: normalized_findings
+            baseColumnNames: recommended_module_id
+            constraintName: fk_normalized_findings_service_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: normalized_findings
+            baseColumnNames: reviewed_by
+            constraintName: fk_normalized_findings_reviewed_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: normalized_findings
+            indexName: idx_normalized_findings_product_status
+            columns:
+              - column: { name: product_profile_id }
+              - column: { name: status }
+        - createIndex:
+            tableName: normalized_findings
+            indexName: idx_normalized_findings_severity
+            columns:
+              - column: { name: severity }
+        - createIndex:
+            tableName: normalized_findings
+            indexName: idx_normalized_findings_fingerprint
+            columns:
+              - column: { name: fingerprint }
+
+  - changeSet:
+      id: 1504
+      author: produs
+      changes:
+        - createTable:
+            tableName: scanner_evidence_items
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: milestone_id, type: UUID }
+              - column: { name: finding_id, type: UUID }
+              - column: { name: scan_run_id, type: UUID }
+              - column: { name: tool_run_id, type: UUID }
+              - column: { name: evidence_type, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: source, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: summary, type: TEXT }
+              - column: { name: artifact_ref, type: VARCHAR(1000) }
+              - column: { name: storage_key, type: VARCHAR(1000) }
+              - column: { name: redaction_status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: confidence_level, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: created_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: scanner_evidence_items
+            baseColumnNames: product_profile_id
+            constraintName: fk_scanner_evidence_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_evidence_items
+            baseColumnNames: workspace_id
+            constraintName: fk_scanner_evidence_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_evidence_items
+            baseColumnNames: milestone_id
+            constraintName: fk_scanner_evidence_milestone
+            referencedTableName: milestones
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_evidence_items
+            baseColumnNames: finding_id
+            constraintName: fk_scanner_evidence_finding
+            referencedTableName: normalized_findings
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_evidence_items
+            baseColumnNames: scan_run_id
+            constraintName: fk_scanner_evidence_scan_run
+            referencedTableName: scan_runs
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_evidence_items
+            baseColumnNames: tool_run_id
+            constraintName: fk_scanner_evidence_tool_run
+            referencedTableName: tool_runs
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_evidence_items
+            baseColumnNames: created_by
+            constraintName: fk_scanner_evidence_created_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: normalized_findings
+            baseColumnNames: evidence_item_id
+            constraintName: fk_normalized_findings_evidence
+            referencedTableName: scanner_evidence_items
+            referencedColumnNames: id
+        - createIndex:
+            tableName: scanner_evidence_items
+            indexName: idx_scanner_evidence_product
+            columns:
+              - column: { name: product_profile_id }
+        - createIndex:
+            tableName: scanner_evidence_items
+            indexName: idx_scanner_evidence_workspace
+            columns:
+              - column: { name: workspace_id }
+        - createIndex:
+            tableName: scanner_evidence_items
+            indexName: idx_scanner_evidence_finding
+            columns:
+              - column: { name: finding_id }

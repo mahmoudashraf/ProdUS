@@ -15,6 +15,11 @@ export async function putJson<T, TPayload extends object>(url: string, payload: 
   return response.data;
 }
 
+export async function patchJson<T, TPayload extends object>(url: string, payload: TPayload): Promise<T> {
+  const response = await apiClient.patch<T>(url, payload);
+  return response.data;
+}
+
 export async function deleteJson<T>(url: string): Promise<T> {
   const response = await apiClient.delete<T>(url);
   return response.data;

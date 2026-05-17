@@ -27,3 +27,5 @@ databaseChangeLog:
       file: db/changelog/V013__expert_network_community.yaml
   - include:
       file: db/changelog/V014__catalog_productization_foundation.yaml
+  - include:
+      file: db/changelog/V015__scanner_evidence_foundation.yaml

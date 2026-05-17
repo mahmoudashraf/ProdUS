@@ -158,6 +158,106 @@ export interface ProductProfile extends BaseRecord {
   riskProfile?: string;
 }
 
+export interface ScanSource extends BaseRecord {
+  productProfileId: string;
+  workspaceId?: string;
+  providerType: 'CI_UPLOAD' | 'GITHUB' | 'GITLAB' | 'RUNTIME_URL' | 'EXTERNAL_TOOL';
+  displayName: string;
+  externalReference?: string;
+  authorizationStatus: 'PENDING' | 'AUTHORIZED' | 'REVOKED' | 'FAILED';
+  scopeNote?: string;
+  createdByEmail: string;
+}
+
+export interface ToolRun extends BaseRecord {
+  scanRunId: string;
+  toolName: string;
+  toolVersion?: string;
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+  startedAt?: string;
+  completedAt?: string;
+  rawArtifactRef?: string;
+  storageKey?: string;
+  normalizedCount: number;
+  errorSummary?: string;
+}
+
+export interface ScanRun extends BaseRecord {
+  scanSourceId: string;
+  productProfileId: string;
+  workspaceId?: string;
+  triggerType: 'MANUAL_UPLOAD' | 'CI_UPLOAD' | 'SCHEDULED' | 'HOSTED_SCAN' | 'EXTERNAL_IMPORT';
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+  depth: 'CI_EVIDENCE' | 'SAFE_STATIC' | 'RUNTIME_BASELINE' | 'DEEP_REVIEW';
+  startedAt?: string;
+  completedAt?: string;
+  requestedByEmail: string;
+  failureSummary?: string;
+  toolRuns: ToolRun[];
+}
+
+export interface NormalizedFinding extends BaseRecord {
+  productProfileId: string;
+  workspaceId?: string;
+  scanRunId: string;
+  toolRunId: string;
+  fingerprint: string;
+  sourceTool: string;
+  sourceRuleId?: string;
+  title: string;
+  description: string;
+  severity: 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  status: 'NEW' | 'OPEN' | 'RESOLVED' | 'REGRESSED' | 'ACCEPTED_RISK' | 'FALSE_POSITIVE' | 'INSUFFICIENT_EVIDENCE';
+  affectedComponent?: string;
+  evidenceItemId?: string;
+  recommendedModule?: ServiceModule;
+  confidenceBasis?: string;
+  riskAcceptanceReason?: string;
+  riskReviewDueOn?: string;
+  reviewedByEmail?: string;
+  reviewedAt?: string;
+}
+
+export interface ScannerEvidenceItem extends BaseRecord {
+  productProfileId: string;
+  workspaceId?: string;
+  milestoneId?: string;
+  findingId?: string;
+  scanRunId?: string;
+  toolRunId?: string;
+  evidenceType: 'SCAN_RESULT' | 'CI_RUN' | 'PULL_REQUEST' | 'COMMIT' | 'DEPLOYMENT_LOG' | 'SCREENSHOT' | 'URL_CHECK' | 'RUNBOOK' | 'MANUAL_NOTE';
+  source: string;
+  title: string;
+  summary?: string;
+  artifactRef?: string;
+  storageKey?: string;
+  redactionStatus: 'NONE' | 'REDACTED' | 'SENSITIVE_HIDDEN';
+  confidenceLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  createdByEmail: string;
+}
+
+export interface ScannerSummaryCounts {
+  total: number;
+  open: number;
+  resolved: number;
+  acceptedRisk: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  info: number;
+}
+
+export interface ProductScannerSummary {
+  product: ProductProfile;
+  readinessScore: number;
+  counts: ScannerSummaryCounts;
+  sources: ScanSource[];
+  recentRuns: ScanRun[];
+  findings: NormalizedFinding[];
+  evidence: ScannerEvidenceItem[];
+}
+
 export interface RequirementIntake extends BaseRecord {
   productProfile?: ProductProfile;
   requestedServiceModule?: ServiceModule;

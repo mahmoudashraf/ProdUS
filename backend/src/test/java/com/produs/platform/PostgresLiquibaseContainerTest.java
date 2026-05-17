@@ -72,6 +72,11 @@ class PostgresLiquibaseContainerTest {
         assertTableExists("catalog_rules");
         assertTableExists("catalog_template_definitions");
         assertTableExists("catalog_ai_capability_configs");
+        assertTableExists("scan_sources");
+        assertTableExists("scan_runs");
+        assertTableExists("tool_runs");
+        assertTableExists("normalized_findings");
+        assertTableExists("scanner_evidence_items");
         assertColumnExists("service_modules", "stable_code");
         assertColumnExists("service_modules", "required_evidence_types");
         assertColumnExists("service_dependencies", "dependency_type");
@@ -81,6 +86,9 @@ class PostgresLiquibaseContainerTest {
         assertColumnExists("teams", "cover_photo_url");
         assertColumnExists("support_requests", "sla_status");
         assertColumnExists("support_requests", "escalation_count");
+        assertColumnExists("normalized_findings", "risk_review_due_on");
+        assertColumnExists("normalized_findings", "reviewed_by");
+        assertColumnExists("scanner_evidence_items", "storage_key");
 
         Integer serviceCategoryCount = jdbcTemplate.queryForObject("select count(*) from service_categories", Integer.class);
         Integer serviceModuleCount = jdbcTemplate.queryForObject("select count(*) from service_modules", Integer.class);

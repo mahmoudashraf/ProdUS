@@ -6,7 +6,9 @@ import {
   AddOutlined,
   AddShoppingCartOutlined,
   AutoAwesomeOutlined,
+  BugReportOutlined,
   CheckCircleOutlineOutlined,
+  CloudUploadOutlined,
   CompareArrowsOutlined,
   DeleteOutlineOutlined,
   FactCheckOutlined,
@@ -17,11 +19,12 @@ import {
   RocketLaunchOutlined,
   SendOutlined,
   ShoppingCartOutlined,
+  ShieldOutlined,
 } from '@mui/icons-material';
 import { Alert, Box, Button, Divider, IconButton, LinearProgress, MenuItem, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
-import { deleteJson, getJson, postJson, putJson } from './api';
+import { deleteJson, getJson, patchJson, postJson, putJson } from './api';
 import {
   DotLabel,
   EmptyState,
@@ -47,6 +50,7 @@ import {
   PackageModule,
   ProductDiagnosis,
   ProductProfile,
+  ProductScannerSummary,
   ProductizationCart,
   ProductizationCartConvertResponse,
   ProjectWorkspace,
@@ -59,6 +63,9 @@ import {
   Team,
   TeamRecommendation,
   TeamShortlist,
+  NormalizedFinding,
+  ScanRun,
+  ScanSource,
 } from './types';
 
 interface ProductProfilePayload {
@@ -116,6 +123,34 @@ interface DiagnosisPayload {
   currentProblems: string;
   accessSignals: string;
   summary: string;
+}
+
+interface ScanSourcePayload {
+  productId: string;
+  workspaceId?: string;
+  providerType: ScanSource['providerType'];
+  displayName: string;
+  externalReference: string;
+  authorizationStatus: ScanSource['authorizationStatus'];
+  scopeNote: string;
+}
+
+interface ScannerUploadPayload {
+  productId: string;
+  workspaceId?: string;
+  sourceId?: string;
+  toolName: string;
+  toolVersion: string;
+  format: 'SARIF' | 'JSON' | 'JUNIT' | 'LOG';
+  artifactFileName: string;
+  artifactPayload: string;
+  milestoneId?: string;
+}
+
+interface FindingStatusPayload {
+  status: NormalizedFinding['status'];
+  reason?: string;
+  reviewDueOn?: string;
 }
 
 const productInitialValues: ProductProfilePayload = {
@@ -248,6 +283,29 @@ export default function OwnerProductizationWorkspace({
     enabled: !!selectedProductId,
     queryFn: () => getJson<ProductDiagnosis[]>(`/productization-engine/products/${selectedProductId}/diagnoses`),
   });
+  const scannerSummary = useQuery({
+    queryKey: ['scanner-summary', selectedProductId],
+    enabled: !!selectedProductId,
+    queryFn: () => getJson<ProductScannerSummary>(`/scanner/products/${selectedProductId}/summary`),
+  });
+
+  const [scanSourceForm, setScanSourceForm] = useState({
+    providerType: 'GITHUB' as ScanSource['providerType'],
+    displayName: 'GitHub Security Pipeline',
+    externalReference: '',
+    scopeNote: 'CI and security evidence imported for production readiness review.',
+  });
+  const [scannerUploadForm, setScannerUploadForm] = useState({
+    sourceId: '',
+    toolName: 'CodeQL',
+    toolVersion: '',
+    format: 'SARIF' as ScannerUploadPayload['format'],
+    artifactFileName: 'scanner-results.sarif',
+    artifactPayload: '',
+    milestoneId: '',
+  });
+  const [findingReasonById, setFindingReasonById] = useState<Record<string, string>>({});
+  const [findingReviewDueById, setFindingReviewDueById] = useState<Record<string, string>>({});
 
   const productForm = useAdvancedForm<ProductProfilePayload>({
     initialValues: productInitialValues,
@@ -440,6 +498,51 @@ export default function OwnerProductizationWorkspace({
       await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
     },
   });
+  const createScanSource = useMutation({
+    mutationFn: () => {
+      const payload: ScanSourcePayload = {
+        productId: selectedProduct?.id || '',
+        providerType: scanSourceForm.providerType,
+        displayName: scanSourceForm.displayName,
+        externalReference: scanSourceForm.externalReference,
+        authorizationStatus: scanSourceForm.providerType === 'CI_UPLOAD' ? 'AUTHORIZED' : 'PENDING',
+        scopeNote: scanSourceForm.scopeNote,
+      };
+      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
+      return postJson<ScanSource, ScanSourcePayload>('/scanner/sources', payload);
+    },
+    onSuccess: async (source) => {
+      setScannerUploadForm((current) => ({ ...current, sourceId: source.id }));
+      setScanSourceForm((current) => ({ ...current, externalReference: '' }));
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
+  const uploadScannerEvidence = useMutation({
+    mutationFn: () => {
+      const payload: ScannerUploadPayload = {
+        productId: selectedProduct?.id || '',
+        toolName: scannerUploadForm.toolName,
+        toolVersion: scannerUploadForm.toolVersion,
+        format: scannerUploadForm.format,
+        artifactFileName: scannerUploadForm.artifactFileName,
+        artifactPayload: scannerUploadForm.artifactPayload,
+      };
+      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
+      if (scannerUploadForm.sourceId) payload.sourceId = scannerUploadForm.sourceId;
+      if (scannerUploadForm.milestoneId) payload.milestoneId = scannerUploadForm.milestoneId;
+      return postJson<ScanRun, ScannerUploadPayload>('/scanner/runs/ci-upload', payload);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
+  const updateFindingStatus = useMutation({
+    mutationFn: ({ findingId, payload }: { findingId: string; payload: FindingStatusPayload }) =>
+      patchJson<NormalizedFinding, FindingStatusPayload>(`/scanner/findings/${findingId}/status`, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
 
   const productProposals = (proposals.data || []).filter((proposal) => proposal.packageInstance?.productProfile?.id === selectedProduct?.id);
   const activeShortlists = (shortlists.data || []).filter((shortlist) => shortlist.status !== 'ARCHIVED');
@@ -456,9 +559,18 @@ export default function OwnerProductizationWorkspace({
   const suggestedExperts = (experts.data || []).filter((expert) => expert.active).slice(0, 3);
   const health = productHealth(selectedProduct, selectedPackage, packageModules.data);
   const latestDiagnosis = diagnoses.data?.[0];
+  const scannerCounts = scannerSummary.data?.counts;
+  const scannerReadiness = scannerSummary.data?.readinessScore ?? (scannerCounts?.total ? 72 : 100);
+  const scannerOpenFindings = (scannerSummary.data?.findings || []).filter((finding) => ['NEW', 'OPEN', 'REGRESSED'].includes(finding.status));
   const blockedMilestones = (milestones.data || []).filter((milestone) => milestone.status === 'BLOCKED').length;
   const submittedRequirement = selectedProductRequirements.find((requirement) => requirement.status === 'SUBMITTED' || requirement.status === 'PACKAGE_RECOMMENDED');
   const buildTargetRequirementId = pendingRequirementId || submittedRequirement?.id || '';
+
+  useEffect(() => {
+    if (!scannerUploadForm.sourceId && scannerSummary.data?.sources[0]?.id) {
+      setScannerUploadForm((current) => ({ ...current, sourceId: scannerSummary.data?.sources[0]?.id || '' }));
+    }
+  }, [scannerSummary.data?.sources, scannerUploadForm.sourceId]);
 
   const submitProduct = productForm.handleSubmit(() => createProduct.mutate());
   const submitRequirement = requirementForm.handleSubmit(() => {
@@ -468,8 +580,8 @@ export default function OwnerProductizationWorkspace({
     }
   });
 
-  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses].some((query) => query.isLoading);
-  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
+  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, scannerSummary].some((query) => query.isLoading);
+  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, scannerSummary, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
     || createProduct.error
     || createRequirement.error
     || buildPackage.error
@@ -481,7 +593,10 @@ export default function OwnerProductizationWorkspace({
     || addTalentToCart.error
     || removeTalentFromCart.error
     || convertCart.error
-    || createDiagnosis.error;
+    || createDiagnosis.error
+    || createScanSource.error
+    || uploadScannerEvidence.error
+    || updateFindingStatus.error;
 
   const recordShortlist = (teamId: string, status: TeamShortlist['status']) => {
     if (!selectedPackage?.id) return;
@@ -534,6 +649,24 @@ export default function OwnerProductizationWorkspace({
       itemType: 'EXPERT',
       expertProfileId: expert.id,
       notes: 'Owner saved solo expert from productization workspace recommendations.',
+    });
+  };
+
+  const recordFindingDecision = (finding: NormalizedFinding, status: FindingStatusPayload['status']) => {
+    const reason = findingReasonById[finding.id]?.trim();
+    const reviewDueOn = findingReviewDueById[finding.id];
+    const requiresReason = status === 'RESOLVED' || status === 'ACCEPTED_RISK' || status === 'FALSE_POSITIVE';
+    const requiresDueDate = status === 'ACCEPTED_RISK';
+    if ((requiresReason && !reason) || (requiresDueDate && !reviewDueOn)) {
+      return;
+    }
+    updateFindingStatus.mutate({
+      findingId: finding.id,
+      payload: {
+        status,
+        ...(reason ? { reason } : {}),
+        ...(reviewDueOn ? { reviewDueOn } : {}),
+      },
     });
   };
 
@@ -710,6 +843,258 @@ export default function OwnerProductizationWorkspace({
                   ) : (
                     <EmptyState label="No diagnosis has been created for this product yet." />
                   )}
+                </Stack>
+              </Box>
+            </Surface>
+          )}
+
+          {selectedProduct && (
+            <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
+              <SectionTitle
+                title="Scanner Evidence And Readiness"
+                action={<PastelChip label={`${scannerCounts?.total || 0} normalized findings`} accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green} bg={scannerOpenFindings.length ? '#fff4dc' : '#e7f8ee'} />}
+              />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '220px repeat(3, minmax(0, 1fr))' }, gap: 1.5, mb: 2 }}>
+                <MetricTile label="Readiness" value={`${scannerReadiness}%`} detail="Scanner-backed score" accent={scannerReadiness >= 80 ? appleColors.green : scannerReadiness >= 60 ? appleColors.amber : appleColors.red} icon={<ShieldOutlined />} />
+                <MetricTile label="Critical / High" value={`${scannerCounts?.critical || 0}/${scannerCounts?.high || 0}`} detail="Require owner review" accent={(scannerCounts?.critical || scannerCounts?.high) ? appleColors.red : appleColors.green} icon={<BugReportOutlined />} />
+                <MetricTile label="Open findings" value={scannerCounts?.open || 0} detail="New, open, or regressed" accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green} icon={<FactCheckOutlined />} />
+                <MetricTile label="Evidence sources" value={scannerSummary.data?.sources.length || 0} detail="CI, repo, runtime, or tool imports" accent={appleColors.cyan} icon={<CloudUploadOutlined />} />
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: 2 }}>
+                <Stack spacing={2}>
+                  <Box component="form" onSubmit={(event) => {
+                    event.preventDefault();
+                    if (selectedProduct && scanSourceForm.displayName.trim()) createScanSource.mutate();
+                  }}>
+                    <Stack spacing={1.25}>
+                      <Typography sx={{ fontWeight: 900 }}>Connect evidence source</Typography>
+                      <TextField
+                        select
+                        size="small"
+                        label="Source type"
+                        value={scanSourceForm.providerType}
+                        onChange={(event) => setScanSourceForm((current) => ({ ...current, providerType: event.target.value as ScanSource['providerType'] }))}
+                      >
+                        <MenuItem value="GITHUB">GitHub</MenuItem>
+                        <MenuItem value="GITLAB">GitLab</MenuItem>
+                        <MenuItem value="CI_UPLOAD">CI upload</MenuItem>
+                        <MenuItem value="RUNTIME_URL">Runtime URL</MenuItem>
+                        <MenuItem value="EXTERNAL_TOOL">External tool</MenuItem>
+                      </TextField>
+                      <TextField
+                        size="small"
+                        label="Display name"
+                        value={scanSourceForm.displayName}
+                        onChange={(event) => setScanSourceForm((current) => ({ ...current, displayName: event.target.value }))}
+                      />
+                      <TextField
+                        size="small"
+                        label="Reference"
+                        placeholder="Repository, pipeline, or scanner URL"
+                        value={scanSourceForm.externalReference}
+                        onChange={(event) => setScanSourceForm((current) => ({ ...current, externalReference: event.target.value }))}
+                      />
+                      <TextField
+                        size="small"
+                        label="Scope note"
+                        value={scanSourceForm.scopeNote}
+                        onChange={(event) => setScanSourceForm((current) => ({ ...current, scopeNote: event.target.value }))}
+                        multiline
+                        minRows={2}
+                      />
+                      <Button
+                        type="submit"
+                        variant="outlined"
+                        startIcon={<AddOutlined />}
+                        disabled={!selectedProduct || !scanSourceForm.displayName.trim() || createScanSource.isPending}
+                        sx={{ minHeight: 42 }}
+                      >
+                        Save Source
+                      </Button>
+                    </Stack>
+                  </Box>
+
+                  <Divider />
+
+                  <Box component="form" onSubmit={(event) => {
+                    event.preventDefault();
+                    if (selectedProduct && scannerUploadForm.toolName.trim() && scannerUploadForm.artifactPayload.trim()) uploadScannerEvidence.mutate();
+                  }}>
+                    <Stack spacing={1.25}>
+                      <Typography sx={{ fontWeight: 900 }}>Upload CI evidence</Typography>
+                      <TextField
+                        select
+                        size="small"
+                        label="Evidence source"
+                        value={scannerUploadForm.sourceId}
+                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, sourceId: event.target.value }))}
+                      >
+                        <MenuItem value="">Auto-create CI source</MenuItem>
+                        {(scannerSummary.data?.sources || []).map((source) => (
+                          <MenuItem key={source.id} value={source.id}>{source.displayName}</MenuItem>
+                        ))}
+                      </TextField>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 120px' }, gap: 1 }}>
+                        <TextField
+                          size="small"
+                          label="Tool"
+                          value={scannerUploadForm.toolName}
+                          onChange={(event) => setScannerUploadForm((current) => ({ ...current, toolName: event.target.value }))}
+                        />
+                        <TextField
+                          select
+                          size="small"
+                          label="Format"
+                          value={scannerUploadForm.format}
+                          onChange={(event) => setScannerUploadForm((current) => ({ ...current, format: event.target.value as ScannerUploadPayload['format'] }))}
+                        >
+                          <MenuItem value="SARIF">SARIF</MenuItem>
+                          <MenuItem value="JSON">JSON</MenuItem>
+                          <MenuItem value="LOG">Log</MenuItem>
+                          <MenuItem value="JUNIT">JUnit</MenuItem>
+                        </TextField>
+                      </Box>
+                      <TextField
+                        size="small"
+                        label="Tool version"
+                        value={scannerUploadForm.toolVersion}
+                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, toolVersion: event.target.value }))}
+                      />
+                      <TextField
+                        size="small"
+                        label="Artifact file name"
+                        value={scannerUploadForm.artifactFileName}
+                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, artifactFileName: event.target.value }))}
+                      />
+                      {selectedWorkspace && (
+                        <TextField
+                          select
+                          size="small"
+                          label="Attach to milestone"
+                          value={scannerUploadForm.milestoneId}
+                          onChange={(event) => setScannerUploadForm((current) => ({ ...current, milestoneId: event.target.value }))}
+                        >
+                          <MenuItem value="">Product-level evidence</MenuItem>
+                          {(milestones.data || []).map((milestone) => (
+                            <MenuItem key={milestone.id} value={milestone.id}>{milestone.title}</MenuItem>
+                          ))}
+                        </TextField>
+                      )}
+                      <TextField
+                        size="small"
+                        label="Artifact payload"
+                        placeholder="Paste SARIF, JSON, JUnit XML, or CI log output from a real scanner run."
+                        value={scannerUploadForm.artifactPayload}
+                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, artifactPayload: event.target.value }))}
+                        multiline
+                        minRows={7}
+                        InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13, alignItems: 'flex-start' } }}
+                      />
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        startIcon={<CloudUploadOutlined />}
+                        disabled={!selectedProduct || !scannerUploadForm.toolName.trim() || !scannerUploadForm.artifactPayload.trim() || uploadScannerEvidence.isPending}
+                        sx={{ minHeight: 44 }}
+                      >
+                        Normalize Evidence
+                      </Button>
+                    </Stack>
+                  </Box>
+                </Stack>
+
+                <Stack spacing={1.5}>
+                  {(scannerSummary.isFetching || uploadScannerEvidence.isPending || updateFindingStatus.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
+                  {scannerSummary.data?.sources.length ? (
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {scannerSummary.data.sources.slice(0, 5).map((source) => (
+                        <PastelChip
+                          key={source.id}
+                          label={`${source.displayName} · ${formatLabel(source.authorizationStatus)}`}
+                          accent={source.authorizationStatus === 'AUTHORIZED' ? appleColors.green : appleColors.amber}
+                          bg={source.authorizationStatus === 'AUTHORIZED' ? '#e7f8ee' : '#fff4dc'}
+                        />
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">Add a source or upload CI evidence to create the first product scanner record.</Typography>
+                  )}
+
+                  {scannerSummary.data?.findings.length ? (
+                    <Stack spacing={1.25}>
+                      {scannerSummary.data.findings.slice(0, 8).map((finding) => {
+                        const reason = findingReasonById[finding.id] || '';
+                        const reviewDue = findingReviewDueById[finding.id] || '';
+                        const canResolve = !!reason.trim();
+                        const canAcceptRisk = !!reason.trim() && !!reviewDue;
+                        return (
+                          <Box key={finding.id} sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: appleColors.line, bgcolor: '#fff' }}>
+                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25} justifyContent="space-between" alignItems={{ md: 'flex-start' }}>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+                                  <StatusChip label={finding.severity} color={finding.severity === 'CRITICAL' || finding.severity === 'HIGH' ? 'error' : 'warning'} />
+                                  <StatusChip label={finding.status} color={finding.status === 'RESOLVED' ? 'success' : 'default'} />
+                                  {finding.recommendedModule && <PastelChip label={finding.recommendedModule.name} accent={appleColors.purple} />}
+                                </Stack>
+                                <Typography sx={{ mt: 1, fontWeight: 900 }}>{finding.title}</Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>{finding.description}</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                                  {finding.sourceTool}{finding.sourceRuleId ? ` · ${finding.sourceRuleId}` : ''}{finding.affectedComponent ? ` · ${finding.affectedComponent}` : ''}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 150px' }, gap: 1, mt: 1.25 }}>
+                              <TextField
+                                size="small"
+                                label="Decision note"
+                                value={reason}
+                                onChange={(event) => setFindingReasonById((current) => ({ ...current, [finding.id]: event.target.value }))}
+                                placeholder="Evidence reviewed, fix merged, compensating control..."
+                              />
+                              <TextField
+                                size="small"
+                                type="date"
+                                label="Risk review"
+                                value={reviewDue}
+                                onChange={(event) => setFindingReviewDueById((current) => ({ ...current, [finding.id]: event.target.value }))}
+                                InputLabelProps={{ shrink: true }}
+                              />
+                            </Box>
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
+                              <Button size="small" variant="outlined" disabled={!canResolve || updateFindingStatus.isPending} onClick={() => recordFindingDecision(finding, 'RESOLVED')}>
+                                Mark Resolved
+                              </Button>
+                              <Button size="small" variant="outlined" disabled={!canAcceptRisk || updateFindingStatus.isPending} onClick={() => recordFindingDecision(finding, 'ACCEPTED_RISK')}>
+                                Accept Risk
+                              </Button>
+                              <Button size="small" variant="outlined" disabled={!canResolve || updateFindingStatus.isPending} onClick={() => recordFindingDecision(finding, 'FALSE_POSITIVE')}>
+                                False Positive
+                              </Button>
+                            </Stack>
+                          </Box>
+                        );
+                      })}
+                    </Stack>
+                  ) : (
+                    <EmptyState label="No normalized findings yet. Upload SARIF, JSON, JUnit, or CI log evidence to create scanner-backed findings." />
+                  )}
+
+                  {scannerSummary.data?.recentRuns.length ? (
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
+                      {scannerSummary.data.recentRuns.slice(0, 4).map((run) => (
+                        <Box key={run.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e5edf7', bgcolor: '#fbfdff' }}>
+                          <Stack direction="row" spacing={1} justifyContent="space-between">
+                            <Typography variant="body2" sx={{ fontWeight: 900 }}>{formatLabel(run.depth)}</Typography>
+                            <StatusChip label={run.status} color={run.status === 'COMPLETED' ? 'success' : run.status === 'FAILED' ? 'error' : 'default'} />
+                          </Stack>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                            {(run.toolRuns || []).map((tool) => `${tool.toolName}: ${tool.normalizedCount}`).join(' · ') || 'No tool runs'}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  ) : null}
                 </Stack>
               </Box>
             </Surface>
