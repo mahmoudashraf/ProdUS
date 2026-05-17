@@ -1,0 +1,28 @@
+databaseChangeLog:
+  - changeSet:
+      id: 018-add-ai-provider-trace
+      author: produs
+      changes:
+        - addColumn:
+            tableName: ai_recommendations
+            columns:
+              - column:
+                  name: provider_name
+                  type: varchar(120)
+              - column:
+                  name: provider_request_id
+                  type: varchar(200)
+              - column:
+                  name: fallback
+                  type: boolean
+              - column:
+                  name: fallback_reason
+                  type: varchar(240)
+        - createIndex:
+            tableName: ai_recommendations
+            indexName: idx_ai_recommendations_provider
+            columns:
+              - column:
+                  name: provider_name
+              - column:
+                  name: fallback

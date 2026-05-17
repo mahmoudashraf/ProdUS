@@ -1,3 +1,5 @@
+import { normalizeToolProfile, type McpToolProfile } from './allowlists.js';
+
 export interface McpConfig {
   apiBaseUrl: string;
   allowedOrigins: string[];
@@ -6,6 +8,7 @@ export interface McpConfig {
   logLevel: 'debug' | 'info' | 'warn' | 'error';
   host: string;
   port: number;
+  toolProfile: McpToolProfile;
 }
 
 function readBoolean(value: string | undefined, defaultValue: boolean): boolean {
@@ -38,6 +41,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     requireAuth: readBoolean(env.PRODUS_MCP_REQUIRE_AUTH, true),
     logLevel: (env.PRODUS_MCP_LOG_LEVEL as McpConfig['logLevel']) || 'info',
     host: env.HOST || env.PRODUS_MCP_HOST || '0.0.0.0',
-    port: Number.parseInt(env.PORT || env.PRODUS_MCP_PORT || '8081', 10)
+    port: Number.parseInt(env.PORT || env.PRODUS_MCP_PORT || '8081', 10),
+    toolProfile: normalizeToolProfile(env.PRODUS_MCP_TOOL_PROFILE)
   };
 }

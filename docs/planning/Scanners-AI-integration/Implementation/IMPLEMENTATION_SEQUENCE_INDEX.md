@@ -2,7 +2,7 @@
 
 Date: 2026-05-17
 
-Status: implementation in progress
+Status: implemented - scanner execution, Studio UI, MCP allowlist, LoomAI bridge, and readiness gates
 
 ## Purpose
 
@@ -132,14 +132,20 @@ Verified from code and tests:
 - Backend persists MCP invocation audit records.
 - Backend has deterministic diagnosis, findings, criteria, evidence requirements, automated checks, reviews, handoff, health reviews, generic integration connections, and generic integration signals.
 - Evidence attachments exist.
-- `LoomAIProvider` exists but is not yet wired into package building.
-- Service catalog, package templates, dependency rules, acceptance criteria templates, and handoff guidance are the first safe knowledge sources for retrieval.
+- `LoomAIProvider` is wired into package building through `PackageGovernanceProvider` and keeps deterministic fallback active.
+- AI recommendations store provider name, provider request ID, fallback flag, fallback reason, confidence, rationale, and output JSON.
+- MCP supports `PRODUS_MCP_TOOL_PROFILE=loomai-productization` and scanner/evidence tools for scan, finding, evidence, and milestone review workflows.
+- Backend assistant broker endpoints provide session/query/suggestions with safe product/package/workspace/milestone/finding context.
+- Admin LoomAI endpoints expose status, safe knowledge preview, and safe knowledge sync.
+- Admin production-readiness endpoint reports database, auth, scanner, MCP, LoomAI, storage, webhook, CORS, and rate-limit gates without exposing secrets.
+- Service catalog, package templates, dependency rules, and AI capability contracts are the first safe knowledge sources for retrieval/data sync.
 
 Latest verification:
 
 ```bash
 cd mcp-server && npm test && npm run type-check
-cd backend && mvn -q -Dtest=ProductizationWorkflowIntegrationTest test
+cd backend && mvn -q clean -Dtest=LoomAIIntegrationControllerTest test
+cd frontend && npm run type-check
 ```
 
 ## Scanner BRD Traceability

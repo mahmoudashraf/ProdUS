@@ -607,6 +607,10 @@ public final class PlatformDtos {
             String sourceEntityType,
             String sourceEntityId,
             String promptVersion,
+            String providerName,
+            String providerRequestId,
+            Boolean fallback,
+            String fallbackReason,
             Double confidence,
             String rationale,
             String outputJson,
@@ -616,6 +620,21 @@ public final class PlatformDtos {
     public record AdminDashboardResponse(
             String message,
             CurrentUserSummary admin
+    ) {}
+
+    public record AdminReadinessResponse(
+            String overallStatus,
+            LocalDateTime generatedAt,
+            List<AdminReadinessGateResponse> gates
+    ) {}
+
+    public record AdminReadinessGateResponse(
+            String key,
+            String area,
+            String status,
+            String title,
+            String detail,
+            String remediation
     ) {}
 
     public record CurrentUserSummary(
@@ -1491,6 +1510,10 @@ public final class PlatformDtos {
                 recommendation.getSourceEntityType(),
                 recommendation.getSourceEntityId(),
                 recommendation.getPromptVersion(),
+                recommendation.getProviderName(),
+                recommendation.getProviderRequestId(),
+                recommendation.getFallback(),
+                recommendation.getFallbackReason(),
                 recommendation.getConfidence(),
                 recommendation.getRationale(),
                 recommendation.getOutputJson(),

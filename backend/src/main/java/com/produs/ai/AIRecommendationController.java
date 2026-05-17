@@ -61,6 +61,10 @@ public class AIRecommendationController {
         recommendation.setSourceEntityType(request.sourceEntityType());
         recommendation.setSourceEntityId(request.sourceEntityId());
         recommendation.setPromptVersion(request.promptVersion());
+        recommendation.setProviderName(request.providerName());
+        recommendation.setProviderRequestId(request.providerRequestId());
+        recommendation.setFallback(request.fallback());
+        recommendation.setFallbackReason(request.fallbackReason());
         recommendation.setConfidence(request.confidence());
         recommendation.setRationale(request.rationale());
         recommendation.setOutputJson(request.outputJson());
@@ -73,6 +77,10 @@ public class AIRecommendationController {
             String sourceEntityType,
             String sourceEntityId,
             String promptVersion,
+            String providerName,
+            String providerRequestId,
+            Boolean fallback,
+            String fallbackReason,
             Double confidence,
             String rationale,
             String outputJson

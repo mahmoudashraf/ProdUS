@@ -34,6 +34,18 @@ public class AIRecommendation extends BaseEntity {
     @Column(name = "prompt_version")
     private String promptVersion;
 
+    @Column(name = "provider_name")
+    private String providerName;
+
+    @Column(name = "provider_request_id")
+    private String providerRequestId;
+
+    @Column(name = "fallback")
+    private Boolean fallback;
+
+    @Column(name = "fallback_reason")
+    private String fallbackReason;
+
     @Column
     private Double confidence;
 

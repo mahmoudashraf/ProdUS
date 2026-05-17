@@ -56,7 +56,13 @@ loomai:
   base-url: ${LOOMAI_BASE_URL:}
   api-key: ${LOOMAI_API_KEY:}
   enabled: ${LOOMAI_ENABLED:false}
+  environment: ${LOOMAI_ENVIRONMENT:production}
   timeout-ms: ${LOOMAI_TIMEOUT_MS:2500}
+  assistant-session-path: ${LOOMAI_ASSISTANT_SESSION_PATH:/api/public/chat/session}
+  assistant-query-path: ${LOOMAI_ASSISTANT_QUERY_PATH:/api/chat/me/query}
+  assistant-suggestions-path: ${LOOMAI_ASSISTANT_SUGGESTIONS_PATH:/api/chat/me/suggestions}
+  data-sync-batch-path: ${LOOMAI_DATA_SYNC_BATCH_PATH:/api/ai/data-sync/batch}
+  data-sync-delete-path: ${LOOMAI_DATA_SYNC_DELETE_PATH:/api/ai/data-sync/delete}
 
 logging:
   level:

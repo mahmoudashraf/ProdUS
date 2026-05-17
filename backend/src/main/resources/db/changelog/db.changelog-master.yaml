@@ -33,3 +33,5 @@ databaseChangeLog:
       file: db/changelog/V016__scanner_execution_jobs.yaml
   - include:
       file: db/changelog/V017__scanner_external_imports.yaml
+  - include:
+      file: db/changelog/V018__ai_provider_trace.yaml

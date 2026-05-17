@@ -3,6 +3,7 @@ import * as z from 'zod/v4';
 import { hashInput } from './hash.js';
 import { ProdusApi, ProdusApiError, type ApiResult, type RequestContext } from './produsApi.js';
 import type { McpConfig } from './config.js';
+import { isToolAllowedForProfile } from './allowlists.js';
 
 type JsonRecord = Record<string, unknown>;
 type ToolArgs = JsonRecord & {
@@ -37,7 +38,7 @@ export function createProdusMcpServer(config: McpConfig, context: RequestContext
 
   registerResources(server, api);
   registerPrompts(server);
-  registerTools(server, api);
+  registerTools(server, api, config);
 
   return server;
 }
@@ -179,7 +180,7 @@ function registerPrompts(server: McpServer): void {
         productContext: z.string().optional()
       }
     },
-    async ({ productId, productContext }) => promptResult(`Use ProdUS resources to produce a concise owner productization brief.
+    async ({ productId, productContext }: any) => promptResult(`Use ProdUS resources to produce a concise owner productization brief.
 
 Product ID: ${productId || 'not provided'}
 Context: ${productContext || 'Use available product/package resources.'}
@@ -196,7 +197,7 @@ Return: diagnosis, recommended lifecycle services, risks, evidence needed, and n
         packageId: z.string()
       }
     },
-    async ({ packageId }) => promptResult(`Review ProdUS package ${packageId}. Focus on missing service dependencies, sequencing risk, deliverables, acceptance criteria, and owner-facing next steps.`)
+    async ({ packageId }: any) => promptResult(`Review ProdUS package ${packageId}. Focus on missing service dependencies, sequencing risk, deliverables, acceptance criteria, and owner-facing next steps.`)
   );
 
   server.registerPrompt(
@@ -208,7 +209,7 @@ Return: diagnosis, recommended lifecycle services, risks, evidence needed, and n
         packageId: z.string()
       }
     },
-    async ({ packageId }) => promptResult(`Explain the team recommendations for package ${packageId}. Compare capability evidence, reputation, timeline, budget fit, and shortlist risks.`)
+    async ({ packageId }: any) => promptResult(`Explain the team recommendations for package ${packageId}. Compare capability evidence, reputation, timeline, budget fit, and shortlist risks.`)
   );
 
   server.registerPrompt(
@@ -220,7 +221,7 @@ Return: diagnosis, recommended lifecycle services, risks, evidence needed, and n
         workspaceId: z.string()
       }
     },
-    async ({ workspaceId }) => promptResult(`Review workspace ${workspaceId}. Return blocked milestones, missing evidence, support requests, dispute risk, and next actions by owner/team/admin.`)
+    async ({ workspaceId }: any) => promptResult(`Review workspace ${workspaceId}. Return blocked milestones, missing evidence, support requests, dispute risk, and next actions by owner/team/admin.`)
   );
 
   server.registerPrompt(
@@ -232,7 +233,7 @@ Return: diagnosis, recommended lifecycle services, risks, evidence needed, and n
         supportRequestId: z.string()
       }
     },
-    async ({ supportRequestId }) => promptResult(`Draft a professional response for support request ${supportRequestId}. Include owner/team handoff notes, resolution checklist, and evidence required before closure.`)
+    async ({ supportRequestId }: any) => promptResult(`Draft a professional response for support request ${supportRequestId}. Include owner/team handoff notes, resolution checklist, and evidence required before closure.`)
   );
 
   server.registerPrompt(
@@ -244,12 +245,25 @@ Return: diagnosis, recommended lifecycle services, risks, evidence needed, and n
         scope: z.string().optional()
       }
     },
-    async ({ scope }) => promptResult(`Review ProdUS admin operations${scope ? ` for ${scope}` : ''}. Cover catalog hygiene, SLA escalation risk, notification delivery health, and production security/configuration follow-ups.`)
+    async ({ scope }: any) => promptResult(`Review ProdUS admin operations${scope ? ` for ${scope}` : ''}. Cover catalog hygiene, SLA escalation risk, notification delivery health, and production security/configuration follow-ups.`)
   );
 }
 
-function registerTools(server: McpServer, api: ProdusApi): void {
-  server.registerTool(
+function registerMcpTool(
+  config: McpConfig,
+  server: McpServer,
+  name: string,
+  options: Record<string, unknown>,
+  handler: (args: any) => Promise<{ content: Array<{ type: 'text'; text: string }>; isError?: boolean }>
+): void {
+  if (!isToolAllowedForProfile(config.toolProfile, name)) {
+    return;
+  }
+  (server.registerTool as any)(name, options, handler);
+}
+
+function registerTools(server: McpServer, api: ProdusApi, config: McpConfig): void {
+  registerMcpTool(config, server,
     'produs.catalog.search',
     {
       title: 'Search ProdUS catalog',
@@ -261,7 +275,7 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
     },
-    async (args) => readTool('produs.catalog.search', async () => {
+    async (args: any) => readTool('produs.catalog.search', async () => {
       const modulesPath = args.categoryId ? `/catalog/modules?categoryId=${args.categoryId}` : '/catalog/modules';
       const [categories, modules, dependencies] = await Promise.all([
         api.get('/catalog/categories'),
@@ -272,7 +286,7 @@ function registerTools(server: McpServer, api: ProdusApi): void {
     })
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.product.list',
     {
       title: 'List ProdUS products',
@@ -282,7 +296,7 @@ function registerTools(server: McpServer, api: ProdusApi): void {
     async () => readTool('produs.product.list', async () => (await api.get('/products')).data)
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.package.inspect',
     {
       title: 'Inspect ProdUS package',
@@ -292,10 +306,10 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
     },
-    async ({ packageId }) => readTool('produs.package.inspect', async () => inspectPackage(api, packageId))
+    async ({ packageId }: any) => readTool('produs.package.inspect', async () => inspectPackage(api, packageId))
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.workspace.inspect',
     {
       title: 'Inspect ProdUS workspace',
@@ -305,10 +319,10 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
     },
-    async ({ workspaceId }) => readTool('produs.workspace.inspect', async () => inspectWorkspace(api, workspaceId))
+    async ({ workspaceId }: any) => readTool('produs.workspace.inspect', async () => inspectWorkspace(api, workspaceId))
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.notifications.list',
     {
       title: 'List ProdUS notifications',
@@ -319,7 +333,7 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
     },
-    async (args) => readTool('produs.notifications.list', async () => {
+    async (args: any) => readTool('produs.notifications.list', async () => {
       const query = args.status ? `?status=${args.status}` : '';
       const [notifications, summary] = await Promise.all([
         api.get(`/notifications${query}`),
@@ -329,7 +343,7 @@ function registerTools(server: McpServer, api: ProdusApi): void {
     })
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.product.create',
     {
       title: 'Create ProdUS product',
@@ -346,12 +360,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.product.create', args, { targetType: 'PRODUCT_PROFILE' }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.product.create', args, { targetType: 'PRODUCT_PROFILE' }, (idempotencyKey) =>
       api.post('/products', omitControl(args), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.requirement.submit',
     {
       title: 'Submit ProdUS requirement',
@@ -369,12 +383,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.requirement.submit', args, { targetType: 'PRODUCT_PROFILE', targetId: args.productProfileId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.requirement.submit', args, { targetType: 'PRODUCT_PROFILE', targetId: args.productProfileId }, (idempotencyKey) =>
       api.post('/requirements', omitControl(args), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.package.build_from_requirement',
     {
       title: 'Build ProdUS package from requirement',
@@ -385,12 +399,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.package.build_from_requirement', args, { targetType: 'REQUIREMENT_INTAKE', targetId: args.requirementId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.package.build_from_requirement', args, { targetType: 'REQUIREMENT_INTAKE', targetId: args.requirementId }, (idempotencyKey) =>
       api.post(`/packages/from-requirement/${args.requirementId}`, undefined, idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.team.shortlist',
     {
       title: 'Shortlist or compare team',
@@ -404,12 +418,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.team.shortlist', args, { targetType: 'PACKAGE_INSTANCE', targetId: args.packageInstanceId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.team.shortlist', args, { targetType: 'PACKAGE_INSTANCE', targetId: args.packageInstanceId }, (idempotencyKey) =>
       api.post('/shortlists', omitControl(args), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.proposal.accept',
     {
       title: 'Accept ProdUS proposal',
@@ -420,12 +434,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.proposal.accept', args, { targetType: 'QUOTE_PROPOSAL', targetId: args.proposalId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.proposal.accept', args, { targetType: 'QUOTE_PROPOSAL', targetId: args.proposalId }, (idempotencyKey) =>
       api.put(`/commerce/proposals/${args.proposalId}/status`, { status: 'OWNER_ACCEPTED' }, idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.workspace.create',
     {
       title: 'Create ProdUS workspace',
@@ -438,12 +452,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.workspace.create', args, { targetType: 'PACKAGE_INSTANCE', targetId: args.packageInstanceId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.workspace.create', args, { targetType: 'PACKAGE_INSTANCE', targetId: args.packageInstanceId }, (idempotencyKey) =>
       api.post('/workspaces', omitControl(args), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.support_request.create',
     {
       title: 'Create ProdUS support request',
@@ -461,12 +475,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.support_request.create', args, { targetType: 'PROJECT_WORKSPACE', targetId: args.workspaceId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.support_request.create', args, { targetType: 'PROJECT_WORKSPACE', targetId: args.workspaceId }, (idempotencyKey) =>
       api.post(`/commerce/workspaces/${args.workspaceId}/support-requests`, omitControlAnd(args, ['workspaceId']), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.team.profile.update',
     {
       title: 'Update ProdUS team profile',
@@ -484,12 +498,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.team.profile.update', args, { targetType: 'TEAM', targetId: args.teamId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.team.profile.update', args, { targetType: 'TEAM', targetId: args.teamId }, (idempotencyKey) =>
       api.put(`/teams/${args.teamId}`, omitControlAnd(args, ['teamId']), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.team.capability.add',
     {
       title: 'Add ProdUS team capability',
@@ -504,12 +518,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.team.capability.add', args, { targetType: 'TEAM', targetId: args.teamId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.team.capability.add', args, { targetType: 'TEAM', targetId: args.teamId }, (idempotencyKey) =>
       api.post(`/teams/${args.teamId}/capabilities`, omitControlAnd(args, ['teamId']), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.proposal.submit',
     {
       title: 'Submit ProdUS proposal',
@@ -529,12 +543,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.proposal.submit', args, { targetType: 'PACKAGE_INSTANCE', targetId: args.packageId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.proposal.submit', args, { targetType: 'PACKAGE_INSTANCE', targetId: args.packageId }, (idempotencyKey) =>
       api.post(`/commerce/packages/${args.packageId}/proposals`, omitControlAnd(args, ['packageId']), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.deliverable.update',
     {
       title: 'Update ProdUS deliverable',
@@ -548,12 +562,184 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.deliverable.update', args, { targetType: 'DELIVERABLE', targetId: args.deliverableId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.deliverable.update', args, { targetType: 'DELIVERABLE', targetId: args.deliverableId }, (idempotencyKey) =>
       api.put(`/workspaces/deliverables/${args.deliverableId}`, omitControlAnd(args, ['deliverableId']), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
+    'produs.scan.start',
+    {
+      title: 'Start ProdUS scanner run',
+      description: 'Mutating. Start a governed hosted scanner run after explicit confirmation. Roles: product owner, workspace coordinator, admin.',
+      inputSchema: {
+        ...confirmationShape,
+        productId: uuid(),
+        workspaceId: nullableUuid(),
+        sourceId: nullableUuid(),
+        depth: z.enum(['SAFE_STATIC', 'DEPENDENCY_CONTAINER', 'RUNTIME_BASELINE', 'DEEP_REVIEW']).default('SAFE_STATIC'),
+        toolKeys: z.array(z.string()).optional(),
+        branchRef: z.string().optional(),
+        runtimeTargetUrl: z.string().optional(),
+        containerImageRef: z.string().optional(),
+        authorizationConfirmed: z.boolean().default(false),
+        runtimeAuthorizationConfirmed: z.boolean().default(false),
+        comparisonBaseRunId: nullableUuid()
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    },
+    async (args: any) => mutationTool(api, 'produs.scan.start', args, { targetType: 'PRODUCT_PROFILE', targetId: args.productId }, (idempotencyKey) =>
+      api.post('/scanner/runs/hosted', { ...omitControl(args), reason: args.reason }, idempotencyKey)
+    )
+  );
+
+  registerMcpTool(config, server,
+    'produs.scan.status',
+    {
+      title: 'Inspect ProdUS scanner run',
+      description: 'Read-only. Inspect scanner run status, tool runs, and optionally normalized findings. Roles: authorized product/workspace users.',
+      inputSchema: {
+        runId: uuid(),
+        includeTools: z.boolean().default(true),
+        includeFindings: z.boolean().default(true)
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
+    },
+    async (args: any) => readTool('produs.scan.status', async () => {
+      const [run, tools, findings] = await Promise.all([
+        api.get(`/scanner/runs/${args.runId}`),
+        args.includeTools ? api.get(`/scanner/runs/${args.runId}/tools`) : Promise.resolve({ status: 200, data: [] }),
+        args.includeFindings ? api.get(`/scanner/runs/${args.runId}/findings`) : Promise.resolve({ status: 200, data: [] })
+      ]);
+      return { run: run.data, tools: tools.data, findings: findings.data };
+    })
+  );
+
+  registerMcpTool(config, server,
+    'produs.scan.cancel',
+    {
+      title: 'Cancel ProdUS scanner run',
+      description: 'Mutating. Cancel a queued or running scan after explicit confirmation. Roles: product owner, admin.',
+      inputSchema: {
+        ...confirmationShape,
+        runId: uuid()
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    },
+    async (args: any) => mutationTool(api, 'produs.scan.cancel', args, { targetType: 'SCAN_RUN', targetId: args.runId }, (idempotencyKey) =>
+      api.post(`/scanner/runs/${args.runId}/cancel`, { reason: args.reason }, idempotencyKey)
+    )
+  );
+
+  registerMcpTool(config, server,
+    'produs.finding.inspect',
+    {
+      title: 'Inspect ProdUS scanner finding',
+      description: 'Read-only. Inspect a normalized scanner finding and its supporting evidence. Roles: authorized product/workspace users.',
+      inputSchema: {
+        findingId: uuid(),
+        includeEvidence: z.boolean().default(true)
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
+    },
+    async (args: any) => readTool('produs.finding.inspect', async () => {
+      const [finding, evidence] = await Promise.all([
+        api.get(`/scanner/findings/${args.findingId}`),
+        args.includeEvidence ? api.get(`/scanner/evidence?findingId=${args.findingId}`) : Promise.resolve({ status: 200, data: [] })
+      ]);
+      return { finding: finding.data, evidence: evidence.data };
+    })
+  );
+
+  registerMcpTool(config, server,
+    'produs.finding.accept_risk',
+    {
+      title: 'Accept scanner finding risk',
+      description: 'Mutating. Accept scanner finding risk only with owner/admin confirmation, reason, and review due date.',
+      inputSchema: {
+        ...confirmationShape,
+        findingId: uuid(),
+        reviewDueOn: z.string().describe('ISO date when the accepted risk must be reviewed again.')
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+    },
+    async (args: any) => mutationTool(api, 'produs.finding.accept_risk', args, { targetType: 'NORMALIZED_FINDING', targetId: args.findingId }, (idempotencyKey) =>
+      api.patch(`/scanner/findings/${args.findingId}/status`, {
+        status: 'ACCEPTED_RISK',
+        reason: args.reason,
+        reviewDueOn: args.reviewDueOn
+      }, idempotencyKey)
+    )
+  );
+
+  registerMcpTool(config, server,
+    'produs.evidence.list',
+    {
+      title: 'List scanner evidence',
+      description: 'Read-only. List scanner evidence by product, workspace, milestone, or finding. Roles: authorized product/workspace users.',
+      inputSchema: {
+        productId: nullableUuid(),
+        workspaceId: nullableUuid(),
+        milestoneId: nullableUuid(),
+        findingId: nullableUuid()
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
+    },
+    async (args: any) => readTool('produs.evidence.list', async () =>
+      (await api.get(`/scanner/evidence${queryString({
+        productId: args.productId,
+        workspaceId: args.workspaceId,
+        milestoneId: args.milestoneId,
+        findingId: args.findingId
+      })}`)).data
+    )
+  );
+
+  registerMcpTool(config, server,
+    'produs.evidence.upload_ci_result',
+    {
+      title: 'Upload CI scanner evidence',
+      description: 'Mutating. Upload a customer-owned scanner artifact into the normalized evidence pipeline.',
+      inputSchema: {
+        ...confirmationShape,
+        productId: uuid(),
+        workspaceId: nullableUuid(),
+        sourceId: nullableUuid(),
+        milestoneId: nullableUuid(),
+        toolName: z.string().min(1),
+        toolVersion: z.string().optional(),
+        format: z.enum(['SARIF', 'JSON', 'TEXT', 'LOG']).default('JSON'),
+        artifactFileName: z.string().optional(),
+        artifactPayload: z.string().min(1),
+        externalReference: z.string().optional()
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    },
+    async (args: any) => mutationTool(api, 'produs.evidence.upload_ci_result', args, { targetType: 'PRODUCT_PROFILE', targetId: args.productId }, (idempotencyKey) =>
+      api.post('/scanner/runs/ci-upload', omitControl(args), idempotencyKey)
+    )
+  );
+
+  registerMcpTool(config, server,
+    'produs.milestone.review_evidence',
+    {
+      title: 'Review milestone evidence support',
+      description: 'Read-only. Gather milestone deliverables and scanner evidence for explanation. This never approves a milestone.',
+      inputSchema: {
+        milestoneId: uuid()
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
+    },
+    async (args: any) => readTool('produs.milestone.review_evidence', async () => {
+      const [deliverables, evidence] = await Promise.all([
+        api.get(`/workspaces/milestones/${args.milestoneId}/deliverables`),
+        api.get(`/scanner/evidence?milestoneId=${args.milestoneId}`)
+      ]);
+      return { deliverables: deliverables.data, evidence: evidence.data };
+    })
+  );
+
+  registerMcpTool(config, server,
     'produs.support_request.update_status',
     {
       title: 'Update support request status',
@@ -566,12 +752,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.support_request.update_status', args, { targetType: 'SUPPORT_REQUEST', targetId: args.supportRequestId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.support_request.update_status', args, { targetType: 'SUPPORT_REQUEST', targetId: args.supportRequestId }, (idempotencyKey) =>
       api.put(`/commerce/support-requests/${args.supportRequestId}/status`, omitControlAnd(args, ['supportRequestId']), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.dispute.update_status',
     {
       title: 'Update dispute status',
@@ -584,12 +770,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.dispute.update_status', args, { targetType: 'DISPUTE_CASE', targetId: args.disputeId }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.dispute.update_status', args, { targetType: 'DISPUTE_CASE', targetId: args.disputeId }, (idempotencyKey) =>
       api.put(`/commerce/disputes/${args.disputeId}/status`, omitControlAnd(args, ['disputeId']), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.admin.catalog.create_category',
     {
       title: 'Create catalog category',
@@ -604,12 +790,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.admin.catalog.create_category', args, { targetType: 'SERVICE_CATEGORY' }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.admin.catalog.create_category', args, { targetType: 'SERVICE_CATEGORY' }, (idempotencyKey) =>
       api.post('/admin/catalog/categories', omitControl(args), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.admin.catalog.create_module',
     {
       title: 'Create catalog module',
@@ -630,12 +816,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.admin.catalog.create_module', args, { targetType: 'SERVICE_MODULE' }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.admin.catalog.create_module', args, { targetType: 'SERVICE_MODULE' }, (idempotencyKey) =>
       api.post('/admin/catalog/modules', omitControl(args), idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.admin.sla.run_scan',
     {
       title: 'Run support SLA scan',
@@ -645,12 +831,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.admin.sla.run_scan', args, { targetType: 'SUPPORT_SLA' }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.admin.sla.run_scan', args, { targetType: 'SUPPORT_SLA' }, (idempotencyKey) =>
       api.post('/commerce/support-requests/sla/run', undefined, idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.admin.notifications.dispatch',
     {
       title: 'Dispatch notification deliveries',
@@ -660,12 +846,12 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
     },
-    async (args) => mutationTool(api, 'produs.admin.notifications.dispatch', args, { targetType: 'NOTIFICATION_DELIVERY' }, (idempotencyKey) =>
+    async (args: any) => mutationTool(api, 'produs.admin.notifications.dispatch', args, { targetType: 'NOTIFICATION_DELIVERY' }, (idempotencyKey) =>
       api.post('/notifications/deliveries/dispatch', undefined, idempotencyKey)
     )
   );
 
-  server.registerTool(
+  registerMcpTool(config, server,
     'produs.admin.recommendations.review',
     {
       title: 'Review AI recommendation audit',
@@ -676,7 +862,7 @@ function registerTools(server: McpServer, api: ProdusApi): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
     },
-    async (args) => readTool('produs.admin.recommendations.review', async () => {
+    async (args: any) => readTool('produs.admin.recommendations.review', async () => {
       const params = new URLSearchParams();
       if (args.sourceEntityType) params.set('sourceEntityType', args.sourceEntityType);
       if (args.sourceEntityId) params.set('sourceEntityId', args.sourceEntityId);
@@ -755,6 +941,17 @@ function filterCatalog(query: string | undefined, categories: unknown, modules: 
     modules: Array.isArray(modules) ? modules.filter(matches) : modules,
     dependencies
   };
+}
+
+function queryString(params: Record<string, unknown>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') {
+      query.set(key, String(value));
+    }
+  }
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : '';
 }
 
 async function readTool(toolName: string, operation: () => Promise<unknown>): Promise<{ content: Array<{ type: 'text'; text: string }>; isError?: boolean }> {

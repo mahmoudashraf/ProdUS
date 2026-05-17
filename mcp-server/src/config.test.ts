@@ -9,6 +9,7 @@ test('loadConfig applies secure MCP defaults', () => {
   assert.equal(config.requireAuth, true);
   assert.equal(config.host, '0.0.0.0');
   assert.equal(config.port, 8081);
+  assert.equal(config.toolProfile, 'all');
   assert.deepEqual(config.allowedOrigins, [
     'http://localhost:3000',
     'http://localhost:3001',
@@ -23,6 +24,7 @@ test('loadConfig normalizes URL and comma-delimited lists', () => {
     PRODUS_MCP_ALLOWED_ORIGINS: 'https://app.example.com, https://admin.example.com',
     PRODUS_MCP_ALLOWED_HOSTS: 'mcp.example.com, localhost',
     PRODUS_MCP_REQUIRE_AUTH: 'false',
+    PRODUS_MCP_TOOL_PROFILE: 'loomai-productization',
     PRODUS_MCP_HOST: '127.0.0.1',
     PRODUS_MCP_PORT: '9090'
   });
@@ -33,4 +35,5 @@ test('loadConfig normalizes URL and comma-delimited lists', () => {
   assert.equal(config.requireAuth, false);
   assert.equal(config.host, '127.0.0.1');
   assert.equal(config.port, 9090);
+  assert.equal(config.toolProfile, 'loomai-productization');
 });

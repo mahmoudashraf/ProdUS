@@ -41,6 +41,10 @@ export class ProdusApi {
     return this.request<T>('PUT', path, body, idempotencyKey);
   }
 
+  async patch<T>(path: string, body?: unknown, idempotencyKey?: string): Promise<ApiResult<T>> {
+    return this.request<T>('PATCH', path, body, idempotencyKey);
+  }
+
   async request<T>(method: string, path: string, body?: unknown, idempotencyKey?: string): Promise<ApiResult<T>> {
     const response = await fetch(`${this.config.apiBaseUrl}${path}`, {
       method,

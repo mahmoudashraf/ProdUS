@@ -9,7 +9,8 @@ const config: McpConfig = {
   requireAuth: true,
   logLevel: 'error',
   host: '127.0.0.1',
-  port: 8081
+  port: 8081,
+  toolProfile: 'all'
 };
 
 test('ProdusApi forwards auth, request id, and idempotency headers', async () => {

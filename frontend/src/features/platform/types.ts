@@ -775,10 +775,64 @@ export interface AIRecommendation extends BaseRecord {
   sourceEntityType?: string;
   sourceEntityId?: string;
   promptVersion?: string;
+  providerName?: string;
+  providerRequestId?: string;
+  fallback?: boolean;
+  fallbackReason?: string;
   confidence?: number;
   rationale?: string;
   outputJson?: string;
   humanFeedback?: string;
+}
+
+export interface LoomAIStatus {
+  enabled: boolean;
+  configured: boolean;
+  environment: string;
+  assistantSessionConfigured: boolean;
+  assistantQueryConfigured: boolean;
+  assistantSuggestionsConfigured: boolean;
+  knowledgeSyncConfigured: boolean;
+  allowedActions: string[];
+}
+
+export interface LoomAIKnowledgeSync {
+  status: 'SYNCED' | 'SKIPPED' | 'FAILED';
+  recordCount: number;
+  providerRequestId?: string;
+  fallbackReason?: string;
+}
+
+export interface AssistantContext {
+  pageType: string;
+  productId?: string;
+  packageId?: string;
+  workspaceId?: string;
+  milestoneId?: string;
+  findingId?: string;
+}
+
+export interface AssistantSuggestionsResponse {
+  provider: string;
+  mode: 'LIVE' | 'FALLBACK';
+  suggestions: string[];
+  fallbackReason?: string;
+  providerRequestId?: string;
+}
+
+export interface AdminReadinessGate {
+  key: string;
+  area: string;
+  status: 'PASS' | 'WARN' | 'BLOCKED';
+  title: string;
+  detail: string;
+  remediation: string;
+}
+
+export interface AdminReadiness {
+  overallStatus: 'PASS' | 'WARN' | 'BLOCKED';
+  generatedAt: string;
+  gates: AdminReadinessGate[];
 }
 
 export interface ProductFinding extends BaseRecord {

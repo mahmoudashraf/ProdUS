@@ -1,7 +1,11 @@
 package com.produs.packages;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.produs.ai.AIRecommendation;
 import com.produs.ai.AIRecommendationRepository;
+import com.produs.ai.PackageGovernanceProvider;
 import com.produs.catalog.ServiceDependency;
 import com.produs.catalog.ServiceDependencyRepository;
 import com.produs.catalog.ServiceModule;
@@ -28,6 +32,8 @@ public class PackageBuilderService {
     private final PackageInstanceRepository packageRepository;
     private final PackageModuleRepository packageModuleRepository;
     private final AIRecommendationRepository recommendationRepository;
+    private final PackageGovernanceProvider packageGovernanceProvider;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public PackageInstance buildFromRequirement(User owner, UUID requirementId) {
@@ -92,27 +98,45 @@ public class PackageBuilderService {
         recommendation.setSourceEntityType("REQUIREMENT_INTAKE");
         recommendation.setSourceEntityId(requirement.getId().toString());
         double fallbackConfidence = moduleNames.isEmpty() ? 0.64 : 0.86;
-        String deterministicOutputJson = """
-                {"mode":"RULES_FALLBACK","packageId":"%s","packageName":"%s","modules":[%s]}
-                """.formatted(
-                packageInstance.getId(),
-                escapeJson(packageInstance.getName()),
-                moduleNames.stream()
-                        .map(moduleName -> "\"" + escapeJson(moduleName) + "\"")
-                        .reduce((left, right) -> left + "," + right)
-                        .orElse("")
-        ).trim();
-        recommendation.setPromptVersion("rules-v1");
-        recommendation.setConfidence(fallbackConfidence);
-        recommendation.setRationale("Deterministic catalog composition from owner intake, selected service, and required service dependencies. No AI execution was performed.");
-        recommendation.setOutputJson(deterministicOutputJson);
+        String deterministicOutputJson = deterministicOutput(requirement, packageInstance, moduleNames);
+        PackageGovernanceProvider.PackageGovernanceResult result = packageGovernanceProvider.reviewPackage(
+                new PackageGovernanceProvider.PackageGovernanceRequest(
+                        requirement.getId(),
+                        packageInstance.getId(),
+                        packageInstance.getProductProfile().getId(),
+                        packageInstance.getProductProfile().getName(),
+                        requirement.getBusinessGoal(),
+                        requirement.getRiskSignals(),
+                        List.copyOf(moduleNames),
+                        deterministicOutputJson,
+                        fallbackConfidence
+                )
+        );
+        recommendation.setPromptVersion(result.promptVersion());
+        recommendation.setProviderName(result.provider());
+        recommendation.setProviderRequestId(result.providerRequestId());
+        recommendation.setFallback(result.fallback());
+        recommendation.setFallbackReason(result.fallbackReason());
+        recommendation.setConfidence(result.confidence());
+        recommendation.setRationale(result.rationale());
+        recommendation.setOutputJson(result.outputJson());
         recommendationRepository.save(recommendation);
     }
 
-    private String escapeJson(String value) {
-        if (value == null) {
-            return "";
+    private String deterministicOutput(RequirementIntake requirement, PackageInstance packageInstance, List<String> moduleNames) {
+        ObjectNode output = objectMapper.createObjectNode();
+        output.put("mode", "DETERMINISTIC_CATALOG");
+        output.put("packageId", packageInstance.getId().toString());
+        output.put("packageName", packageInstance.getName());
+        output.put("requirementId", requirement.getId().toString());
+        output.put("productId", packageInstance.getProductProfile().getId().toString());
+        output.put("productName", packageInstance.getProductProfile().getName());
+        ArrayNode modules = output.putArray("modules");
+        moduleNames.forEach(modules::add);
+        try {
+            return objectMapper.writeValueAsString(output);
+        } catch (Exception exception) {
+            return "{\"mode\":\"DETERMINISTIC_CATALOG\",\"packageId\":\"%s\"}".formatted(packageInstance.getId());
         }
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

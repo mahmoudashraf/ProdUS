@@ -4,6 +4,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { loadConfig } from './config.js';
 import { createProdusMcpServer } from './mcpServer.js';
 import { createRequestContext } from './produsApi.js';
+import { loomAIProductizationTools } from './allowlists.js';
 
 const config = loadConfig();
 const app = createMcpExpressApp({
@@ -16,7 +17,15 @@ app.get('/health', (_req, res) => {
     status: 'ok',
     service: 'produs-mcp-server',
     apiBaseUrl: config.apiBaseUrl,
-    requireAuth: config.requireAuth
+    requireAuth: config.requireAuth,
+    toolProfile: config.toolProfile
+  });
+});
+
+app.get('/loomai/tool-allowlist', (_req, res) => {
+  res.json({
+    profile: 'loomai-productization',
+    tools: loomAIProductizationTools
   });
 });
 
