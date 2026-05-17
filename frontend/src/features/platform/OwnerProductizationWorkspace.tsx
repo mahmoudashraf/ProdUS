@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AddOutlined,
   AddShoppingCartOutlined,
+  ArticleOutlined,
   AutoAwesomeOutlined,
   BugReportOutlined,
   CancelOutlined,
@@ -15,15 +16,18 @@ import {
   DeleteOutlineOutlined,
   FactCheckOutlined,
   GroupAddOutlined,
+  InfoOutlined,
   Inventory2Outlined,
   OpenInNewOutlined,
   PersonAddAltOutlined,
   PlayArrowOutlined,
   RefreshOutlined,
   RocketLaunchOutlined,
+  ScienceOutlined,
   SendOutlined,
   ShoppingCartOutlined,
   ShieldOutlined,
+  VisibilityOutlined,
 } from '@mui/icons-material';
 import { Alert, Box, Button, Checkbox, Divider, FormControlLabel, IconButton, LinearProgress, MenuItem, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -350,6 +354,34 @@ const productHealth = (product?: ProductProfile, packageInstance?: PackageInstan
   return packageScore(packageInstance, modules);
 };
 
+const severityAccent = (severity?: string) => {
+  if (severity === 'CRITICAL') return appleColors.red;
+  if (severity === 'HIGH') return '#ea580c';
+  if (severity === 'MEDIUM') return appleColors.amber;
+  if (severity === 'LOW') return appleColors.blue;
+  return appleColors.muted;
+};
+
+const findingStatusAccent = (status?: string) => {
+  if (status === 'RESOLVED') return appleColors.green;
+  if (status === 'ACCEPTED_RISK') return appleColors.amber;
+  if (status === 'FALSE_POSITIVE') return appleColors.muted;
+  if (status === 'REGRESSED') return appleColors.red;
+  if (status === 'INSUFFICIENT_EVIDENCE') return '#7c3aed';
+  return appleColors.purple;
+};
+
+const shortDateTime = (value?: string) => {
+  if (!value) return 'Not recorded';
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+};
+
+const confidenceDots = (level?: string) => {
+  if (level === 'HIGH') return '●●●';
+  if (level === 'MEDIUM') return '●●○';
+  return '●○○';
+};
+
 export default function OwnerProductizationWorkspace({
   productId,
   showProductCreation = true,
@@ -455,6 +487,8 @@ export default function OwnerProductizationWorkspace({
   });
   const [ciTemplateType, setCiTemplateType] = useState<CiTemplateResponse['type']>('GITHUB_ACTIONS');
   const [ciTemplate, setCiTemplate] = useState<CiTemplateResponse | null>(null);
+  const [selectedFindingId, setSelectedFindingId] = useState('');
+  const [evidenceFilter, setEvidenceFilter] = useState<'ALL' | 'FINDINGS' | 'MILESTONES' | 'REDACTED'>('ALL');
   const [findingReasonById, setFindingReasonById] = useState<Record<string, string>>({});
   const [findingReviewDueById, setFindingReviewDueById] = useState<Record<string, string>>({});
 
@@ -788,12 +822,29 @@ export default function OwnerProductizationWorkspace({
   const scannerCounts = scannerSummary.data?.counts;
   const scannerReadiness = scannerSummary.data?.readinessScore ?? (scannerCounts?.total ? 72 : 100);
   const scannerOpenFindings = (scannerSummary.data?.findings || []).filter((finding) => ['NEW', 'OPEN', 'REGRESSED'].includes(finding.status));
+  const selectedFinding = (scannerSummary.data?.findings || []).find((finding) => finding.id === selectedFindingId) || scannerOpenFindings[0] || scannerSummary.data?.findings?.[0];
+  const selectedFindingEvidence = (scannerSummary.data?.evidence || []).filter((item) => item.findingId && item.findingId === selectedFinding?.id);
+  const filteredScannerEvidence = (scannerSummary.data?.evidence || []).filter((item) => {
+    if (evidenceFilter === 'FINDINGS') return !!item.findingId;
+    if (evidenceFilter === 'MILESTONES') return !!item.milestoneId;
+    if (evidenceFilter === 'REDACTED') return item.redactionStatus !== 'NONE';
+    return true;
+  });
   const activeScanRun = scannerSummary.data?.recentRuns.find((run) => run.status === 'QUEUED' || run.status === 'RUNNING');
   const selectedScanSource = (scannerSummary.data?.sources || []).find((source) => source.id === hostedScanForm.sourceId);
   const hostedScanBlockedReason = hostedScanBlockReason(selectedProduct, selectedScanSource, hostedScanForm);
   const blockedMilestones = (milestones.data || []).filter((milestone) => milestone.status === 'BLOCKED').length;
   const submittedRequirement = selectedProductRequirements.find((requirement) => requirement.status === 'SUBMITTED' || requirement.status === 'PACKAGE_RECOMMENDED');
   const buildTargetRequirementId = pendingRequirementId || submittedRequirement?.id || '';
+  const scannerJourney = [
+    { label: 'Connect', complete: !!scannerSummary.data?.sources.length, active: !scannerSummary.data?.sources.length },
+    { label: 'Scan', complete: !!scannerSummary.data?.recentRuns.some((run) => run.status === 'COMPLETED'), active: !!activeScanRun },
+    { label: 'Findings', complete: !!scannerSummary.data?.findings.length, active: !!scannerSummary.data?.findings.length && !selectedPackage },
+    { label: 'Services', complete: !!cartServiceItems.length || !!packageModules.data?.length, active: !!scannerSummary.data?.findings.length && !cartServiceItems.length },
+    { label: 'Workspace', complete: !!selectedWorkspace, active: !!selectedPackage && !selectedWorkspace },
+    { label: 'Evidence', complete: !!scannerSummary.data?.evidence.length, active: !!selectedWorkspace && !scannerSummary.data?.evidence.length },
+    { label: 'Handoff', complete: selectedWorkspace?.status === 'SUPPORT_HANDOFF' || selectedWorkspace?.status === 'DELIVERED' || selectedWorkspace?.status === 'CLOSED', active: selectedWorkspace?.status === 'SUPPORT_HANDOFF' },
+  ];
 
   useEffect(() => {
     if (!scannerUploadForm.sourceId && scannerSummary.data?.sources[0]?.id) {
@@ -1100,6 +1151,35 @@ export default function OwnerProductizationWorkspace({
                 <MetricTile label="Critical / High" value={`${scannerCounts?.critical || 0}/${scannerCounts?.high || 0}`} detail="Require owner review" accent={(scannerCounts?.critical || scannerCounts?.high) ? appleColors.red : appleColors.green} icon={<BugReportOutlined />} />
                 <MetricTile label="Open findings" value={scannerCounts?.open || 0} detail="New, open, or regressed" accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green} icon={<FactCheckOutlined />} />
                 <MetricTile label="Evidence sources" value={scannerSummary.data?.sources.length || 0} detail="CI, repo, runtime, or tool imports" accent={appleColors.cyan} icon={<CloudUploadOutlined />} />
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: `repeat(${scannerJourney.length}, minmax(0, 1fr))` }, gap: 1, mb: 2 }}>
+                {scannerJourney.map((step, index) => {
+                  const color = step.complete ? appleColors.green : step.active ? appleColors.purple : appleColors.muted;
+                  return (
+                    <Box
+                      key={step.label}
+                      sx={{
+                        p: 1,
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: step.active ? `${appleColors.purple}55` : appleColors.line,
+                        bgcolor: step.complete ? '#f6fff9' : step.active ? '#f8f7ff' : '#fbfdff',
+                        minHeight: 70,
+                      }}
+                    >
+                      <Stack direction="row" spacing={0.75} alignItems="center">
+                        <Box sx={{ width: 24, height: 24, borderRadius: '50%', bgcolor: `${color}14`, color, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 900 }}>
+                          {step.complete ? '✓' : index + 1}
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 900, color }}>{step.label}</Typography>
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                        {step.complete ? 'Ready' : step.active ? 'Current focus' : 'Upcoming'}
+                      </Typography>
+                    </Box>
+                  );
+                })}
               </Box>
 
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: 2 }}>
@@ -1548,36 +1628,49 @@ export default function OwnerProductizationWorkspace({
                 <Stack spacing={1.5}>
                   {(scannerSummary.isFetching || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || updateFindingStatus.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
                   {scannerSummary.data?.sources.length ? (
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
                       {scannerSummary.data.sources.slice(0, 5).map((source) => (
                         <Stack
                           key={source.id}
-                          direction="row"
-                          spacing={0.75}
-                          alignItems="center"
-                          sx={{ border: 1, borderColor: appleColors.line, borderRadius: 1, px: 1, py: 0.75, bgcolor: '#fff' }}
+                          spacing={1}
+                          sx={{
+                            border: 1,
+                            borderColor: source.authorizationStatus === 'AUTHORIZED' ? '#c8f2da' : appleColors.line,
+                            borderRadius: 1,
+                            p: 1.25,
+                            bgcolor: source.authorizationStatus === 'AUTHORIZED' ? '#fbfffd' : '#fff',
+                          }}
                         >
-                          <PastelChip
-                            label={`${source.displayName} · ${formatLabel(source.authorizationStatus)}`}
-                            accent={source.authorizationStatus === 'AUTHORIZED' ? appleColors.green : appleColors.amber}
-                            bg={source.authorizationStatus === 'AUTHORIZED' ? '#e7f8ee' : '#fff4dc'}
-                          />
-                          {source.authorizationStatus === 'AUTHORIZED' && (
-                            <Button
-                              size="small"
-                              color="inherit"
-                              disabled={disconnectScanSource.isPending}
-                              onClick={() => disconnectScanSource.mutate(source.id)}
-                              sx={{ minHeight: 28, px: 1 }}
-                            >
-                              Disconnect
-                            </Button>
-                          )}
+                          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{source.displayName}</Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap>{source.externalReference || formatLabel(source.providerType)}</Typography>
+                            </Box>
+                            <StatusChip label={source.authorizationStatus} color={source.authorizationStatus === 'AUTHORIZED' ? 'success' : source.authorizationStatus === 'FAILED' ? 'error' : 'warning'} />
+                          </Stack>
+                          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+                            <PastelChip label={formatLabel(source.providerType)} accent={appleColors.cyan} bg="#e4f9fd" />
+                            {source.scopeNote && <PastelChip label="Scoped" accent={appleColors.purple} />}
+                          </Stack>
+                          <Tooltip title={source.authorizationStatus === 'AUTHORIZED' ? 'Disconnect this source from future scanner use' : 'Only authorized sources can be disconnected'}>
+                            <span>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="inherit"
+                                disabled={source.authorizationStatus !== 'AUTHORIZED' || disconnectScanSource.isPending}
+                                onClick={() => disconnectScanSource.mutate(source.id)}
+                                sx={{ minHeight: 34, alignSelf: 'flex-start' }}
+                              >
+                                Disconnect
+                              </Button>
+                            </span>
+                          </Tooltip>
                         </Stack>
                       ))}
-                    </Stack>
+                    </Box>
                   ) : (
-                    <Typography variant="body2" color="text.secondary">Add a source or upload CI evidence to create the first product scanner record.</Typography>
+                    <EmptyState label="No scanner source exists yet. Save a source, upload CI evidence, or import a customer-owned scanner result to start the evidence chain." />
                   )}
 
                   {scannerSummary.data?.imports?.length ? (
@@ -1601,6 +1694,78 @@ export default function OwnerProductizationWorkspace({
                     </Box>
                   ) : null}
 
+                  <Box sx={{ border: '1px solid', borderColor: appleColors.line, borderRadius: 1, p: 1.5, bgcolor: '#fff' }}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mb: 1.25 }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <ArticleOutlined sx={{ color: appleColors.purple }} />
+                        <Typography sx={{ fontWeight: 900 }}>Evidence Center</Typography>
+                      </Stack>
+                      <TextField
+                        select
+                        size="small"
+                        label="Filter"
+                        value={evidenceFilter}
+                        onChange={(event) => setEvidenceFilter(event.target.value as typeof evidenceFilter)}
+                        sx={{ minWidth: { xs: '100%', sm: 180 } }}
+                      >
+                        <MenuItem value="ALL">All evidence</MenuItem>
+                        <MenuItem value="FINDINGS">Finding-linked</MenuItem>
+                        <MenuItem value="MILESTONES">Milestone-linked</MenuItem>
+                        <MenuItem value="REDACTED">Redacted</MenuItem>
+                      </TextField>
+                    </Stack>
+                    {filteredScannerEvidence.length ? (
+                      <Stack spacing={1}>
+                        {filteredScannerEvidence.slice(0, 5).map((evidence) => (
+                          <Box key={evidence.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e5edf7', bgcolor: evidence.redactionStatus === 'NONE' ? '#fbfdff' : '#fff7f8' }}>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+                                  <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{evidence.title}</Typography>
+                                  <PastelChip label={confidenceDots(evidence.confidenceLevel)} accent={evidence.confidenceLevel === 'HIGH' ? appleColors.green : evidence.confidenceLevel === 'MEDIUM' ? appleColors.amber : appleColors.muted} />
+                                  <StatusChip label={evidence.redactionStatus} color={evidence.redactionStatus === 'NONE' ? 'success' : 'warning'} />
+                                </Stack>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.45 }}>
+                                  {evidence.summary || evidence.source} · {shortDateTime(evidence.createdAt)}
+                                </Typography>
+                              </Box>
+                              <Stack direction="row" spacing={1}>
+                                <Tooltip title={evidence.artifactRef ? 'Open the stored evidence artifact' : 'No artifact link exists for this evidence item'}>
+                                  <span>
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      startIcon={<VisibilityOutlined />}
+                                      disabled={!evidence.artifactRef}
+                                      onClick={() => evidence.artifactRef && window.open(evidence.artifactRef, '_blank', 'noopener,noreferrer')}
+                                      sx={{ minHeight: 34 }}
+                                    >
+                                      Open
+                                    </Button>
+                                  </span>
+                                </Tooltip>
+                                <Tooltip title={evidence.storageKey ? 'Copy storage key for audit support' : 'No storage key recorded'}>
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      disabled={!evidence.storageKey}
+                                      onClick={() => evidence.storageKey && navigator.clipboard?.writeText(evidence.storageKey)}
+                                      sx={{ width: 34, height: 34, borderRadius: 1, border: '1px solid', borderColor: appleColors.line }}
+                                    >
+                                      <ContentCopyOutlined fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              </Stack>
+                            </Stack>
+                          </Box>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <EmptyState label="No scanner evidence matches this filter yet." />
+                    )}
+                  </Box>
+
                   {scannerSummary.data?.findings.length ? (
                     <Stack spacing={1.25}>
                       {scannerSummary.data.findings.slice(0, 8).map((finding) => {
@@ -1608,13 +1773,15 @@ export default function OwnerProductizationWorkspace({
                         const reviewDue = findingReviewDueById[finding.id] || '';
                         const canResolve = !!reason.trim();
                         const canAcceptRisk = !!reason.trim() && !!reviewDue;
+                        const recommendedModule = finding.recommendedModule;
+                        const recommendedInCart = !!recommendedModule && cartServiceIds.has(recommendedModule.id);
                         return (
-                          <Box key={finding.id} sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: appleColors.line, bgcolor: '#fff' }}>
+                          <Box key={finding.id} sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: selectedFinding?.id === finding.id ? `${findingStatusAccent(finding.status)}66` : appleColors.line, bgcolor: selectedFinding?.id === finding.id ? '#fbfdff' : '#fff' }}>
                             <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25} justifyContent="space-between" alignItems={{ md: 'flex-start' }}>
                               <Box sx={{ minWidth: 0 }}>
                                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                                  <StatusChip label={finding.severity} color={finding.severity === 'CRITICAL' || finding.severity === 'HIGH' ? 'error' : 'warning'} />
-                                  <StatusChip label={finding.status} color={finding.status === 'RESOLVED' ? 'success' : 'default'} />
+                                  <PastelChip label={formatLabel(finding.severity)} accent={severityAccent(finding.severity)} bg={`${severityAccent(finding.severity)}12`} />
+                                  <PastelChip label={formatLabel(finding.status)} accent={findingStatusAccent(finding.status)} bg={`${findingStatusAccent(finding.status)}12`} />
                                   {finding.recommendedModule && <PastelChip label={finding.recommendedModule.name} accent={appleColors.purple} />}
                                 </Stack>
                                 <Typography sx={{ mt: 1, fontWeight: 900 }}>{finding.title}</Typography>
@@ -1623,7 +1790,38 @@ export default function OwnerProductizationWorkspace({
                                   {finding.sourceTool}{finding.sourceRuleId ? ` · ${finding.sourceRuleId}` : ''}{finding.affectedComponent ? ` · ${finding.affectedComponent}` : ''}
                                 </Typography>
                               </Box>
+                              <Button
+                                size="small"
+                                variant={selectedFinding?.id === finding.id ? 'contained' : 'outlined'}
+                                startIcon={<InfoOutlined />}
+                                onClick={() => setSelectedFindingId(finding.id)}
+                                sx={{ minHeight: 34, minWidth: 132 }}
+                              >
+                                Review
+                              </Button>
                             </Stack>
+                            {recommendedModule && (
+                              <Box sx={{ mt: 1.25, p: 1, borderRadius: 1, bgcolor: '#f8f7ff', border: '1px solid', borderColor: '#e3e0ff' }}>
+                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+                                  <Box sx={{ minWidth: 0 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 900 }}>Recommended service: {recommendedModule.name}</Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35 }}>
+                                      {recommendedModule.ownerOutcome || recommendedModule.description || 'Add this service to the productization plan for tracked remediation.'}
+                                    </Typography>
+                                  </Box>
+                                  <Button
+                                    size="small"
+                                    variant={recommendedInCart ? 'outlined' : 'contained'}
+                                    disabled={recommendedInCart || addServiceToCart.isPending}
+                                    startIcon={<AddShoppingCartOutlined />}
+                                    onClick={() => addLifecycleService(recommendedModule, 'Scanner findings')}
+                                    sx={{ minHeight: 34, minWidth: 142 }}
+                                  >
+                                    {recommendedInCart ? 'In Plan' : 'Add Service'}
+                                  </Button>
+                                </Stack>
+                              </Box>
+                            )}
                             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 150px' }, gap: 1, mt: 1.25 }}>
                               <TextField
                                 size="small"
@@ -1658,6 +1856,61 @@ export default function OwnerProductizationWorkspace({
                     </Stack>
                   ) : (
                     <EmptyState label="No normalized findings yet. Run a governed scan or upload SARIF, JSON, JUnit, or CI log evidence." />
+                  )}
+
+                  {selectedFinding && (
+                    <Box sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: `${findingStatusAccent(selectedFinding.status)}40`, bgcolor: '#fff' }}>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mb: 1 }}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <ScienceOutlined sx={{ color: findingStatusAccent(selectedFinding.status) }} />
+                          <Typography sx={{ fontWeight: 900 }}>Finding Detail</Typography>
+                        </Stack>
+                        <PastelChip label={selectedFinding.confidenceBasis || 'Evidence-backed'} accent={appleColors.cyan} bg="#e4f9fd" />
+                      </Stack>
+                      <Typography sx={{ fontWeight: 900 }}>{selectedFinding.title}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>
+                        {selectedFinding.description}
+                      </Typography>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1, mt: 1.25 }}>
+                        <Box sx={{ p: 1, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
+                          <Typography variant="caption" color="text.secondary">Affected area</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFinding.affectedComponent || 'Product surface'}</Typography>
+                        </Box>
+                        <Box sx={{ p: 1, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
+                          <Typography variant="caption" color="text.secondary">Source rule</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFinding.sourceRuleId || selectedFinding.sourceTool}</Typography>
+                        </Box>
+                        <Box sx={{ p: 1, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
+                          <Typography variant="caption" color="text.secondary">Evidence linked</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFindingEvidence.length}</Typography>
+                        </Box>
+                      </Box>
+                      {selectedFindingEvidence.length ? (
+                        <Stack spacing={0.75} sx={{ mt: 1.25 }}>
+                          {selectedFindingEvidence.slice(0, 3).map((item) => (
+                            <Stack key={item.id} direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 0.75 }}>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 850 }} noWrap>{item.title}</Typography>
+                                <Typography variant="caption" color="text.secondary">{item.source} · {formatLabel(item.confidenceLevel)}</Typography>
+                              </Box>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                disabled={!item.artifactRef}
+                                onClick={() => item.artifactRef && window.open(item.artifactRef, '_blank', 'noopener,noreferrer')}
+                                sx={{ minHeight: 34, minWidth: 112 }}
+                              >
+                                Open Evidence
+                              </Button>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                          No dedicated evidence item is linked to this finding yet.
+                        </Typography>
+                      )}
+                    </Box>
                   )}
 
                   {scannerSummary.data?.recentRuns.length ? (

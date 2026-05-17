@@ -569,7 +569,13 @@ public class ScannerService {
                 scannerProperties.isSchedulerEnabled(),
                 jobs.stream().filter(job -> job.getStatus() == ScannerJob.JobStatus.QUEUED).count(),
                 jobs.stream().filter(job -> job.getStatus() == ScannerJob.JobStatus.RUNNING).count(),
-                tools
+                tools,
+                scannerJobRepository.findTop12ByOrderByCreatedAtDesc().stream()
+                        .map(this::toScannerJobResponse)
+                        .toList(),
+                importRunRepository.findTop12ByOrderByCreatedAtDesc().stream()
+                        .map(this::toImportRunResponse)
+                        .toList()
         );
     }
 
@@ -2058,6 +2064,28 @@ public class ScannerService {
         );
     }
 
+    private ScannerJobResponse toScannerJobResponse(ScannerJob job) {
+        ScanRun run = job.getScanRun();
+        return new ScannerJobResponse(
+                job.getId(),
+                job.getCreatedAt(),
+                job.getUpdatedAt(),
+                run == null ? null : run.getId(),
+                run == null ? null : run.getProductProfile().getId(),
+                run == null || run.getWorkspace() == null ? null : run.getWorkspace().getId(),
+                job.getStatus(),
+                job.getAttemptCount(),
+                job.getMaxAttempts(),
+                job.getNextRunAt(),
+                job.getLockedAt(),
+                job.getLockOwner(),
+                job.getStartedAt(),
+                job.getCompletedAt(),
+                job.getFailureSummary(),
+                run == null ? null : toScanRunResponse(run, toolRunRepository.findByScanRunIdOrderByCreatedAtAsc(run.getId()))
+        );
+    }
+
     private ToolRunResponse toToolRunResponse(ToolRun toolRun) {
         return new ToolRunResponse(
                 toolRun.getId(),
@@ -2294,7 +2322,9 @@ public class ScannerService {
             boolean schedulerEnabled,
             long queuedJobs,
             long runningJobs,
-            List<ToolHealthResponse> tools
+            List<ToolHealthResponse> tools,
+            List<ScannerJobResponse> recentJobs,
+            List<ScannerImportRunResponse> recentImports
     ) {}
 
     public record ToolHealthResponse(
@@ -2306,6 +2336,25 @@ public class ScannerService {
             String targetType,
             boolean requiresIac,
             int timeoutSeconds
+    ) {}
+
+    public record ScannerJobResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            UUID scanRunId,
+            UUID productProfileId,
+            UUID workspaceId,
+            ScannerJob.JobStatus status,
+            int attemptCount,
+            int maxAttempts,
+            LocalDateTime nextRunAt,
+            LocalDateTime lockedAt,
+            String lockOwner,
+            LocalDateTime startedAt,
+            LocalDateTime completedAt,
+            String failureSummary,
+            ScanRunResponse scanRun
     ) {}
 
     public enum CiTemplateType {

@@ -9,4 +9,5 @@ public interface ScannerImportRunRepository extends JpaRepository<ScannerImportR
     List<ScannerImportRun> findByProductProfileIdOrderByCreatedAtDesc(UUID productProfileId);
     List<ScannerImportRun> findByWorkspaceIdOrderByCreatedAtDesc(UUID workspaceId);
     List<ScannerImportRun> findByScanSourceIdOrderByCreatedAtDesc(UUID scanSourceId);
+    List<ScannerImportRun> findTop12ByOrderByCreatedAtDesc();
 }

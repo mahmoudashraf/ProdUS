@@ -91,6 +91,7 @@ Team data is allowed only for package/workspace matching explanations, shortlist
    - Implement the Studio scanner/evidence/package/milestone/workspace UI from the design docs.
    - Wire every enabled button to a backend action or a clear disabled state.
    - Verify desktop and mobile usability for owner, team, and admin scanner flows.
+   - Status: implemented for owner scanner workflow, evidence center, finding detail/service actions, workspace CI evidence upload, admin recent jobs/imports, retry/cancel operations, and tests.
 
 6. [Real LoomAI Staging Integration](./06-real-loomai-staging-integration.md)
    - Replace mock-only behavior with a staging LoomAI integration.

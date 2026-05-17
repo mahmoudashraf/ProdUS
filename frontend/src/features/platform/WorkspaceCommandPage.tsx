@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AddOutlined,
   CalendarMonthOutlined,
+  CloudUploadOutlined,
   ErrorOutlineOutlined,
   FactCheckOutlined,
   TaskAltOutlined,
 } from '@mui/icons-material';
-import { Alert, Box, Button, LinearProgress, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Divider, LinearProgress, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import FileUpload from '@/components/ui-component/FileUpload';
 import { useAdvancedForm } from '@/hooks/enterprise';
@@ -48,6 +49,8 @@ import {
   ProductHealthReview,
   ProjectWorkspace,
   ReviewDecision,
+  ScannerEvidenceItem,
+  ScanRun,
   SupportRequest,
   Team,
   WorkspaceGovernance,
@@ -160,6 +163,18 @@ interface SignalPayload {
   evidencePayload?: string;
 }
 
+interface ScannerUploadPayload {
+  productId: string;
+  workspaceId: string;
+  sourceId?: string;
+  toolName: string;
+  toolVersion: string;
+  format: 'SARIF' | 'JSON' | 'JUNIT' | 'LOG';
+  artifactFileName: string;
+  artifactPayload: string;
+  milestoneId?: string;
+}
+
 const participantRoles: WorkspaceParticipant['role'][] = ['COORDINATOR', 'TEAM_LEAD', 'SPECIALIST', 'ADVISOR', 'VIEWER'];
 const supportPriorities: SupportRequest['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 const supportStatuses: SupportRequest['status'][] = ['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'WAITING_ON_OWNER', 'RESOLVED', 'CANCELLED'];
@@ -208,6 +223,14 @@ export default function WorkspaceCommandPage() {
   const [disputeResolutionById, setDisputeResolutionById] = useState<Record<string, string>>({});
   const [governanceNotice, setGovernanceNotice] = useState('');
   const [integrationProvider, setIntegrationProvider] = useState<IntegrationConnection['providerType']>('GITHUB');
+  const [scannerUploadForm, setScannerUploadForm] = useState({
+    toolName: 'CodeQL',
+    toolVersion: '',
+    format: 'SARIF' as ScannerUploadPayload['format'],
+    artifactFileName: 'workspace-evidence.sarif',
+    artifactPayload: '',
+    milestoneId: '',
+  });
 
   const workspaceForm = useAdvancedForm<WorkspacePayload>({
     initialValues: { packageInstanceId: '', name: '', status: 'ACTIVE_DELIVERY' },
@@ -264,6 +287,7 @@ export default function WorkspaceCommandPage() {
     () => workspaceList.find((workspace) => workspace.id === selectedWorkspaceId) || workspaceList[0],
     [workspaceList, selectedWorkspaceId]
   );
+  const selectedWorkspaceProductId = selectedWorkspace?.packageInstance?.productProfile?.id || '';
 
   useEffect(() => {
     if (!selectedWorkspaceId && workspaceList[0]) setSelectedWorkspaceId(workspaceList[0].id);
@@ -313,6 +337,11 @@ export default function WorkspaceCommandPage() {
     queryKey: ['productization-engine', 'workspace-governance', selectedWorkspace?.id],
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<WorkspaceGovernance>(`/productization-engine/workspaces/${selectedWorkspace?.id}/governance`),
+  });
+  const scannerEvidence = useQuery({
+    queryKey: ['scanner-evidence', selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () => getJson<ScannerEvidenceItem[]>(`/scanner/evidence?workspaceId=${selectedWorkspace?.id}`),
   });
 
   const attachmentsByScope = useMemo(
@@ -484,11 +513,34 @@ export default function WorkspaceCommandPage() {
       await refreshGovernance();
     },
   });
+  const uploadScannerEvidence = useMutation({
+    mutationFn: () => {
+      const payload: ScannerUploadPayload = {
+        productId: selectedWorkspaceProductId,
+        workspaceId: selectedWorkspace?.id || '',
+        toolName: scannerUploadForm.toolName,
+        toolVersion: scannerUploadForm.toolVersion,
+        format: scannerUploadForm.format,
+        artifactFileName: scannerUploadForm.artifactFileName,
+        artifactPayload: scannerUploadForm.artifactPayload,
+      };
+      const milestoneId = scannerUploadForm.milestoneId || selectedMilestone?.id;
+      if (milestoneId) payload.milestoneId = milestoneId;
+      return postJson<ScanRun, ScannerUploadPayload>('/scanner/runs/ci-upload', payload);
+    },
+    onSuccess: async () => {
+      setScannerUploadForm((current) => ({ ...current, artifactPayload: '' }));
+      setGovernanceNotice('Scanner evidence normalized and attached to this workspace.');
+      await queryClient.invalidateQueries({ queryKey: ['scanner-evidence', selectedWorkspace?.id] });
+      await refreshGovernance();
+    },
+  });
 
   const deliverableList = deliverables.data || [];
   const participantList = participants.data || [];
   const supportList = supportRequests.data || [];
   const disputeList = disputes.data || [];
+  const scannerEvidenceList = scannerEvidence.data || [];
   const governanceCriteria = governance.data?.criteria || [];
   const selectedMilestoneCriteria = selectedMilestone?.id
     ? governanceCriteria.filter((criterion) => criterion.milestoneId === selectedMilestone.id)
@@ -598,7 +650,7 @@ export default function WorkspaceCommandPage() {
         description="One focused place to run a productization workspace: milestones, evidence, people, support, and risk."
       />
       <QueryState
-        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || milestones.isLoading || deliverables.isLoading || participants.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading || governance.isLoading}
+        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || milestones.isLoading || deliverables.isLoading || participants.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading || governance.isLoading || scannerEvidence.isLoading}
         error={
           packages.error
           || workspaces.error
@@ -610,6 +662,7 @@ export default function WorkspaceCommandPage() {
           || disputes.error
           || attachments.error
           || governance.error
+          || scannerEvidence.error
           || createWorkspace.error
           || createMilestone.error
           || createDeliverable.error
@@ -627,6 +680,7 @@ export default function WorkspaceCommandPage() {
           || createHealthReview.error
           || createIntegration.error
           || createIntegrationSignal.error
+          || uploadScannerEvidence.error
         }
       />
       {governanceNotice && (
@@ -806,6 +860,112 @@ export default function WorkspaceCommandPage() {
                   Attach workspace-level documents such as kickoff notes, architecture decisions, acceptance records, and operating handoff material.
                 </Typography>
                 {evidencePanel('WORKSPACE', selectedWorkspace.id)}
+                <Divider sx={{ my: 2 }} />
+                <Box component="form" onSubmit={(event) => {
+                  event.preventDefault();
+                  if (selectedWorkspaceProductId && scannerUploadForm.toolName.trim() && scannerUploadForm.artifactPayload.trim()) uploadScannerEvidence.mutate();
+                }}>
+                  <Stack spacing={1.25}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'center' }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <CloudUploadOutlined sx={{ color: appleColors.cyan }} />
+                        <Box>
+                          <Typography sx={{ fontWeight: 900 }}>CI scanner evidence</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Normalize real scanner output against this workspace and selected milestone.
+                          </Typography>
+                        </Box>
+                      </Stack>
+                      <PastelChip label={`${scannerEvidenceList.length} scanner evidence records`} accent={appleColors.cyan} bg="#e4f9fd" />
+                    </Stack>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 140px 180px' }, gap: 1 }}>
+                      <TextField
+                        size="small"
+                        label="Tool"
+                        value={scannerUploadForm.toolName}
+                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, toolName: event.target.value }))}
+                      />
+                      <TextField
+                        select
+                        size="small"
+                        label="Format"
+                        value={scannerUploadForm.format}
+                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, format: event.target.value as ScannerUploadPayload['format'] }))}
+                      >
+                        <MenuItem value="SARIF">SARIF</MenuItem>
+                        <MenuItem value="JSON">JSON</MenuItem>
+                        <MenuItem value="JUNIT">JUnit</MenuItem>
+                        <MenuItem value="LOG">Log</MenuItem>
+                      </TextField>
+                      <TextField
+                        select
+                        size="small"
+                        label="Milestone"
+                        value={scannerUploadForm.milestoneId || selectedMilestone?.id || ''}
+                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, milestoneId: event.target.value }))}
+                      >
+                        <MenuItem value="">Workspace-level</MenuItem>
+                        {milestoneList.map((milestone) => (
+                          <MenuItem key={milestone.id} value={milestone.id}>{milestone.title}</MenuItem>
+                        ))}
+                      </TextField>
+                    </Box>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 180px' }, gap: 1 }}>
+                      <TextField
+                        size="small"
+                        label="Artifact file name"
+                        value={scannerUploadForm.artifactFileName}
+                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, artifactFileName: event.target.value }))}
+                      />
+                      <TextField
+                        size="small"
+                        label="Version"
+                        value={scannerUploadForm.toolVersion}
+                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, toolVersion: event.target.value }))}
+                      />
+                    </Box>
+                    <TextField
+                      size="small"
+                      label="Scanner payload"
+                      placeholder="Paste SARIF, JSON, JUnit XML, or scanner log output from the team CI run."
+                      value={scannerUploadForm.artifactPayload}
+                      onChange={(event) => setScannerUploadForm((current) => ({ ...current, artifactPayload: event.target.value }))}
+                      multiline
+                      minRows={5}
+                      InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13, alignItems: 'flex-start' } }}
+                    />
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      startIcon={<CloudUploadOutlined />}
+                      disabled={!selectedWorkspaceProductId || !scannerUploadForm.toolName.trim() || !scannerUploadForm.artifactPayload.trim() || uploadScannerEvidence.isPending}
+                      sx={{ minHeight: 44, alignSelf: { md: 'flex-start' } }}
+                    >
+                      Normalize Workspace Evidence
+                    </Button>
+                    {scannerEvidenceList.length ? (
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
+                        {scannerEvidenceList.slice(0, 4).map((item) => (
+                          <Box key={item.id} sx={{ p: 1, border: '1px solid', borderColor: '#e5edf7', borderRadius: 1, bgcolor: item.redactionStatus === 'NONE' ? '#fbfdff' : '#fff7f8' }}>
+                            <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{item.title}</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                  {item.source} · {formatLabel(item.confidenceLevel)}
+                                </Typography>
+                              </Box>
+                              <StatusChip label={item.redactionStatus} color={item.redactionStatus === 'NONE' ? 'success' : 'warning'} />
+                            </Stack>
+                          </Box>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No scanner evidence is attached to this workspace yet.
+                      </Typography>
+                    )}
+                  </Stack>
+                </Box>
               </Surface>
 
               <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)' }}>

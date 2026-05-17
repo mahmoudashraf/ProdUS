@@ -12,4 +12,5 @@ public interface ScannerJobRepository extends JpaRepository<ScannerJob, UUID> {
     Optional<ScannerJob> findTopByStatusAndNextRunAtLessThanEqualOrderByCreatedAtAsc(ScannerJob.JobStatus status, LocalDateTime now);
     Optional<ScannerJob> findByScanRunId(UUID scanRunId);
     List<ScannerJob> findByStatusInOrderByCreatedAtAsc(Collection<ScannerJob.JobStatus> statuses);
+    List<ScannerJob> findTop12ByOrderByCreatedAtDesc();
 }

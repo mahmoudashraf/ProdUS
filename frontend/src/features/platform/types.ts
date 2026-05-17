@@ -323,12 +323,30 @@ export interface ScannerToolHealth {
   timeoutSeconds: number;
 }
 
+export interface ScannerJobHealth extends BaseRecord {
+  scanRunId?: string;
+  productProfileId?: string;
+  workspaceId?: string;
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+  attemptCount: number;
+  maxAttempts: number;
+  nextRunAt?: string;
+  lockedAt?: string;
+  lockOwner?: string;
+  startedAt?: string;
+  completedAt?: string;
+  failureSummary?: string;
+  scanRun?: ScanRun;
+}
+
 export interface ScannerAdminHealth {
   workerEnabled: boolean;
   schedulerEnabled: boolean;
   queuedJobs: number;
   runningJobs: number;
   tools: ScannerToolHealth[];
+  recentJobs: ScannerJobHealth[];
+  recentImports: ScannerImportRun[];
 }
 
 export interface RequirementIntake extends BaseRecord {

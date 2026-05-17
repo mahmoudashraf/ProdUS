@@ -373,6 +373,15 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.imports[0].provider").value("GITHUB_CODE_SCANNING"))
                 .andExpect(jsonPath("$.counts.high").value(1));
+
+        User admin = saveUser("scanner-import-admin@produs.test", User.UserRole.ADMIN);
+        mockMvc.perform(get("/api/scanner/admin/health").with(auth(owner)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/scanner/admin/health").with(auth(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recentJobs").exists())
+                .andExpect(jsonPath("$.recentImports[0].id").value(importId.toString()))
+                .andExpect(jsonPath("$.recentImports[0].scanRun.status").value("COMPLETED"));
     }
 
     @Test
