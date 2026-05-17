@@ -4,7 +4,7 @@ import { Box, Stack, Typography } from '@mui/material';
 // ==============================|| PRODUS LOGO ||============================== //
 
 const Logo = () => (
-  <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 170 }}>
+  <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: { xs: 44, sm: 170 } }}>
     <Box
       sx={{
         width: 34,
@@ -19,7 +19,7 @@ const Logo = () => (
     >
       <Typography sx={{ fontWeight: 900, fontSize: 21, lineHeight: 1 }}>P</Typography>
     </Box>
-    <Box sx={{ lineHeight: 1 }}>
+    <Box sx={{ lineHeight: 1, display: { xs: 'none', sm: 'block' } }}>
       <Typography sx={{ fontWeight: 800, fontSize: 18, lineHeight: 1.05, color: '#101828' }}>
         ProdOps
       </Typography>

@@ -203,9 +203,17 @@ public class TeamController {
                 .orElseThrow(() -> new IllegalArgumentException("Team not found"));
         requireManagerOrAdmin(manager, team);
         String email = request.email().trim().toLowerCase();
+        userRepository.findByEmail(email).ifPresent(user -> {
+            if (teamMemberRepository.existsByTeamIdAndUserIdAndActiveTrue(team.getId(), user.getId())) {
+                throw new IllegalArgumentException("User is already an active team member");
+            }
+        });
 
         TeamInvitation invitation = teamInvitationRepository.findByTeamIdAndEmail(id, email)
                 .orElseGet(TeamInvitation::new);
+        if (invitation.getId() != null && invitation.getStatus() == TeamInvitation.InvitationStatus.PENDING) {
+            throw new IllegalArgumentException("Invitation is already pending. Cancel it before inviting again.");
+        }
         invitation.setTeam(team);
         invitation.setInvitedBy(manager);
         invitation.setEmail(email);
@@ -320,15 +328,22 @@ public class TeamController {
     @PutMapping("/join-requests/{requestId}")
     @PreAuthorize("hasAnyRole('TEAM_MANAGER','SPECIALIST','ADMIN')")
     public TeamJoinRequestResponse reviewJoinRequest(
-            @AuthenticationPrincipal User manager,
+            @AuthenticationPrincipal User user,
             @PathVariable UUID requestId,
             @Valid @RequestBody TeamJoinRequestReviewRequest request
     ) {
         TeamJoinRequest joinRequest = teamJoinRequestRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Join request not found"));
-        requireManagerOrAdmin(manager, joinRequest.getTeam());
+        if (request.status() == TeamJoinRequest.RequestStatus.CANCELLED
+                && joinRequest.getRequester().getId().equals(user.getId())) {
+            joinRequest.setStatus(TeamJoinRequest.RequestStatus.CANCELLED);
+            joinRequest.setReviewedBy(null);
+            joinRequest.setReviewNote(request.reviewNote());
+            return toTeamJoinRequestResponse(teamJoinRequestRepository.save(joinRequest));
+        }
+        requireManagerOrAdmin(user, joinRequest.getTeam());
         joinRequest.setStatus(request.status());
-        joinRequest.setReviewedBy(manager);
+        joinRequest.setReviewedBy(user);
         joinRequest.setReviewNote(request.reviewNote());
         if (request.status() == TeamJoinRequest.RequestStatus.APPROVED) {
             ensureMember(joinRequest.getTeam(), joinRequest.getRequester(), TeamMember.MemberRole.SPECIALIST);
@@ -336,7 +351,7 @@ public class TeamController {
         TeamJoinRequest saved = teamJoinRequestRepository.save(joinRequest);
         notificationService.notify(
                 saved.getRequester(),
-                manager,
+                user,
                 PlatformNotification.NotificationType.NETWORK_JOIN_REQUEST,
                 request.status() == TeamJoinRequest.RequestStatus.APPROVED
                         ? PlatformNotification.NotificationPriority.HIGH

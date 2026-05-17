@@ -31,6 +31,7 @@ import {
   Stack,
   TextField,
   Typography,
+  type ButtonProps,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
@@ -51,9 +52,9 @@ import {
   formatLabel,
 } from '@/features/platform/PlatformComponents';
 import TeamProfilesPage from '@/features/platform/TeamProfilesPage';
-import type { ExpertProfile, PlatformNotification, Team, TeamJoinRequest } from '@/features/platform/types';
+import type { ExpertProfile, PlatformNotification, Team, TeamInvitation, TeamJoinRequest, TeamMember } from '@/features/platform/types';
 import { networkApi } from './api';
-import type { ConversationCreatePayload, FormationPostPayload, TrialPayload, UserAccount } from './types';
+import type { ConversationCreatePayload, FormationPostPayload, TrialPayload, TrialStatus, UserAccount } from './types';
 
 const serviceColors = ['#6366f1', '#2563eb', '#0891b2', '#059669', '#d97706', '#dc2626', '#7c3aed'];
 
@@ -87,6 +88,53 @@ const formatDate = (value?: string) => {
 
 const messageFor = (name: string) =>
   `I saw ${name} on ProdUS Network and would like to discuss service fit, availability, and a scoped collaboration path for productization work.`;
+
+type ActionVariant = NonNullable<ButtonProps['variant']>;
+type ActionColor = NonNullable<ButtonProps['color']>;
+
+const sameEmail = (left?: string, right?: string) => !!left && !!right && left.trim().toLowerCase() === right.trim().toLowerCase();
+
+const joinRequestForTeam = (requests: TeamJoinRequest[] | undefined, teamId: string) =>
+  (requests || []).find((request) => request.team?.id === teamId);
+
+const memberForExpert = (members: TeamMember[] | undefined, expert: ExpertProfile) =>
+  (members || []).find((member) => member.active && sameEmail(member.user?.email, expert.user?.email));
+
+const invitationForExpert = (invitations: TeamInvitation[] | undefined, expert: ExpertProfile) =>
+  (invitations || []).find((invitation) => sameEmail(invitation.email, expert.user?.email));
+
+type TrialAction = 'accept' | 'activate' | 'complete' | 'cancel';
+
+const trialActionsForStatus = (status: TrialStatus): Array<{ action?: TrialAction; label: string; variant: ActionVariant; color: ActionColor; disabled?: boolean }> => {
+  switch (status) {
+    case 'PROPOSED':
+    case 'NEGOTIATING':
+      return [
+        { action: 'accept', label: 'Accept Trial', variant: 'contained', color: 'primary' },
+        { action: 'cancel', label: 'Cancel', variant: 'outlined', color: 'error' },
+      ];
+    case 'ACCEPTED':
+      return [
+        { action: 'activate', label: 'Activate', variant: 'contained', color: 'primary' },
+        { action: 'cancel', label: 'Cancel', variant: 'outlined', color: 'error' },
+      ];
+    case 'ACTIVE':
+    case 'MILESTONE_REVIEW':
+    case 'FORM_TEAM_PROPOSED':
+      return [
+        { action: 'complete', label: 'Complete', variant: 'contained', color: 'primary' },
+        { action: 'cancel', label: 'Cancel', variant: 'outlined', color: 'error' },
+      ];
+    case 'COMPLETED':
+      return [{ label: 'Completed', variant: 'outlined', color: 'success', disabled: true }];
+    case 'TEAM_FORMED':
+      return [{ label: 'Team Formed', variant: 'outlined', color: 'success', disabled: true }];
+    case 'CANCELLED':
+      return [{ label: 'Cancelled', variant: 'outlined', color: 'error', disabled: true }];
+    default:
+      return [{ action: 'activate', label: 'Activate', variant: 'contained', color: 'primary' }];
+  }
+};
 
 function TagRow({ value, limit = 5 }: { value?: string | undefined; limit?: number | undefined }) {
   const tags = splitTags(value).slice(0, limit);
@@ -158,11 +206,19 @@ function TeamCard({
   team,
   onMessage,
   onApply,
+  applyLabel = 'Request To Join',
+  applyVariant = 'contained',
+  applyColor = 'primary',
+  applyDisabled,
   busy,
 }: {
   team: Team;
   onMessage: () => void;
   onApply: () => void;
+  applyLabel?: string;
+  applyVariant?: ActionVariant;
+  applyColor?: ActionColor;
+  applyDisabled?: boolean | undefined;
   busy?: boolean | undefined;
 }) {
   return (
@@ -195,8 +251,8 @@ function TeamCard({
           <Button component={NextLink} href={`/expert-network/teams/${team.id}`} variant="outlined" fullWidth sx={{ minHeight: 42 }}>
             View Team
           </Button>
-          <Button onClick={onApply} variant="contained" fullWidth disabled={!!busy} startIcon={<PersonAddAltOutlined />} sx={{ minHeight: 42 }}>
-            Request To Join
+          <Button onClick={onApply} variant={applyVariant} color={applyColor} fullWidth disabled={!!busy || !!applyDisabled} startIcon={<PersonAddAltOutlined />} sx={{ minHeight: 42 }}>
+            {applyLabel}
           </Button>
           <Button onClick={onMessage} variant="outlined" fullWidth disabled={!!busy} startIcon={<ChatBubbleOutline />} sx={{ minHeight: 42 }}>
             Message
@@ -211,11 +267,19 @@ function ExpertCard({
   expert,
   onMessage,
   onInvite,
+  inviteLabel = 'Invite',
+  inviteVariant = 'contained',
+  inviteColor = 'primary',
+  inviteDisabled,
   busy,
 }: {
   expert: ExpertProfile;
   onMessage: () => void;
   onInvite: () => void;
+  inviteLabel?: string;
+  inviteVariant?: ActionVariant;
+  inviteColor?: ActionColor;
+  inviteDisabled?: boolean | undefined;
   busy?: boolean | undefined;
 }) {
   return (
@@ -251,8 +315,8 @@ function ExpertCard({
           <Button onClick={onMessage} variant="outlined" fullWidth disabled={!!busy} startIcon={<ChatBubbleOutline />} sx={{ minHeight: 42 }}>
             Message
           </Button>
-          <Button onClick={onInvite} variant="contained" fullWidth disabled={!!busy} startIcon={<GroupAddOutlined />} sx={{ minHeight: 42 }}>
-            Invite
+          <Button onClick={onInvite} variant={inviteVariant} color={inviteColor} fullWidth disabled={!!busy || !!inviteDisabled} startIcon={<GroupAddOutlined />} sx={{ minHeight: 42 }}>
+            {inviteLabel}
           </Button>
         </Stack>
       </Stack>
@@ -520,15 +584,32 @@ export function NetworkNotificationsPage() {
 
 export function NetworkDirectoryPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [entityFilter, setEntityFilter] = useState<'ALL' | 'EXPERTS' | 'TEAMS'>('ALL');
+  const [availabilityFilter, setAvailabilityFilter] = useState<'ALL' | ExpertProfile['availability']>('ALL');
+  const [verificationFilter, setVerificationFilter] = useState<'ALL' | Team['verificationStatus']>('ALL');
   const experts = useQuery({ queryKey: ['network', 'experts'], queryFn: networkApi.experts });
   const teams = useQuery({ queryKey: ['network', 'teams'], queryFn: networkApi.teams });
   const myTeams = useQuery({ queryKey: ['network', 'my-teams'], queryFn: networkApi.myTeams });
+  const managedTeam = (myTeams.data || []).find((team) => team.manager?.id === user?.id || user?.role === UserRole.ADMIN);
+  const teamInvitations = useQuery({
+    queryKey: ['network', 'team-invitations', managedTeam?.id],
+    queryFn: () => networkApi.teamInvitations(managedTeam!.id),
+    enabled: !!managedTeam?.id,
+  });
+  const teamMembers = useQuery({
+    queryKey: ['network', 'team-members', managedTeam?.id],
+    queryFn: () => networkApi.teamMembers(managedTeam!.id),
+    enabled: !!managedTeam?.id,
+  });
+  const sentJoinRequests = useQuery({ queryKey: ['network', 'join-requests', 'mine'], queryFn: networkApi.myJoinRequests });
   const messageAction = useMessageAction();
   const invite = useMutation({
     mutationFn: (expert: ExpertProfile) => {
-      const team = myTeams.data?.[0];
+      const team = managedTeam;
       if (!team || !expert.user?.email) throw new Error('Create or join a team before inviting experts.');
       return networkApi.inviteToTeam(team.id, {
         email: expert.user.email,
@@ -536,23 +617,49 @@ export function NetworkDirectoryPage() {
         message: `We think your ${expert.headline || 'expert'} profile fits ${team.name}. Would you like to discuss joining?`,
       });
     },
-    onSuccess: () => {
-      setNotice('Invitation recorded and attached to your team.');
+    onSuccess: (invitation) => {
+      setNotice(invitation.status === 'ACCEPTED' ? 'Expert added to your team.' : 'Invitation sent and waiting for a response.');
       queryClient.invalidateQueries({ queryKey: ['network', 'my-teams'] });
+      queryClient.invalidateQueries({ queryKey: ['network', 'team-invitations', managedTeam?.id] });
+      queryClient.invalidateQueries({ queryKey: ['network', 'team-members', managedTeam?.id] });
+    },
+    onError: (error: Error) => setNotice(error.message),
+  });
+  const cancelInvite = useMutation({
+    mutationFn: (invitation: TeamInvitation) => networkApi.reviewInvitation(invitation.id, { status: 'CANCELLED' }),
+    onSuccess: () => {
+      setNotice('Invitation cancelled. You can invite this expert again when ready.');
+      queryClient.invalidateQueries({ queryKey: ['network', 'team-invitations', managedTeam?.id] });
     },
     onError: (error: Error) => setNotice(error.message),
   });
   const join = useMutation({
     mutationFn: (team: Team) => networkApi.requestToJoinTeam(team.id, { message: `I would like to discuss joining ${team.name}. My profile includes production-ready service experience and I can share evidence.` }),
-    onSuccess: () => setNotice('Join request submitted to the team lead.'),
+    onSuccess: () => {
+      setNotice('Join request submitted to the team lead.');
+      queryClient.invalidateQueries({ queryKey: ['network', 'join-requests', 'mine'] });
+    },
+    onError: (error: Error) => setNotice(error.message),
+  });
+  const cancelJoin = useMutation({
+    mutationFn: (request: TeamJoinRequest) => networkApi.reviewJoinRequest(request.id, { status: 'CANCELLED', reviewNote: 'Cancelled by requester.' }),
+    onSuccess: () => {
+      setNotice('Join request cancelled. You can request to join again later.');
+      queryClient.invalidateQueries({ queryKey: ['network', 'join-requests', 'mine'] });
+    },
     onError: (error: Error) => setNotice(error.message),
   });
 
+  const normalizedQuery = query.trim().toLowerCase();
   const visibleExperts = (experts.data || []).filter((expert) =>
-    `${expert.displayName} ${expert.headline} ${expert.skills}`.toLowerCase().includes(query.toLowerCase())
+    entityFilter !== 'TEAMS'
+    && (availabilityFilter === 'ALL' || expert.availability === availabilityFilter)
+    && `${expert.displayName} ${expert.headline} ${expert.skills}`.toLowerCase().includes(normalizedQuery)
   );
   const visibleTeams = (teams.data || []).filter((team) =>
-    `${team.name} ${team.headline} ${team.capabilitiesSummary}`.toLowerCase().includes(query.toLowerCase())
+    entityFilter !== 'EXPERTS'
+    && (verificationFilter === 'ALL' || team.verificationStatus === verificationFilter)
+    && `${team.name} ${team.headline} ${team.capabilitiesSummary}`.toLowerCase().includes(normalizedQuery)
   );
 
   return (
@@ -563,8 +670,34 @@ export function NetworkDirectoryPage() {
       <Surface>
         <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} alignItems={{ lg: 'center' }}>
           <TextField fullWidth label="Search by name, skill, service, or team" value={query} onChange={(event) => setQuery(event.target.value)} />
-          <Button variant="outlined" startIcon={<TuneOutlined />} sx={{ minHeight: 52, minWidth: 140 }}>Filters</Button>
+          <Button variant={filtersOpen ? 'contained' : 'outlined'} startIcon={<TuneOutlined />} onClick={() => setFiltersOpen((value) => !value)} sx={{ minHeight: 52, minWidth: 140 }}>
+            Filters
+          </Button>
         </Stack>
+        {filtersOpen && (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5, mt: 2 }}>
+            <TextField select label="Show" value={entityFilter} onChange={(event) => setEntityFilter(event.target.value as typeof entityFilter)}>
+              <MenuItem value="ALL">Experts and teams</MenuItem>
+              <MenuItem value="EXPERTS">Experts only</MenuItem>
+              <MenuItem value="TEAMS">Teams only</MenuItem>
+            </TextField>
+            <TextField select label="Expert availability" value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value as typeof availabilityFilter)} disabled={entityFilter === 'TEAMS'}>
+              <MenuItem value="ALL">Any availability</MenuItem>
+              <MenuItem value="AVAILABLE">Available</MenuItem>
+              <MenuItem value="LIMITED">Limited</MenuItem>
+              <MenuItem value="BUSY">Busy</MenuItem>
+              <MenuItem value="OFFLINE">Offline</MenuItem>
+            </TextField>
+            <TextField select label="Team status" value={verificationFilter} onChange={(event) => setVerificationFilter(event.target.value as typeof verificationFilter)} disabled={entityFilter === 'EXPERTS'}>
+              <MenuItem value="ALL">Any team status</MenuItem>
+              <MenuItem value="APPLIED">Applied</MenuItem>
+              <MenuItem value="VERIFIED">Verified</MenuItem>
+              <MenuItem value="CERTIFIED">Certified</MenuItem>
+              <MenuItem value="SPECIALIST">Specialist</MenuItem>
+              <MenuItem value="OPERATIONS_READY">Operations ready</MenuItem>
+            </TextField>
+          </Box>
+        )}
       </Surface>
       <Surface sx={{ bgcolor: '#f8f7ff' }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }} justifyContent="space-between">
@@ -578,27 +711,61 @@ export function NetworkDirectoryPage() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
           <SectionTitle title={`Experts (${visibleExperts.length})`} />
-          {visibleExperts.map((expert) => (
-            <ExpertCard
-              key={expert.id}
-              expert={expert}
-              busy={messageAction.isPending || invite.isPending}
-              onMessage={() => messageAction.mutate({ scopeType: 'EXPERT_PROFILE', scopeId: expert.id, targetUserId: expert.user?.id, title: `Conversation with ${expert.displayName}`, initialMessage: messageFor(expert.displayName) })}
-              onInvite={() => invite.mutate(expert)}
-            />
-          ))}
+          {visibleExperts.map((expert) => {
+            const invitation = invitationForExpert(teamInvitations.data, expert);
+            const member = memberForExpert(teamMembers.data, expert);
+            const isAdded = !!member || invitation?.status === 'ACCEPTED';
+            const isPending = invitation?.status === 'PENDING';
+            return (
+              <ExpertCard
+                key={expert.id}
+                expert={expert}
+                busy={messageAction.isPending || invite.isPending || cancelInvite.isPending}
+                inviteLabel={isAdded ? 'Added' : isPending ? 'Cancel Invite' : managedTeam ? 'Invite' : 'No Managed Team'}
+                inviteVariant={isPending ? 'outlined' : isAdded || !managedTeam ? 'outlined' : 'contained'}
+                inviteColor={isPending ? 'error' : isAdded ? 'success' : 'primary'}
+                inviteDisabled={isAdded || !managedTeam}
+                onMessage={() => messageAction.mutate({ scopeType: 'EXPERT_PROFILE', scopeId: expert.id, targetUserId: expert.user?.id, title: `Conversation with ${expert.displayName}`, initialMessage: messageFor(expert.displayName) })}
+                onInvite={() => {
+                  if (isPending && invitation) {
+                    cancelInvite.mutate(invitation);
+                    return;
+                  }
+                  invite.mutate(expert);
+                }}
+              />
+            );
+          })}
+          {!visibleExperts.length && <EmptyState label="No experts match the current search and filters." />}
         </Stack>
         <Stack spacing={2.5}>
           <SectionTitle title={`Teams (${visibleTeams.length})`} />
-          {visibleTeams.map((team) => (
-            <TeamCard
-              key={team.id}
-              team={team}
-              busy={messageAction.isPending || join.isPending}
-              onApply={() => join.mutate(team)}
-              onMessage={() => messageAction.mutate({ scopeType: 'TEAM_PROFILE', scopeId: team.id, title: `Conversation with ${team.name}`, initialMessage: messageFor(team.name) })}
-            />
-          ))}
+          {visibleTeams.map((team) => {
+            const request = joinRequestForTeam(sentJoinRequests.data, team.id);
+            const isMember = (myTeams.data || []).some((myTeam) => myTeam.id === team.id);
+            const isPending = request?.status === 'PENDING';
+            const isApproved = request?.status === 'APPROVED' || isMember;
+            return (
+              <TeamCard
+                key={team.id}
+                team={team}
+                busy={messageAction.isPending || join.isPending || cancelJoin.isPending}
+                applyLabel={isApproved ? 'Joined' : isPending ? 'Cancel Request' : 'Request To Join'}
+                applyVariant={isPending || isApproved ? 'outlined' : 'contained'}
+                applyColor={isPending ? 'error' : isApproved ? 'success' : 'primary'}
+                applyDisabled={isApproved}
+                onApply={() => {
+                  if (isPending && request) {
+                    cancelJoin.mutate(request);
+                    return;
+                  }
+                  join.mutate(team);
+                }}
+                onMessage={() => messageAction.mutate({ scopeType: 'TEAM_PROFILE', scopeId: team.id, title: `Conversation with ${team.name}`, initialMessage: messageFor(team.name) })}
+              />
+            );
+          })}
+          {!visibleTeams.length && <EmptyState label="No teams match the current search and filters." />}
         </Stack>
       </Box>
     </Stack>
@@ -607,6 +774,7 @@ export function NetworkDirectoryPage() {
 
 export function NetworkFormationPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [notice, setNotice] = useState<string | null>(null);
   const [form, setForm] = useState<FormationPostPayload>({
     postType: 'LOOKING_FOR_TEAM',
@@ -620,85 +788,147 @@ export function NetworkFormationPage() {
   });
   const posts = useQuery({ queryKey: ['network', 'formation-posts'], queryFn: networkApi.formationPosts });
   const teams = useQuery({ queryKey: ['network', 'my-teams'], queryFn: networkApi.myTeams });
+  const managedTeams = (teams.data || []).filter((team) => team.manager?.id === user?.id || user?.role === UserRole.ADMIN);
+  const sentJoinRequests = useQuery({ queryKey: ['network', 'join-requests', 'mine'], queryFn: networkApi.myJoinRequests });
   const messageAction = useMessageAction();
   const create = useMutation({
-    mutationFn: () => networkApi.createFormationPost({ ...form, teamId: form.postType === 'TEAM_OPENING' ? teams.data?.[0]?.id : undefined }),
+    mutationFn: () => networkApi.createFormationPost({ ...form, teamId: form.postType === 'TEAM_OPENING' ? form.teamId : undefined }),
     onSuccess: () => {
       setNotice('Formation post published.');
       setForm((current) => ({ ...current, title: '', body: '', offeredServices: '', neededServices: '' }));
       queryClient.invalidateQueries({ queryKey: ['network', 'formation-posts'] });
     },
+    onError: (error: Error) => setNotice(error.message),
   });
   const join = useMutation({
     mutationFn: (team: Team) => networkApi.requestToJoinTeam(team.id, { message: `I saw your formation opening and would like to discuss fit with ${team.name}.` }),
-    onSuccess: () => setNotice('Join request created from the formation board.'),
+    onSuccess: () => {
+      setNotice('Join request created from the formation board.');
+      queryClient.invalidateQueries({ queryKey: ['network', 'join-requests', 'mine'] });
+    },
+    onError: (error: Error) => setNotice(error.message),
+  });
+  const cancelJoin = useMutation({
+    mutationFn: (request: TeamJoinRequest) => networkApi.reviewJoinRequest(request.id, { status: 'CANCELLED', reviewNote: 'Cancelled by requester.' }),
+    onSuccess: () => {
+      setNotice('Join request cancelled.');
+      queryClient.invalidateQueries({ queryKey: ['network', 'join-requests', 'mine'] });
+    },
+    onError: (error: Error) => setNotice(error.message),
   });
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     create.mutate();
   };
+  const canPublish = !!form.title && (form.postType !== 'TEAM_OPENING' || !!form.teamId);
 
   return (
     <Stack spacing={3}>
       <PageHeader title="Formation Board" description="Find teammates, publish clear openings, and start scoped conversations from real collaboration context." />
-      <QueryState isLoading={posts.isLoading} error={posts.error} />
-      <NetworkNotice message={notice} />
+      <QueryState isLoading={posts.isLoading || teams.isLoading || sentJoinRequests.isLoading} error={posts.error || teams.error || sentJoinRequests.error} />
+      <NetworkNotice message={notice} severity={create.isError || join.isError || cancelJoin.isError ? 'error' : 'success'} />
       <Surface>
         <Box component="form" onSubmit={submit}>
           <SectionTitle title="Create formation post" />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '220px 1fr 1fr' }, gap: 2 }}>
-            <TextField select label="Post type" value={form.postType} onChange={(event) => setForm({ ...form, postType: event.target.value as FormationPostPayload['postType'] })}>
+            <TextField
+              select
+              label="Post type"
+              value={form.postType}
+              onChange={(event) => {
+                const postType = event.target.value as FormationPostPayload['postType'];
+                setForm({ ...form, postType, teamId: postType === 'TEAM_OPENING' ? managedTeams[0]?.id : undefined });
+              }}
+            >
               <MenuItem value="LOOKING_FOR_TEAM">Looking for team</MenuItem>
               <MenuItem value="TEAM_OPENING">Team opening</MenuItem>
             </TextField>
             <TextField label="Title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
             <TextField label="Package size" value={form.packageSize} onChange={(event) => setForm({ ...form, packageSize: event.target.value })} />
           </Box>
+          {form.postType === 'TEAM_OPENING' && (
+            <TextField
+              select
+              fullWidth
+              label="Team publishing this opening"
+              value={form.teamId || ''}
+              onChange={(event) => setForm({ ...form, teamId: event.target.value })}
+              helperText={managedTeams.length ? 'Applicants will request to join this team.' : 'Create or manage a team before publishing a team opening.'}
+              sx={{ mt: 2 }}
+            >
+              {managedTeams.map((team) => (
+                <MenuItem key={team.id} value={team.id}>{team.name}</MenuItem>
+              ))}
+            </TextField>
+          )}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mt: 2 }}>
             <TextInput label="Services you bring" value={form.offeredServices || ''} onChange={(value) => setForm({ ...form, offeredServices: value })} />
             <TextInput label="Services you need" value={form.neededServices || ''} onChange={(value) => setForm({ ...form, neededServices: value })} />
           </Box>
           <TextInput label="Collaboration statement" value={form.body || ''} onChange={(value) => setForm({ ...form, body: value })} multiline />
           <Stack direction="row" justifyContent="flex-end" sx={{ mt: 2 }}>
-            <Button type="submit" variant="contained" startIcon={<AddOutlined />} disabled={create.isPending || !form.title}>Publish Post</Button>
+            <Button type="submit" variant="contained" startIcon={<AddOutlined />} disabled={create.isPending || !canPublish} sx={{ minHeight: 44, width: { xs: '100%', sm: 'auto' } }}>Publish Post</Button>
           </Stack>
         </Box>
       </Surface>
       <Stack spacing={2}>
-        {(posts.data || []).map((post) => (
-          <Surface key={post.id}>
-            <Stack spacing={2}>
-              <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-                <Stack direction="row" spacing={1.5}>
-                  <PersonAvatar name={post.team?.name || post.author?.email} src={post.team?.profilePhotoUrl} square={post.postType === 'TEAM_OPENING'} />
+        {(posts.data || []).map((post) => {
+          const request = post.team ? joinRequestForTeam(sentJoinRequests.data, post.team.id) : undefined;
+          const isMember = !!post.team && (teams.data || []).some((team) => team.id === post.team?.id);
+          const isPending = request?.status === 'PENDING';
+          const isApproved = request?.status === 'APPROVED' || isMember;
+          return (
+            <Surface key={post.id}>
+              <Stack spacing={2}>
+                <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+                  <Stack direction="row" spacing={1.5}>
+                    <PersonAvatar name={post.team?.name || post.author?.email} src={post.team?.profilePhotoUrl} square={post.postType === 'TEAM_OPENING'} />
+                    <Box>
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                        <Typography variant="h3">{post.title}</Typography>
+                        <StatusChip label={post.postType === 'TEAM_OPENING' ? 'Team Opening' : 'Looking For Team'} />
+                      </Stack>
+                      <Typography color="text.secondary">{post.team?.name || displayName(post.author?.email)} · Posted {formatDate(post.createdAt)}</Typography>
+                    </Box>
+                  </Stack>
+                </Stack>
+                <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>{post.body}</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
                   <Box>
-                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                      <Typography variant="h3">{post.title}</Typography>
-                      <StatusChip label={post.postType === 'TEAM_OPENING' ? 'Team Opening' : 'Looking For Team'} />
-                    </Stack>
-                    <Typography color="text.secondary">{post.team?.name || displayName(post.author?.email)} · Posted {formatDate(post.createdAt)}</Typography>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 900 }}>BRINGS</Typography>
+                    <TagRow value={post.offeredServices} />
                   </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 900 }}>NEEDS</Typography>
+                    <TagRow value={post.neededServices} />
+                  </Box>
+                </Box>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  {post.team && (
+                    <Button
+                      onClick={() => {
+                        if (isPending && request) {
+                          cancelJoin.mutate(request);
+                          return;
+                        }
+                        join.mutate(post.team!);
+                      }}
+                      variant={isPending || isApproved ? 'outlined' : 'contained'}
+                      color={isPending ? 'error' : isApproved ? 'success' : 'primary'}
+                      disabled={isApproved || join.isPending || cancelJoin.isPending}
+                      startIcon={<PersonAddAltOutlined />}
+                      sx={{ minHeight: 42, width: { xs: '100%', sm: 'auto' } }}
+                    >
+                      {isApproved ? 'Joined' : isPending ? 'Cancel Request' : 'Request To Join'}
+                    </Button>
+                  )}
+                  <Button onClick={() => messageAction.mutate({ scopeType: 'FORMATION_POST', scopeId: post.id, targetUserId: post.author?.id, title: `Formation: ${post.title}`, initialMessage: `I saw your formation post: ${post.title}. I would like to discuss fit.` })} variant="outlined" startIcon={<ChatBubbleOutline />} sx={{ minHeight: 42, width: { xs: '100%', sm: 'auto' } }}>Message</Button>
                 </Stack>
               </Stack>
-              <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>{post.body}</Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-                <Box>
-                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 900 }}>BRINGS</Typography>
-                  <TagRow value={post.offeredServices} />
-                </Box>
-                <Box>
-                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 900 }}>NEEDS</Typography>
-                  <TagRow value={post.neededServices} />
-                </Box>
-              </Box>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                {post.team && <Button onClick={() => join.mutate(post.team!)} variant="contained" startIcon={<PersonAddAltOutlined />}>Apply</Button>}
-                <Button onClick={() => messageAction.mutate({ scopeType: 'FORMATION_POST', scopeId: post.id, targetUserId: post.author?.id, title: `Formation: ${post.title}`, initialMessage: `I saw your formation post: ${post.title}. I would like to discuss fit.` })} variant="outlined" startIcon={<ChatBubbleOutline />}>Message</Button>
-              </Stack>
-            </Stack>
-          </Surface>
-        ))}
+            </Surface>
+          );
+        })}
         {!posts.data?.length && <EmptyState label="No formation posts yet. Create the first focused collaboration post." />}
       </Stack>
     </Stack>
@@ -765,17 +995,17 @@ export function NetworkMessagesPage() {
         <Surface sx={{ display: 'flex', flexDirection: 'column' }}>
           {detail.data ? (
             <Stack spacing={2} sx={{ flex: 1 }}>
-              <Stack direction="row" justifyContent="space-between" spacing={2}>
-                <Box>
+              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                <Box sx={{ minWidth: 0 }}>
                   <Typography variant="h3">{detail.data.title}</Typography>
                   <Typography color="text.secondary">{formatLabel(detail.data.scopeType)} · {detail.data.participants.length} participants</Typography>
                 </Box>
-                <Button variant="outlined" onClick={() => mute.mutate()} disabled={mute.isPending}>Mute</Button>
+                <Button variant="outlined" onClick={() => mute.mutate()} disabled={mute.isPending} sx={{ width: { xs: '100%', sm: 'auto' } }}>Mute</Button>
               </Stack>
               <Divider />
               <Stack spacing={1.5} sx={{ flex: 1, minHeight: 420 }}>
                 {detail.data.messages.map((message) => (
-                  <Box key={message.id} sx={{ alignSelf: message.sender?.id === detail.data?.createdBy?.id ? 'flex-start' : 'flex-end', maxWidth: '72%' }}>
+                  <Box key={message.id} sx={{ alignSelf: message.sender?.id === detail.data?.createdBy?.id ? 'flex-start' : 'flex-end', maxWidth: { xs: '100%', sm: '72%' } }}>
                     <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: message.messageType === 'SYSTEM' ? '#f8fafc' : '#fff', border: `1px solid ${appleColors.line}` }}>
                       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900 }}>{displayName(message.sender?.email)} · {formatDate(message.createdAt)}</Typography>
                       <Typography sx={{ mt: 0.5, lineHeight: 1.65 }}>{message.body}</Typography>
@@ -928,12 +1158,12 @@ export function NetworkJoinRequestsPage() {
           <Stack spacing={1.5}>
             {(sent.data || []).map((request) => (
               <Box key={request.id} sx={{ p: 1.5, border: `1px solid ${appleColors.line}`, borderRadius: 2 }}>
-                <Stack direction="row" justifyContent="space-between" spacing={2}>
-                  <Box>
+                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} alignItems={{ xs: 'flex-start', sm: 'center' }}>
+                  <Box sx={{ minWidth: 0 }}>
                     <Typography sx={{ fontWeight: 900 }}>{request.team?.name}</Typography>
                     <Typography color="text.secondary">{request.message}</Typography>
                   </Box>
-                  <StatusChip label={request.status} />
+                  <StatusChip label={formatLabel(request.status)} />
                 </Stack>
               </Box>
             ))}
@@ -943,23 +1173,26 @@ export function NetworkJoinRequestsPage() {
         <Surface>
           <SectionTitle title={`Requests for ${selectedTeam?.name || 'your team'}`} />
           <Stack spacing={1.5}>
-            {(received.data || []).map((request) => (
-              <Box key={request.id} sx={{ p: 1.5, border: `1px solid ${appleColors.line}`, borderRadius: 2 }}>
-                <Stack spacing={1.5}>
-                  <Stack direction="row" justifyContent="space-between" spacing={2}>
-                    <Box>
-                      <Typography sx={{ fontWeight: 900 }}>{displayName(request.requester?.email)}</Typography>
-                      <Typography color="text.secondary">{request.message}</Typography>
-                    </Box>
-                    <StatusChip label={request.status} />
+            {(received.data || []).map((request) => {
+              const canReview = request.status === 'PENDING';
+              return (
+                <Box key={request.id} sx={{ p: 1.5, border: `1px solid ${appleColors.line}`, borderRadius: 2 }}>
+                  <Stack spacing={1.5}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} alignItems={{ xs: 'flex-start', sm: 'center' }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 900 }}>{displayName(request.requester?.email)}</Typography>
+                        <Typography color="text.secondary">{request.message}</Typography>
+                      </Box>
+                      <StatusChip label={formatLabel(request.status)} />
+                    </Stack>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                      <Button variant="contained" disabled={!canReview || review.isPending} onClick={() => review.mutate({ id: request.id, status: 'APPROVED' })} sx={{ width: { xs: '100%', sm: 'auto' } }}>Accept</Button>
+                      <Button variant="outlined" color="error" disabled={!canReview || review.isPending} onClick={() => review.mutate({ id: request.id, status: 'DECLINED' })} sx={{ width: { xs: '100%', sm: 'auto' } }}>Decline</Button>
+                    </Stack>
                   </Stack>
-                  <Stack direction="row" spacing={1}>
-                    <Button variant="contained" disabled={review.isPending} onClick={() => review.mutate({ id: request.id, status: 'APPROVED' })}>Accept</Button>
-                    <Button variant="outlined" color="error" disabled={review.isPending} onClick={() => review.mutate({ id: request.id, status: 'DECLINED' })}>Decline</Button>
-                  </Stack>
-                </Stack>
-              </Box>
-            ))}
+                </Box>
+              );
+            })}
             {!received.data?.length && <EmptyState label="No pending requests for your active team." />}
           </Stack>
         </Surface>
@@ -972,23 +1205,31 @@ export function NetworkTrialsPage() {
   const queryClient = useQueryClient();
   const trials = useQuery({ queryKey: ['network', 'trials'], queryFn: networkApi.trials });
   const myTeams = useQuery({ queryKey: ['network', 'my-teams'], queryFn: networkApi.myTeams });
+  const [notice, setNotice] = useState<string | null>(null);
   const [form, setForm] = useState<TrialPayload>({ title: '', scope: '', proposedStartDate: '', proposedEndDate: '' });
   const create = useMutation({
     mutationFn: () => networkApi.createTrial({ ...form, teamId: myTeams.data?.[0]?.id }),
     onSuccess: () => {
       setForm({ title: '', scope: '', proposedStartDate: '', proposedEndDate: '' });
+      setNotice('Trial collaboration created.');
       queryClient.invalidateQueries({ queryKey: ['network', 'trials'] });
     },
+    onError: (error: Error) => setNotice(error.message),
   });
   const action = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: 'accept' | 'activate' | 'complete' | 'cancel' }) => networkApi.updateTrial(id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['network', 'trials'] }),
+    mutationFn: ({ id, status }: { id: string; status: TrialAction }) => networkApi.updateTrial(id, status),
+    onSuccess: (trial) => {
+      setNotice(`Trial status updated to ${formatLabel(trial.status)}.`);
+      queryClient.invalidateQueries({ queryKey: ['network', 'trials'] });
+    },
+    onError: (error: Error) => setNotice(error.message),
   });
 
   return (
     <Stack spacing={3}>
-      <PageHeader title="Trial Collaborations" description="Run controlled collaboration before permanent team membership or team formation." />
+      <PageHeader title="Trial Collaborations" description="Run scoped trial collaborations before team formation." />
       <QueryState isLoading={trials.isLoading || myTeams.isLoading} error={trials.error || myTeams.error} />
+      <NetworkNotice message={notice} severity={create.isError || action.isError ? 'error' : 'success'} />
       <Surface>
         <SectionTitle title="Propose trial" />
         <Stack spacing={2}>
@@ -998,30 +1239,42 @@ export function NetworkTrialsPage() {
             <TextField label="Start date" type="date" InputLabelProps={{ shrink: true }} value={form.proposedStartDate} onChange={(event) => setForm({ ...form, proposedStartDate: event.target.value })} />
             <TextField label="End date" type="date" InputLabelProps={{ shrink: true }} value={form.proposedEndDate} onChange={(event) => setForm({ ...form, proposedEndDate: event.target.value })} />
           </Box>
-          <Button variant="contained" disabled={!form.title || create.isPending} onClick={() => create.mutate()} sx={{ alignSelf: 'flex-end' }}>Create Trial</Button>
+          <Button variant="contained" disabled={!form.title || create.isPending} onClick={() => create.mutate()} sx={{ alignSelf: 'flex-end', width: { xs: '100%', sm: 'auto' }, minHeight: 44 }}>Create Trial</Button>
         </Stack>
       </Surface>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 2.5 }}>
         {(trials.data || []).map((trial) => (
           <Surface key={trial.id}>
             <Stack spacing={2}>
-              <Stack direction="row" justifyContent="space-between" spacing={2}>
-                <Box>
+              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} alignItems={{ xs: 'flex-start', sm: 'center' }}>
+                <Box sx={{ minWidth: 0 }}>
                   <Typography variant="h3">{trial.title}</Typography>
                   <Typography color="text.secondary">{trial.team?.name || 'Independent collaboration'} · {formatDate(trial.proposedStartDate)} to {formatDate(trial.proposedEndDate)}</Typography>
                 </Box>
-                <StatusChip label={trial.status} />
+                <StatusChip label={formatLabel(trial.status)} />
               </Stack>
               <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>{trial.scope}</Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Button variant="outlined" onClick={() => action.mutate({ id: trial.id, status: 'accept' })} disabled={action.isPending}>Accept</Button>
-                <Button variant="outlined" onClick={() => action.mutate({ id: trial.id, status: 'activate' })} disabled={action.isPending}>Activate</Button>
-                <Button variant="contained" onClick={() => action.mutate({ id: trial.id, status: 'complete' })} disabled={action.isPending}>Complete</Button>
-                <Button variant="outlined" color="error" onClick={() => action.mutate({ id: trial.id, status: 'cancel' })} disabled={action.isPending}>Cancel</Button>
+                {trialActionsForStatus(trial.status).map((trialAction) => {
+                  const isBusy = action.isPending && action.variables?.id === trial.id;
+                  return (
+                    <Button
+                      key={trialAction.label}
+                      variant={trialAction.variant}
+                      color={trialAction.color}
+                      onClick={() => trialAction.action && action.mutate({ id: trial.id, status: trialAction.action })}
+                      disabled={trialAction.disabled || isBusy}
+                      sx={{ minHeight: 42, width: { xs: '100%', sm: 'auto' } }}
+                    >
+                      {trialAction.label}
+                    </Button>
+                  );
+                })}
               </Stack>
             </Stack>
           </Surface>
         ))}
+        {!trials.data?.length && <EmptyState label="No trial collaborations yet. Propose a scoped trial when a team or specialist relationship needs evidence before commitment." />}
       </Box>
     </Stack>
   );
@@ -1202,13 +1455,27 @@ export function NetworkExpertDetailPage() {
 export function NetworkTeamDetailPage() {
   const params = useParams();
   const id = String(params?.id || '');
+  const queryClient = useQueryClient();
   const team = useQuery({ queryKey: ['network', 'team', id], queryFn: () => networkApi.team(id), enabled: !!id });
+  const myTeams = useQuery({ queryKey: ['network', 'my-teams'], queryFn: networkApi.myTeams });
+  const sentJoinRequests = useQuery({ queryKey: ['network', 'join-requests', 'mine'], queryFn: networkApi.myJoinRequests });
   const messageAction = useMessageAction();
-  const join = useMutation({ mutationFn: () => networkApi.requestToJoinTeam(id, { message: `I would like to discuss joining ${team.data?.name}.` }) });
+  const join = useMutation({
+    mutationFn: () => networkApi.requestToJoinTeam(id, { message: `I would like to discuss joining ${team.data?.name}.` }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['network', 'join-requests', 'mine'] }),
+  });
+  const cancelJoin = useMutation({
+    mutationFn: (request: TeamJoinRequest) => networkApi.reviewJoinRequest(request.id, { status: 'CANCELLED', reviewNote: 'Cancelled by requester.' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['network', 'join-requests', 'mine'] }),
+  });
   const record = team.data;
+  const request = record ? joinRequestForTeam(sentJoinRequests.data, record.id) : undefined;
+  const isMember = !!record && (myTeams.data || []).some((myTeam) => myTeam.id === record.id);
+  const isPending = request?.status === 'PENDING';
+  const isApproved = request?.status === 'APPROVED' || isMember;
   return (
     <Stack spacing={3}>
-      <QueryState isLoading={team.isLoading} error={team.error} />
+      <QueryState isLoading={team.isLoading || myTeams.isLoading || sentJoinRequests.isLoading} error={team.error || myTeams.error || sentJoinRequests.error} />
       {record && (
         <>
           <Surface sx={{ p: 0, overflow: 'hidden' }}>
@@ -1223,13 +1490,29 @@ export function NetworkTeamDetailPage() {
                   <PastelChip label={record.typicalProjectSize || 'Scoped packages'} />
                 </Stack>
               </Box>
-              <Stack direction="row" spacing={1}>
-                <Button variant="outlined" startIcon={<ChatBubbleOutline />} onClick={() => messageAction.mutate({ scopeType: 'TEAM_PROFILE', scopeId: record.id, title: `Conversation with ${record.name}`, initialMessage: messageFor(record.name) })}>Message</Button>
-                <Button variant="contained" startIcon={<PersonAddAltOutlined />} onClick={() => join.mutate()} disabled={join.isPending}>Request To Join</Button>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', md: 'auto' } }}>
+                <Button variant="outlined" startIcon={<ChatBubbleOutline />} onClick={() => messageAction.mutate({ scopeType: 'TEAM_PROFILE', scopeId: record.id, title: `Conversation with ${record.name}`, initialMessage: messageFor(record.name) })} sx={{ width: { xs: '100%', sm: 'auto' } }}>Message</Button>
+                <Button
+                  variant={isPending || isApproved ? 'outlined' : 'contained'}
+                  color={isPending ? 'error' : isApproved ? 'success' : 'primary'}
+                  startIcon={<PersonAddAltOutlined />}
+                  onClick={() => {
+                    if (isPending && request) {
+                      cancelJoin.mutate(request);
+                      return;
+                    }
+                    join.mutate();
+                  }}
+                  disabled={isApproved || join.isPending || cancelJoin.isPending}
+                  sx={{ width: { xs: '100%', sm: 'auto' } }}
+                >
+                  {isApproved ? 'Joined' : isPending ? 'Cancel Request' : 'Request To Join'}
+                </Button>
               </Stack>
             </Stack>
           </Surface>
           {join.isSuccess && <Alert severity="success">Join request submitted.</Alert>}
+          {cancelJoin.isSuccess && <Alert severity="success">Join request cancelled.</Alert>}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.2fr 0.8fr' }, gap: 2.5 }}>
             <Surface>
               <SectionTitle title="Team focus" />

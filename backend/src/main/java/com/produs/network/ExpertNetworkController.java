@@ -447,13 +447,7 @@ public class ExpertNetworkController {
                 && (trial.getTeam() == null || !trial.getTeam().getManager().getId().equals(user.getId()))) {
             throw new AccessDeniedException("Trial belongs to another user or team");
         }
-        trial.setStatus(switch (action) {
-            case "accept" -> TrialCollaboration.TrialStatus.ACCEPTED;
-            case "activate" -> TrialCollaboration.TrialStatus.ACTIVE;
-            case "complete" -> TrialCollaboration.TrialStatus.COMPLETED;
-            case "cancel" -> TrialCollaboration.TrialStatus.CANCELLED;
-            default -> throw new IllegalArgumentException("Unsupported trial action");
-        });
+        trial.setStatus(nextTrialStatus(trial.getStatus(), action));
         TrialCollaboration saved = trialRepository.save(trial);
         notificationService.notify(
                 saved.getInitiatedBy(),
@@ -482,6 +476,41 @@ public class ExpertNetworkController {
             );
         }
         return toTrialResponse(saved);
+    }
+
+    private TrialCollaboration.TrialStatus nextTrialStatus(TrialCollaboration.TrialStatus currentStatus, String action) {
+        return switch (action) {
+            case "accept" -> {
+                if (currentStatus == TrialCollaboration.TrialStatus.PROPOSED
+                        || currentStatus == TrialCollaboration.TrialStatus.NEGOTIATING) {
+                    yield TrialCollaboration.TrialStatus.ACCEPTED;
+                }
+                throw new IllegalArgumentException("Trial can only be accepted while proposed or negotiating");
+            }
+            case "activate" -> {
+                if (currentStatus == TrialCollaboration.TrialStatus.ACCEPTED) {
+                    yield TrialCollaboration.TrialStatus.ACTIVE;
+                }
+                throw new IllegalArgumentException("Trial can only be activated after acceptance");
+            }
+            case "complete" -> {
+                if (currentStatus == TrialCollaboration.TrialStatus.ACTIVE
+                        || currentStatus == TrialCollaboration.TrialStatus.MILESTONE_REVIEW
+                        || currentStatus == TrialCollaboration.TrialStatus.FORM_TEAM_PROPOSED) {
+                    yield TrialCollaboration.TrialStatus.COMPLETED;
+                }
+                throw new IllegalArgumentException("Trial can only be completed after active collaboration");
+            }
+            case "cancel" -> {
+                if (currentStatus == TrialCollaboration.TrialStatus.COMPLETED
+                        || currentStatus == TrialCollaboration.TrialStatus.TEAM_FORMED
+                        || currentStatus == TrialCollaboration.TrialStatus.CANCELLED) {
+                    throw new IllegalArgumentException("Trial is already closed");
+                }
+                yield TrialCollaboration.TrialStatus.CANCELLED;
+            }
+            default -> throw new IllegalArgumentException("Unsupported trial action");
+        };
     }
 
     private void apply(FormationPost post, FormationPostRequest request) {

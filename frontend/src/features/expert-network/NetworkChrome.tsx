@@ -163,7 +163,7 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f8fafc', color: appleColors.ink }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f8fafc', color: appleColors.ink, overflowX: 'hidden' }}>
       <Box
         component="header"
         sx={{
@@ -182,7 +182,7 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
           spacing={2}
           sx={{ minHeight: 72, px: { xs: 2, md: 3 } }}
         >
-          <Stack direction="row" spacing={3} alignItems="center" sx={{ minWidth: 260 }}>
+          <Stack direction="row" spacing={{ xs: 1.5, md: 3 }} alignItems="center" sx={{ minWidth: { xs: 0, md: 260 }, flexShrink: 1 }}>
             <NextLink href="/" aria-label="ProdUS home" style={{ color: 'inherit', textDecoration: 'none' }}>
               <Logo />
             </NextLink>
@@ -247,7 +247,7 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
                 </Badge>
               </IconButton>
             </Tooltip>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 1 }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 1, display: { xs: 'none', sm: 'flex' } }}>
               <Avatar sx={{ width: 38, height: 38, bgcolor: '#eef2ff', color: appleColors.purple, fontWeight: 900 }}>
                 {initials(user?.email)}
               </Avatar>
@@ -383,7 +383,17 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
           </Stack>
         </Box>
 
-        <Box component="main" sx={{ minWidth: 0, p: { xs: 2, md: 3.5 }, maxWidth: 1440, width: '100%', mx: 'auto' }}>
+        <Box
+          component="main"
+          sx={{
+            minWidth: 0,
+            p: { xs: 2, md: 3.5 },
+            maxWidth: { xs: '100vw', md: 1440 },
+            width: { xs: '100vw', md: '100%' },
+            boxSizing: 'border-box',
+            mx: 'auto',
+          }}
+        >
           {children}
         </Box>
       </Box>

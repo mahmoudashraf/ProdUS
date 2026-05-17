@@ -1,5 +1,5 @@
 import { getJson, postJson, putJson } from '@/features/platform/api';
-import type { ExpertProfile, NotificationSummary, PlatformNotification, Team, TeamInvitation, TeamJoinRequest } from '@/features/platform/types';
+import type { ExpertProfile, NotificationSummary, PlatformNotification, Team, TeamInvitation, TeamJoinRequest, TeamMember } from '@/features/platform/types';
 import type {
   Channel,
   CommunityPost,
@@ -31,8 +31,12 @@ export const networkApi = {
   teams: () => getJson<Team[]>('/teams'),
   team: (id: string) => getJson<Team>(`/teams/${id}`),
   myTeams: () => getJson<Team[]>('/teams/mine'),
+  teamMembers: (teamId: string) => getJson<TeamMember[]>(`/teams/${teamId}/members`),
+  teamInvitations: (teamId: string) => getJson<TeamInvitation[]>(`/teams/${teamId}/invitations`),
   inviteToTeam: (teamId: string, payload: { email: string; role: string; message?: string }) =>
     postJson<TeamInvitation, typeof payload>(`/teams/${teamId}/invitations`, payload),
+  reviewInvitation: (invitationId: string, payload: { status: TeamInvitation['status'] }) =>
+    putJson<TeamInvitation, typeof payload>(`/teams/invitations/${invitationId}`, payload),
   requestToJoinTeam: (teamId: string, payload: { message?: string }) =>
     postJson<TeamJoinRequest, typeof payload>(`/teams/${teamId}/join-requests`, payload),
   myJoinRequests: () => getJson<TeamJoinRequest[]>('/teams/join-requests/mine'),

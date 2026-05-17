@@ -75,12 +75,22 @@ export const PageHeader = ({
     justifyContent="space-between"
     sx={{ mb: 3 }}
   >
-    <Box>
+    <Box sx={{ minWidth: 0 }}>
       <Typography variant="h2" sx={{ mb: 0.75 }}>
         {title}
       </Typography>
       {description && (
-        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 780, lineHeight: 1.65 }}>
+        <Typography
+          variant="body1"
+          color="text.secondary"
+          sx={{
+            maxWidth: { xs: 'calc(100vw - 32px)', md: 780 },
+            width: { xs: '100%', md: 'auto' },
+            lineHeight: 1.65,
+            whiteSpace: 'normal',
+            overflowWrap: 'normal',
+          }}
+        >
           {description}
         </Typography>
       )}
