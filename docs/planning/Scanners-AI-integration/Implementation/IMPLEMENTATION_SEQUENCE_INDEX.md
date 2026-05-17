@@ -18,6 +18,7 @@ All implementation sequences in this folder must consider the source documents i
 - `INTEGRATION_LAYER_UI_DESIGN.md` is the primary UI implementation guide for Studio scanner, evidence, package, milestone, workspace, handoff, and admin screens.
 - `PRODOPS_NETWORK_CUSTOM_AI_DEPLOYMENT_PROPOSAL.md` defines the ProdUS-specific LoomAI fit, communication contract, data/indexing strategy, schemas, and missing implementation work.
 - `EXTERNAL_CUSTOMER_AI_DEPLOYMENT_PROPOSAL.md` defines the broader LoomAI runtime, session, retrieval, action, MCP, and deployment communication model.
+- `LOOMAI_DEPLOYMENT_CONFIGURATION_BRD.md` defines the LoomAI-side staging/production deployment configuration required from the integration team.
 - `2026-05-12-mcp-server-ai-integration.md` defines the MCP tool/resource/prompt baseline and security requirements.
 - `2026-05-11-pending-production-readiness.md` defines production-readiness gates that remain relevant to scanner and AI rollout.
 
