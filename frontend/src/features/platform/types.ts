@@ -392,6 +392,14 @@ export interface PlatformNotification extends BaseRecord {
     | 'DISPUTE_OPENED'
     | 'DISPUTE_UPDATED'
     | 'EVIDENCE_ATTACHED'
+    | 'NETWORK_FORMATION_POST'
+    | 'NETWORK_CHANNEL_POST'
+    | 'NETWORK_CHANNEL_REPLY'
+    | 'NETWORK_MESSAGE'
+    | 'NETWORK_JOIN_REQUEST'
+    | 'NETWORK_TEAM_INVITATION'
+    | 'NETWORK_TRIAL'
+    | 'NETWORK_PROFILE_UPDATED'
     | 'SYSTEM';
   priority: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
   status: 'UNREAD' | 'READ' | 'ARCHIVED';

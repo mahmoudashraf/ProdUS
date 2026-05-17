@@ -1,5 +1,5 @@
 import { getJson, postJson, putJson } from '@/features/platform/api';
-import type { ExpertProfile, Team, TeamInvitation, TeamJoinRequest } from '@/features/platform/types';
+import type { ExpertProfile, NotificationSummary, PlatformNotification, Team, TeamInvitation, TeamJoinRequest } from '@/features/platform/types';
 import type {
   Channel,
   CommunityPost,
@@ -8,6 +8,7 @@ import type {
   ConversationThread,
   FormationPost,
   FormationPostPayload,
+  NetworkSearchResponse,
   NetworkHome,
   TrialCollaboration,
   TrialPayload,
@@ -18,6 +19,11 @@ export const networkApi = {
   account: () => getJson<UserAccount>('/users/me'),
   updateAccount: (payload: Partial<UserAccount>) => putJson<UserAccount, Partial<UserAccount>>('/users/me', payload),
   home: () => getJson<NetworkHome>('/expert-network/home'),
+  search: (query: string) => getJson<NetworkSearchResponse>(`/expert-network/search?query=${encodeURIComponent(query)}`),
+  notificationSummary: () => getJson<NotificationSummary>('/notifications/summary'),
+  notifications: () => getJson<PlatformNotification[]>('/notifications'),
+  markNotificationRead: (id: string) => putJson<PlatformNotification, Record<string, never>>(`/notifications/${id}/read`, {}),
+  markAllNotificationsRead: () => putJson<NotificationSummary, Record<string, never>>('/notifications/read-all', {}),
   experts: () => getJson<ExpertProfile[]>('/expert-profiles'),
   expert: (id: string) => getJson<ExpertProfile>(`/expert-profiles/${id}`),
   myExpertProfile: () => getJson<ExpertProfile>('/expert-profiles/me'),

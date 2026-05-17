@@ -7,6 +7,8 @@ import com.produs.dto.PlatformDtos.TeamResponse;
 import com.produs.entity.User;
 import com.produs.experts.ExpertProfile;
 import com.produs.experts.ExpertProfileRepository;
+import com.produs.notifications.NotificationService;
+import com.produs.notifications.PlatformNotification;
 import com.produs.teams.Team;
 import com.produs.teams.TeamJoinRequestRepository;
 import com.produs.teams.TeamMember;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
@@ -56,6 +59,7 @@ public class ExpertNetworkController {
     private final ConversationParticipantRepository participantRepository;
     private final ConversationMessageRepository messageRepository;
     private final TrialCollaborationRepository trialRepository;
+    private final NotificationService notificationService;
 
     @GetMapping("/home")
     public NetworkHomeResponse home(@AuthenticationPrincipal User user) {
@@ -89,6 +93,49 @@ public class ExpertNetworkController {
         );
     }
 
+    @GetMapping("/search")
+    public NetworkSearchResponse search(@RequestParam(defaultValue = "") String query) {
+        String normalized = query == null ? "" : query.trim();
+        if (normalized.isBlank()) {
+            List<SearchResultResponse> starterResults = new ArrayList<>();
+            channelRepository.findByActiveTrueOrderBySortOrderAsc().stream()
+                    .limit(6)
+                    .map(this::toSearchResult)
+                    .forEach(starterResults::add);
+            formationPostRepository.findByStatusOrderByCreatedAtDesc(FormationPost.PostStatus.ACTIVE).stream()
+                    .limit(6)
+                    .map(this::toSearchResult)
+                    .forEach(starterResults::add);
+            return new NetworkSearchResponse(normalized, starterResults);
+        }
+
+        List<SearchResultResponse> results = new ArrayList<>();
+        expertProfileRepository.searchActive(normalized).stream()
+                .limit(8)
+                .map(this::toSearchResult)
+                .forEach(results::add);
+        teamRepository.searchActive(normalized).stream()
+                .limit(8)
+                .map(this::toSearchResult)
+                .forEach(results::add);
+        formationPostRepository.searchActive(normalized).stream()
+                .limit(8)
+                .map(this::toSearchResult)
+                .forEach(results::add);
+        postRepository.searchActive(normalized).stream()
+                .limit(8)
+                .map(this::toSearchResult)
+                .forEach(results::add);
+        channelRepository.findByActiveTrueOrderBySortOrderAsc().stream()
+                .filter(channel -> contains(channel.getName(), normalized)
+                        || contains(channel.getSlug(), normalized)
+                        || contains(channel.getDescription(), normalized))
+                .limit(8)
+                .map(this::toSearchResult)
+                .forEach(results::add);
+        return new NetworkSearchResponse(normalized, results.stream().limit(30).toList());
+    }
+
     @GetMapping("/formation-posts")
     public List<FormationPostResponse> formationPosts() {
         return formationPostRepository.findByStatusOrderByCreatedAtDesc(FormationPost.PostStatus.ACTIVE).stream()
@@ -111,7 +158,22 @@ public class ExpertNetworkController {
         }
         post.setPostType(request.postType());
         apply(post, request);
-        return toFormationPostResponse(formationPostRepository.save(post));
+        FormationPost saved = formationPostRepository.save(post);
+        notificationService.notifyAll(
+                networkAudience(user),
+                user,
+                PlatformNotification.NotificationType.NETWORK_FORMATION_POST,
+                request.postType() == FormationPost.PostType.TEAM_OPENING
+                        ? PlatformNotification.NotificationPriority.HIGH
+                        : PlatformNotification.NotificationPriority.NORMAL,
+                saved.getTitle(),
+                saved.getBody(),
+                "/expert-network/formation",
+                "FORMATION_POST",
+                saved.getId(),
+                null
+        );
+        return toFormationPostResponse(saved);
     }
 
     @PutMapping("/formation-posts/{id}")
@@ -168,7 +230,20 @@ public class ExpertNetworkController {
         post.setBody(request.body());
         post.setServiceTags(request.serviceTags());
         post.setStatus(CommunityPost.PostStatus.ACTIVE);
-        return toPostResponse(postRepository.save(post), false);
+        CommunityPost saved = postRepository.save(post);
+        notificationService.notifyAll(
+                networkAudience(user),
+                user,
+                PlatformNotification.NotificationType.NETWORK_CHANNEL_POST,
+                PlatformNotification.NotificationPriority.LOW,
+                "New post in #" + channel.getSlug(),
+                saved.getTitle(),
+                "/expert-network/channels?channel=" + channel.getSlug(),
+                "COMMUNITY_POST",
+                saved.getId(),
+                null
+        );
+        return toPostResponse(saved, false);
     }
 
     @GetMapping("/posts/{id}")
@@ -196,7 +271,20 @@ public class ExpertNetworkController {
         commentRepository.save(comment);
         post.setReplyCount((int) commentRepository.countByPostIdAndStatus(id, CommunityComment.CommentStatus.ACTIVE));
         post.setLastReplyAt(LocalDateTime.now());
-        return toPostResponse(postRepository.save(post), true);
+        CommunityPost saved = postRepository.save(post);
+        notificationService.notify(
+                saved.getAuthor(),
+                user,
+                PlatformNotification.NotificationType.NETWORK_CHANNEL_REPLY,
+                PlatformNotification.NotificationPriority.NORMAL,
+                "New reply to " + saved.getTitle(),
+                request.body(),
+                "/expert-network/channels?channel=" + saved.getChannel().getSlug(),
+                "COMMUNITY_POST",
+                saved.getId(),
+                null
+        );
+        return toPostResponse(saved, true);
     }
 
     @PostMapping("/posts/{id}/helpful")
@@ -210,6 +298,18 @@ public class ExpertNetworkController {
             helpfulMarkRepository.save(mark);
             post.setHelpfulCount(post.getHelpfulCount() + 1);
             post = postRepository.save(post);
+            notificationService.notify(
+                    post.getAuthor(),
+                    user,
+                    PlatformNotification.NotificationType.NETWORK_CHANNEL_REPLY,
+                    PlatformNotification.NotificationPriority.LOW,
+                    "Your post was marked helpful",
+                    post.getTitle(),
+                    "/expert-network/channels?channel=" + post.getChannel().getSlug(),
+                    "COMMUNITY_POST",
+                    post.getId(),
+                    null
+            );
         }
         return toPostResponse(post, false);
     }
@@ -253,6 +353,7 @@ public class ExpertNetworkController {
         if (request.initialMessage() != null && !request.initialMessage().isBlank()) {
             addMessageInternal(thread, user, request.initialMessage(), ConversationMessage.MessageType.TEXT);
         }
+        notifyConversationParticipants(thread, user, "New Network conversation", thread.getTitle());
         return toThreadResponse(thread, true);
     }
 
@@ -266,6 +367,7 @@ public class ExpertNetworkController {
                 .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
         requireParticipant(user, thread);
         addMessageInternal(thread, user, request.body(), ConversationMessage.MessageType.TEXT);
+        notifyConversationParticipants(thread, user, "New message in " + thread.getTitle(), request.body());
         return toThreadResponse(thread, true);
     }
 
@@ -314,7 +416,22 @@ public class ExpertNetworkController {
         trial.setProposedStartDate(request.proposedStartDate());
         trial.setProposedEndDate(request.proposedEndDate());
         trial.setStatus(TrialCollaboration.TrialStatus.PROPOSED);
-        return toTrialResponse(trialRepository.save(trial));
+        TrialCollaboration saved = trialRepository.save(trial);
+        if (saved.getTeam() != null) {
+            notificationService.notify(
+                    saved.getTeam().getManager(),
+                    user,
+                    PlatformNotification.NotificationType.NETWORK_TRIAL,
+                    PlatformNotification.NotificationPriority.HIGH,
+                    "Trial proposed: " + saved.getTitle(),
+                    saved.getScope(),
+                    "/expert-network/trials",
+                    "TRIAL_COLLABORATION",
+                    saved.getId(),
+                    null
+            );
+        }
+        return toTrialResponse(saved);
     }
 
     @PostMapping("/trials/{id}/{action}")
@@ -337,7 +454,34 @@ public class ExpertNetworkController {
             case "cancel" -> TrialCollaboration.TrialStatus.CANCELLED;
             default -> throw new IllegalArgumentException("Unsupported trial action");
         });
-        return toTrialResponse(trialRepository.save(trial));
+        TrialCollaboration saved = trialRepository.save(trial);
+        notificationService.notify(
+                saved.getInitiatedBy(),
+                user,
+                PlatformNotification.NotificationType.NETWORK_TRIAL,
+                PlatformNotification.NotificationPriority.NORMAL,
+                "Trial updated: " + saved.getTitle(),
+                "Status is now " + saved.getStatus().name().toLowerCase().replace('_', ' '),
+                "/expert-network/trials",
+                "TRIAL_COLLABORATION",
+                saved.getId(),
+                null
+        );
+        if (saved.getTeam() != null) {
+            notificationService.notify(
+                    saved.getTeam().getManager(),
+                    user,
+                    PlatformNotification.NotificationType.NETWORK_TRIAL,
+                    PlatformNotification.NotificationPriority.NORMAL,
+                    "Trial updated: " + saved.getTitle(),
+                    "Status is now " + saved.getStatus().name().toLowerCase().replace('_', ' '),
+                    "/expert-network/trials",
+                    "TRIAL_COLLABORATION",
+                    saved.getId(),
+                    null
+            );
+        }
+        return toTrialResponse(saved);
     }
 
     private void apply(FormationPost post, FormationPostRequest request) {
@@ -432,6 +576,110 @@ public class ExpertNetworkController {
         participant.setUser(user);
         participant.setParticipantRole(role);
         participantRepository.save(participant);
+    }
+
+    private void notifyConversationParticipants(ConversationThread thread, User actor, String title, String body) {
+        participantRepository.findByThreadIdOrderByCreatedAtAsc(thread.getId()).stream()
+                .map(ConversationParticipant::getUser)
+                .forEach(participant -> notificationService.notify(
+                        participant,
+                        actor,
+                        PlatformNotification.NotificationType.NETWORK_MESSAGE,
+                        PlatformNotification.NotificationPriority.NORMAL,
+                        title,
+                        body,
+                        "/expert-network/messages?thread=" + thread.getId(),
+                        "NETWORK_CONVERSATION",
+                        thread.getId(),
+                        null
+                ));
+    }
+
+    private List<User> networkAudience(User actor) {
+        LinkedHashMap<UUID, User> users = new LinkedHashMap<>();
+        expertProfileRepository.findByActiveTrueOrderByUpdatedAtDesc().stream()
+                .map(ExpertProfile::getUser)
+                .forEach(user -> users.putIfAbsent(user.getId(), user));
+        teamRepository.findByActiveTrueOrderByCreatedAtDesc().stream()
+                .map(Team::getManager)
+                .forEach(user -> users.putIfAbsent(user.getId(), user));
+        if (actor != null) {
+            users.remove(actor.getId());
+        }
+        return new ArrayList<>(users.values());
+    }
+
+    private SearchResultResponse toSearchResult(ExpertProfile profile) {
+        return new SearchResultResponse(
+                profile.getId(),
+                "EXPERT",
+                profile.getDisplayName(),
+                firstText(profile.getHeadline(), profile.getBio(), profile.getSkills()),
+                "/expert-network/experts/" + profile.getId(),
+                profile.getAvailability().name().toLowerCase().replace('_', ' '),
+                "#6366f1"
+        );
+    }
+
+    private SearchResultResponse toSearchResult(Team team) {
+        return new SearchResultResponse(
+                team.getId(),
+                "TEAM",
+                team.getName(),
+                firstText(team.getHeadline(), team.getDescription(), team.getCapabilitiesSummary()),
+                "/expert-network/teams/" + team.getId(),
+                team.getVerificationStatus().name().toLowerCase().replace('_', ' '),
+                "#0891b2"
+        );
+    }
+
+    private SearchResultResponse toSearchResult(FormationPost post) {
+        return new SearchResultResponse(
+                post.getId(),
+                "FORMATION_POST",
+                post.getTitle(),
+                firstText(post.getBody(), post.getNeededServices(), post.getOfferedServices()),
+                "/expert-network/formation",
+                post.getPostType().name().toLowerCase().replace('_', ' '),
+                post.getPostType() == FormationPost.PostType.TEAM_OPENING ? "#059669" : "#d97706"
+        );
+    }
+
+    private SearchResultResponse toSearchResult(CommunityPost post) {
+        return new SearchResultResponse(
+                post.getId(),
+                "CHANNEL_POST",
+                post.getTitle(),
+                firstText(post.getBody(), post.getServiceTags(), post.getChannel().getDescription()),
+                "/expert-network/channels?channel=" + post.getChannel().getSlug(),
+                "#" + post.getChannel().getSlug(),
+                post.getChannel().getColor()
+        );
+    }
+
+    private SearchResultResponse toSearchResult(CommunityChannel channel) {
+        return new SearchResultResponse(
+                channel.getId(),
+                "CHANNEL",
+                "#" + channel.getSlug(),
+                channel.getDescription(),
+                "/expert-network/channels?channel=" + channel.getSlug(),
+                channel.getName(),
+                channel.getColor()
+        );
+    }
+
+    private String firstText(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private boolean contains(String value, String query) {
+        return value != null && query != null && value.toLowerCase().contains(query.toLowerCase());
     }
 
     private void requireParticipant(User user, ConversationThread thread) {
@@ -593,6 +841,18 @@ public class ExpertNetworkController {
             List<ChannelResponse> channels,
             List<ConversationThreadResponse> conversations,
             List<TrialCollaborationResponse> trials
+    ) {}
+
+    public record NetworkSearchResponse(String query, List<SearchResultResponse> results) {}
+
+    public record SearchResultResponse(
+            UUID id,
+            String resultType,
+            String title,
+            String description,
+            String href,
+            String meta,
+            String accent
     ) {}
 
     public record FormationPostRequest(

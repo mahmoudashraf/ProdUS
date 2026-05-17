@@ -3,6 +3,7 @@
 import NextLink from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   AddOutlined,
   ArrowForward,
@@ -14,6 +15,7 @@ import {
   GroupsOutlined,
   HandshakeOutlined,
   Inventory2Outlined,
+  NotificationsNoneOutlined,
   PersonAddAltOutlined,
   SendOutlined,
   TuneOutlined,
@@ -49,7 +51,7 @@ import {
   formatLabel,
 } from '@/features/platform/PlatformComponents';
 import TeamProfilesPage from '@/features/platform/TeamProfilesPage';
-import type { ExpertProfile, Team, TeamJoinRequest } from '@/features/platform/types';
+import type { ExpertProfile, PlatformNotification, Team, TeamJoinRequest } from '@/features/platform/types';
 import { networkApi } from './api';
 import type { ConversationCreatePayload, FormationPostPayload, TrialPayload, UserAccount } from './types';
 
@@ -120,6 +122,28 @@ function PersonAvatar({ name, src, square }: { name?: string | undefined; src?: 
 function NetworkNotice({ message, severity = 'success' }: { message: string | null; severity?: 'success' | 'error' | 'info' }) {
   if (!message) return null;
   return <Alert severity={severity} sx={{ mb: 2, borderRadius: 2 }}>{message}</Alert>;
+}
+
+function ActivityRow({ notification, action }: { notification: PlatformNotification; action?: ReactNode }) {
+  const unread = notification.status === 'UNREAD';
+  return (
+    <Box sx={{ p: 1.5, border: `1px solid ${unread ? appleColors.purple : appleColors.line}`, borderRadius: 2, bgcolor: unread ? '#eef2ff' : '#fff' }}>
+      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1.5}>
+        <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ minWidth: 0 }}>
+          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: unread ? appleColors.purple : appleColors.line, mt: 0.7, flexShrink: 0 }} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontWeight: 900 }}>{notification.title}</Typography>
+            <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>{notification.body || formatLabel(notification.type)}</Typography>
+            <Typography variant="caption" color="text.secondary">{formatDate(notification.createdAt)} · {formatLabel(notification.priority)}</Typography>
+          </Box>
+        </Stack>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+          {notification.actionUrl && <Button component={NextLink} href={notification.actionUrl} size="small">Open</Button>}
+          {action}
+        </Stack>
+      </Stack>
+    </Box>
+  );
 }
 
 function useMessageAction() {
@@ -240,6 +264,7 @@ export function NetworkDashboardPage() {
   const queryClient = useQueryClient();
   const { user, hasRole } = useAuth();
   const home = useQuery({ queryKey: ['network', 'home'], queryFn: networkApi.home });
+  const notificationSummary = useQuery({ queryKey: ['network', 'notification-summary'], queryFn: networkApi.notificationSummary });
   const [notice, setNotice] = useState<string | null>(null);
   const updateProfile = useMutation({
     mutationFn: (profile: ExpertProfile) =>
@@ -358,6 +383,134 @@ export function NetworkDashboardPage() {
                 <ArrowForward fontSize="small" />
               </Button>
             ))}
+          </Stack>
+        </Surface>
+      </Box>
+
+      <Surface>
+        <SectionTitle title="Recent Network activity" action={<Button component={NextLink} href="/expert-network/notifications">View notifications</Button>} />
+        <Stack spacing={1.25}>
+          {(notificationSummary.data?.latest || []).slice(0, 6).map((notification) => (
+            <ActivityRow key={notification.id} notification={notification} />
+          ))}
+          {!notificationSummary.data?.latest?.length && <EmptyState label="No Network activity yet. Posts, messages, requests, and trials will appear here." />}
+        </Stack>
+      </Surface>
+    </Stack>
+  );
+}
+
+export function NetworkSearchPage() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const initialQuery = params?.get('q') || '';
+  const [query, setQuery] = useState(initialQuery);
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
+  const results = useQuery({
+    queryKey: ['network', 'search', initialQuery],
+    queryFn: () => networkApi.search(initialQuery),
+  });
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    router.push(`/expert-network/search?q=${encodeURIComponent(query.trim())}`);
+  };
+
+  return (
+    <Stack spacing={3}>
+      <PageHeader title="Network Search" description="Search experts, teams, formation posts, service channels, and community answers from one place." />
+      <Box component="form" onSubmit={submit}>
+        <Surface>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+            <TextField fullWidth label="Search Network" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <Button type="submit" variant="contained" startIcon={<ExploreOutlined />} sx={{ minHeight: 52, minWidth: 150 }}>
+              Search
+            </Button>
+          </Stack>
+        </Surface>
+      </Box>
+      <QueryState isLoading={results.isLoading} error={results.error} />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, 1fr)' }, gap: 2 }}>
+        {(results.data?.results || []).map((result) => (
+          <Surface key={`${result.resultType}-${result.id}`}>
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: result.accent || appleColors.purple, mt: 0.75, flexShrink: 0 }} />
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="h3">{result.title}</Typography>
+                  <Typography color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.7 }}>{result.description || 'Network result'}</Typography>
+                </Box>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between" spacing={2} alignItems="center">
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <StatusChip label={formatLabel(result.resultType)} />
+                  {result.meta && <PastelChip label={formatLabel(result.meta)} accent={result.accent || appleColors.cyan} />}
+                </Stack>
+                <Button component={NextLink} href={result.href} endIcon={<ArrowForward />}>Open</Button>
+              </Stack>
+            </Stack>
+          </Surface>
+        ))}
+      </Box>
+      {!results.data?.results?.length && (
+        <EmptyState label={initialQuery ? 'No matching experts, teams, posts, or channels found.' : 'Start with a service, skill, team, or delivery question.'} />
+      )}
+    </Stack>
+  );
+}
+
+export function NetworkNotificationsPage() {
+  const queryClient = useQueryClient();
+  const notifications = useQuery({ queryKey: ['network', 'notifications'], queryFn: networkApi.notifications });
+  const markRead = useMutation({
+    mutationFn: (id: string) => networkApi.markNotificationRead(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['network', 'notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['network', 'notification-summary'] });
+    },
+  });
+  const markAllRead = useMutation({
+    mutationFn: networkApi.markAllNotificationsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['network', 'notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['network', 'notification-summary'] });
+    },
+  });
+  const unreadCount = (notifications.data || []).filter((notification) => notification.status === 'UNREAD').length;
+
+  return (
+    <Stack spacing={3}>
+      <PageHeader
+        title="Notifications"
+        description="Network activity from messages, formation posts, join requests, channel replies, and trial collaboration."
+        action={<Button variant="outlined" onClick={() => markAllRead.mutate()} disabled={!unreadCount || markAllRead.isPending}>Mark all read</Button>}
+      />
+      <QueryState isLoading={notifications.isLoading} error={notifications.error} />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '280px 1fr' }, gap: 2.5 }}>
+        <Surface>
+          <Stack spacing={2}>
+            <MetricTile label="Unread" value={unreadCount} detail="Need attention" icon={<NotificationsNoneOutlined />} accent={appleColors.purple} />
+            <MetricTile label="All activity" value={notifications.data?.length || 0} detail="Latest 50 events" icon={<Inventory2Outlined />} accent={appleColors.cyan} />
+          </Stack>
+        </Surface>
+        <Surface>
+          <Stack spacing={1.25}>
+            {(notifications.data || []).map((notification) => (
+              <ActivityRow
+                key={notification.id}
+                notification={notification}
+                action={
+                  notification.status === 'UNREAD' ? (
+                    <Button size="small" variant="outlined" onClick={() => markRead.mutate(notification.id)} disabled={markRead.isPending}>
+                      Mark read
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ))}
+            {!notifications.data?.length && <EmptyState label="No notifications yet. Network activity will appear here as teams and experts collaborate." />}
           </Stack>
         </Surface>
       </Box>
@@ -559,6 +712,11 @@ export function NetworkMessagesPage() {
   const [body, setBody] = useState('');
   const threads = useQuery({ queryKey: ['network', 'conversations'], queryFn: networkApi.conversations });
   const selected = selectedId || threads.data?.[0]?.id;
+  useEffect(() => {
+    if (!selectedId && threads.data?.[0]?.id) {
+      setSelectedId(threads.data[0].id);
+    }
+  }, [selectedId, threads.data]);
   const detail = useQuery({ queryKey: ['network', 'conversation', selected], queryFn: () => networkApi.conversation(selected!), enabled: !!selected });
   const send = useMutation({
     mutationFn: () => networkApi.addMessage(selected!, { body }),

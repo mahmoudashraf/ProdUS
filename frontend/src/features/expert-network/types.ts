@@ -148,6 +148,21 @@ export interface UserAccount {
   updatedAt?: string;
 }
 
+export interface NetworkSearchResult {
+  id: string;
+  resultType: 'EXPERT' | 'TEAM' | 'FORMATION_POST' | 'CHANNEL_POST' | 'CHANNEL';
+  title: string;
+  description?: string;
+  href: string;
+  meta?: string;
+  accent?: string;
+}
+
+export interface NetworkSearchResponse {
+  query: string;
+  results: NetworkSearchResult[];
+}
+
 export interface FormationPostPayload {
   postType: FormationPostType;
   teamId?: string | undefined;

@@ -1,8 +1,8 @@
 'use client';
 
 import NextLink from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ReactNode, useMemo } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { ReactNode, useMemo, useState } from 'react';
 import {
   AutoAwesomeOutlined,
   ChatBubbleOutline,
@@ -33,10 +33,12 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
 import Logo from '@/components/ui-component/Logo';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { appleColors } from '@/features/platform/PlatformComponents';
+import { networkApi } from './api';
 
 const networkNav = [
   {
@@ -63,6 +65,12 @@ const networkNav = [
     icon: ChatBubbleOutline,
     section: 'Communicate',
     badge: 3,
+  },
+  {
+    label: 'Notifications',
+    href: '/expert-network/notifications',
+    icon: NotificationsNoneOutlined,
+    section: 'Communicate',
   },
   {
     label: 'Channels',
@@ -120,7 +128,19 @@ const initials = (email?: string) => {
 
 export default function NetworkChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname() || '/expert-network';
+  const router = useRouter();
   const { user, signOut, hasRole } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const notificationSummary = useQuery({
+    queryKey: ['network', 'notification-summary'],
+    queryFn: networkApi.notificationSummary,
+    refetchInterval: 30000,
+  });
+  const home = useQuery({
+    queryKey: ['network', 'home'],
+    queryFn: networkApi.home,
+    staleTime: 30000,
+  });
   const groupedNav = useMemo(
     () =>
       sectionOrder.map((section) => ({
@@ -131,6 +151,16 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
   );
   const studioHref = hasRole(UserRole.PRODUCT_OWNER) ? '/owner/project-cart' : '/dashboard';
   const settingsActive = pathname === '/expert-network/settings';
+  const unreadNotifications = notificationSummary.data?.unreadCount || 0;
+  const messageCount = home.data?.conversations.length || 0;
+  const joinRequestCount = home.data?.myJoinRequests.length || 0;
+
+  const runSearch = () => {
+    const trimmed = searchQuery.trim();
+    if (trimmed) {
+      router.push(`/expert-network/search?q=${encodeURIComponent(trimmed)}`);
+    }
+  };
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f8fafc', color: appleColors.ink }}>
@@ -171,39 +201,48 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
             </Stack>
           </Stack>
 
-          <TextField
-            size="small"
-            placeholder="Search experts, teams, channels..."
-            sx={{
-              maxWidth: 540,
-              flex: 1,
-              display: { xs: 'none', md: 'block' },
-              '& .MuiOutlinedInput-root': {
-                bgcolor: '#fff',
-                borderRadius: 2,
-                boxShadow: '0 10px 30px rgba(15,23,42,0.04)',
-              },
+          <Box
+            component="form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              runSearch();
             }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchOutlined fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
+            sx={{ maxWidth: 540, flex: 1, display: { xs: 'none', md: 'block' } }}
+          >
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search experts, teams, channels..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: '#fff',
+                  borderRadius: 2,
+                  boxShadow: '0 10px 30px rgba(15,23,42,0.04)',
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchOutlined fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Box>
 
           <Stack direction="row" spacing={1} alignItems="center">
             <Tooltip title="Notifications">
-              <IconButton aria-label="Notifications">
-                <Badge color="primary" badgeContent={2}>
+              <IconButton component={NextLink} href="/expert-network/notifications" aria-label="Notifications">
+                <Badge color="primary" badgeContent={unreadNotifications}>
                   <NotificationsNoneOutlined />
                 </Badge>
               </IconButton>
             </Tooltip>
             <Tooltip title="Messages">
               <IconButton component={NextLink} href="/expert-network/messages" aria-label="Messages">
-                <Badge color="primary" badgeContent={3}>
+                <Badge color="primary" badgeContent={messageCount}>
                   <ChatBubbleOutline />
                 </Badge>
               </IconButton>
@@ -284,6 +323,13 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
                   {items.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href || (item.href !== '/expert-network' && pathname.startsWith(item.href));
+                    const badge = item.label === 'Messages'
+                      ? messageCount
+                      : item.label === 'Join Requests'
+                        ? joinRequestCount
+                        : item.label === 'Notifications'
+                          ? unreadNotifications
+                          : item.badge;
                     return (
                       <Button
                         key={item.href}
@@ -291,7 +337,7 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
                         href={item.href}
                         fullWidth
                         startIcon={<Icon fontSize="small" />}
-                        endIcon={item.badge ? <Box sx={{ px: 0.8, py: 0.25, borderRadius: 999, bgcolor: appleColors.purple, color: '#fff', fontSize: 11, fontWeight: 900 }}>{item.badge}</Box> : undefined}
+                        endIcon={badge ? <Box sx={{ px: 0.8, py: 0.25, borderRadius: 999, bgcolor: appleColors.purple, color: '#fff', fontSize: 11, fontWeight: 900 }}>{badge}</Box> : undefined}
                         sx={{
                           justifyContent: 'flex-start',
                           minHeight: 42,

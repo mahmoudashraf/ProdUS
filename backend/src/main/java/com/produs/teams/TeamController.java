@@ -10,6 +10,8 @@ import com.produs.dto.PlatformDtos.TeamJoinRequestResponse;
 import com.produs.dto.PlatformDtos.TeamMemberResponse;
 import com.produs.dto.PlatformDtos.TeamResponse;
 import com.produs.entity.User;
+import com.produs.notifications.NotificationService;
+import com.produs.notifications.PlatformNotification;
 import com.produs.repository.UserRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -50,6 +52,7 @@ public class TeamController {
     private final ServiceCategoryRepository categoryRepository;
     private final ServiceModuleRepository moduleRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @GetMapping
     public List<TeamResponse> list() {
@@ -213,6 +216,18 @@ public class TeamController {
         userRepository.findByEmail(email).ifPresent(user -> {
             ensureMember(team, user, invitation.getRole());
             invitation.setStatus(TeamInvitation.InvitationStatus.ACCEPTED);
+            notificationService.notify(
+                    user,
+                    manager,
+                    PlatformNotification.NotificationType.NETWORK_TEAM_INVITATION,
+                    PlatformNotification.NotificationPriority.NORMAL,
+                    "You were added to " + team.getName(),
+                    request.message(),
+                    "/expert-network/team-profile",
+                    "TEAM_INVITATION",
+                    team.getId(),
+                    null
+            );
         });
 
         return toTeamInvitationResponse(teamInvitationRepository.save(invitation));
@@ -286,7 +301,20 @@ public class TeamController {
         joinRequest.setStatus(TeamJoinRequest.RequestStatus.PENDING);
         joinRequest.setReviewedBy(null);
         joinRequest.setReviewNote(null);
-        return toTeamJoinRequestResponse(teamJoinRequestRepository.save(joinRequest));
+        TeamJoinRequest saved = teamJoinRequestRepository.save(joinRequest);
+        notificationService.notify(
+                team.getManager(),
+                requester,
+                PlatformNotification.NotificationType.NETWORK_JOIN_REQUEST,
+                PlatformNotification.NotificationPriority.HIGH,
+                "New join request for " + team.getName(),
+                request.message(),
+                "/expert-network/join-requests",
+                "TEAM_JOIN_REQUEST",
+                saved.getId(),
+                null
+        );
+        return toTeamJoinRequestResponse(saved);
     }
 
     @PutMapping("/join-requests/{requestId}")
@@ -305,7 +333,22 @@ public class TeamController {
         if (request.status() == TeamJoinRequest.RequestStatus.APPROVED) {
             ensureMember(joinRequest.getTeam(), joinRequest.getRequester(), TeamMember.MemberRole.SPECIALIST);
         }
-        return toTeamJoinRequestResponse(teamJoinRequestRepository.save(joinRequest));
+        TeamJoinRequest saved = teamJoinRequestRepository.save(joinRequest);
+        notificationService.notify(
+                saved.getRequester(),
+                manager,
+                PlatformNotification.NotificationType.NETWORK_JOIN_REQUEST,
+                request.status() == TeamJoinRequest.RequestStatus.APPROVED
+                        ? PlatformNotification.NotificationPriority.HIGH
+                        : PlatformNotification.NotificationPriority.NORMAL,
+                "Join request " + request.status().name().toLowerCase().replace('_', ' '),
+                request.reviewNote(),
+                "/expert-network/join-requests",
+                "TEAM_JOIN_REQUEST",
+                saved.getId(),
+                null
+        );
+        return toTeamJoinRequestResponse(saved);
     }
 
     @PutMapping("/members/{memberId}")
