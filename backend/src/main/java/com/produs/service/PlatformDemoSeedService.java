@@ -19,6 +19,22 @@ import com.produs.commerce.TeamReputationEventRepository;
 import com.produs.entity.User;
 import com.produs.experts.ExpertProfile;
 import com.produs.experts.ExpertProfileRepository;
+import com.produs.network.CommunityChannel;
+import com.produs.network.CommunityChannelRepository;
+import com.produs.network.CommunityComment;
+import com.produs.network.CommunityCommentRepository;
+import com.produs.network.CommunityPost;
+import com.produs.network.CommunityPostRepository;
+import com.produs.network.ConversationMessage;
+import com.produs.network.ConversationMessageRepository;
+import com.produs.network.ConversationParticipant;
+import com.produs.network.ConversationParticipantRepository;
+import com.produs.network.ConversationThread;
+import com.produs.network.ConversationThreadRepository;
+import com.produs.network.FormationPost;
+import com.produs.network.FormationPostRepository;
+import com.produs.network.TrialCollaboration;
+import com.produs.network.TrialCollaborationRepository;
 import com.produs.notifications.NotificationService;
 import com.produs.notifications.PlatformNotification;
 import com.produs.packages.PackageBuilderService;
@@ -56,6 +72,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +112,14 @@ public class PlatformDemoSeedService implements ApplicationRunner {
     private final TeamReputationEventRepository reputationRepository;
     private final AIRecommendationRepository recommendationRepository;
     private final NotificationService notificationService;
+    private final FormationPostRepository formationPostRepository;
+    private final CommunityChannelRepository channelRepository;
+    private final CommunityPostRepository communityPostRepository;
+    private final CommunityCommentRepository communityCommentRepository;
+    private final ConversationThreadRepository conversationThreadRepository;
+    private final ConversationParticipantRepository conversationParticipantRepository;
+    private final ConversationMessageRepository conversationMessageRepository;
+    private final TrialCollaborationRepository trialCollaborationRepository;
 
     @Override
     @Transactional
@@ -120,6 +145,7 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         seedExpertProfiles();
         List<Team> teams = seedTeams(categories, modules);
         seedOwnerDemoData(modules, teams);
+        seedExpertNetworkData(teams);
 
         return new SeedSummary(
                 categoryRepository.count(),
@@ -593,6 +619,237 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         event.setVerified(true);
         event.setNotes("Owner-reviewed delivery evidence, milestone response quality, and production handoff discipline.");
         reputationRepository.save(event);
+    }
+
+    private void seedExpertNetworkData(List<Team> teams) {
+        User manager = user("team@produs.com");
+        User specialist = user("specialist@produs.com");
+        User advisor = user("advisor@produs.com");
+        Team primaryTeam = teams.stream()
+                .filter(team -> team.getName().equals("Northstar Engineers"))
+                .findFirst()
+                .orElse(teams.get(0));
+
+        Map<String, CommunityChannel> channels = new LinkedHashMap<>();
+        channels.put("introductions", upsertChannel("introductions", "Introductions", "New experts introduce themselves and state what they can reliably deliver.", CommunityChannel.ChannelType.INTRODUCTIONS, "#6366f1", 1));
+        channels.put("team-formation", upsertChannel("team-formation", "Team Formation", "Find complementary experts, discuss fit, and shape durable delivery teams.", CommunityChannel.ChannelType.TEAM_FORMATION, "#059669", 2));
+        channels.put("security", upsertChannel("security", "Security", "Security hardening, auth, secrets, API risk, and launch-safe controls.", CommunityChannel.ChannelType.SERVICE, "#7c3aed", 3));
+        channels.put("ci-cd", upsertChannel("ci-cd", "CI/CD", "Release pipelines, checks, deployment gates, rollback, and delivery automation.", CommunityChannel.ChannelType.SERVICE, "#2563eb", 4));
+        channels.put("cloud-infra", upsertChannel("cloud-infra", "Cloud Infrastructure", "Cloud environments, staging, observability, cost, and production ownership.", CommunityChannel.ChannelType.SERVICE, "#0891b2", 5));
+        channels.put("delivery-practices", upsertChannel("delivery-practices", "Delivery Practices", "Evidence, milestone review, owner communication, and handoff patterns.", CommunityChannel.ChannelType.DELIVERY_PRACTICES, "#d97706", 6));
+
+        upsertFormationPost(
+                specialist,
+                null,
+                FormationPost.PostType.LOOKING_FOR_TEAM,
+                "Backend and launch specialist looking for productization team",
+                "I handle backend refactors, API hardening, launch evidence, and owner-ready handoff. Looking for frontend and documentation partners to form a full productization team.",
+                "Backend Rewrite, API Security, Launch Readiness, PostgreSQL, CI/CD",
+                "Frontend, Documentation, Accessibility QA",
+                "Async-first, evidence-heavy, weekly owner checkpoints",
+                "US Central / GMT overlap",
+                "$15K-$80K"
+        );
+        upsertFormationPost(
+                manager,
+                primaryTeam,
+                FormationPost.PostType.TEAM_OPENING,
+                "Frontend specialist for governed delivery packages",
+                "Northstar Engineers has steady backend, security, and cloud work. We need a frontend partner who can make owner-facing workflows polished and production-ready.",
+                "Backend, Cloud / DevOps, Security, Delivery Governance",
+                "Frontend, Testing, Product UX",
+                "15-25 hours/week, async with two weekly review windows",
+                "US / EU overlap",
+                "$40K-$120K"
+        );
+
+        CommunityPost securityPost = upsertCommunityPost(
+                channels.get("security"),
+                specialist,
+                "JWT rotation in long-lived service connections",
+                "Has anyone handled JWT key rotation where services keep long-lived connections? The safer pattern seems to be a JWKS overlap window, proactive token refresh, and explicit revocation evidence in the deployment notes.",
+                "Security, Backend, Auth"
+        );
+        upsertComment(securityPost, manager, "We used a dual-key JWKS window with a five-minute poll. The important bit was adding deployment evidence showing both keys were active before switching issuers.");
+        upsertComment(securityPost, advisor, "Add a rollback note too. Owners need to know what happens if a downstream service fails to refresh.");
+
+        CommunityPost formationPost = upsertCommunityPost(
+                channels.get("team-formation"),
+                advisor,
+                "What makes a strong first team profile?",
+                "The profiles that win owner trust explain outcomes, not just stacks. Show service categories, proof, project size, and how you handle evidence when a milestone is blocked.",
+                "Team Profile, Verification, Trust"
+        );
+        upsertComment(formationPost, manager, "We added owner-readable acceptance evidence examples to our profile and saw better shortlist quality.");
+
+        upsertConversation(
+                manager,
+                specialist,
+                "Frontend partner fit for Northstar Engineers",
+                "Saw your formation post. Your backend/security profile complements our team. Are you open to a trial around a launch readiness package?",
+                "Yes. I would want the trial to include clear frontend acceptance criteria and deployment evidence."
+        );
+
+        upsertTrial(
+                specialist,
+                primaryTeam,
+                "Northstar launch-readiness trial",
+                "Two-week trial covering frontend workflow review, API contract evidence, and launch checklist ownership for a productization package.",
+                LocalDate.now().plusDays(3),
+                LocalDate.now().plusDays(17)
+        );
+    }
+
+    private CommunityChannel upsertChannel(
+            String slug,
+            String name,
+            String description,
+            CommunityChannel.ChannelType channelType,
+            String color,
+            int sortOrder
+    ) {
+        CommunityChannel channel = channelRepository.findBySlug(slug).orElseGet(CommunityChannel::new);
+        channel.setSlug(slug);
+        channel.setName(name);
+        channel.setDescription(description);
+        channel.setChannelType(channelType);
+        channel.setColor(color);
+        channel.setSortOrder(sortOrder);
+        channel.setActive(true);
+        return channelRepository.save(channel);
+    }
+
+    private FormationPost upsertFormationPost(
+            User author,
+            Team team,
+            FormationPost.PostType postType,
+            String title,
+            String body,
+            String offeredServices,
+            String neededServices,
+            String workingStyle,
+            String timezone,
+            String packageSize
+    ) {
+        FormationPost post = formationPostRepository.findByTitleAndAuthorId(title, author.getId()).orElseGet(FormationPost::new);
+        post.setAuthor(author);
+        post.setTeam(team);
+        post.setPostType(postType);
+        post.setTitle(title);
+        post.setBody(body);
+        post.setOfferedServices(offeredServices);
+        post.setNeededServices(neededServices);
+        post.setWorkingStyle(workingStyle);
+        post.setTimezone(timezone);
+        post.setPackageSize(packageSize);
+        post.setStatus(FormationPost.PostStatus.ACTIVE);
+        post.setExpiresOn(LocalDate.now().plusDays(30));
+        return formationPostRepository.save(post);
+    }
+
+    private CommunityPost upsertCommunityPost(
+            CommunityChannel channel,
+            User author,
+            String title,
+            String body,
+            String serviceTags
+    ) {
+        CommunityPost post = communityPostRepository.findByTitleAndChannelSlug(title, channel.getSlug()).orElseGet(CommunityPost::new);
+        post.setChannel(channel);
+        post.setAuthor(author);
+        post.setTitle(title);
+        post.setBody(body);
+        post.setServiceTags(serviceTags);
+        post.setStatus(CommunityPost.PostStatus.ACTIVE);
+        post.setHelpfulCount(Math.max(post.getHelpfulCount(), 2));
+        if (post.getId() != null) {
+            post.setReplyCount((int) communityCommentRepository.countByPostIdAndStatus(post.getId(), CommunityComment.CommentStatus.ACTIVE));
+        }
+        return communityPostRepository.save(post);
+    }
+
+    private void upsertComment(CommunityPost post, User author, String body) {
+        boolean exists = post.getId() != null && communityCommentRepository
+                .findByPostIdAndStatusOrderByCreatedAtAsc(post.getId(), CommunityComment.CommentStatus.ACTIVE)
+                .stream()
+                .anyMatch(comment -> comment.getAuthor().getId().equals(author.getId()) && body.equals(comment.getBody()));
+        if (exists) {
+            return;
+        }
+        CommunityComment comment = new CommunityComment();
+        comment.setPost(post);
+        comment.setAuthor(author);
+        comment.setBody(body);
+        comment.setStatus(CommunityComment.CommentStatus.ACTIVE);
+        communityCommentRepository.save(comment);
+        post.setReplyCount((int) communityCommentRepository.countByPostIdAndStatus(post.getId(), CommunityComment.CommentStatus.ACTIVE));
+        post.setLastReplyAt(LocalDateTime.now());
+        communityPostRepository.save(post);
+    }
+
+    private void upsertConversation(User sender, User recipient, String title, String firstMessage, String reply) {
+        UUID scopeId = UUID.nameUUIDFromBytes(("demo-thread-" + title).getBytes());
+        ConversationThread thread = conversationThreadRepository
+                .findByScopeTypeAndScopeIdAndCreatedById(ConversationThread.ScopeType.DIRECT, scopeId, sender.getId())
+                .orElseGet(ConversationThread::new);
+        boolean isNew = thread.getId() == null;
+        if (isNew) {
+            thread.setScopeType(ConversationThread.ScopeType.DIRECT);
+            thread.setScopeId(scopeId);
+            thread.setTitle(title);
+            thread.setCreatedBy(sender);
+            thread.setStatus(ConversationThread.ThreadStatus.OPEN);
+            thread.setLastMessageAt(LocalDateTime.now());
+            thread = conversationThreadRepository.save(thread);
+            ensureConversationParticipant(thread, sender, "initiator");
+            ensureConversationParticipant(thread, recipient, "participant");
+        }
+        if (conversationMessageRepository.findByThreadIdAndDeletedAtIsNullOrderByCreatedAtAsc(thread.getId()).isEmpty()) {
+            createConversationMessage(thread, sender, firstMessage);
+            createConversationMessage(thread, recipient, reply);
+        }
+    }
+
+    private void ensureConversationParticipant(ConversationThread thread, User user, String role) {
+        ConversationParticipant participant = conversationParticipantRepository.findByThreadIdAndUserId(thread.getId(), user.getId())
+                .orElseGet(ConversationParticipant::new);
+        participant.setThread(thread);
+        participant.setUser(user);
+        participant.setParticipantRole(role);
+        participant.setMuted(false);
+        participant.setArchived(false);
+        conversationParticipantRepository.save(participant);
+    }
+
+    private void createConversationMessage(ConversationThread thread, User sender, String body) {
+        ConversationMessage message = new ConversationMessage();
+        message.setThread(thread);
+        message.setSender(sender);
+        message.setMessageType(ConversationMessage.MessageType.TEXT);
+        message.setBody(body);
+        conversationMessageRepository.save(message);
+        thread.setLastMessageAt(LocalDateTime.now());
+        conversationThreadRepository.save(thread);
+    }
+
+    private TrialCollaboration upsertTrial(
+            User initiatedBy,
+            Team team,
+            String title,
+            String scope,
+            LocalDate proposedStartDate,
+            LocalDate proposedEndDate
+    ) {
+        TrialCollaboration trial = trialCollaborationRepository.findByTitleAndInitiatedById(title, initiatedBy.getId())
+                .orElseGet(TrialCollaboration::new);
+        trial.setInitiatedBy(initiatedBy);
+        trial.setTeam(team);
+        trial.setTitle(title);
+        trial.setScope(scope);
+        trial.setStatus(TrialCollaboration.TrialStatus.ACTIVE);
+        trial.setProposedStartDate(proposedStartDate);
+        trial.setProposedEndDate(proposedEndDate);
+        return trialCollaborationRepository.save(trial);
     }
 
     private void createRecommendation(User user, String type, String sourceEntityType, String sourceEntityId, String rationale) {

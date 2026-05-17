@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import { supabase } from './supabase';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const mockAuthEnabled = process.env.NEXT_PUBLIC_MOCK_AUTH_ENABLED === 'true';
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
@@ -16,6 +17,14 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
   async (config: any) => {
     try {
+      if (mockAuthEnabled && typeof window !== 'undefined') {
+        const mockToken = window.localStorage.getItem('mock_token');
+        if (mockToken) {
+          config.headers.Authorization = `Bearer ${mockToken}`;
+          return config;
+        }
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.access_token) {

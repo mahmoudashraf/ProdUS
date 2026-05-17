@@ -23,3 +23,5 @@ databaseChangeLog:
       file: db/changelog/V011__expert_team_profiles.yaml
   - include:
       file: db/changelog/V012__productization_cart.yaml
+  - include:
+      file: db/changelog/V013__expert_network_community.yaml

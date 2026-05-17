@@ -1,0 +1,275 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1300
+      author: produs
+      changes:
+        - createTable:
+            tableName: network_formation_posts
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: author_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: team_id, type: UUID }
+              - column: { name: post_type, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: body, type: TEXT }
+              - column: { name: offered_services, type: TEXT }
+              - column: { name: needed_services, type: TEXT }
+              - column: { name: working_style, type: VARCHAR(255) }
+              - column: { name: timezone, type: VARCHAR(255) }
+              - column: { name: package_size, type: VARCHAR(255) }
+              - column: { name: status, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: expires_on, type: DATE }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: network_formation_posts
+            baseColumnNames: author_id
+            constraintName: fk_network_formation_posts_author
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: network_formation_posts
+            baseColumnNames: team_id
+            constraintName: fk_network_formation_posts_team
+            referencedTableName: teams
+            referencedColumnNames: id
+        - createIndex:
+            tableName: network_formation_posts
+            indexName: idx_network_formation_posts_status_created
+            columns:
+              - column: { name: status }
+              - column: { name: created_at }
+
+  - changeSet:
+      id: 1301
+      author: produs
+      changes:
+        - createTable:
+            tableName: network_channels
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: slug, type: VARCHAR(120), constraints: { nullable: false, unique: true } }
+              - column: { name: name, type: VARCHAR(160), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: channel_type, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: color, type: VARCHAR(40) }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 100, constraints: { nullable: false } }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createIndex:
+            tableName: network_channels
+            indexName: idx_network_channels_active_sort
+            columns:
+              - column: { name: active }
+              - column: { name: sort_order }
+
+  - changeSet:
+      id: 1302
+      author: produs
+      changes:
+        - createTable:
+            tableName: network_posts
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: channel_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: author_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: body, type: TEXT }
+              - column: { name: service_tags, type: VARCHAR(500) }
+              - column: { name: status, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: helpful_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: reply_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: last_reply_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: network_posts
+            baseColumnNames: channel_id
+            constraintName: fk_network_posts_channel
+            referencedTableName: network_channels
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: network_posts
+            baseColumnNames: author_id
+            constraintName: fk_network_posts_author
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: network_posts
+            indexName: idx_network_posts_channel_status_created
+            columns:
+              - column: { name: channel_id }
+              - column: { name: status }
+              - column: { name: created_at }
+
+  - changeSet:
+      id: 1303
+      author: produs
+      changes:
+        - createTable:
+            tableName: network_comments
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: post_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: author_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: body, type: TEXT, constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: network_comments
+            baseColumnNames: post_id
+            constraintName: fk_network_comments_post
+            referencedTableName: network_posts
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: network_comments
+            baseColumnNames: author_id
+            constraintName: fk_network_comments_author
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 1304
+      author: produs
+      changes:
+        - createTable:
+            tableName: network_helpful_marks
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: post_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: network_helpful_marks
+            columnNames: post_id, user_id
+            constraintName: uk_network_helpful_post_user
+        - addForeignKeyConstraint:
+            baseTableName: network_helpful_marks
+            baseColumnNames: post_id
+            constraintName: fk_network_helpful_marks_post
+            referencedTableName: network_posts
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: network_helpful_marks
+            baseColumnNames: user_id
+            constraintName: fk_network_helpful_marks_user
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 1305
+      author: produs
+      changes:
+        - createTable:
+            tableName: network_conversation_threads
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: scope_type, type: VARCHAR(60), constraints: { nullable: false } }
+              - column: { name: scope_id, type: UUID }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: created_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: last_message_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: network_conversation_threads
+            baseColumnNames: created_by
+            constraintName: fk_network_threads_created_by
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 1306
+      author: produs
+      changes:
+        - createTable:
+            tableName: network_conversation_participants
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: thread_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: participant_role, type: VARCHAR(80), constraints: { nullable: false } }
+              - column: { name: muted, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: archived, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: last_read_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: network_conversation_participants
+            columnNames: thread_id, user_id
+            constraintName: uk_network_thread_user
+        - addForeignKeyConstraint:
+            baseTableName: network_conversation_participants
+            baseColumnNames: thread_id
+            constraintName: fk_network_participants_thread
+            referencedTableName: network_conversation_threads
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: network_conversation_participants
+            baseColumnNames: user_id
+            constraintName: fk_network_participants_user
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 1307
+      author: produs
+      changes:
+        - createTable:
+            tableName: network_messages
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: thread_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: sender_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: message_type, type: VARCHAR(40), constraints: { nullable: false } }
+              - column: { name: body, type: TEXT, constraints: { nullable: false } }
+              - column: { name: edited_at, type: TIMESTAMP }
+              - column: { name: deleted_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: network_messages
+            baseColumnNames: thread_id
+            constraintName: fk_network_messages_thread
+            referencedTableName: network_conversation_threads
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: network_messages
+            baseColumnNames: sender_id
+            constraintName: fk_network_messages_sender
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 1308
+      author: produs
+      changes:
+        - createTable:
+            tableName: network_trial_collaborations
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: initiated_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: team_id, type: UUID }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: scope, type: TEXT }
+              - column: { name: status, type: VARCHAR(60), constraints: { nullable: false } }
+              - column: { name: proposed_start_date, type: DATE }
+              - column: { name: proposed_end_date, type: DATE }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: network_trial_collaborations
+            baseColumnNames: initiated_by
+            constraintName: fk_network_trials_initiated_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: network_trial_collaborations
+            baseColumnNames: team_id
+            constraintName: fk_network_trials_team
+            referencedTableName: teams
+            referencedColumnNames: id

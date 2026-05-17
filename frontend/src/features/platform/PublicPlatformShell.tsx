@@ -11,6 +11,7 @@ const navItems = [
   { label: 'Services', href: '/services' },
   { label: 'Teams', href: '/teams' },
   { label: 'Solo Experts', href: '/solo-experts' },
+  { label: 'Network', href: '/expert-network' },
 ];
 
 export default function PublicPlatformShell({ children }: { children: ReactNode }) {

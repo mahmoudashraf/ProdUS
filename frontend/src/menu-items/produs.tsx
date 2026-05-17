@@ -7,6 +7,7 @@ import {
   IconPackage,
   IconRobot,
   IconSettings,
+  IconSparkles,
   IconUsers,
   IconVocabulary,
 } from '@tabler/icons-react';
@@ -23,6 +24,7 @@ const icons = {
   IconPackage,
   IconRobot,
   IconSettings,
+  IconSparkles,
   IconUsers,
   IconVocabulary,
 };
@@ -104,6 +106,15 @@ const produs: NavItemType = {
       url: '/packages',
       icon: icons.IconPackage,
       roles: [UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER],
+      breadcrumbs: true
+    },
+    {
+      id: 'expert-network',
+      title: 'ProdUS Network',
+      type: 'item',
+      url: '/expert-network',
+      icon: icons.IconSparkles,
+      roles: [UserRole.ADMIN, UserRole.TEAM_MANAGER, UserRole.SPECIALIST, UserRole.ADVISOR],
       breadcrumbs: true
     },
     {

@@ -1,12 +1,14 @@
-# ProdUS Expert Network PRD and Implementation Plan
+# ProdUS Expert Network BRD, PRD, and Implementation Plan
 
 ## Document Status
 
 - Product: ProdUS Platform
+- Product domains: ProdUS Studio for productization, ProdUS Network for expert community and team formation
 - Feature area: Expert Network, team formation, contextual messaging, expert community
 - Implementation model: One complete production release with sequenced build tracks
 - Primary database: PostgreSQL
-- Auth/user source: Supabase Auth users mapped to platform users
+- Auth/user source: Supabase Auth users mapped to platform users through a server-managed platform session
+- Session model: secure HTTP-only cookie scoped to `.produs.com` for cross-subdomain authentication
 - Backend: current ProdUS backend API
 - Frontend: current ProdUS frontend stack and component library
 
@@ -16,9 +18,16 @@ ProdUS needs a mature communication and formation system for solo experts, team 
 
 The system is not a generic social network, chat app, or public content feed. It is a **team formation and trust system**. Communication exists to help delivery capacity form around verified skills, platform service categories, production workspaces, and accepted milestones.
 
+ProdUS should be presented as two connected product areas:
+
+- **ProdUS Studio** at `studio.produs.com`: owner-facing productization, product briefs, lifecycle services, draft carts, service plans, team comparison, project workspaces, milestone review, evidence, and delivery governance.
+- **ProdUS Network** at `network.produs.com`: expert community, solo expert profiles, team profiles, team formation, join requests, service-category discussion, and collaboration trust signals.
+
+Both domains share one identity, one platform user model, one backend, and one permission system. Users should not feel they are signing into two unrelated products.
+
 The completed product will introduce:
 
-- Expert Network home
+- ProdUS Network home
 - Expert directory
 - Expert profile presentation and editing
 - Team profile presentation and editing
@@ -47,7 +56,7 @@ Solo experts are valuable but hard to evaluate in isolation. Teams are more usef
 - trial collaboration outcomes
 - community contributions tied to service categories
 
-The Expert Network converts isolated experts into reliable productization capacity.
+ProdUS Network converts isolated experts into reliable delivery capacity for Studio productization work.
 
 ## Product Goals
 
@@ -58,12 +67,12 @@ The Expert Network converts isolated experts into reliable productization capaci
 5. Help experts communicate without becoming a noisy general chat tool.
 6. Help teams evaluate experts using service fit, delivery evidence, and structured discussion.
 7. Help platform admins moderate communication and protect owners, experts, and teams.
-8. Feed verified collaboration signals into team matching and productization recommendations.
-9. Keep owner-facing productization flows separate from internal expert/team formation chatter.
+8. Feed verified collaboration signals into team matching and Studio productization recommendations.
+9. Keep Studio owner-facing productization flows separate from Network expert/team formation chatter.
 
 ## Product Non-Goals
 
-The Expert Network must not become:
+ProdUS Network must not become:
 
 - a generic social feed
 - a follower-based social graph
@@ -125,7 +134,7 @@ An owner productizing a product. Owners should see verified experts and teams bu
 Primary needs:
 
 - browse verified teams and experts
-- shortlist teams or experts into productization cart
+- shortlist teams or experts into the Studio productization cart
 - compare delivery fit
 - message only in project or proposal contexts
 
@@ -176,11 +185,56 @@ Primary needs:
 
 ## Information Architecture
 
+### Product Domains
+
+ProdUS uses subdomains to make each major product area understandable while keeping the implementation unified.
+
+| Domain | Product name | Purpose | Primary users |
+|---|---|---|---|
+| `produs.com` | ProdUS public site | Marketing, public service pages, public team/expert profile previews, login entry points | Logged-out visitors, all roles |
+| `studio.produs.com` | ProdUS Studio | Productization workspace, product briefs, service selection, draft cart, package/service plan, team shortlist, active delivery, evidence, milestone review | Product owners, admins, assigned delivery participants |
+| `network.produs.com` | ProdUS Network | Expert community, team formation, profiles, openings, join requests, service channels, trial collaboration | Solo experts, team leads, team members, admins |
+| `api.produs.com` | ProdUS API | Backend API for Studio, Network, public pages, and AI/MCP integration | Frontend clients, platform services |
+
+`teams.produs.com` can be supported as an alias or redirect to `network.produs.com`, but the canonical community product name is **ProdUS Network**.
+
+### Cross-Domain Navigation
+
+- Studio header includes a clear Network entry when a user can browse experts or teams.
+- Network header includes a clear Studio entry when a user has owner, admin, or assigned delivery access.
+- Public header logo returns to `produs.com`.
+- Authenticated Studio and Network headers show a dashboard switcher instead of forcing users through the public site.
+- Deep links must preserve return URLs across auth and subdomain switches.
+
+### Session and Auth Architecture
+
+ProdUS should use Supabase as the identity provider, but the production platform session should be server-managed.
+
+Required behavior:
+
+- login can start from any domain and return the user to the requested destination
+- successful auth creates a platform session cookie scoped to `.produs.com`
+- the session cookie is `Secure`, `HttpOnly`, and has an explicit `SameSite` policy
+- Studio and Network can read the same authenticated session through server-side checks
+- localStorage tokens are not the primary production auth mechanism
+- backend authorization always resolves the platform user from the server-managed session or a server-validated bearer token
+- logout clears the shared `.produs.com` session for all product subdomains
+- Supabase OAuth redirect allowlists include Studio, Network, and public callback URLs
+
+Recommended production flow:
+
+1. User clicks sign in from `studio.produs.com`, `network.produs.com`, or `produs.com`.
+2. User is sent through the Supabase auth flow with a signed return URL.
+3. Auth callback validates Supabase identity server-side.
+4. Backend or Next server creates the ProdUS platform session.
+5. Browser receives a secure HTTP-only cookie scoped to `.produs.com`.
+6. User returns to the original Studio or Network route without signing in again.
+
 ### Primary Navigation
 
 For solo experts and team users:
 
-- Expert Network
+- Network Home
 - Expert Directory
 - Formation Board
 - Messages
@@ -199,7 +253,7 @@ For owners:
 
 For admins:
 
-- Expert Network Admin
+- Network Admin
 - Moderation Queue
 - Reports
 - Verification Queue
@@ -208,7 +262,7 @@ For admins:
 
 ### Expert Network Home
 
-The Expert Network home is a role-aware command center.
+The ProdUS Network home is a role-aware command center.
 
 Solo expert home:
 
@@ -752,6 +806,17 @@ If the collaboration is successful, ProdUS suggests team formation and pre-fills
 
 ## Functional Requirements
 
+### Domain and Session Requirements
+
+- FR-DOM-001: ProdUS Studio must be available as the productization domain at `studio.produs.com`.
+- FR-DOM-002: ProdUS Network must be available as the expert community and team formation domain at `network.produs.com`.
+- FR-DOM-003: `teams.produs.com` may redirect or alias to `network.produs.com`, but `network.produs.com` is canonical.
+- FR-DOM-004: Users authenticated on Studio must remain authenticated when navigating to Network.
+- FR-DOM-005: Users authenticated on Network must remain authenticated when navigating to Studio if their role permits Studio access.
+- FR-DOM-006: Logout from any ProdUS product domain must end the shared platform session across all product domains.
+- FR-DOM-007: Auth callbacks must preserve signed return URLs so users land back on the route they originally requested.
+- FR-DOM-008: Public profile summaries, service pages, and unauthenticated Network discovery previews must remain accessible without exposing private messages, requests, or workspace data.
+
 ### Expert Profile Requirements
 
 - FR-EP-001: Users with expert-capable roles can create and edit an expert profile.
@@ -1133,7 +1198,19 @@ Fields:
 
 ## API Surface
 
-All endpoints require authenticated users unless marked public. Authorization must be enforced in backend services.
+All endpoints require authenticated users unless marked public. Authorization must be enforced in backend services. Public, Studio, and Network frontend domains should call the same backend API origin in production.
+
+Production API origin:
+
+- `https://api.produs.com`
+
+Primary frontend origins:
+
+- `https://produs.com`
+- `https://studio.produs.com`
+- `https://network.produs.com`
+
+The route paths below remain stable even when the frontend experience is served from a subdomain.
 
 ### Expert Profiles
 
@@ -1263,9 +1340,23 @@ All endpoints require authenticated users unless marked public. Authorization mu
 
 ## Frontend Pages
 
+Frontend implementation should remain one Next.js application with domain-aware routing. The canonical route group for the community remains `/expert-network`, while the production host `network.produs.com` presents those routes as the Network product. Studio productization routes remain under the Studio domain.
+
+Subdomain routing requirements:
+
+- `network.produs.com/` serves the Network command center.
+- `network.produs.com/directory` serves expert and team discovery.
+- `network.produs.com/formation` serves the formation board.
+- `network.produs.com/messages` serves scoped Network conversations.
+- `studio.produs.com/` serves the Studio productization dashboard.
+- `studio.produs.com/project-cart` serves the owner productization cart.
+- `studio.produs.com/workspaces` serves active delivery workspaces.
+- unauthenticated public pages remain accessible from `produs.com`.
+- canonical links and redirects must avoid bouncing users between product domains unnecessarily.
+
 ### `/expert-network`
 
-Role-aware command center:
+Network role-aware command center:
 
 - profile completion
 - messages
@@ -1277,7 +1368,7 @@ Role-aware command center:
 
 ### `/expert-network/directory`
 
-Searchable experts:
+Searchable experts and teams:
 
 - filters
 - suggested matches
@@ -1353,7 +1444,7 @@ Own expert profile:
 
 ### `/teams/profile`
 
-Team-side management:
+Team-side management inside Network:
 
 - team profile
 - openings
@@ -1365,7 +1456,7 @@ Team-side management:
 
 ### `/admin/expert-network`
 
-Admin:
+Admin Network management:
 
 - reports
 - moderation actions
@@ -1488,6 +1579,13 @@ The platform must still operate without LoomAI. LoomAI is assistive, not require
 ## Security Requirements
 
 - all endpoints require authentication unless explicitly public
+- production authentication uses a server-managed session cookie scoped to `.produs.com`
+- shared session cookies must be `Secure`, `HttpOnly`, and protected by backend session validation
+- mutating requests from browser clients require CSRF protection or equivalent same-origin/origin-token enforcement
+- backend CORS allowlists include only approved ProdUS origins, including `produs.com`, `studio.produs.com`, and `network.produs.com`
+- Supabase redirect URLs must be explicitly allowlisted for public, Studio, and Network callback routes
+- production frontend code must not rely on browser localStorage as the source of truth for cross-subdomain authentication
+- logout must invalidate the server session and clear the `.produs.com` cookie across Studio and Network
 - backend must verify participant access for every thread and message
 - owners cannot access private expert/team formation threads
 - blocked users cannot start new conversations with blocker
@@ -1507,10 +1605,16 @@ The platform must still operate without LoomAI. LoomAI is assistive, not require
 
 ## Production Readiness Requirements
 
+- custom domains configured for `produs.com`, `studio.produs.com`, `network.produs.com`, and `api.produs.com`
+- shared `.produs.com` session cookie validated across Studio and Network
+- Supabase auth callback and OAuth provider redirects verified for every supported product domain
+- backend CORS and origin checks verified against public, Studio, Network, and API domains
 - database migrations with rollback strategy
 - seeded local demo data for all user types
 - API authorization tests
 - UI route guards
+- cross-subdomain login, logout, and return-url tests
+- CSRF/origin enforcement tests for mutating actions
 - report/block safety tests
 - message access control tests
 - notification delivery tests
@@ -1520,6 +1624,20 @@ The platform must still operate without LoomAI. LoomAI is assistive, not require
 - privacy review before enabling AI summaries
 
 ## Implementation Tracks
+
+### Track 0: Domain, Session, and Routing Foundation
+
+Deliverables:
+
+- canonical product domain map for public site, Studio, Network, and API
+- Next.js host-aware routing for `studio.produs.com` and `network.produs.com`
+- public fallback and unauthenticated discovery routes
+- shared server-managed session cookie scoped to `.produs.com`
+- Supabase callback handling with signed return URLs
+- logout flow that clears the shared platform session
+- environment variables for public, Studio, Network, and API origins
+- CORS, origin validation, and CSRF protection for browser clients
+- cross-subdomain auth regression tests
 
 ### Track 1: Data Foundation
 
@@ -1565,7 +1683,9 @@ Deliverables:
 
 Deliverables:
 
-- Expert Network route group
+- ProdUS Network route group
+- ProdUS Studio links into Network discovery and team shortlist flows
+- host-aware redirects and canonical URL helpers
 - directory page
 - formation board page
 - messages/inbox page
@@ -1627,26 +1747,30 @@ Deliverables:
 
 ## Delivery Sequence
 
-1. Add database schema and seed data.
-2. Build backend permission model for scoped threads and team membership.
-3. Implement expert profile and team opening APIs.
-4. Implement conversation and messaging APIs.
-5. Implement join-request APIs and state transitions.
-6. Implement formation board APIs.
-7. Implement trial collaboration APIs.
-8. Implement notification events and preferences.
-9. Implement moderation APIs.
-10. Build Expert Network frontend shell and navigation.
-11. Build expert profile editor and directory.
-12. Build formation board and team openings.
-13. Build join request detail with conversation thread.
-14. Build messages inbox and scoped thread UI.
-15. Build channels and post/reply UI.
-16. Build trial collaboration UI.
-17. Build admin moderation UI.
-18. Add AI suggestion and summary panels.
-19. Run full test, build, and live-server verification.
-20. Update development guide and route documentation.
+1. Configure product domains, route helpers, and environment variables for public site, Studio, Network, and API.
+2. Implement server-managed `.produs.com` platform session flow backed by Supabase identity.
+3. Add cross-subdomain login, logout, callback, and return-url tests.
+4. Add database schema and seed data.
+5. Build backend permission model for scoped threads and team membership.
+6. Implement expert profile and team opening APIs.
+7. Implement conversation and messaging APIs.
+8. Implement join-request APIs and state transitions.
+9. Implement formation board APIs.
+10. Implement trial collaboration APIs.
+11. Implement notification events and preferences.
+12. Implement moderation APIs.
+13. Build ProdUS Network frontend shell and navigation.
+14. Build Studio-to-Network discovery, shortlist, and team/expert profile entry points.
+15. Build expert profile editor and directory.
+16. Build formation board and team openings.
+17. Build join request detail with conversation thread.
+18. Build messages inbox and scoped thread UI.
+19. Build channels and post/reply UI.
+20. Build trial collaboration UI.
+21. Build admin moderation UI.
+22. Add AI suggestion and summary panels.
+23. Run full test, build, and live-server verification.
+24. Update development guide and route documentation.
 
 ## Acceptance Criteria
 
@@ -1674,11 +1798,13 @@ The implementation is complete when:
 
 Use deterministic local credentials and seeded records:
 
-- `owner@produs.com`: product owner browsing verified teams and experts
-- `team@produs.com`: team lead managing team profile, openings, requests
-- `specialist@produs.com`: solo expert applying to teams and joining conversations
-- `advisor@produs.com`: expert/advisor participating in channels and trials
-- `admin@produs.com`: moderation and verification administrator
+- `owner@produs.com`: product owner landing in Studio, browsing verified teams and experts from Network discovery surfaces
+- `team@produs.com`: team lead landing in Network, managing team profile, openings, requests
+- `specialist@produs.com`: solo expert landing in Network, applying to teams and joining conversations
+- `advisor@produs.com`: expert/advisor landing in Network, participating in channels and trials
+- `admin@produs.com`: administrator with Studio and Network access for moderation, verification, and platform controls
+
+Local and staging tests must verify that each user can sign in once, move between `studio.produs.com` and `network.produs.com`, and remain authenticated through the shared `.produs.com` session cookie.
 
 ## Example End-to-End Scenarios
 
@@ -1735,19 +1861,23 @@ These decisions must be resolved before coding starts:
 4. Should trial collaboration require a real package, or can admins create internal trial assignments?
 5. Should AI summaries be stored or generated on demand?
 6. What is the exact retention policy for deleted private messages?
+7. Should `teams.produs.com` be a permanent alias, a redirect, or not launched publicly?
+8. Should the central login entry point live on `produs.com/login` or `studio.produs.com/login`?
 
 ## Recommended Decisions
 
-1. Owners should message experts only through productization context.
+1. Owners should message experts only through Studio productization context.
 2. Logged-out visitors should see only public profile summaries and service pages.
 3. Verified delivery stats should be visible, because trust is core to the marketplace.
 4. Trial collaboration should connect to real package/workspace records by default, with admin-created internal trials allowed for verification.
 5. AI summaries should be generated on demand and cached with permission metadata.
 6. Deleted private messages should be hidden from participants but retained in audit when reported or involved in moderation.
+7. `network.produs.com` should be canonical; `teams.produs.com` should redirect to Network if acquired and configured.
+8. Central login should support entry from every domain, but the production session should be issued as a secure `.produs.com` cookie so users move between Studio and Network without re-authenticating.
 
 ## Final Product Definition
 
-The completed Expert Network is a production-grade formation system where solo experts and teams can:
+The completed ProdUS Network is a production-grade formation system where solo experts and teams can:
 
 - present credible professional profiles
 - discover complementary collaborators
@@ -1758,4 +1888,4 @@ The completed Expert Network is a production-grade formation system where solo e
 - build trust through verified delivery and useful contribution
 - remain protected by moderation, privacy, and clear permission boundaries
 
-This is the communication and trust layer that turns individual expert supply into dependable ProdUS delivery teams.
+ProdUS Studio is the owner-facing productization workspace. ProdUS Network is the communication and trust layer that turns individual expert supply into dependable ProdUS delivery teams.
