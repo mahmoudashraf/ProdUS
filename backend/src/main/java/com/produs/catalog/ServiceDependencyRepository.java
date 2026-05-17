@@ -8,4 +8,5 @@ import java.util.UUID;
 public interface ServiceDependencyRepository extends JpaRepository<ServiceDependency, UUID> {
     List<ServiceDependency> findBySourceModuleAndRequiredTrue(ServiceModule sourceModule);
     List<ServiceDependency> findBySourceModuleId(UUID sourceModuleId);
+    List<ServiceDependency> findBySourceModuleIdIn(List<UUID> sourceModuleIds);
 }

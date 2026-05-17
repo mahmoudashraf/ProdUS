@@ -1,5 +1,6 @@
 package com.produs.cart;
 
+import com.produs.catalog.CatalogRuleEngine;
 import com.produs.dto.PlatformDtos.ProductizationCartConvertResponse;
 import com.produs.dto.PlatformDtos.ProductizationCartResponse;
 import com.produs.entity.User;
@@ -28,11 +29,12 @@ import static com.produs.dto.PlatformDtos.toProjectWorkspaceResponse;
 public class ProductizationCartController {
 
     private final ProductizationCartService cartService;
+    private final CatalogRuleEngine catalogRuleEngine;
 
     @GetMapping("/current")
     public ProductizationCartResponse current(@AuthenticationPrincipal User user) {
         ProductizationCart cart = cartService.current(user);
-        return toProductizationCartResponse(cart, cartService.services(cart), cartService.talent(cart));
+        return toCartResponse(cart);
     }
 
     @PutMapping("/current")
@@ -41,7 +43,7 @@ public class ProductizationCartController {
             @RequestBody ProductizationCartService.CartUpdateRequest request
     ) {
         ProductizationCart cart = cartService.update(user, request);
-        return toProductizationCartResponse(cart, cartService.services(cart), cartService.talent(cart));
+        return toCartResponse(cart);
     }
 
     @PostMapping("/services")
@@ -51,14 +53,14 @@ public class ProductizationCartController {
     ) {
         cartService.addService(user, new ProductizationCartService.ServiceItemRequest(request.serviceModuleId(), request.notes()));
         ProductizationCart cart = cartService.current(user);
-        return toProductizationCartResponse(cart, cartService.services(cart), cartService.talent(cart));
+        return toCartResponse(cart);
     }
 
     @DeleteMapping("/services/{itemId}")
     public ProductizationCartResponse removeService(@AuthenticationPrincipal User user, @PathVariable UUID itemId) {
         cartService.removeService(user, itemId);
         ProductizationCart cart = cartService.current(user);
-        return toProductizationCartResponse(cart, cartService.services(cart), cartService.talent(cart));
+        return toCartResponse(cart);
     }
 
     @PostMapping("/talent")
@@ -73,14 +75,14 @@ public class ProductizationCartController {
                 request.notes()
         ));
         ProductizationCart cart = cartService.current(user);
-        return toProductizationCartResponse(cart, cartService.services(cart), cartService.talent(cart));
+        return toCartResponse(cart);
     }
 
     @DeleteMapping("/talent/{itemId}")
     public ProductizationCartResponse removeTalent(@AuthenticationPrincipal User user, @PathVariable UUID itemId) {
         cartService.removeTalent(user, itemId);
         ProductizationCart cart = cartService.current(user);
-        return toProductizationCartResponse(cart, cartService.services(cart), cartService.talent(cart));
+        return toCartResponse(cart);
     }
 
     @PostMapping("/convert")
@@ -89,16 +91,22 @@ public class ProductizationCartController {
             @RequestBody ProductizationCartService.CartConvertRequest request
     ) {
         ProductizationCartService.ConversionResult result = cartService.convert(user, request);
-        ProductizationCartResponse cartResponse = toProductizationCartResponse(
-                result.cart(),
-                result.serviceItems(),
-                result.talentItems()
-        );
+        ProductizationCartResponse cartResponse = toCartResponse(result.cart());
         return new ProductizationCartConvertResponse(
                 cartResponse,
                 toPackageInstanceResponse(result.packageInstance()),
                 toProjectWorkspaceResponse(result.workspace())
         );
+    }
+
+    private ProductizationCartResponse toCartResponse(ProductizationCart cart) {
+        var serviceItems = cartService.services(cart);
+        var talentItems = cartService.talent(cart);
+        var evaluation = catalogRuleEngine.evaluate(
+                serviceItems.stream().map(item -> item.getServiceModule().getId()).toList(),
+                cart.getBusinessGoal()
+        );
+        return toProductizationCartResponse(cart, serviceItems, talentItems, evaluation);
     }
 
     public record AddServiceRequest(

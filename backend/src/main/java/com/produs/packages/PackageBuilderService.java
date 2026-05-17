@@ -2,7 +2,6 @@ package com.produs.packages;
 
 import com.produs.ai.AIRecommendation;
 import com.produs.ai.AIRecommendationRepository;
-import com.produs.ai.loom.LoomAIProvider;
 import com.produs.catalog.ServiceDependency;
 import com.produs.catalog.ServiceDependencyRepository;
 import com.produs.catalog.ServiceModule;
@@ -29,7 +28,6 @@ public class PackageBuilderService {
     private final PackageInstanceRepository packageRepository;
     private final PackageModuleRepository packageModuleRepository;
     private final AIRecommendationRepository recommendationRepository;
-    private final LoomAIProvider loomAIProvider;
 
     @Transactional
     public PackageInstance buildFromRequirement(User owner, UUID requirementId) {
@@ -95,7 +93,7 @@ public class PackageBuilderService {
         recommendation.setSourceEntityId(requirement.getId().toString());
         double fallbackConfidence = moduleNames.isEmpty() ? 0.64 : 0.86;
         String deterministicOutputJson = """
-                {"packageId":"%s","packageName":"%s","modules":[%s]}
+                {"mode":"RULES_FALLBACK","packageId":"%s","packageName":"%s","modules":[%s]}
                 """.formatted(
                 packageInstance.getId(),
                 escapeJson(packageInstance.getName()),
@@ -104,17 +102,10 @@ public class PackageBuilderService {
                         .reduce((left, right) -> left + "," + right)
                         .orElse("")
         ).trim();
-        LoomAIProvider.PackageGovernanceResult governance = loomAIProvider.reviewPackage(
-                requirement,
-                packageInstance,
-                moduleNames,
-                deterministicOutputJson,
-                fallbackConfidence
-        );
-        recommendation.setPromptVersion(governance.promptVersion());
-        recommendation.setConfidence(governance.confidence());
-        recommendation.setRationale(governance.rationale());
-        recommendation.setOutputJson(governance.outputJson());
+        recommendation.setPromptVersion("rules-v1");
+        recommendation.setConfidence(fallbackConfidence);
+        recommendation.setRationale("Deterministic catalog composition from owner intake, selected service, and required service dependencies. No AI execution was performed.");
+        recommendation.setOutputJson(deterministicOutputJson);
         recommendationRepository.save(recommendation);
     }
 

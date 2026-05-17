@@ -1,5 +1,7 @@
 package com.produs.cart;
 
+import com.produs.catalog.ServiceDependency;
+import com.produs.catalog.ServiceDependencyRepository;
 import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
 import com.produs.entity.User;
@@ -18,6 +20,8 @@ import com.produs.teams.TeamMember;
 import com.produs.teams.TeamMemberRepository;
 import com.produs.teams.TeamRepository;
 import com.produs.workspace.Milestone;
+import com.produs.workspace.Deliverable;
+import com.produs.workspace.DeliverableRepository;
 import com.produs.workspace.MilestoneRepository;
 import com.produs.workspace.ProjectWorkspace;
 import com.produs.workspace.ProjectWorkspaceRepository;
@@ -41,6 +45,7 @@ public class ProductizationCartService {
     private final ProductizationCartTalentItemRepository talentItemRepository;
     private final ProductProfileRepository productProfileRepository;
     private final ServiceModuleRepository serviceModuleRepository;
+    private final ServiceDependencyRepository dependencyRepository;
     private final TeamRepository teamRepository;
     private final ExpertProfileRepository expertProfileRepository;
     private final PackageInstanceRepository packageRepository;
@@ -48,6 +53,7 @@ public class ProductizationCartService {
     private final ProjectWorkspaceRepository workspaceRepository;
     private final WorkspaceParticipantRepository participantRepository;
     private final MilestoneRepository milestoneRepository;
+    private final DeliverableRepository deliverableRepository;
     private final TeamShortlistRepository shortlistRepository;
     private final TeamMemberRepository teamMemberRepository;
 
@@ -181,17 +187,18 @@ public class ProductizationCartService {
         packageInstance.setStatus(PackageInstance.PackageStatus.AWAITING_TEAM);
         packageInstance = packageRepository.save(packageInstance);
 
+        List<PlannedModule> plannedModules = plannedModules(services);
         int order = 1;
-        for (ProductizationCartServiceItem serviceItem : services) {
-            ServiceModule module = serviceItem.getServiceModule();
+        for (PlannedModule plannedModule : plannedModules) {
+            ServiceModule module = plannedModule.module();
             PackageModule packageModule = new PackageModule();
             packageModule.setPackageInstance(packageInstance);
             packageModule.setServiceModule(module);
             packageModule.setSequenceOrder(order++);
-            packageModule.setRequired(true);
-            packageModule.setRationale(serviceItem.getNotes() == null || serviceItem.getNotes().isBlank()
+            packageModule.setRequired(plannedModule.required());
+            packageModule.setRationale(plannedModule.rationale() == null || plannedModule.rationale().isBlank()
                     ? "Selected by the owner from the lifecycle service cart."
-                    : serviceItem.getNotes());
+                    : plannedModule.rationale());
             packageModule.setDeliverables(module.getExpectedDeliverables());
             packageModule.setAcceptanceCriteria(module.getAcceptanceCriteria());
             packageModuleRepository.save(packageModule);
@@ -216,7 +223,7 @@ public class ProductizationCartService {
                 ensureParticipant(workspace, talentItem.getExpertProfile().getUser(), owner, WorkspaceParticipant.ParticipantRole.SPECIALIST);
             }
         }
-        createMilestones(workspace, services);
+        createMilestones(workspace, plannedModules);
 
         cart.setStatus(ProductizationCart.CartStatus.CONVERTED);
         cart.setConvertedPackage(packageInstance);
@@ -278,19 +285,62 @@ public class ProductizationCartService {
         participantRepository.save(participant);
     }
 
-    private void createMilestones(ProjectWorkspace workspace, List<ProductizationCartServiceItem> services) {
+    private List<PlannedModule> plannedModules(List<ProductizationCartServiceItem> services) {
+        List<PlannedModule> planned = new java.util.ArrayList<>();
+        java.util.Set<UUID> seen = new java.util.LinkedHashSet<>();
+        for (ProductizationCartServiceItem serviceItem : services) {
+            ServiceModule module = serviceItem.getServiceModule();
+            if (seen.add(module.getId())) {
+                planned.add(new PlannedModule(
+                        module,
+                        true,
+                        serviceItem.getNotes() == null || serviceItem.getNotes().isBlank()
+                                ? "Selected by the owner from the lifecycle service cart."
+                                : serviceItem.getNotes()
+                ));
+            }
+            for (ServiceDependency dependency : dependencyRepository.findBySourceModuleAndRequiredTrue(module)) {
+                ServiceModule dependent = dependency.getDependsOnModule();
+                if (dependent != null && dependent.isActive() && seen.add(dependent.getId())) {
+                    planned.add(new PlannedModule(
+                            dependent,
+                            dependency.isRequired(),
+                            firstNonBlank(
+                                    dependency.getMessage(),
+                                    dependency.getReason(),
+                                    "Required dependency for a complete productization plan."
+                            )
+                    ));
+                }
+            }
+        }
+        return planned;
+    }
+
+    private void createMilestones(ProjectWorkspace workspace, List<PlannedModule> plannedModules) {
         LocalDate startDate = LocalDate.now();
         int offset = 7;
-        for (ProductizationCartServiceItem item : services) {
-            ServiceModule module = item.getServiceModule();
+        for (PlannedModule plannedModule : plannedModules) {
+            ServiceModule module = plannedModule.module();
             Milestone milestone = new Milestone();
             milestone.setWorkspace(workspace);
             milestone.setTitle(module.getName());
-            milestone.setDescription(module.getExpectedDeliverables());
+            milestone.setDescription(firstNonBlank(module.getWorkflowSteps(), module.getExpectedDeliverables(), module.getDescription()));
             milestone.setDueDate(startDate.plusDays(offset));
-            milestoneRepository.save(milestone);
+            milestone = milestoneRepository.save(milestone);
+            createDeliverable(milestone, "Acceptance evidence", module.getAcceptanceCriteria());
+            createDeliverable(milestone, "Required evidence", firstNonBlank(module.getRequiredEvidenceTypes(), module.getExpectedDeliverables()));
             offset += 7;
         }
+    }
+
+    private void createDeliverable(Milestone milestone, String title, String evidence) {
+        Deliverable deliverable = new Deliverable();
+        deliverable.setMilestone(milestone);
+        deliverable.setTitle(title);
+        deliverable.setEvidence(evidence);
+        deliverable.setStatus(Deliverable.DeliverableStatus.PENDING);
+        deliverableRepository.save(deliverable);
     }
 
     private String buildSummary(ProductizationCart cart, List<ProductizationCartServiceItem> services) {
@@ -321,7 +371,17 @@ public class ProductizationCartService {
     public record CartUpdateRequest(UUID productProfileId, String title, String businessGoal) {}
     public record ServiceItemRequest(UUID serviceModuleId, String notes) {}
     public record TalentItemRequest(ProductizationCartTalentItem.TalentItemType itemType, UUID teamId, UUID expertProfileId, String notes) {}
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
     public record CartConvertRequest(String projectName) {}
+    private record PlannedModule(ServiceModule module, boolean required, String rationale) {}
     public record ConversionResult(
             ProductizationCart cart,
             List<ProductizationCartServiceItem> serviceItems,

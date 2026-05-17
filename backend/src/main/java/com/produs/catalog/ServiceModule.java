@@ -27,8 +27,17 @@ public class ServiceModule extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String slug;
 
+    @Column(name = "stable_code", unique = true)
+    private String stableCode;
+
+    @Column(name = "service_layer")
+    private String serviceLayer;
+
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "owner_outcome", columnDefinition = "TEXT")
+    private String ownerOutcome;
 
     @Column(name = "required_inputs", columnDefinition = "TEXT")
     private String requiredInputs;
@@ -44,6 +53,33 @@ public class ServiceModule extends BaseEntity {
 
     @Column(name = "price_range")
     private String priceRange;
+
+    @Column(name = "workflow_steps", columnDefinition = "TEXT")
+    private String workflowSteps;
+
+    @Column(name = "required_evidence_types", columnDefinition = "TEXT")
+    private String requiredEvidenceTypes;
+
+    @Column(name = "suggested_team_roles", columnDefinition = "TEXT")
+    private String suggestedTeamRoles;
+
+    @Column(name = "ai_assistance_tags", columnDefinition = "TEXT")
+    private String aiAssistanceTags;
+
+    @Column(name = "human_review_required", nullable = false)
+    private boolean humanReviewRequired = true;
+
+    @Column(name = "visible", nullable = false)
+    private boolean visible = true;
+
+    @Column(name = "release_stage")
+    private String releaseStage;
+
+    @Column(name = "maturity_level")
+    private String maturityLevel;
+
+    @Column(name = "source_aliases", columnDefinition = "TEXT")
+    private String sourceAliases;
 
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder = 0;

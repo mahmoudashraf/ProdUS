@@ -5,6 +5,11 @@ import com.produs.attachments.EvidenceAttachment;
 import com.produs.cart.ProductizationCart;
 import com.produs.cart.ProductizationCartServiceItem;
 import com.produs.cart.ProductizationCartTalentItem;
+import com.produs.catalog.AICapabilityConfig;
+import com.produs.catalog.CatalogRule;
+import com.produs.catalog.CatalogTemplateDefinition;
+import com.produs.catalog.PackageTemplate;
+import com.produs.catalog.PackageTemplateModule;
 import com.produs.catalog.ServiceCategory;
 import com.produs.catalog.ServiceDependency;
 import com.produs.catalog.ServiceModule;
@@ -65,12 +70,24 @@ public final class PlatformDtos {
             ServiceCategoryResponse category,
             String name,
             String slug,
+            String stableCode,
+            String serviceLayer,
             String description,
+            String ownerOutcome,
             String requiredInputs,
             String expectedDeliverables,
             String acceptanceCriteria,
             String timelineRange,
             String priceRange,
+            String workflowSteps,
+            String requiredEvidenceTypes,
+            String suggestedTeamRoles,
+            String aiAssistanceTags,
+            boolean humanReviewRequired,
+            boolean visible,
+            String releaseStage,
+            String maturityLevel,
+            String sourceAliases,
             Integer sortOrder,
             boolean active
     ) {}
@@ -82,7 +99,110 @@ public final class PlatformDtos {
             ServiceModuleResponse sourceModule,
             ServiceModuleResponse dependsOnModule,
             String reason,
+            String message,
+            ServiceDependency.DependencyType dependencyType,
+            ServiceDependency.DependencySeverity severity,
+            String ruleMetadata,
             boolean required
+    ) {}
+
+    public record PackageTemplateResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            String name,
+            String slug,
+            String description,
+            String targetProductStage,
+            String customerFit,
+            String timelineRange,
+            String budgetRange,
+            String outcomeSummary,
+            String aiReadinessNotes,
+            boolean humanReviewRequired,
+            boolean active,
+            Integer sortOrder,
+            List<PackageTemplateModuleResponse> modules
+    ) {}
+
+    public record PackageTemplateModuleResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            ServiceModuleResponse serviceModule,
+            Integer sequenceOrder,
+            boolean required,
+            String phaseName,
+            String rationale
+    ) {}
+
+    public record CatalogRuleResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            String slug,
+            CatalogRule.RuleType ruleType,
+            String triggerKey,
+            ServiceModuleResponse sourceModule,
+            ServiceModuleResponse recommendedModule,
+            ServiceDependency.DependencySeverity severity,
+            String message,
+            String ruleMetadata,
+            boolean humanReviewRequired,
+            boolean active,
+            Integer sortOrder
+    ) {}
+
+    public record CatalogTemplateDefinitionResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            String slug,
+            CatalogTemplateDefinition.TemplateType templateType,
+            String name,
+            String description,
+            String requiredInputs,
+            String content,
+            String outputContract,
+            boolean active,
+            Integer sortOrder
+    ) {}
+
+    public record AICapabilityConfigResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            String slug,
+            String name,
+            String capabilityType,
+            String description,
+            String inputContract,
+            String outputContract,
+            String allowedSources,
+            String forbiddenClaims,
+            boolean humanReviewRequired,
+            boolean enabled,
+            Integer sortOrder
+    ) {}
+
+    public record CatalogRuleItemResponse(
+            String source,
+            ServiceModuleResponse sourceModule,
+            ServiceModuleResponse recommendedModule,
+            String reason,
+            ServiceDependency.DependencySeverity severity,
+            boolean required,
+            boolean alreadySelected
+    ) {}
+
+    public record CatalogRuleEvaluationResponse(
+            List<ServiceModuleResponse> selectedModules,
+            List<CatalogRuleItemResponse> recommendations,
+            int blockerCount,
+            int warningCount,
+            List<String> nextBestActions,
+            boolean aiReady,
+            boolean aiExecuted
     ) {}
 
     public record ProductProfileResponse(
@@ -259,7 +379,8 @@ public final class PlatformDtos {
             List<ProductizationCartServiceItemResponse> serviceItems,
             List<ProductizationCartTalentItemResponse> talentItems,
             PackageInstanceResponse convertedPackage,
-            ProjectWorkspaceResponse convertedWorkspace
+            ProjectWorkspaceResponse convertedWorkspace,
+            CatalogRuleEvaluationResponse catalogEvaluation
     ) {}
 
     public record ProductizationCartConvertResponse(
@@ -646,12 +767,24 @@ public final class PlatformDtos {
                 toServiceCategoryResponse(module.getCategory()),
                 module.getName(),
                 module.getSlug(),
+                module.getStableCode(),
+                module.getServiceLayer(),
                 module.getDescription(),
+                module.getOwnerOutcome(),
                 module.getRequiredInputs(),
                 module.getExpectedDeliverables(),
                 module.getAcceptanceCriteria(),
                 module.getTimelineRange(),
                 module.getPriceRange(),
+                module.getWorkflowSteps(),
+                module.getRequiredEvidenceTypes(),
+                module.getSuggestedTeamRoles(),
+                module.getAiAssistanceTags(),
+                module.isHumanReviewRequired(),
+                module.isVisible(),
+                module.getReleaseStage(),
+                module.getMaturityLevel(),
+                module.getSourceAliases(),
                 module.getSortOrder(),
                 module.isActive()
         );
@@ -668,7 +801,118 @@ public final class PlatformDtos {
                 toServiceModuleResponse(dependency.getSourceModule()),
                 toServiceModuleResponse(dependency.getDependsOnModule()),
                 dependency.getReason(),
+                dependency.getMessage(),
+                dependency.getDependencyType(),
+                dependency.getSeverity(),
+                dependency.getRuleMetadata(),
                 dependency.isRequired()
+        );
+    }
+
+    public static PackageTemplateModuleResponse toPackageTemplateModuleResponse(PackageTemplateModule templateModule) {
+        if (templateModule == null) {
+            return null;
+        }
+        return new PackageTemplateModuleResponse(
+                templateModule.getId(),
+                templateModule.getCreatedAt(),
+                templateModule.getUpdatedAt(),
+                toServiceModuleResponse(templateModule.getServiceModule()),
+                templateModule.getSequenceOrder(),
+                templateModule.isRequired(),
+                templateModule.getPhaseName(),
+                templateModule.getRationale()
+        );
+    }
+
+    public static PackageTemplateResponse toPackageTemplateResponse(
+            PackageTemplate template,
+            List<PackageTemplateModule> modules
+    ) {
+        if (template == null) {
+            return null;
+        }
+        return new PackageTemplateResponse(
+                template.getId(),
+                template.getCreatedAt(),
+                template.getUpdatedAt(),
+                template.getName(),
+                template.getSlug(),
+                template.getDescription(),
+                template.getTargetProductStage(),
+                template.getCustomerFit(),
+                template.getTimelineRange(),
+                template.getBudgetRange(),
+                template.getOutcomeSummary(),
+                template.getAiReadinessNotes(),
+                template.isHumanReviewRequired(),
+                template.isActive(),
+                template.getSortOrder(),
+                modules.stream().map(PlatformDtos::toPackageTemplateModuleResponse).toList()
+        );
+    }
+
+    public static CatalogRuleResponse toCatalogRuleResponse(CatalogRule rule) {
+        if (rule == null) {
+            return null;
+        }
+        return new CatalogRuleResponse(
+                rule.getId(),
+                rule.getCreatedAt(),
+                rule.getUpdatedAt(),
+                rule.getSlug(),
+                rule.getRuleType(),
+                rule.getTriggerKey(),
+                toServiceModuleResponse(rule.getSourceModule()),
+                toServiceModuleResponse(rule.getRecommendedModule()),
+                rule.getSeverity(),
+                rule.getMessage(),
+                rule.getRuleMetadata(),
+                rule.isHumanReviewRequired(),
+                rule.isActive(),
+                rule.getSortOrder()
+        );
+    }
+
+    public static CatalogTemplateDefinitionResponse toCatalogTemplateDefinitionResponse(CatalogTemplateDefinition definition) {
+        if (definition == null) {
+            return null;
+        }
+        return new CatalogTemplateDefinitionResponse(
+                definition.getId(),
+                definition.getCreatedAt(),
+                definition.getUpdatedAt(),
+                definition.getSlug(),
+                definition.getTemplateType(),
+                definition.getName(),
+                definition.getDescription(),
+                definition.getRequiredInputs(),
+                definition.getContent(),
+                definition.getOutputContract(),
+                definition.isActive(),
+                definition.getSortOrder()
+        );
+    }
+
+    public static AICapabilityConfigResponse toAICapabilityConfigResponse(AICapabilityConfig config) {
+        if (config == null) {
+            return null;
+        }
+        return new AICapabilityConfigResponse(
+                config.getId(),
+                config.getCreatedAt(),
+                config.getUpdatedAt(),
+                config.getSlug(),
+                config.getName(),
+                config.getCapabilityType(),
+                config.getDescription(),
+                config.getInputContract(),
+                config.getOutputContract(),
+                config.getAllowedSources(),
+                config.getForbiddenClaims(),
+                config.isHumanReviewRequired(),
+                config.isEnabled(),
+                config.getSortOrder()
         );
     }
 
@@ -919,7 +1163,34 @@ public final class PlatformDtos {
                 serviceItems.stream().map(PlatformDtos::toProductizationCartServiceItemResponse).toList(),
                 talentItems.stream().map(PlatformDtos::toProductizationCartTalentItemResponse).toList(),
                 toPackageInstanceResponse(cart.getConvertedPackage()),
-                toProjectWorkspaceResponse(cart.getConvertedWorkspace())
+                toProjectWorkspaceResponse(cart.getConvertedWorkspace()),
+                null
+        );
+    }
+
+    public static ProductizationCartResponse toProductizationCartResponse(
+            ProductizationCart cart,
+            List<ProductizationCartServiceItem> serviceItems,
+            List<ProductizationCartTalentItem> talentItems,
+            CatalogRuleEvaluationResponse catalogEvaluation
+    ) {
+        if (cart == null) {
+            return null;
+        }
+        return new ProductizationCartResponse(
+                cart.getId(),
+                cart.getCreatedAt(),
+                cart.getUpdatedAt(),
+                toCurrentUserSummary(cart.getOwner()),
+                toProductProfileResponse(cart.getProductProfile()),
+                cart.getTitle(),
+                cart.getBusinessGoal(),
+                cart.getStatus(),
+                serviceItems.stream().map(PlatformDtos::toProductizationCartServiceItemResponse).toList(),
+                talentItems.stream().map(PlatformDtos::toProductizationCartTalentItemResponse).toList(),
+                toPackageInstanceResponse(cart.getConvertedPackage()),
+                toProjectWorkspaceResponse(cart.getConvertedWorkspace()),
+                catalogEvaluation
         );
     }
 

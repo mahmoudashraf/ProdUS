@@ -81,6 +81,13 @@ export default function DraftProjectCartPage() {
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
+  const addRecommendedService = useMutation({
+    mutationFn: (payload: { serviceModuleId: string; notes: string }) => postJson<ProductizationCart, { serviceModuleId: string; notes: string }>('/productization-cart/services', payload),
+    onSuccess: async () => {
+      setNotice('Recommended service added from catalog dependency rules.');
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
   const convertCart = useMutation({
     mutationFn: () =>
       postJson<ProductizationCartConvertResponse, CartConvertPayload>('/productization-cart/convert', {
@@ -103,7 +110,8 @@ export default function DraftProjectCartPage() {
   const hasPlaceholderProduct = isPlaceholderProduct(product);
   const serviceCount = currentCart?.serviceItems.length || 0;
   const talentCount = currentCart?.talentItems.length || 0;
-  const canStartWorkspace = !!product && !hasPlaceholderProduct && serviceCount > 0;
+  const blockers = currentCart?.catalogEvaluation?.blockerCount || 0;
+  const canStartWorkspace = !!product && !hasPlaceholderProduct && serviceCount > 0 && blockers === 0;
   const score = readinessScore(currentCart);
 
   const selectProduct = (productId: string) => {
@@ -262,6 +270,69 @@ export default function DraftProjectCartPage() {
             )}
           </Surface>
 
+          {currentCart?.catalogEvaluation?.recommendations.length ? (
+            <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fffaf1 100%)' }}>
+              <SectionTitle
+                title="Catalog Recommendations"
+                action={<StatusChip label={blockers ? `${blockers} blockers` : 'Dependency aware'} color={blockers ? 'error' : 'warning'} />}
+              />
+              <Stack spacing={1.25}>
+                {currentCart.catalogEvaluation.recommendations.slice(0, 5).map((item) => (
+                  <Box
+                    key={`${item.source}-${item.recommendedModule.id}`}
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', md: '1fr auto' },
+                      gap: 1.5,
+                      alignItems: 'center',
+                      p: 1.5,
+                      border: '1px solid',
+                      borderColor: item.severity === 'BLOCKER' ? '#fecdd3' : '#fde68a',
+                      borderRadius: 1,
+                      bgcolor: '#fff',
+                    }}
+                  >
+                    <Box>
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                        <Typography sx={{ fontWeight: 900 }}>{item.recommendedModule.name}</Typography>
+                        <StatusChip label={item.severity} color={item.severity === 'BLOCKER' ? 'error' : 'warning'} />
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
+                        {item.reason || item.recommendedModule.ownerOutcome || item.recommendedModule.description}
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant="contained"
+                      startIcon={<AddShoppingCartOutlined />}
+                      disabled={addRecommendedService.isPending}
+                      onClick={() =>
+                        addRecommendedService.mutate({
+                          serviceModuleId: item.recommendedModule.id,
+                          notes: `Added from catalog ${formatLabel(item.source)} rule.`,
+                        })
+                      }
+                      sx={{ minHeight: 42, minWidth: 148 }}
+                    >
+                      Add service
+                    </Button>
+                  </Box>
+                ))}
+                <Stack spacing={0.75}>
+                  {(currentCart.catalogEvaluation.nextBestActions || []).map((action) => (
+                    <DotLabel key={action} label={action} color={blockers ? appleColors.red : appleColors.amber} />
+                  ))}
+                </Stack>
+              </Stack>
+            </Surface>
+          ) : serviceCount ? (
+            <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f6fff9)' }}>
+              <SectionTitle title="Catalog Recommendations" action={<StatusChip label="Complete" color="success" />} />
+              <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
+                The selected lifecycle services are dependency-complete for the current catalog rules. AI-ready metadata is attached, but no AI execution is performed.
+              </Typography>
+            </Surface>
+          ) : null}
+
           <Surface>
             <SectionTitle title="Teams And Experts" action={<Button component={NextLink} href="/teams" variant="text" endIcon={<ArrowForwardOutlined />}>Add talent</Button>} />
             {currentCart?.talentItems.length ? (
@@ -332,6 +403,7 @@ export default function DraftProjectCartPage() {
               </Button>
               {(!product || hasPlaceholderProduct) && <DotLabel label="Select a production product first" color={appleColors.amber} />}
               {product && !serviceCount && <DotLabel label="Add at least one service" color={appleColors.amber} />}
+              {serviceCount > 0 && blockers > 0 && <DotLabel label="Add blocker dependencies before starting" color={appleColors.red} />}
               {(createdWorkspace || currentCart?.convertedWorkspace) && (
                 <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>
                   Open created workspace

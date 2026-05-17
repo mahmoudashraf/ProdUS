@@ -67,6 +67,15 @@ class PostgresLiquibaseContainerTest {
         assertTableExists("expert_profiles");
         assertTableExists("team_invitations");
         assertTableExists("team_join_requests");
+        assertTableExists("catalog_package_templates");
+        assertTableExists("catalog_package_template_modules");
+        assertTableExists("catalog_rules");
+        assertTableExists("catalog_template_definitions");
+        assertTableExists("catalog_ai_capability_configs");
+        assertColumnExists("service_modules", "stable_code");
+        assertColumnExists("service_modules", "required_evidence_types");
+        assertColumnExists("service_dependencies", "dependency_type");
+        assertColumnExists("service_dependencies", "severity");
         assertColumnExists("teams", "bio");
         assertColumnExists("teams", "profile_photo_url");
         assertColumnExists("teams", "cover_photo_url");

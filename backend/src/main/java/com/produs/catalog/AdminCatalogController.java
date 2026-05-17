@@ -49,12 +49,24 @@ public class AdminCatalogController {
         module.setCategory(category);
         module.setName(request.name());
         module.setSlug(request.slug());
+        module.setStableCode(request.stableCode());
+        module.setServiceLayer(request.serviceLayer());
         module.setDescription(request.description());
+        module.setOwnerOutcome(request.ownerOutcome());
         module.setRequiredInputs(request.requiredInputs());
         module.setExpectedDeliverables(request.expectedDeliverables());
         module.setAcceptanceCriteria(request.acceptanceCriteria());
         module.setTimelineRange(request.timelineRange());
         module.setPriceRange(request.priceRange());
+        module.setWorkflowSteps(request.workflowSteps());
+        module.setRequiredEvidenceTypes(request.requiredEvidenceTypes());
+        module.setSuggestedTeamRoles(request.suggestedTeamRoles());
+        module.setAiAssistanceTags(request.aiAssistanceTags());
+        module.setHumanReviewRequired(request.humanReviewRequired() == null || request.humanReviewRequired());
+        module.setVisible(request.visible() == null || request.visible());
+        module.setReleaseStage(request.releaseStage());
+        module.setMaturityLevel(request.maturityLevel());
+        module.setSourceAliases(request.sourceAliases());
         module.setSortOrder(request.sortOrder() == null ? 0 : request.sortOrder());
         module.setActive(request.active() == null || request.active());
         return toServiceModuleResponse(moduleRepository.save(module));
@@ -71,6 +83,10 @@ public class AdminCatalogController {
         serviceDependency.setSourceModule(source);
         serviceDependency.setDependsOnModule(dependency);
         serviceDependency.setReason(request.reason());
+        serviceDependency.setMessage(request.message());
+        serviceDependency.setDependencyType(request.dependencyType() == null ? ServiceDependency.DependencyType.HARD : request.dependencyType());
+        serviceDependency.setSeverity(request.severity() == null ? ServiceDependency.DependencySeverity.BLOCKER : request.severity());
+        serviceDependency.setRuleMetadata(request.ruleMetadata());
         serviceDependency.setRequired(request.required() == null || request.required());
         return toServiceDependencyResponse(dependencyRepository.save(serviceDependency));
     }
@@ -91,12 +107,24 @@ public class AdminCatalogController {
             String name,
             @NotBlank(message = "Module slug is required")
             String slug,
+            String stableCode,
+            String serviceLayer,
             String description,
+            String ownerOutcome,
             String requiredInputs,
             String expectedDeliverables,
             String acceptanceCriteria,
             String timelineRange,
             String priceRange,
+            String workflowSteps,
+            String requiredEvidenceTypes,
+            String suggestedTeamRoles,
+            String aiAssistanceTags,
+            Boolean humanReviewRequired,
+            Boolean visible,
+            String releaseStage,
+            String maturityLevel,
+            String sourceAliases,
             Integer sortOrder,
             Boolean active
     ) {}
@@ -106,6 +134,10 @@ public class AdminCatalogController {
             @NotNull(message = "Dependent module is required")
             UUID dependsOnModuleId,
             String reason,
+            String message,
+            ServiceDependency.DependencyType dependencyType,
+            ServiceDependency.DependencySeverity severity,
+            String ruleMetadata,
             Boolean required
     ) {}
 }

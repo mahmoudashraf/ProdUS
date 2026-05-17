@@ -8,6 +8,9 @@ import java.util.UUID;
 
 public interface ServiceModuleRepository extends JpaRepository<ServiceModule, UUID> {
     List<ServiceModule> findByActiveTrueOrderBySortOrderAscNameAsc();
+    List<ServiceModule> findByActiveTrueAndVisibleTrueOrderBySortOrderAscNameAsc();
     List<ServiceModule> findByCategoryIdAndActiveTrueOrderBySortOrderAscNameAsc(UUID categoryId);
+    List<ServiceModule> findByServiceLayerAndActiveTrueOrderBySortOrderAscNameAsc(String serviceLayer);
     Optional<ServiceModule> findBySlug(String slug);
+    Optional<ServiceModule> findByStableCode(String stableCode);
 }

@@ -210,16 +210,19 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         Map<String, ServiceModule> modules = new LinkedHashMap<>();
         for (ModuleSeed seed : seeds) {
             ServiceModule module = moduleRepository.findBySlug(seed.slug()).orElseGet(ServiceModule::new);
-            module.setCategory(categories.get(seed.categorySlug()));
-            module.setName(seed.name());
-            module.setSlug(seed.slug());
-            module.setDescription(seed.description());
-            module.setRequiredInputs(seed.requiredInputs());
-            module.setExpectedDeliverables(seed.deliverables());
-            module.setAcceptanceCriteria(seed.acceptanceCriteria());
-            module.setTimelineRange(seed.timelineRange());
-            module.setPriceRange(seed.priceRange());
-            module.setSortOrder(seed.sortOrder());
+            boolean coreCatalogModule = module.getStableCode() != null && !module.getStableCode().isBlank();
+            if (!coreCatalogModule) {
+                module.setCategory(categories.get(seed.categorySlug()));
+                module.setName(seed.name());
+                module.setSlug(seed.slug());
+                module.setDescription(seed.description());
+                module.setRequiredInputs(seed.requiredInputs());
+                module.setExpectedDeliverables(seed.deliverables());
+                module.setAcceptanceCriteria(seed.acceptanceCriteria());
+                module.setTimelineRange(seed.timelineRange());
+                module.setPriceRange(seed.priceRange());
+                module.setSortOrder(seed.sortOrder());
+            }
             module.setActive(true);
             modules.put(seed.slug(), moduleRepository.save(module));
         }

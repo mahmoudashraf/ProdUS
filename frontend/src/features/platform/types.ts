@@ -22,14 +22,130 @@ export interface ServiceModule extends BaseRecord {
   category?: ServiceCategory;
   name: string;
   slug: string;
+  stableCode?: string;
+  serviceLayer?: string;
   description?: string;
+  ownerOutcome?: string;
   requiredInputs?: string;
   expectedDeliverables?: string;
   acceptanceCriteria?: string;
   timelineRange?: string;
   priceRange?: string;
+  workflowSteps?: string;
+  requiredEvidenceTypes?: string;
+  suggestedTeamRoles?: string;
+  aiAssistanceTags?: string;
+  humanReviewRequired: boolean;
+  visible: boolean;
+  releaseStage?: string;
+  maturityLevel?: string;
+  sourceAliases?: string;
   sortOrder: number;
   active: boolean;
+}
+
+export interface ServiceDependency extends BaseRecord {
+  sourceModule?: ServiceModule;
+  dependsOnModule?: ServiceModule;
+  reason?: string;
+  message?: string;
+  dependencyType: 'HARD' | 'SOFT' | 'PARALLEL' | 'APPROVAL' | 'EVIDENCE' | 'ACCESS' | 'RISK' | 'COMMERCIAL';
+  severity: 'INFO' | 'RECOMMENDED' | 'WARNING' | 'BLOCKER';
+  ruleMetadata?: string;
+  required: boolean;
+}
+
+export interface PackageTemplateModule extends BaseRecord {
+  serviceModule: ServiceModule;
+  sequenceOrder: number;
+  required: boolean;
+  phaseName?: string;
+  rationale?: string;
+}
+
+export interface PackageTemplate extends BaseRecord {
+  name: string;
+  slug: string;
+  description?: string;
+  targetProductStage?: string;
+  customerFit?: string;
+  timelineRange?: string;
+  budgetRange?: string;
+  outcomeSummary?: string;
+  aiReadinessNotes?: string;
+  humanReviewRequired: boolean;
+  active: boolean;
+  sortOrder: number;
+  modules: PackageTemplateModule[];
+}
+
+export interface CatalogRule extends BaseRecord {
+  slug: string;
+  ruleType: 'SERVICE_SELECTED' | 'GOAL_KEYWORD' | 'PRODUCT_STAGE' | 'RISK_SIGNAL' | 'ALWAYS';
+  triggerKey?: string;
+  sourceModule?: ServiceModule;
+  recommendedModule: ServiceModule;
+  severity: 'INFO' | 'RECOMMENDED' | 'WARNING' | 'BLOCKER';
+  message?: string;
+  ruleMetadata?: string;
+  humanReviewRequired: boolean;
+  active: boolean;
+  sortOrder: number;
+}
+
+export interface CatalogTemplateDefinition extends BaseRecord {
+  slug: string;
+  templateType:
+    | 'INTAKE'
+    | 'DIAGNOSIS'
+    | 'PACKAGE'
+    | 'MILESTONE'
+    | 'ACCEPTANCE_CRITERION'
+    | 'EVIDENCE'
+    | 'HANDOFF'
+    | 'SUPPORT'
+    | 'AI_CONTEXT';
+  name: string;
+  description?: string;
+  requiredInputs?: string;
+  content?: string;
+  outputContract?: string;
+  active: boolean;
+  sortOrder: number;
+}
+
+export interface AICapabilityConfig extends BaseRecord {
+  slug: string;
+  name: string;
+  capabilityType: string;
+  description?: string;
+  inputContract?: string;
+  outputContract?: string;
+  allowedSources?: string;
+  forbiddenClaims?: string;
+  humanReviewRequired: boolean;
+  enabled: boolean;
+  sortOrder: number;
+}
+
+export interface CatalogRuleItem {
+  source: string;
+  sourceModule?: ServiceModule;
+  recommendedModule: ServiceModule;
+  reason?: string;
+  severity: 'INFO' | 'RECOMMENDED' | 'WARNING' | 'BLOCKER';
+  required: boolean;
+  alreadySelected: boolean;
+}
+
+export interface CatalogRuleEvaluation {
+  selectedModules: ServiceModule[];
+  recommendations: CatalogRuleItem[];
+  blockerCount: number;
+  warningCount: number;
+  nextBestActions: string[];
+  aiReady: boolean;
+  aiExecuted: boolean;
 }
 
 export interface ProductProfile extends BaseRecord {
@@ -190,6 +306,7 @@ export interface ProductizationCart extends BaseRecord {
   talentItems: ProductizationCartTalentItem[];
   convertedPackage?: PackageInstance;
   convertedWorkspace?: ProjectWorkspace;
+  catalogEvaluation?: CatalogRuleEvaluation;
 }
 
 export interface ProductizationCartConvertResponse {

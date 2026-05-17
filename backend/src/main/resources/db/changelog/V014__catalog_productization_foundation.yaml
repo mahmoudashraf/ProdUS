@@ -1,0 +1,153 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1400
+      author: produs
+      changes:
+        - addColumn:
+            tableName: service_modules
+            columns:
+              - column: { name: stable_code, type: VARCHAR(255) }
+              - column: { name: service_layer, type: VARCHAR(255) }
+              - column: { name: owner_outcome, type: TEXT }
+              - column: { name: workflow_steps, type: TEXT }
+              - column: { name: required_evidence_types, type: TEXT }
+              - column: { name: suggested_team_roles, type: TEXT }
+              - column: { name: ai_assistance_tags, type: TEXT }
+              - column: { name: human_review_required, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: visible, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: release_stage, type: VARCHAR(255) }
+              - column: { name: maturity_level, type: VARCHAR(255) }
+              - column: { name: source_aliases, type: TEXT }
+        - addUniqueConstraint:
+            tableName: service_modules
+            columnNames: stable_code
+            constraintName: uk_service_modules_stable_code
+        - addColumn:
+            tableName: service_dependencies
+            columns:
+              - column: { name: message, type: TEXT }
+              - column: { name: dependency_type, type: VARCHAR(50), defaultValue: HARD, constraints: { nullable: false } }
+              - column: { name: severity, type: VARCHAR(50), defaultValue: BLOCKER, constraints: { nullable: false } }
+              - column: { name: rule_metadata, type: TEXT }
+
+  - changeSet:
+      id: 1401
+      author: produs
+      changes:
+        - createTable:
+            tableName: catalog_package_templates
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: slug, type: VARCHAR(255), constraints: { nullable: false, unique: true } }
+              - column: { name: description, type: TEXT }
+              - column: { name: target_product_stage, type: VARCHAR(255) }
+              - column: { name: customer_fit, type: TEXT }
+              - column: { name: timeline_range, type: VARCHAR(255) }
+              - column: { name: budget_range, type: VARCHAR(255) }
+              - column: { name: outcome_summary, type: TEXT }
+              - column: { name: ai_readiness_notes, type: TEXT }
+              - column: { name: human_review_required, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createTable:
+            tableName: catalog_package_template_modules
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: template_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: service_module_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: sequence_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: required, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: phase_name, type: VARCHAR(255) }
+              - column: { name: rationale, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: catalog_package_template_modules
+            columnNames: template_id, service_module_id
+            constraintName: uk_catalog_template_module
+        - addForeignKeyConstraint:
+            baseTableName: catalog_package_template_modules
+            baseColumnNames: template_id
+            constraintName: fk_catalog_template_modules_template
+            referencedTableName: catalog_package_templates
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: catalog_package_template_modules
+            baseColumnNames: service_module_id
+            constraintName: fk_catalog_template_modules_service_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 1402
+      author: produs
+      changes:
+        - createTable:
+            tableName: catalog_rules
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: slug, type: VARCHAR(255), constraints: { nullable: false, unique: true } }
+              - column: { name: rule_type, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: trigger_key, type: VARCHAR(255) }
+              - column: { name: source_module_id, type: UUID }
+              - column: { name: recommended_module_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: severity, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: message, type: TEXT }
+              - column: { name: rule_metadata, type: TEXT }
+              - column: { name: human_review_required, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: catalog_rules
+            baseColumnNames: source_module_id
+            constraintName: fk_catalog_rules_source_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: catalog_rules
+            baseColumnNames: recommended_module_id
+            constraintName: fk_catalog_rules_recommended_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 1403
+      author: produs
+      changes:
+        - createTable:
+            tableName: catalog_template_definitions
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: slug, type: VARCHAR(255), constraints: { nullable: false, unique: true } }
+              - column: { name: template_type, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: required_inputs, type: TEXT }
+              - column: { name: content, type: TEXT }
+              - column: { name: output_contract, type: TEXT }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - createTable:
+            tableName: catalog_ai_capability_configs
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: slug, type: VARCHAR(255), constraints: { nullable: false, unique: true } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: capability_type, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: input_contract, type: TEXT }
+              - column: { name: output_contract, type: TEXT }
+              - column: { name: allowed_sources, type: TEXT }
+              - column: { name: forbidden_claims, type: TEXT }
+              - column: { name: human_review_required, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: enabled, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }

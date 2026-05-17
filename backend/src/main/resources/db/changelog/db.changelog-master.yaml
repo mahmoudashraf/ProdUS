@@ -25,3 +25,5 @@ databaseChangeLog:
       file: db/changelog/V012__productization_cart.yaml
   - include:
       file: db/changelog/V013__expert_network_community.yaml
+  - include:
+      file: db/changelog/V014__catalog_productization_foundation.yaml
