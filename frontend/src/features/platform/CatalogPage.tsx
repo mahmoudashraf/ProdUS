@@ -95,6 +95,12 @@ export default function CatalogPage() {
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
+  const applyTemplateToCart = useMutation({
+    mutationFn: (templateId: string) => postJson<ProductizationCart, Record<string, never>>(`/productization-cart/templates/${templateId}/apply`, {}),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
 
   const modulesByCategory = (modules.data || []).reduce<Record<string, ServiceModule[]>>((grouped, module) => {
     const categoryId = module.category?.id || 'unknown';
@@ -122,10 +128,15 @@ export default function CatalogPage() {
           </Button>
         }
       />
-      <QueryState isLoading={categories.isLoading || modules.isLoading || packageTemplates.isLoading} error={categories.error || modules.error || packageTemplates.error || addServiceToCart.error} />
+      <QueryState isLoading={categories.isLoading || modules.isLoading || packageTemplates.isLoading} error={categories.error || modules.error || packageTemplates.error || addServiceToCart.error || applyTemplateToCart.error} />
       {addServiceToCart.isSuccess && (
         <Alert severity="success" sx={{ mb: 2, borderRadius: 1 }}>
           Service added to the draft cart. Open the draft when you are ready to select a product, compare teams, or start a workspace.
+        </Alert>
+      )}
+      {applyTemplateToCart.isSuccess && (
+        <Alert severity="success" sx={{ mb: 2, borderRadius: 1 }}>
+          Package template applied to the draft cart. Open the draft to resolve dependencies, select product context, and start a workspace.
         </Alert>
       )}
       {catalogCategories.length ? (
@@ -140,7 +151,10 @@ export default function CatalogPage() {
                   gap: 1.5,
                 }}
               >
-                {packageTemplates.data.slice(0, 6).map((template) => (
+                {packageTemplates.data.slice(0, 6).map((template) => {
+                  const templateServiceIds = template.modules.map((module) => module.serviceModule.id);
+                  const templateApplied = templateServiceIds.length > 0 && templateServiceIds.every((id) => cartServiceIds.has(id));
+                  return (
                   <Surface key={template.id} sx={{ boxShadow: 'none', background: '#fff', minHeight: 176 }}>
                     <Stack spacing={1.25}>
                       <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
@@ -160,9 +174,30 @@ export default function CatalogPage() {
                       <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
                         {template.outcomeSummary}
                       </Typography>
+                      <Button
+                        {...(!canUseProjectCart ? { component: NextLink, href: cartHref } : {})}
+                        variant={templateApplied ? 'outlined' : 'contained'}
+                        startIcon={<AddShoppingCartOutlined />}
+                        disabled={canUseProjectCart && (templateApplied || applyTemplateToCart.isPending)}
+                        onClick={(event) => {
+                          if (!canUseProjectCart) return;
+                          event.preventDefault();
+                          applyTemplateToCart.mutate(template.id);
+                        }}
+                        sx={{ minHeight: 40, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
+                      >
+                        {!isLoggedIn
+                          ? 'Sign in to use template'
+                          : canUseProjectCart
+                            ? templateApplied
+                              ? 'Template applied'
+                              : 'Apply template'
+                            : 'Open dashboard'}
+                      </Button>
                     </Stack>
                   </Surface>
-                ))}
+                  );
+                })}
               </Box>
             </Surface>
           ) : null}

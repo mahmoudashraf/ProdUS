@@ -2,6 +2,10 @@ package com.produs.platform;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.produs.catalog.PackageTemplate;
+import com.produs.catalog.PackageTemplateModule;
+import com.produs.catalog.PackageTemplateModuleRepository;
+import com.produs.catalog.PackageTemplateRepository;
 import com.produs.catalog.ServiceCategory;
 import com.produs.catalog.ServiceCategoryRepository;
 import com.produs.catalog.ServiceDependency;
@@ -25,6 +29,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -58,6 +63,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class ProductizationWorkflowIntegrationTest {
 
     @Autowired
@@ -79,6 +85,12 @@ class ProductizationWorkflowIntegrationTest {
     private ServiceDependencyRepository dependencyRepository;
 
     @Autowired
+    private PackageTemplateRepository packageTemplateRepository;
+
+    @Autowired
+    private PackageTemplateModuleRepository packageTemplateModuleRepository;
+
+    @Autowired
     private TeamRepository teamRepository;
 
     @Autowired
@@ -96,6 +108,112 @@ class ProductizationWorkflowIntegrationTest {
         when(s3Service.generatePresignedDownloadUrl(anyString()))
                 .thenAnswer(invocation -> "https://storage.produs.test/signed/" + invocation.getArgument(0, String.class));
         doNothing().when(s3Service).deleteFile(anyString());
+    }
+
+    @Test
+    void cartAppliesPackageTemplateAndEnforcesCatalogBlockersBeforeConversion() throws Exception {
+        User owner = saveUser("owner-cart-governance@produs.test", User.UserRole.PRODUCT_OWNER);
+        PlatformCatalog catalog = saveCatalog();
+        PackageTemplate template = savePackageTemplate(catalog);
+
+        MvcResult productResult = mockMvc.perform(post("/api/products")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Governance Cart OS",
+                                  "summary": "Owner-led product needing a launch service plan",
+                                  "businessStage": "PROTOTYPE",
+                                  "techStack": "Next.js, Spring Boot, PostgreSQL",
+                                  "riskProfile": "Launch readiness depends on security review"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        UUID productId = readId(productResult);
+
+        mockMvc.perform(put("/api/productization-cart/current")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productProfileId": "%s",
+                                  "title": "Governance Cart OS launch plan",
+                                  "businessGoal": "Launch with evidence-backed security and operational readiness"
+                                }
+                                """.formatted(productId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productProfile.id").value(productId.toString()));
+
+        mockMvc.perform(post("/api/productization-cart/services")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "serviceModuleId": "%s",
+                                  "notes": "Owner selected launch readiness first."
+                                }
+                                """.formatted(catalog.launchReadiness().getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serviceItems", hasSize(1)))
+                .andExpect(jsonPath("$.catalogEvaluation.blockerCount").value(1))
+                .andExpect(jsonPath("$.catalogEvaluation.recommendations[0].recommendedModule.name").value("Security Review"));
+
+        mockMvc.perform(post("/api/productization-cart/convert")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "projectName": "Governance Cart OS workspace" }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("Security Review")));
+
+        mockMvc.perform(post("/api/productization-cart/templates/{templateId}/apply", template.getId())
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serviceItems", hasSize(2)))
+                .andExpect(jsonPath("$.catalogEvaluation.blockerCount").value(0));
+
+        mockMvc.perform(post("/api/productization-cart/templates/{templateId}/apply", template.getId())
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serviceItems", hasSize(2)))
+                .andExpect(jsonPath("$.catalogEvaluation.blockerCount").value(0));
+
+        MvcResult convertResult = mockMvc.perform(post("/api/productization-cart/convert")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "projectName": "Governance Cart OS workspace" }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cart.status").value("CONVERTED"))
+                .andExpect(jsonPath("$.packageInstance.status").value("AWAITING_TEAM"))
+                .andExpect(jsonPath("$.workspace.status").value("AWAITING_TEAM_PROPOSAL"))
+                .andReturn();
+        JsonNode converted = objectMapper.readTree(convertResult.getResponse().getContentAsString());
+        UUID packageId = UUID.fromString(converted.get("packageInstance").get("id").asText());
+        UUID workspaceId = UUID.fromString(converted.get("workspace").get("id").asText());
+
+        mockMvc.perform(get("/api/packages/{id}/modules", packageId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].serviceModule.name").value("Launch Readiness"))
+                .andExpect(jsonPath("$[1].serviceModule.name").value("Security Review"));
+
+        MvcResult milestonesResult = mockMvc.perform(get("/api/workspaces/{id}/milestones", workspaceId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andReturn();
+        UUID firstMilestoneId = UUID.fromString(objectMapper.readTree(milestonesResult.getResponse().getContentAsString()).get(0).get("id").asText());
+
+        mockMvc.perform(get("/api/workspaces/milestones/{id}/deliverables", firstMilestoneId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
     }
 
     @Test
@@ -955,6 +1073,33 @@ class ProductizationWorkflowIntegrationTest {
         dependencyRepository.save(dependency);
 
         return new PlatformCatalog(category, launchReadiness, securityReview);
+    }
+
+    private PackageTemplate savePackageTemplate(PlatformCatalog catalog) {
+        PackageTemplate template = new PackageTemplate();
+        template.setName("Launch Governance Template");
+        template.setSlug("launch-governance-template-" + UUID.randomUUID());
+        template.setDescription("Launch readiness and security review as one governed service plan.");
+        template.setOutcomeSummary("Create a dependency-complete launch governance plan with human review evidence.");
+        template.setTargetProductStage("PROTOTYPE");
+        template.setTimelineRange("2-4 weeks");
+        template.setBudgetRange("$15K-$45K");
+        template.setSortOrder(1);
+        template = packageTemplateRepository.save(template);
+
+        savePackageTemplateModule(template, catalog.launchReadiness(), 1, "Launch scope", "Owner-selected launch planning service.");
+        savePackageTemplateModule(template, catalog.securityReview(), 2, "Security proof", "Required security evidence for launch readiness.");
+        return template;
+    }
+
+    private void savePackageTemplateModule(PackageTemplate template, ServiceModule module, int order, String phase, String rationale) {
+        PackageTemplateModule templateModule = new PackageTemplateModule();
+        templateModule.setTemplate(template);
+        templateModule.setServiceModule(module);
+        templateModule.setSequenceOrder(order);
+        templateModule.setPhaseName(phase);
+        templateModule.setRationale(rationale);
+        packageTemplateModuleRepository.save(templateModule);
     }
 
     private Team saveRecommendedTeam(User teamManager, PlatformCatalog catalog) {

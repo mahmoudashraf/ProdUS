@@ -56,6 +56,12 @@ public class ProductizationCartController {
         return toCartResponse(cart);
     }
 
+    @PostMapping("/templates/{templateId}/apply")
+    public ProductizationCartResponse applyTemplate(@AuthenticationPrincipal User user, @PathVariable UUID templateId) {
+        ProductizationCart cart = cartService.applyTemplate(user, templateId);
+        return toCartResponse(cart);
+    }
+
     @DeleteMapping("/services/{itemId}")
     public ProductizationCartResponse removeService(@AuthenticationPrincipal User user, @PathVariable UUID itemId) {
         cartService.removeService(user, itemId);

@@ -1,9 +1,15 @@
 package com.produs.cart;
 
+import com.produs.catalog.CatalogRuleEngine;
+import com.produs.catalog.PackageTemplate;
+import com.produs.catalog.PackageTemplateModule;
+import com.produs.catalog.PackageTemplateModuleRepository;
+import com.produs.catalog.PackageTemplateRepository;
 import com.produs.catalog.ServiceDependency;
 import com.produs.catalog.ServiceDependencyRepository;
 import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
+import com.produs.dto.PlatformDtos.CatalogRuleEvaluationResponse;
 import com.produs.entity.User;
 import com.produs.experts.ExpertProfile;
 import com.produs.experts.ExpertProfileRepository;
@@ -33,8 +39,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +56,9 @@ public class ProductizationCartService {
     private final ProductizationCartTalentItemRepository talentItemRepository;
     private final ProductProfileRepository productProfileRepository;
     private final ServiceModuleRepository serviceModuleRepository;
+    private final CatalogRuleEngine catalogRuleEngine;
+    private final PackageTemplateRepository packageTemplateRepository;
+    private final PackageTemplateModuleRepository packageTemplateModuleRepository;
     private final ServiceDependencyRepository dependencyRepository;
     private final TeamRepository teamRepository;
     private final ExpertProfileRepository expertProfileRepository;
@@ -97,17 +111,43 @@ public class ProductizationCartService {
         if (!module.isActive()) {
             throw new IllegalArgumentException("Service module is not active");
         }
+        return upsertServiceItem(cart, module, request.notes(), nextServiceOrder(cart), true);
+    }
 
-        ProductizationCartServiceItem item = serviceItemRepository
-                .findByCartIdAndServiceModuleId(cart.getId(), module.getId())
-                .orElseGet(ProductizationCartServiceItem::new);
-        item.setCart(cart);
-        item.setServiceModule(module);
-        item.setNotes(request.notes());
-        if (item.getSequenceOrder() == null || item.getSequenceOrder() == 0) {
-            item.setSequenceOrder((int) serviceItemRepository.countByCartId(cart.getId()) + 1);
+    @Transactional
+    public ProductizationCart applyTemplate(User owner, UUID templateId) {
+        ProductizationCart cart = current(owner);
+        requireCartOwner(owner, cart);
+        if (templateId == null) {
+            throw new IllegalArgumentException("Package template is required");
         }
-        return serviceItemRepository.save(item);
+        PackageTemplate template = packageTemplateRepository.findById(templateId)
+                .orElseThrow(() -> new IllegalArgumentException("Package template not found"));
+        if (!template.isActive()) {
+            throw new IllegalArgumentException("Package template is not active");
+        }
+        List<PackageTemplateModule> templateModules = packageTemplateModuleRepository.findByTemplateIdOrderBySequenceOrderAsc(template.getId());
+        if (templateModules.isEmpty()) {
+            throw new IllegalArgumentException("Package template has no service modules");
+        }
+
+        int nextOrder = nextServiceOrder(cart);
+        for (PackageTemplateModule templateModule : templateModules) {
+            ServiceModule module = templateModule.getServiceModule();
+            if (module == null || !module.isActive()) {
+                continue;
+            }
+            upsertServiceItem(cart, module, buildTemplateNote(template, templateModule), nextOrder++, false);
+        }
+
+        if (cart.getTitle() == null || cart.getTitle().isBlank() || "Productization cart".equals(cart.getTitle())) {
+            String productPrefix = cart.getProductProfile() == null ? "" : cart.getProductProfile().getName() + " ";
+            cart.setTitle(productPrefix + template.getName() + " plan");
+        }
+        if (cart.getBusinessGoal() == null || cart.getBusinessGoal().isBlank()) {
+            cart.setBusinessGoal(firstNonBlank(template.getOutcomeSummary(), template.getDescription(), "Build a production-ready service plan from the selected package template."));
+        }
+        return cartRepository.save(cart);
     }
 
     @Transactional
@@ -175,6 +215,13 @@ public class ProductizationCartService {
         List<ProductizationCartServiceItem> services = services(cart);
         if (services.isEmpty()) {
             throw new IllegalArgumentException("Add at least one lifecycle service before starting a project");
+        }
+        CatalogRuleEvaluationResponse evaluation = catalogRuleEngine.evaluate(
+                services.stream().map(item -> item.getServiceModule().getId()).toList(),
+                cart.getBusinessGoal()
+        );
+        if (evaluation.blockerCount() > 0) {
+            throw new IllegalArgumentException("Resolve required catalog services before starting a project: " + blockerSummary(evaluation));
         }
 
         PackageInstance packageInstance = new PackageInstance();
@@ -286,8 +333,8 @@ public class ProductizationCartService {
     }
 
     private List<PlannedModule> plannedModules(List<ProductizationCartServiceItem> services) {
-        List<PlannedModule> planned = new java.util.ArrayList<>();
-        java.util.Set<UUID> seen = new java.util.LinkedHashSet<>();
+        List<PlannedModule> planned = new ArrayList<>();
+        Set<UUID> seen = new LinkedHashSet<>();
         for (ProductizationCartServiceItem serviceItem : services) {
             ServiceModule module = serviceItem.getServiceModule();
             if (seen.add(module.getId())) {
@@ -371,6 +418,50 @@ public class ProductizationCartService {
     public record CartUpdateRequest(UUID productProfileId, String title, String businessGoal) {}
     public record ServiceItemRequest(UUID serviceModuleId, String notes) {}
     public record TalentItemRequest(ProductizationCartTalentItem.TalentItemType itemType, UUID teamId, UUID expertProfileId, String notes) {}
+
+    private ProductizationCartServiceItem upsertServiceItem(ProductizationCart cart, ServiceModule module, String notes, int preferredSequenceOrder, boolean overrideNotes) {
+        ProductizationCartServiceItem item = serviceItemRepository
+                .findByCartIdAndServiceModuleId(cart.getId(), module.getId())
+                .orElseGet(ProductizationCartServiceItem::new);
+        boolean newItem = item.getId() == null;
+        item.setCart(cart);
+        item.setServiceModule(module);
+        boolean canSetNotes = overrideNotes || newItem || item.getNotes() == null || item.getNotes().isBlank();
+        if (canSetNotes && notes != null && !notes.isBlank()) {
+            item.setNotes(notes.trim());
+        }
+        if (newItem || item.getSequenceOrder() == null || item.getSequenceOrder() == 0) {
+            item.setSequenceOrder(preferredSequenceOrder);
+        }
+        return serviceItemRepository.save(item);
+    }
+
+    private int nextServiceOrder(ProductizationCart cart) {
+        return services(cart).stream()
+                .map(ProductizationCartServiceItem::getSequenceOrder)
+                .filter(order -> order != null && order > 0)
+                .max(Comparator.naturalOrder())
+                .orElse(0) + 1;
+    }
+
+    private String buildTemplateNote(PackageTemplate template, PackageTemplateModule templateModule) {
+        String phase = templateModule.getPhaseName() == null || templateModule.getPhaseName().isBlank()
+                ? ""
+                : " Phase: " + templateModule.getPhaseName().trim() + ".";
+        return "Applied from " + template.getName() + " package template." + phase + " "
+                + firstNonBlank(templateModule.getRationale(), "Template-selected service for a complete productization plan.");
+    }
+
+    private String blockerSummary(CatalogRuleEvaluationResponse evaluation) {
+        String summary = evaluation.recommendations().stream()
+                .filter(item -> item.severity() == ServiceDependency.DependencySeverity.BLOCKER)
+                .map(item -> item.recommendedModule().name())
+                .distinct()
+                .limit(4)
+                .collect(Collectors.joining(", "));
+        return summary.isBlank() ? "required catalog dependencies are missing" : summary;
+    }
+
     private String firstNonBlank(String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank()) {

@@ -7,6 +7,7 @@ import {
   ArrowForwardOutlined,
   AutoAwesomeOutlined,
   DeleteOutlineOutlined,
+  FactCheckOutlined,
   GroupsOutlined,
   Inventory2Outlined,
   OpenInNewOutlined,
@@ -35,7 +36,7 @@ import {
   clampScore,
   formatLabel,
 } from './PlatformComponents';
-import { ProductProfile, ProductizationCart, ProductizationCartConvertResponse, ProjectWorkspace } from './types';
+import { PackageTemplate, ProductProfile, ProductizationCart, ProductizationCartConvertResponse, ProjectWorkspace } from './types';
 
 interface CartUpdatePayload {
   productProfileId?: string;
@@ -58,6 +59,10 @@ export default function DraftProjectCartPage() {
 
   const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const cart = useQuery({ queryKey: ['productization-cart'], queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
+  const packageTemplates = useQuery({
+    queryKey: ['catalog-package-templates'],
+    queryFn: () => getJson<PackageTemplate[]>('/catalog/package-templates'),
+  });
 
   const updateCart = useMutation({
     mutationFn: (payload: CartUpdatePayload) => putJson<ProductizationCart, CartUpdatePayload>('/productization-cart/current', payload),
@@ -88,6 +93,14 @@ export default function DraftProjectCartPage() {
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
+  const applyTemplate = useMutation({
+    mutationFn: (templateId: string) => postJson<ProductizationCart, Record<string, never>>(`/productization-cart/templates/${templateId}/apply`, {}),
+    onSuccess: async () => {
+      setCreatedWorkspace(null);
+      setNotice('Package template applied to the draft cart. Review dependency guidance before starting the workspace.');
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
   const convertCart = useMutation({
     mutationFn: () =>
       postJson<ProductizationCartConvertResponse, CartConvertPayload>('/productization-cart/convert', {
@@ -113,6 +126,7 @@ export default function DraftProjectCartPage() {
   const blockers = currentCart?.catalogEvaluation?.blockerCount || 0;
   const canStartWorkspace = !!product && !hasPlaceholderProduct && serviceCount > 0 && blockers === 0;
   const score = readinessScore(currentCart);
+  const cartServiceIds = new Set((currentCart?.serviceItems || []).map((item) => item.serviceModule.id));
 
   const selectProduct = (productId: string) => {
     const selected = productList.find((item) => item.id === productId);
@@ -143,7 +157,10 @@ export default function DraftProjectCartPage() {
           </Stack>
         }
       />
-      <QueryState isLoading={products.isLoading || cart.isLoading} error={products.error || cart.error || updateCart.error || removeService.error || removeTalent.error || convertCart.error} />
+      <QueryState
+        isLoading={products.isLoading || cart.isLoading || packageTemplates.isLoading}
+        error={products.error || cart.error || packageTemplates.error || updateCart.error || removeService.error || removeTalent.error || applyTemplate.error || convertCart.error}
+      />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 360px' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
@@ -220,6 +237,50 @@ export default function DraftProjectCartPage() {
             <MetricTile label="Teams / experts" value={talentCount} detail="Added as shortlist and participants" accent={appleColors.cyan} icon={<GroupsOutlined />} sparkline />
             <MetricTile label="Workspace status" value={canStartWorkspace ? 'Ready' : 'Needs scope'} detail={canStartWorkspace ? 'Product and services selected' : 'Product plus one service required'} accent={canStartWorkspace ? appleColors.green : appleColors.amber} icon={<WorkspacesOutlined />} sparkline />
           </Box>
+
+          {packageTemplates.data?.length ? (
+            <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8f7ff 100%)' }}>
+              <SectionTitle title="Package Templates" action={<FactCheckOutlined sx={{ color: appleColors.purple }} />} />
+              <Typography color="text.secondary" sx={{ lineHeight: 1.65, mb: 2 }}>
+                Apply a mature service plan recipe when the product matches a common productization path. The backend adds the template services to this draft cart and keeps dependency checks active.
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+                {packageTemplates.data.slice(0, 4).map((template) => {
+                  const templateServiceIds = template.modules.map((module) => module.serviceModule.id);
+                  const templateApplied = templateServiceIds.length > 0 && templateServiceIds.every((id) => cartServiceIds.has(id));
+                  return (
+                    <Surface key={template.id} sx={{ boxShadow: 'none', background: '#fff', p: 2 }}>
+                      <Stack spacing={1.25}>
+                        <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="h4">{template.name}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
+                              {template.outcomeSummary || template.description}
+                            </Typography>
+                          </Box>
+                          <PastelChip label={template.targetProductStage || 'Managed'} accent={appleColors.purple} />
+                        </Stack>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                          <PastelChip label={`${template.modules.length} services`} accent={appleColors.cyan} bg="#e4f9fd" />
+                          <PastelChip label={template.timelineRange || 'Scoped'} accent={appleColors.green} bg="#e7f8ee" />
+                          <PastelChip label={template.budgetRange || 'Priced after scope'} accent={appleColors.amber} bg="#fff4dc" />
+                        </Stack>
+                        <Button
+                          variant={templateApplied ? 'outlined' : 'contained'}
+                          startIcon={<AddShoppingCartOutlined />}
+                          disabled={templateApplied || applyTemplate.isPending}
+                          onClick={() => applyTemplate.mutate(template.id)}
+                          sx={{ minHeight: 42, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
+                        >
+                          {templateApplied ? 'Template applied' : 'Apply template'}
+                        </Button>
+                      </Stack>
+                    </Surface>
+                  );
+                })}
+              </Box>
+            </Surface>
+          ) : null}
 
           <Surface>
             <SectionTitle title="Lifecycle Services" action={<Button component={NextLink} href="/services" variant="text" endIcon={<ArrowForwardOutlined />}>Add service</Button>} />

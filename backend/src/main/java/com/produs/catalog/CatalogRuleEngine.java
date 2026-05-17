@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.produs.dto.PlatformDtos.toServiceModuleResponse;
 
@@ -33,7 +34,7 @@ public class CatalogRuleEngine {
         List<ServiceModule> selectedModules = selectedIds.isEmpty() ? List.of() : moduleRepository.findAllById(selectedIds);
         Set<UUID> selectedModuleIds = selectedModules.stream().map(ServiceModule::getId).collect(Collectors.toSet());
         Set<String> selectedCodes = selectedModules.stream()
-                .flatMap(module -> List.of(module.getStableCode(), module.getSlug()).stream())
+                .flatMap(module -> Stream.of(module.getStableCode(), module.getSlug()))
                 .filter(value -> value != null && !value.isBlank())
                 .map(value -> value.toLowerCase(Locale.ROOT))
                 .collect(Collectors.toSet());
