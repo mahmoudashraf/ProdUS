@@ -64,6 +64,7 @@ public class ScannerService {
     private final ScanRunRepository scanRunRepository;
     private final ToolRunRepository toolRunRepository;
     private final ScannerJobRepository scannerJobRepository;
+    private final ScannerImportRunRepository importRunRepository;
     private final ScannerEvidenceItemRepository evidenceRepository;
     private final NormalizedFindingRepository findingRepository;
     private final S3Service s3Service;
@@ -114,6 +115,211 @@ public class ScannerService {
         return sourceRepository.findByProductProfileIdOrderByCreatedAtDesc(productId).stream()
                 .map(this::toSourceResponse)
                 .toList();
+    }
+
+    @Transactional
+    public ScanSourceResponse disconnectSource(User actor, UUID sourceId, DisconnectScanSourceRequest request) {
+        ScanSource source = sourceRepository.findById(sourceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scanner source not found"));
+        requireProductOrWorkspaceWrite(actor, source.getProductProfile(), source.getWorkspace());
+        source.setAuthorizationStatus(ScanSource.AuthorizationStatus.REVOKED);
+        source.setScopeNote(defaultString(trimToNull(request == null ? null : request.reason()), "Disconnected by " + actor.getEmail()));
+        ScanSource saved = sourceRepository.save(source);
+        audit(actor, "SCANNER_SOURCE_DISCONNECTED", "SCAN_SOURCE", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Disconnected scanner source " + saved.getDisplayName() + " for product " + saved.getProductProfile().getId());
+        return toSourceResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ScannerImportRunResponse> listImportRuns(User actor, UUID productId, UUID workspaceId, UUID sourceId) {
+        List<ScannerImportRun> imports;
+        if (sourceId != null) {
+            ScanSource source = sourceRepository.findById(sourceId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Scanner source not found"));
+            requireProductOrWorkspaceRead(actor, source.getProductProfile(), source.getWorkspace());
+            imports = importRunRepository.findByScanSourceIdOrderByCreatedAtDesc(sourceId);
+        } else if (workspaceId != null) {
+            ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
+            requireWorkspaceRead(actor, workspace);
+            imports = importRunRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId);
+        } else if (productId != null) {
+            ProductProfile product = productRepository.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
+            requireProductOwnerOrAdmin(actor, product);
+            imports = importRunRepository.findByProductProfileIdOrderByCreatedAtDesc(productId);
+        } else {
+            throw new IllegalArgumentException("productId, workspaceId, or sourceId is required");
+        }
+        return imports.stream().map(this::toImportRunResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CiTemplateResponse getCiTemplate(User actor, CiTemplateType type, UUID productId, UUID workspaceId, UUID sourceId) {
+        ProductProfile product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
+        ProjectWorkspace workspace = resolveWorkspace(workspaceId, product);
+        requireProductOrWorkspaceRead(actor, product, workspace);
+        String apiBaseUrl = "${PRODUS_API_BASE_URL:-https://api.produs.com}";
+        String tokenEnv = "PRODUS_CI_UPLOAD_TOKEN";
+        String shellUpload = """
+                if [ -z "${%s:-}" ]; then
+                  echo "Missing %s; skipping ProdUS evidence upload."
+                  exit 0
+                fi
+                if ! command -v jq >/dev/null 2>&1; then
+                  echo "jq is required to build the ProdUS upload payload."
+                  exit 1
+                fi
+                test -s "${PRODUS_EVIDENCE_FILE}"
+                PRODUS_UPLOAD_PAYLOAD="$(jq -n \\
+                  --arg productId "%s" \\
+                  --arg workspaceId "%s" \\
+                  --arg sourceId "%s" \\
+                  --arg toolName "${PRODUS_SCANNER_TOOL:-external-scanner}" \\
+                  --arg toolVersion "${PRODUS_SCANNER_VERSION:-customer-owned}" \\
+                  --arg format "${PRODUS_EVIDENCE_FORMAT:-JSON}" \\
+                  --arg artifactFileName "${PRODUS_EVIDENCE_FILE}" \\
+                  --arg externalReference "${CI_COMMIT_SHA:-${GITHUB_SHA:-manual}}" \\
+                  --rawfile artifactPayload "${PRODUS_EVIDENCE_FILE}" \\
+                  '{
+                    productId: $productId,
+                    toolName: $toolName,
+                    toolVersion: $toolVersion,
+                    format: $format,
+                    artifactFileName: $artifactFileName,
+                    externalReference: $externalReference,
+                    artifactPayload: $artifactPayload
+                  }
+                  + (if $workspaceId == "" then {} else {workspaceId: $workspaceId} end)
+                  + (if $sourceId == "" then {} else {sourceId: $sourceId} end)')"
+                curl --fail --show-error --silent \\
+                  -X POST "${PRODUS_API_BASE_URL:-https://api.produs.com}/api/scanner/runs/ci-upload" \\
+                  -H "Authorization: Bearer ${%s}" \\
+                  -H "Content-Type: application/json" \\
+                  --data-binary "${PRODUS_UPLOAD_PAYLOAD}"
+                """.formatted(
+                tokenEnv,
+                tokenEnv,
+                product.getId(),
+                workspace == null ? "" : workspace.getId(),
+                sourceId == null ? "" : sourceId,
+                tokenEnv
+        );
+        String template = switch (type == null ? CiTemplateType.GITHUB_ACTIONS : type) {
+            case GITHUB_ACTIONS -> githubActionsTemplate(shellUpload);
+            case GITLAB_CI -> gitlabCiTemplate(shellUpload);
+            case GENERIC_CURL -> shellUpload;
+        };
+        return new CiTemplateResponse(
+                type == null ? CiTemplateType.GITHUB_ACTIONS : type,
+                product.getId(),
+                workspace == null ? null : workspace.getId(),
+                sourceId,
+                tokenEnv,
+                apiBaseUrl,
+                template
+        );
+    }
+
+    @Transactional
+    public ScannerImportRunResponse importExternalEvidence(User actor, ExternalImportRequest request) {
+        ProductProfile product = productRepository.findById(request.productId())
+                .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
+        ProjectWorkspace workspace = resolveWorkspace(request.workspaceId(), product);
+        requireProductOrWorkspaceWrite(actor, product, workspace);
+        Milestone milestone = resolveMilestone(request.milestoneId(), workspace);
+        String payload = cleanRequired(request.artifactPayload(), "Import payload is required");
+        if (payload.getBytes(StandardCharsets.UTF_8).length > MAX_EVIDENCE_PAYLOAD_BYTES) {
+            throw new IllegalArgumentException("Import payload exceeds the 2MB API upload limit");
+        }
+        ScannerImportRun.ExternalProvider provider = request.provider() == null ? ScannerImportRun.ExternalProvider.GENERIC_JSON : request.provider();
+        ScanSource source = resolveExternalImportSource(actor, product, workspace, request, provider);
+        if (source.getAuthorizationStatus() != ScanSource.AuthorizationStatus.AUTHORIZED) {
+            throw new IllegalArgumentException("External imports require an authorized scanner source");
+        }
+
+        ScannerImportRun importRun = new ScannerImportRun();
+        importRun.setProductProfile(product);
+        importRun.setWorkspace(workspace);
+        importRun.setScanSource(source);
+        importRun.setProvider(provider);
+        importRun.setImportMethod(request.importMethod() == null ? ScannerImportRun.ImportMethod.MANUAL_API_IMPORT : request.importMethod());
+        importRun.setStatus(ScannerImportRun.ImportStatus.RUNNING);
+        importRun.setExternalReference(trimToNull(request.externalReference()));
+        importRun.setSourceRecordedAt(request.sourceRecordedAt());
+        importRun.setStartedAt(LocalDateTime.now());
+        importRun.setRequestedBy(actor);
+        ScannerImportRun savedImport = importRunRepository.save(importRun);
+
+        ScanRun scanRun = new ScanRun();
+        scanRun.setScanSource(source);
+        scanRun.setProductProfile(product);
+        scanRun.setWorkspace(workspace);
+        scanRun.setTriggerType(ScanRun.TriggerType.EXTERNAL_IMPORT);
+        scanRun.setDepth(ScanRun.ScanDepth.CI_EVIDENCE);
+        scanRun.setStatus(ScanRun.RunStatus.RUNNING);
+        scanRun.setRequestedBy(actor);
+        scanRun.setStartedAt(LocalDateTime.now());
+        scanRun.setScanPlan("External import from %s by %s. Reference=%s".formatted(provider, savedImport.getImportMethod(), defaultString(savedImport.getExternalReference(), "not supplied")));
+        ScanRun savedRun = scanRunRepository.save(scanRun);
+        savedImport.setScanRun(savedRun);
+        importRunRepository.save(savedImport);
+
+        ToolRun toolRun = new ToolRun();
+        toolRun.setScanRun(savedRun);
+        toolRun.setToolKey(provider.name().toLowerCase(Locale.ROOT).replace('_', '-'));
+        toolRun.setToolName(defaultString(request.toolName(), displayNameFor(provider)));
+        toolRun.setToolVersion(trimToNull(request.toolVersion()));
+        toolRun.setStatus(ToolRun.ToolStatus.RUNNING);
+        toolRun.setStartedAt(LocalDateTime.now());
+        ToolRun savedTool = toolRunRepository.save(toolRun);
+
+        try {
+            String artifactName = defaultString(request.artifactFileName(), defaultArtifactName(request.format()));
+            String storageKey = s3Service.generateFileKey("scanner/imports/%s/%s".formatted(product.getId(), savedImport.getId()), artifactName);
+            String artifactRef = s3Service.uploadFile(storageKey, payload.getBytes(StandardCharsets.UTF_8), contentTypeFor(request.format()));
+            List<ParsedFinding> parsedFindings = parseExternalProviderPayload(provider, request.format(), payload, savedTool.getToolName());
+            int normalizedCount = persistParsedFindings(actor, product, workspace, milestone, savedRun, savedTool, artifactRef, storageKey, parsedFindings, true);
+
+            savedTool.setRawArtifactRef(artifactRef);
+            savedTool.setStorageKey(storageKey);
+            savedTool.setNormalizedCount(normalizedCount);
+            savedTool.setStatus(ToolRun.ToolStatus.COMPLETED);
+            savedTool.setCompletedAt(LocalDateTime.now());
+            toolRunRepository.save(savedTool);
+
+            savedRun.setStatus(ScanRun.RunStatus.COMPLETED);
+            savedRun.setCompletedAt(LocalDateTime.now());
+            scanRunRepository.save(savedRun);
+
+            savedImport.setStatus(ScannerImportRun.ImportStatus.COMPLETED);
+            savedImport.setCompletedAt(LocalDateTime.now());
+            savedImport.setImportedCount(normalizedCount);
+            savedImport.setSkippedCount(parsedFindings.isEmpty() ? 1 : 0);
+            savedImport.setArtifactRef(artifactRef);
+            savedImport.setStorageKey(storageKey);
+            ScannerImportRun completedImport = importRunRepository.save(savedImport);
+            audit(actor, "SCANNER_EXTERNAL_IMPORT_COMPLETED", "SCANNER_IMPORT_RUN", completedImport.getId(), AuditEvent.RiskLevel.MEDIUM,
+                    "Imported %s evidence for product %s with %d normalized findings".formatted(provider, product.getId(), normalizedCount));
+            return toImportRunResponse(completedImport);
+        } catch (RuntimeException ex) {
+            savedTool.setStatus(ToolRun.ToolStatus.FAILED);
+            savedTool.setErrorSummary(safeFailure(ex));
+            savedTool.setCompletedAt(LocalDateTime.now());
+            toolRunRepository.save(savedTool);
+            savedRun.setStatus(ScanRun.RunStatus.FAILED);
+            savedRun.setFailureSummary(safeFailure(ex));
+            savedRun.setCompletedAt(LocalDateTime.now());
+            scanRunRepository.save(savedRun);
+            savedImport.setStatus(ScannerImportRun.ImportStatus.FAILED);
+            savedImport.setErrorSummary(safeFailure(ex));
+            savedImport.setCompletedAt(LocalDateTime.now());
+            ScannerImportRun failedImport = importRunRepository.save(savedImport);
+            audit(actor, "SCANNER_EXTERNAL_IMPORT_FAILED", "SCANNER_IMPORT_RUN", failedImport.getId(), AuditEvent.RiskLevel.HIGH,
+                    "External scanner import failed for product " + product.getId() + ": " + safeFailure(ex));
+            throw ex;
+        }
     }
 
     @Transactional
@@ -387,6 +593,10 @@ public class ScannerService {
                 .limit(20)
                 .map(this::toEvidenceResponse)
                 .toList();
+        List<ScannerImportRunResponse> imports = importRunRepository.findByProductProfileIdOrderByCreatedAtDesc(productId).stream()
+                .limit(8)
+                .map(this::toImportRunResponse)
+                .toList();
         ScannerSummaryCounts counts = counts(findingRepository.findByProductProfileIdOrderBySeverityDescCreatedAtDesc(productId));
         return new ProductScannerSummaryResponse(
                 toProductProfileResponse(product),
@@ -395,7 +605,8 @@ public class ScannerService {
                 sources,
                 runs,
                 findings,
-                evidence
+                evidence,
+                imports
         );
     }
 
@@ -694,6 +905,350 @@ public class ScannerService {
         evidence.setConfidenceLevel(ScannerEvidenceItem.ConfidenceLevel.HIGH);
         evidence.setCreatedBy(actor);
         return evidence;
+    }
+
+    private int persistParsedFindings(
+            User actor,
+            ProductProfile product,
+            ProjectWorkspace workspace,
+            Milestone milestone,
+            ScanRun scanRun,
+            ToolRun toolRun,
+            String artifactRef,
+            String storageKey,
+            List<ParsedFinding> parsedFindings,
+            boolean externalImport
+    ) {
+        if (parsedFindings.isEmpty()) {
+            ScannerEvidenceItem evidence = baseEvidence(actor, product, workspace, milestone, scanRun, toolRun);
+            evidence.setTitle(externalImport ? "External scanner evidence imported" : toolRun.getToolName() + " completed");
+            evidence.setSummary(externalImport ? "No normalized findings were detected in this external import." : "The scanner completed without normalized findings.");
+            evidence.setSource(toolRun.getToolName());
+            evidence.setArtifactRef(artifactRef);
+            evidence.setStorageKey(storageKey);
+            evidenceRepository.save(evidence);
+            return 0;
+        }
+        int normalizedCount = 0;
+        for (ParsedFinding parsed : parsedFindings) {
+            NormalizedRecord normalized = normalizeFinding(parsed, toolRun.getToolName());
+            ScannerEvidenceItem evidence = baseEvidence(actor, product, workspace, milestone, scanRun, toolRun);
+            evidence.setTitle(normalized.title());
+            evidence.setSummary(normalized.description());
+            evidence.setSource(normalized.sourceTool());
+            evidence.setArtifactRef(artifactRef);
+            evidence.setStorageKey(storageKey);
+            evidence.setRedactionStatus(normalized.redacted() ? ScannerEvidenceItem.RedactionStatus.REDACTED : ScannerEvidenceItem.RedactionStatus.NONE);
+            evidence.setConfidenceLevel(confidenceFor(normalized.severity()));
+            ScannerEvidenceItem savedEvidence = evidenceRepository.save(evidence);
+
+            NormalizedFinding finding = new NormalizedFinding();
+            finding.setProductProfile(product);
+            finding.setWorkspace(workspace);
+            finding.setScanRun(scanRun);
+            finding.setToolRun(toolRun);
+            finding.setFingerprint(fingerprint(product.getId(), normalized));
+            finding.setSourceTool(normalized.sourceTool());
+            finding.setSourceRuleId(normalized.ruleId());
+            finding.setTitle(normalized.title());
+            finding.setDescription(normalized.description());
+            finding.setSeverity(normalized.severity());
+            finding.setStatus(externalImport ? initialFindingStatus(scanRun, finding.getFingerprint()) : NormalizedFinding.FindingStatus.OPEN);
+            finding.setAffectedComponent(normalized.affectedComponent());
+            finding.setEvidenceItem(savedEvidence);
+            finding.setRecommendedModule(recommendServiceModule(normalized));
+            finding.setConfidenceBasis(normalized.confidenceBasis());
+            NormalizedFinding savedFinding = findingRepository.save(finding);
+            savedEvidence.setFinding(savedFinding);
+            evidenceRepository.save(savedEvidence);
+            normalizedCount++;
+        }
+        return normalizedCount;
+    }
+
+    private ScanSource resolveExternalImportSource(
+            User actor,
+            ProductProfile product,
+            ProjectWorkspace workspace,
+            ExternalImportRequest request,
+            ScannerImportRun.ExternalProvider provider
+    ) {
+        if (request.sourceId() != null) {
+            ScanSource source = sourceRepository.findById(request.sourceId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Scanner source not found"));
+            if (!source.getProductProfile().getId().equals(product.getId())) {
+                throw new IllegalArgumentException("Scanner source does not belong to the product");
+            }
+            if (workspace != null && source.getWorkspace() != null && !source.getWorkspace().getId().equals(workspace.getId())) {
+                throw new IllegalArgumentException("Scanner source does not belong to the workspace");
+            }
+            return source;
+        }
+        ScanSource source = new ScanSource();
+        source.setOwner(product.getOwner());
+        source.setProductProfile(product);
+        source.setWorkspace(workspace);
+        source.setProviderType(sourceProviderFor(provider));
+        source.setDisplayName(displayNameFor(provider));
+        source.setExternalReference(trimToNull(request.externalReference()));
+        source.setAuthorizationStatus(ScanSource.AuthorizationStatus.AUTHORIZED);
+        source.setScopeNote(defaultString(trimToNull(request.scopeNote()), "Customer-owned external scanner import source."));
+        source.setCreatedBy(actor);
+        return sourceRepository.save(source);
+    }
+
+    private ScanSource.ProviderType sourceProviderFor(ScannerImportRun.ExternalProvider provider) {
+        return switch (provider) {
+            case GITHUB_CODE_SCANNING, GITHUB_DEPENDABOT, GITHUB_SECRET_SCANNING -> ScanSource.ProviderType.GITHUB;
+            case GITLAB_SECURITY -> ScanSource.ProviderType.GITLAB;
+            default -> ScanSource.ProviderType.EXTERNAL_TOOL;
+        };
+    }
+
+    private String displayNameFor(ScannerImportRun.ExternalProvider provider) {
+        return switch (provider) {
+            case GITHUB_CODE_SCANNING -> "GitHub Code Scanning";
+            case GITHUB_DEPENDABOT -> "GitHub Dependabot";
+            case GITHUB_SECRET_SCANNING -> "GitHub Secret Scanning";
+            case GITLAB_SECURITY -> "GitLab Security";
+            case SNYK -> "Snyk";
+            case SONARQUBE -> "SonarQube";
+            case SONARCLOUD -> "SonarCloud";
+            case SEMGREP_PLATFORM -> "Semgrep Platform";
+            case SARIF -> "SARIF Import";
+            case GENERIC_JSON -> "External Scanner JSON";
+        };
+    }
+
+    private String githubActionsTemplate(String shellUpload) {
+        return """
+                name: ProdUS evidence upload
+
+                on:
+                  push:
+                    branches: [ main ]
+                  pull_request:
+                  workflow_dispatch:
+
+                jobs:
+                  produs-evidence:
+                    runs-on: ubuntu-latest
+                    permissions:
+                      contents: read
+                    steps:
+                      - uses: actions/checkout@v4
+                      - name: Run customer-owned scanner
+                        shell: bash
+                        run: |
+                          set -euo pipefail
+                          PRODUS_SCANNER_TOOL="${PRODUS_SCANNER_TOOL:-semgrep}"
+                          PRODUS_EVIDENCE_FORMAT="${PRODUS_EVIDENCE_FORMAT:-SARIF}"
+                          PRODUS_EVIDENCE_FILE="${PRODUS_EVIDENCE_FILE:-produs-evidence.sarif}"
+                          semgrep scan --sarif --output "${PRODUS_EVIDENCE_FILE}" || true
+                          if [ ! -s "${PRODUS_EVIDENCE_FILE}" ]; then
+                            echo '{"runs":[]}' > "${PRODUS_EVIDENCE_FILE}"
+                          fi
+                      - name: Upload evidence to ProdUS
+                        shell: bash
+                        env:
+                          PRODUS_CI_UPLOAD_TOKEN: ${{ secrets.PRODUS_CI_UPLOAD_TOKEN }}
+                          PRODUS_API_BASE_URL: ${{ vars.PRODUS_API_BASE_URL }}
+                        run: |
+                %s
+                """.formatted(indent(shellUpload, 10));
+    }
+
+    private String gitlabCiTemplate(String shellUpload) {
+        return """
+                produs_evidence_upload:
+                  stage: test
+                  image: returntocorp/semgrep:latest
+                  variables:
+                    PRODUS_SCANNER_TOOL: semgrep
+                    PRODUS_EVIDENCE_FORMAT: SARIF
+                    PRODUS_EVIDENCE_FILE: produs-evidence.sarif
+                  script:
+                    - semgrep scan --sarif --output "${PRODUS_EVIDENCE_FILE}" || true
+                    - if [ ! -s "${PRODUS_EVIDENCE_FILE}" ]; then echo '{"runs":[]}' > "${PRODUS_EVIDENCE_FILE}"; fi
+                    - |
+                %s
+                  artifacts:
+                    when: always
+                    paths:
+                      - produs-evidence.sarif
+                """.formatted(indent(shellUpload, 6));
+    }
+
+    private String indent(String value, int spaces) {
+        String prefix = " ".repeat(spaces);
+        return prefix + defaultString(value, "").replace("\n", "\n" + prefix);
+    }
+
+    private List<ParsedFinding> parseExternalProviderPayload(
+            ScannerImportRun.ExternalProvider provider,
+            CiEvidenceFormat format,
+            String payload,
+            String fallbackToolName
+    ) {
+        if (provider == ScannerImportRun.ExternalProvider.SARIF || format == CiEvidenceFormat.SARIF || format == CiEvidenceFormat.LOG) {
+            return parseEvidencePayload(format, payload, fallbackToolName);
+        }
+        try {
+            JsonNode root = objectMapper.readTree(payload);
+            List<ParsedFinding> providerFindings = switch (provider) {
+                case GITHUB_CODE_SCANNING -> parseGithubCodeScanning(root, fallbackToolName);
+                case GITHUB_DEPENDABOT -> parseGithubDependabot(root, fallbackToolName);
+                case GITHUB_SECRET_SCANNING -> parseGithubSecretScanning(root, fallbackToolName);
+                case GITLAB_SECURITY -> parseGitlabSecurity(root, fallbackToolName);
+                case SNYK -> parseSnyk(root, fallbackToolName);
+                case SONARQUBE, SONARCLOUD -> parseSonar(root, fallbackToolName);
+                case SEMGREP_PLATFORM -> parseSemgrepPlatform(root, fallbackToolName);
+                case SARIF, GENERIC_JSON -> List.of();
+            };
+            return providerFindings.isEmpty() ? parseGenericJson(root, fallbackToolName) : providerFindings;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("External import payload is not valid JSON for " + provider);
+        }
+    }
+
+    private List<ParsedFinding> parseGithubCodeScanning(JsonNode root, String toolName) {
+        JsonNode alerts = root.isArray() ? root : firstArray(root, "alerts", "code_scanning_alerts", "items");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!alerts.isArray()) return findings;
+        for (JsonNode alert : alerts) {
+            JsonNode rule = alert.path("rule");
+            JsonNode instance = alert.path("most_recent_instance");
+            String path = firstText(instance.path("location"), "path");
+            String line = firstText(instance.path("location"), "start_line", "line");
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(rule, "id", "name"),
+                    defaultString(firstText(rule, "description", "name"), "GitHub code scanning alert"),
+                    defaultString(firstText(instance, "message"), defaultString(firstText(rule, "full_description", "description"), "GitHub Code Scanning reported an alert.")),
+                    firstText(rule, "security_severity_level", "severity"),
+                    location(path, line),
+                    "GitHub Code Scanning external alert"
+            ));
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseGithubDependabot(JsonNode root, String toolName) {
+        JsonNode alerts = root.isArray() ? root : firstArray(root, "alerts", "dependabot_alerts", "items");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!alerts.isArray()) return findings;
+        for (JsonNode alert : alerts) {
+            JsonNode advisory = alert.path("security_advisory");
+            JsonNode dependency = alert.path("dependency");
+            String packageName = firstText(dependency.path("package"), "name", "ecosystem");
+            String cve = firstText(advisory, "cve_id", "ghsa_id");
+            findings.add(new ParsedFinding(
+                    toolName,
+                    defaultString(cve, firstText(advisory, "ghsa_id")),
+                    defaultString(firstText(advisory, "summary"), defaultString(packageName, "Dependabot vulnerability")),
+                    defaultString(firstText(advisory, "description", "summary"), "GitHub Dependabot reported a dependency advisory."),
+                    firstText(advisory, "severity", "cvss"),
+                    packageName,
+                    "GitHub Dependabot external alert"
+            ));
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseGithubSecretScanning(JsonNode root, String toolName) {
+        JsonNode alerts = root.isArray() ? root : firstArray(root, "alerts", "secret_scanning_alerts", "items");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!alerts.isArray()) return findings;
+        for (JsonNode alert : alerts) {
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(alert, "secret_type", "secret_type_display_name", "number"),
+                    defaultString(firstText(alert, "secret_type_display_name", "secret_type"), "Secret scanning alert"),
+                    "GitHub Secret Scanning reported a secret exposure. The secret value is intentionally not stored in ProdUS.",
+                    "high",
+                    firstText(alert, "locations_url", "html_url"),
+                    "GitHub Secret Scanning external alert"
+            ));
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseGitlabSecurity(JsonNode root, String toolName) {
+        JsonNode vulnerabilities = root.isArray() ? root : firstArray(root, "vulnerabilities", "findings", "alerts");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!vulnerabilities.isArray()) return findings;
+        for (JsonNode vulnerability : vulnerabilities) {
+            JsonNode location = vulnerability.path("location");
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(vulnerability, "id", "cve", "identifier"),
+                    defaultString(firstText(vulnerability, "name", "message"), "GitLab security finding"),
+                    defaultString(firstText(vulnerability, "description", "message", "solution"), "GitLab security report included a finding."),
+                    firstText(vulnerability, "severity", "confidence"),
+                    defaultString(firstText(location, "file", "image", "dependency", "class"), firstText(vulnerability, "location")),
+                    "GitLab security report import"
+            ));
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseSnyk(JsonNode root, String toolName) {
+        JsonNode issues = root.isArray() ? root : firstArray(root, "issues", "vulnerabilities", "data", "results");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!issues.isArray()) return findings;
+        for (JsonNode issue : issues) {
+            JsonNode attributes = issue.path("attributes").isMissingNode() ? issue : issue.path("attributes");
+            JsonNode pkg = attributes.path("package");
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(attributes, "id", "issueId", "snykId"),
+                    defaultString(firstText(attributes, "title", "name"), "Snyk issue"),
+                    defaultString(firstText(attributes, "description", "details", "summary"), "Snyk reported an issue."),
+                    firstText(attributes, "severity", "priority"),
+                    defaultString(firstText(pkg, "name", "version"), firstText(attributes, "packageName", "from")),
+                    "Snyk external issue import"
+            ));
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseSonar(JsonNode root, String toolName) {
+        JsonNode issues = root.isArray() ? root : firstArray(root, "issues", "hotspots", "components");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!issues.isArray()) return findings;
+        for (JsonNode issue : issues) {
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(issue, "rule", "key"),
+                    defaultString(firstText(issue, "message", "name"), "Sonar quality issue"),
+                    defaultString(firstText(issue, "message", "description"), "Sonar reported a quality or security issue."),
+                    firstText(issue, "severity", "vulnerabilityProbability", "status"),
+                    firstText(issue, "component", "project", "file"),
+                    "Sonar external quality/security import"
+            ));
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseSemgrepPlatform(JsonNode root, String toolName) {
+        List<ParsedFinding> semgrep = parseSemgrep(root, toolName);
+        if (!semgrep.isEmpty()) return semgrep;
+        JsonNode findingsNode = root.isArray() ? root : firstArray(root, "findings", "results", "data");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!findingsNode.isArray()) return findings;
+        for (JsonNode finding : findingsNode) {
+            JsonNode attributes = finding.path("attributes").isMissingNode() ? finding : finding.path("attributes");
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(attributes, "rule_name", "ruleId", "check_id"),
+                    defaultString(firstText(attributes, "title", "message"), "Semgrep platform finding"),
+                    defaultString(firstText(attributes, "message", "description"), "Semgrep platform reported a finding."),
+                    firstText(attributes, "severity", "confidence"),
+                    firstText(attributes, "path", "file"),
+                    "Semgrep platform external finding import"
+            ));
+        }
+        return findings;
     }
 
     private List<ParsedFinding> parseEvidencePayload(CiEvidenceFormat format, String payload, String fallbackToolName) {
@@ -1476,6 +2031,33 @@ public class ScannerService {
         );
     }
 
+    private ScannerImportRunResponse toImportRunResponse(ScannerImportRun importRun) {
+        ScanRun run = importRun.getScanRun();
+        return new ScannerImportRunResponse(
+                importRun.getId(),
+                importRun.getCreatedAt(),
+                importRun.getUpdatedAt(),
+                importRun.getProductProfile().getId(),
+                importRun.getWorkspace() == null ? null : importRun.getWorkspace().getId(),
+                importRun.getScanSource().getId(),
+                run == null ? null : run.getId(),
+                importRun.getProvider(),
+                importRun.getImportMethod(),
+                importRun.getStatus(),
+                importRun.getExternalReference(),
+                importRun.getSourceRecordedAt(),
+                importRun.getStartedAt(),
+                importRun.getCompletedAt(),
+                importRun.getImportedCount(),
+                importRun.getSkippedCount(),
+                importRun.getArtifactRef(),
+                importRun.getStorageKey(),
+                importRun.getErrorSummary(),
+                importRun.getRequestedBy().getEmail(),
+                run == null ? null : toScanRunResponse(run, toolRunRepository.findByScanRunIdOrderByCreatedAtAsc(run.getId()))
+        );
+    }
+
     private ToolRunResponse toToolRunResponse(ToolRun toolRun) {
         return new ToolRunResponse(
                 toolRun.getId(),
@@ -1650,6 +2232,8 @@ public class ScannerService {
             String scopeNote
     ) {}
 
+    public record DisconnectScanSourceRequest(String reason) {}
+
     public record CiEvidenceUploadRequest(
             @NotNull UUID productId,
             UUID workspaceId,
@@ -1661,6 +2245,23 @@ public class ScannerService {
             @NotBlank @Size(max = MAX_EVIDENCE_PAYLOAD_BYTES) String artifactPayload,
             String externalReference,
             UUID milestoneId
+    ) {}
+
+    public record ExternalImportRequest(
+            @NotNull UUID productId,
+            UUID workspaceId,
+            UUID sourceId,
+            @NotNull ScannerImportRun.ExternalProvider provider,
+            ScannerImportRun.ImportMethod importMethod,
+            @NotBlank String toolName,
+            String toolVersion,
+            @NotNull CiEvidenceFormat format,
+            String artifactFileName,
+            @NotBlank @Size(max = MAX_EVIDENCE_PAYLOAD_BYTES) String artifactPayload,
+            String externalReference,
+            LocalDateTime sourceRecordedAt,
+            UUID milestoneId,
+            String scopeNote
     ) {}
 
     public record StartHostedScanRequest(
@@ -1707,6 +2308,46 @@ public class ScannerService {
             int timeoutSeconds
     ) {}
 
+    public enum CiTemplateType {
+        GITHUB_ACTIONS,
+        GITLAB_CI,
+        GENERIC_CURL
+    }
+
+    public record CiTemplateResponse(
+            CiTemplateType type,
+            UUID productId,
+            UUID workspaceId,
+            UUID sourceId,
+            String tokenEnvironmentVariable,
+            String apiBaseUrlExpression,
+            String template
+    ) {}
+
+    public record ScannerImportRunResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            UUID productProfileId,
+            UUID workspaceId,
+            UUID scanSourceId,
+            UUID scanRunId,
+            ScannerImportRun.ExternalProvider provider,
+            ScannerImportRun.ImportMethod importMethod,
+            ScannerImportRun.ImportStatus status,
+            String externalReference,
+            LocalDateTime sourceRecordedAt,
+            LocalDateTime startedAt,
+            LocalDateTime completedAt,
+            int importedCount,
+            int skippedCount,
+            String artifactRef,
+            String storageKey,
+            String errorSummary,
+            String requestedByEmail,
+            ScanRunResponse scanRun
+    ) {}
+
     public record ProductScannerSummaryResponse(
             ProductProfileResponse product,
             int readinessScore,
@@ -1714,7 +2355,8 @@ public class ScannerService {
             List<ScanSourceResponse> sources,
             List<ScanRunResponse> recentRuns,
             List<NormalizedFindingResponse> findings,
-            List<ScannerEvidenceItemResponse> evidence
+            List<ScannerEvidenceItemResponse> evidence,
+            List<ScannerImportRunResponse> imports
     ) {}
 
     public record ScannerSummaryCounts(

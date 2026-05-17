@@ -85,6 +85,7 @@ Team data is allowed only for package/workspace matching explanations, shortlist
    - Add GitHub/GitLab/Snyk/SonarQube/Semgrep import adapters.
    - Add GitHub Actions and GitLab CI templates for customer-owned scanning.
    - Normalize imported evidence into the same finding/evidence lifecycle.
+   - Status: implemented for external provider payload imports, import-run ledger, CI template generation, source disconnect, Studio import UI, and tests.
 
 5B. [Studio Integration UI And Usability](./05b-studio-integration-ui-and-usability.md)
    - Implement the Studio scanner/evidence/package/milestone/workspace UI from the design docs.

@@ -2,7 +2,11 @@ package com.produs.scanner;
 
 import com.produs.entity.User;
 import com.produs.scanner.ScannerService.CiEvidenceUploadRequest;
+import com.produs.scanner.ScannerService.CiTemplateResponse;
+import com.produs.scanner.ScannerService.CiTemplateType;
 import com.produs.scanner.ScannerService.CreateScanSourceRequest;
+import com.produs.scanner.ScannerService.DisconnectScanSourceRequest;
+import com.produs.scanner.ScannerService.ExternalImportRequest;
 import com.produs.scanner.ScannerService.FindingStatusRequest;
 import com.produs.scanner.ScannerService.NormalizedFindingResponse;
 import com.produs.scanner.ScannerService.ProductScannerSummaryResponse;
@@ -12,6 +16,7 @@ import com.produs.scanner.ScannerService.ScanRunResponse;
 import com.produs.scanner.ScannerService.ScanSourceResponse;
 import com.produs.scanner.ScannerService.ScannerAdminHealthResponse;
 import com.produs.scanner.ScannerService.ScannerEvidenceItemResponse;
+import com.produs.scanner.ScannerService.ScannerImportRunResponse;
 import com.produs.scanner.ScannerService.StartHostedScanRequest;
 import com.produs.scanner.ScannerService.ToolRunResponse;
 import jakarta.validation.Valid;
@@ -53,12 +58,50 @@ public class ScannerController {
         return scannerService.listSources(user, productId, workspaceId);
     }
 
+    @PostMapping("/sources/{sourceId}/disconnect")
+    public ScanSourceResponse disconnectSource(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID sourceId,
+            @RequestBody(required = false) DisconnectScanSourceRequest request
+    ) {
+        return scannerService.disconnectSource(user, sourceId, request);
+    }
+
     @PostMapping("/runs/ci-upload")
     public ScanRunResponse uploadCiEvidence(
             @AuthenticationPrincipal User user,
             @Valid @RequestBody CiEvidenceUploadRequest request
     ) {
         return scannerService.uploadCiEvidence(user, request);
+    }
+
+    @PostMapping("/imports/external")
+    public ScannerImportRunResponse importExternalEvidence(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody ExternalImportRequest request
+    ) {
+        return scannerService.importExternalEvidence(user, request);
+    }
+
+    @GetMapping("/imports")
+    public List<ScannerImportRunResponse> listImportRuns(
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) UUID productId,
+            @RequestParam(required = false) UUID workspaceId,
+            @RequestParam(required = false) UUID sourceId
+    ) {
+        return scannerService.listImportRuns(user, productId, workspaceId, sourceId);
+    }
+
+    @GetMapping("/ci-templates/{type}")
+    public CiTemplateResponse getCiTemplate(
+            @AuthenticationPrincipal User user,
+            @PathVariable CiTemplateType type,
+            @RequestParam UUID productId,
+            @RequestParam(required = false) UUID workspaceId,
+            @RequestParam(required = false) UUID sourceId
+    ) {
+        return scannerService.getCiTemplate(user, type, productId, workspaceId, sourceId);
     }
 
     @PostMapping("/runs/hosted")

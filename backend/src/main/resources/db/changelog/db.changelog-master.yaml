@@ -31,3 +31,5 @@ databaseChangeLog:
       file: db/changelog/V015__scanner_evidence_foundation.yaml
   - include:
       file: db/changelog/V016__scanner_execution_jobs.yaml
+  - include:
+      file: db/changelog/V017__scanner_external_imports.yaml

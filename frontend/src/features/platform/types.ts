@@ -206,6 +206,49 @@ export interface ScanRun extends BaseRecord {
   toolRuns: ToolRun[];
 }
 
+export type ExternalImportProvider =
+  | 'GITHUB_CODE_SCANNING'
+  | 'GITHUB_DEPENDABOT'
+  | 'GITHUB_SECRET_SCANNING'
+  | 'GITLAB_SECURITY'
+  | 'SNYK'
+  | 'SONARQUBE'
+  | 'SONARCLOUD'
+  | 'SEMGREP_PLATFORM'
+  | 'SARIF'
+  | 'GENERIC_JSON';
+
+export interface ScannerImportRun extends BaseRecord {
+  productProfileId: string;
+  workspaceId?: string;
+  scanSourceId: string;
+  scanRunId?: string;
+  provider: ExternalImportProvider;
+  importMethod: 'MANUAL_API_IMPORT' | 'CI_TEMPLATE' | 'WEBHOOK' | 'CONNECTOR_SYNC';
+  status: 'RUNNING' | 'COMPLETED' | 'FAILED';
+  externalReference?: string;
+  sourceRecordedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  importedCount: number;
+  skippedCount: number;
+  artifactRef?: string;
+  storageKey?: string;
+  errorSummary?: string;
+  requestedByEmail: string;
+  scanRun?: ScanRun;
+}
+
+export interface CiTemplateResponse {
+  type: 'GITHUB_ACTIONS' | 'GITLAB_CI' | 'GENERIC_CURL';
+  productId: string;
+  workspaceId?: string;
+  sourceId?: string;
+  tokenEnvironmentVariable: string;
+  apiBaseUrlExpression: string;
+  template: string;
+}
+
 export interface NormalizedFinding extends BaseRecord {
   productProfileId: string;
   workspaceId?: string;
@@ -266,6 +309,7 @@ export interface ProductScannerSummary {
   recentRuns: ScanRun[];
   findings: NormalizedFinding[];
   evidence: ScannerEvidenceItem[];
+  imports: ScannerImportRun[];
 }
 
 export interface ScannerToolHealth {

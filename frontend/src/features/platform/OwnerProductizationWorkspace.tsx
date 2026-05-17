@@ -10,6 +10,7 @@ import {
   CancelOutlined,
   CheckCircleOutlineOutlined,
   CloudUploadOutlined,
+  ContentCopyOutlined,
   CompareArrowsOutlined,
   DeleteOutlineOutlined,
   FactCheckOutlined,
@@ -69,6 +70,8 @@ import {
   NormalizedFinding,
   ScanRun,
   ScanSource,
+  CiTemplateResponse,
+  ExternalImportProvider,
 } from './types';
 
 interface ProductProfilePayload {
@@ -165,6 +168,22 @@ interface ScannerUploadPayload {
   milestoneId?: string;
 }
 
+interface ExternalImportPayload {
+  productId: string;
+  workspaceId?: string;
+  sourceId?: string;
+  provider: ExternalImportProvider;
+  importMethod: 'MANUAL_API_IMPORT' | 'CI_TEMPLATE' | 'WEBHOOK' | 'CONNECTOR_SYNC';
+  toolName: string;
+  toolVersion?: string;
+  format: ScannerUploadPayload['format'];
+  artifactFileName?: string;
+  artifactPayload: string;
+  externalReference?: string;
+  milestoneId?: string;
+  scopeNote?: string;
+}
+
 interface FindingStatusPayload {
   status: NormalizedFinding['status'];
   reason?: string;
@@ -209,6 +228,19 @@ const scanToolOptions = [
 
 const defaultToolsForDepth = (depth: ScanRun['depth']) =>
   scanToolOptions.filter((tool) => (tool.depths as readonly string[]).includes(depth)).map((tool) => tool.key);
+
+const externalImportProviders: { value: ExternalImportProvider; label: string; toolName: string; format: ScannerUploadPayload['format'] }[] = [
+  { value: 'GITHUB_CODE_SCANNING', label: 'GitHub Code Scanning', toolName: 'GitHub Code Scanning', format: 'JSON' },
+  { value: 'GITHUB_DEPENDABOT', label: 'GitHub Dependabot', toolName: 'GitHub Dependabot', format: 'JSON' },
+  { value: 'GITHUB_SECRET_SCANNING', label: 'GitHub Secret Scanning', toolName: 'GitHub Secret Scanning', format: 'JSON' },
+  { value: 'GITLAB_SECURITY', label: 'GitLab Security', toolName: 'GitLab Security', format: 'JSON' },
+  { value: 'SNYK', label: 'Snyk', toolName: 'Snyk', format: 'JSON' },
+  { value: 'SONARQUBE', label: 'SonarQube', toolName: 'SonarQube', format: 'JSON' },
+  { value: 'SONARCLOUD', label: 'SonarCloud', toolName: 'SonarCloud', format: 'JSON' },
+  { value: 'SEMGREP_PLATFORM', label: 'Semgrep Platform', toolName: 'Semgrep Platform', format: 'JSON' },
+  { value: 'SARIF', label: 'SARIF', toolName: 'SARIF Import', format: 'SARIF' },
+  { value: 'GENERIC_JSON', label: 'Generic scanner JSON', toolName: 'External Scanner JSON', format: 'JSON' },
+];
 
 const formatMoney = (amountCents: number, currency: string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format((amountCents || 0) / 100);
@@ -396,6 +428,33 @@ export default function OwnerProductizationWorkspace({
     artifactPayload: '',
     milestoneId: '',
   });
+  const [externalImportForm, setExternalImportForm] = useState<{
+    sourceId: string;
+    provider: ExternalImportProvider;
+    importMethod: ExternalImportPayload['importMethod'];
+    toolName: string;
+    toolVersion: string;
+    format: ScannerUploadPayload['format'];
+    artifactFileName: string;
+    artifactPayload: string;
+    externalReference: string;
+    milestoneId: string;
+    scopeNote: string;
+  }>({
+    sourceId: '',
+    provider: 'GITHUB_CODE_SCANNING',
+    importMethod: 'MANUAL_API_IMPORT',
+    toolName: 'GitHub Code Scanning',
+    toolVersion: '',
+    format: 'JSON',
+    artifactFileName: 'github-code-scanning-alerts.json',
+    artifactPayload: '',
+    externalReference: '',
+    milestoneId: '',
+    scopeNote: 'Customer-owned scanner evidence imported without source code upload.',
+  });
+  const [ciTemplateType, setCiTemplateType] = useState<CiTemplateResponse['type']>('GITHUB_ACTIONS');
+  const [ciTemplate, setCiTemplate] = useState<CiTemplateResponse | null>(null);
   const [findingReasonById, setFindingReasonById] = useState<Record<string, string>>({});
   const [findingReviewDueById, setFindingReviewDueById] = useState<Record<string, string>>({});
 
@@ -629,6 +688,47 @@ export default function OwnerProductizationWorkspace({
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
     },
   });
+  const importExternalEvidence = useMutation({
+    mutationFn: () => {
+      const payload: ExternalImportPayload = {
+        productId: selectedProduct?.id || '',
+        provider: externalImportForm.provider,
+        importMethod: externalImportForm.importMethod,
+        toolName: externalImportForm.toolName,
+        format: externalImportForm.format,
+        artifactPayload: externalImportForm.artifactPayload,
+      };
+      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
+      if (externalImportForm.sourceId) payload.sourceId = externalImportForm.sourceId;
+      if (externalImportForm.milestoneId) payload.milestoneId = externalImportForm.milestoneId;
+      if (externalImportForm.toolVersion) payload.toolVersion = externalImportForm.toolVersion;
+      if (externalImportForm.artifactFileName) payload.artifactFileName = externalImportForm.artifactFileName;
+      if (externalImportForm.externalReference) payload.externalReference = externalImportForm.externalReference;
+      if (externalImportForm.scopeNote) payload.scopeNote = externalImportForm.scopeNote;
+      return postJson('/scanner/imports/external', payload);
+    },
+    onSuccess: async () => {
+      setExternalImportForm((current) => ({ ...current, artifactPayload: '', externalReference: '' }));
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
+  const fetchCiTemplate = useMutation({
+    mutationFn: async () => {
+      const params = new URLSearchParams({ productId: selectedProduct?.id || '' });
+      if (selectedWorkspace?.id) params.set('workspaceId', selectedWorkspace.id);
+      if (scannerUploadForm.sourceId) params.set('sourceId', scannerUploadForm.sourceId);
+      return getJson<CiTemplateResponse>(`/scanner/ci-templates/${ciTemplateType}?${params.toString()}`);
+    },
+    onSuccess: (template) => {
+      setCiTemplate(template);
+    },
+  });
+  const disconnectScanSource = useMutation({
+    mutationFn: (sourceId: string) => postJson<ScanSource, { reason: string }>(`/scanner/sources/${sourceId}/disconnect`, { reason: 'Owner disconnected source from Studio.' }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
   const startHostedScan = useMutation({
     mutationFn: () => {
       const payload: HostedScanPayload = {
@@ -702,7 +802,10 @@ export default function OwnerProductizationWorkspace({
     if (!hostedScanForm.sourceId && scannerSummary.data?.sources[0]?.id) {
       setHostedScanForm((current) => ({ ...current, sourceId: scannerSummary.data?.sources[0]?.id || '' }));
     }
-  }, [scannerSummary.data?.sources, scannerUploadForm.sourceId, hostedScanForm.sourceId]);
+    if (!externalImportForm.sourceId && scannerSummary.data?.sources[0]?.id) {
+      setExternalImportForm((current) => ({ ...current, sourceId: scannerSummary.data?.sources[0]?.id || '' }));
+    }
+  }, [scannerSummary.data?.sources, scannerUploadForm.sourceId, hostedScanForm.sourceId, externalImportForm.sourceId]);
 
   const submitProduct = productForm.handleSubmit(() => createProduct.mutate());
   const submitRequirement = requirementForm.handleSubmit(() => {
@@ -728,6 +831,9 @@ export default function OwnerProductizationWorkspace({
     || createDiagnosis.error
     || createScanSource.error
     || uploadScannerEvidence.error
+    || importExternalEvidence.error
+    || fetchCiTemplate.error
+    || disconnectScanSource.error
     || startHostedScan.error
     || cancelScannerRun.error
     || rescanRun.error
@@ -1288,24 +1394,212 @@ export default function OwnerProductizationWorkspace({
                       </Button>
                     </Stack>
                   </Box>
+
+                  <Divider />
+
+                  <Box component="form" onSubmit={(event) => {
+                    event.preventDefault();
+                    if (selectedProduct && externalImportForm.toolName.trim() && externalImportForm.artifactPayload.trim()) importExternalEvidence.mutate();
+                  }}>
+                    <Stack spacing={1.25}>
+                      <Typography sx={{ fontWeight: 900 }}>Import external tool results</Typography>
+                      <TextField
+                        select
+                        size="small"
+                        label="Provider"
+                        value={externalImportForm.provider}
+                        onChange={(event) => {
+                          const provider = externalImportProviders.find((item) => item.value === event.target.value) ?? externalImportProviders[0]!;
+                          setExternalImportForm((current) => ({
+                            ...current,
+                            provider: provider.value,
+                            toolName: provider.toolName,
+                            format: provider.format,
+                            artifactFileName: provider.format === 'SARIF' ? 'external-results.sarif' : `${provider.value.toLowerCase().replaceAll('_', '-')}.json`,
+                          }));
+                        }}
+                      >
+                        {externalImportProviders.map((provider) => (
+                          <MenuItem key={provider.value} value={provider.value}>{provider.label}</MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        select
+                        size="small"
+                        label="Source"
+                        value={externalImportForm.sourceId}
+                        onChange={(event) => setExternalImportForm((current) => ({ ...current, sourceId: event.target.value }))}
+                      >
+                        <MenuItem value="">Create provider source automatically</MenuItem>
+                        {(scannerSummary.data?.sources || []).map((source) => (
+                          <MenuItem key={source.id} value={source.id}>{source.displayName}</MenuItem>
+                        ))}
+                      </TextField>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 120px' }, gap: 1 }}>
+                        <TextField
+                          size="small"
+                          label="Tool"
+                          value={externalImportForm.toolName}
+                          onChange={(event) => setExternalImportForm((current) => ({ ...current, toolName: event.target.value }))}
+                        />
+                        <TextField
+                          select
+                          size="small"
+                          label="Format"
+                          value={externalImportForm.format}
+                          onChange={(event) => setExternalImportForm((current) => ({ ...current, format: event.target.value as ScannerUploadPayload['format'] }))}
+                        >
+                          <MenuItem value="SARIF">SARIF</MenuItem>
+                          <MenuItem value="JSON">JSON</MenuItem>
+                          <MenuItem value="LOG">Log</MenuItem>
+                        </TextField>
+                      </Box>
+                      <TextField
+                        size="small"
+                        label="External reference"
+                        placeholder="Run URL, import job ID, commit SHA, or provider project URL"
+                        value={externalImportForm.externalReference}
+                        onChange={(event) => setExternalImportForm((current) => ({ ...current, externalReference: event.target.value }))}
+                      />
+                      {selectedWorkspace && (
+                        <TextField
+                          select
+                          size="small"
+                          label="Attach to milestone"
+                          value={externalImportForm.milestoneId}
+                          onChange={(event) => setExternalImportForm((current) => ({ ...current, milestoneId: event.target.value }))}
+                        >
+                          <MenuItem value="">Product-level evidence</MenuItem>
+                          {(milestones.data || []).map((milestone) => (
+                            <MenuItem key={milestone.id} value={milestone.id}>{milestone.title}</MenuItem>
+                          ))}
+                        </TextField>
+                      )}
+                      <TextField
+                        size="small"
+                        label="Artifact payload"
+                        placeholder="Paste a real provider JSON, SARIF, or scanner export."
+                        value={externalImportForm.artifactPayload}
+                        onChange={(event) => setExternalImportForm((current) => ({ ...current, artifactPayload: event.target.value }))}
+                        multiline
+                        minRows={6}
+                        InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13, alignItems: 'flex-start' } }}
+                      />
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        startIcon={<CloudUploadOutlined />}
+                        disabled={!selectedProduct || !externalImportForm.toolName.trim() || !externalImportForm.artifactPayload.trim() || importExternalEvidence.isPending}
+                        sx={{ minHeight: 44 }}
+                      >
+                        Import Results
+                      </Button>
+                    </Stack>
+                  </Box>
+
+                  <Divider />
+
+                  <Box>
+                    <Stack spacing={1.25}>
+                      <Typography sx={{ fontWeight: 900 }}>Customer-owned CI template</Typography>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                        <TextField
+                          select
+                          size="small"
+                          label="Template"
+                          value={ciTemplateType}
+                          onChange={(event) => setCiTemplateType(event.target.value as CiTemplateResponse['type'])}
+                          sx={{ flex: 1 }}
+                        >
+                          <MenuItem value="GITHUB_ACTIONS">GitHub Actions</MenuItem>
+                          <MenuItem value="GITLAB_CI">GitLab CI</MenuItem>
+                          <MenuItem value="GENERIC_CURL">Generic curl</MenuItem>
+                        </TextField>
+                        <Button
+                          variant="outlined"
+                          onClick={() => selectedProduct && fetchCiTemplate.mutate()}
+                          disabled={!selectedProduct || fetchCiTemplate.isPending}
+                          sx={{ minHeight: 40, minWidth: 132 }}
+                        >
+                          Generate
+                        </Button>
+                      </Stack>
+                      {ciTemplate && (
+                        <Box sx={{ border: 1, borderColor: appleColors.line, bgcolor: '#fbfdff', borderRadius: 1, overflow: 'hidden' }}>
+                          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: appleColors.line }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Uses `{ciTemplate.tokenEnvironmentVariable}` and uploads to ProdUS.
+                            </Typography>
+                            <Tooltip title="Copy template">
+                              <IconButton size="small" onClick={() => navigator.clipboard?.writeText(ciTemplate.template)}>
+                                <ContentCopyOutlined fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                          <Box component="pre" sx={{ m: 0, p: 1.25, maxHeight: 240, overflow: 'auto', fontSize: 12, lineHeight: 1.5, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                            {ciTemplate.template}
+                          </Box>
+                        </Box>
+                      )}
+                    </Stack>
+                  </Box>
                 </Stack>
 
                 <Stack spacing={1.5}>
-                  {(scannerSummary.isFetching || uploadScannerEvidence.isPending || startHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || updateFindingStatus.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
+                  {(scannerSummary.isFetching || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || updateFindingStatus.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
                   {scannerSummary.data?.sources.length ? (
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                       {scannerSummary.data.sources.slice(0, 5).map((source) => (
-                        <PastelChip
+                        <Stack
                           key={source.id}
-                          label={`${source.displayName} · ${formatLabel(source.authorizationStatus)}`}
-                          accent={source.authorizationStatus === 'AUTHORIZED' ? appleColors.green : appleColors.amber}
-                          bg={source.authorizationStatus === 'AUTHORIZED' ? '#e7f8ee' : '#fff4dc'}
-                        />
+                          direction="row"
+                          spacing={0.75}
+                          alignItems="center"
+                          sx={{ border: 1, borderColor: appleColors.line, borderRadius: 1, px: 1, py: 0.75, bgcolor: '#fff' }}
+                        >
+                          <PastelChip
+                            label={`${source.displayName} · ${formatLabel(source.authorizationStatus)}`}
+                            accent={source.authorizationStatus === 'AUTHORIZED' ? appleColors.green : appleColors.amber}
+                            bg={source.authorizationStatus === 'AUTHORIZED' ? '#e7f8ee' : '#fff4dc'}
+                          />
+                          {source.authorizationStatus === 'AUTHORIZED' && (
+                            <Button
+                              size="small"
+                              color="inherit"
+                              disabled={disconnectScanSource.isPending}
+                              onClick={() => disconnectScanSource.mutate(source.id)}
+                              sx={{ minHeight: 28, px: 1 }}
+                            >
+                              Disconnect
+                            </Button>
+                          )}
+                        </Stack>
                       ))}
                     </Stack>
                   ) : (
                     <Typography variant="body2" color="text.secondary">Add a source or upload CI evidence to create the first product scanner record.</Typography>
                   )}
+
+                  {scannerSummary.data?.imports?.length ? (
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
+                      {scannerSummary.data.imports.slice(0, 4).map((importRun) => (
+                        <Box key={importRun.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e5edf7', bgcolor: '#fff' }}>
+                          <Stack direction="row" justifyContent="space-between" spacing={1}>
+                            <Typography variant="body2" sx={{ fontWeight: 900 }}>{formatLabel(importRun.provider)}</Typography>
+                            <StatusChip label={importRun.status} color={importRun.status === 'COMPLETED' ? 'success' : importRun.status === 'FAILED' ? 'error' : 'warning'} />
+                          </Stack>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                            {importRun.importedCount} findings imported · {formatLabel(importRun.importMethod)}
+                          </Typography>
+                          {importRun.externalReference && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                              {importRun.externalReference}
+                            </Typography>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  ) : null}
 
                   {scannerSummary.data?.findings.length ? (
                     <Stack spacing={1.25}>

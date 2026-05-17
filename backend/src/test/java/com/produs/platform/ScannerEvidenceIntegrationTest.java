@@ -310,6 +310,109 @@ class ScannerEvidenceIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(scannerWorker.executeNextQueuedJob()).isFalse();
     }
 
+    @Test
+    void externalGithubCodeScanningImportCreatesImportRunAndNormalizedFinding() throws Exception {
+        User owner = saveUser("scanner-import-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        UUID productId = createProduct(owner);
+        String githubAlerts = """
+                {
+                  "alerts": [{
+                    "rule": {
+                      "id": "js/sql-injection",
+                      "description": "SQL query built from user-controlled data",
+                      "security_severity_level": "high"
+                    },
+                    "most_recent_instance": {
+                      "message": "Unsanitized input reaches a SQL query",
+                      "location": {
+                        "path": "src/api/payments.ts",
+                        "start_line": 44
+                      }
+                    }
+                  }]
+                }
+                """;
+
+        MvcResult importResult = mockMvc.perform(post("/api/scanner/imports/external")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "productId", productId.toString(),
+                                "provider", "GITHUB_CODE_SCANNING",
+                                "importMethod", "CONNECTOR_SYNC",
+                                "toolName", "GitHub Code Scanning",
+                                "format", "JSON",
+                                "artifactFileName", "github-code-scanning.json",
+                                "artifactPayload", githubAlerts,
+                                "externalReference", "https://github.com/acme/payments/security/code-scanning"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.provider").value("GITHUB_CODE_SCANNING"))
+                .andExpect(jsonPath("$.importedCount").value(1))
+                .andExpect(jsonPath("$.scanRun.status").value("COMPLETED"))
+                .andReturn();
+        UUID importId = readId(importResult);
+        JsonNode importJson = objectMapper.readTree(importResult.getResponse().getContentAsString());
+        UUID runId = UUID.fromString(importJson.get("scanRunId").asText());
+
+        mockMvc.perform(get("/api/scanner/runs/{runId}/findings", runId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sourceTool").value("GitHub Code Scanning"))
+                .andExpect(jsonPath("$[0].sourceRuleId").value("js/sql-injection"))
+                .andExpect(jsonPath("$[0].severity").value("HIGH"))
+                .andExpect(jsonPath("$[0].affectedComponent").value("src/api/payments.ts:44"));
+
+        mockMvc.perform(get("/api/scanner/imports")
+                        .with(auth(owner))
+                        .param("productId", productId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(importId.toString()));
+
+        mockMvc.perform(get("/api/scanner/products/{productId}/summary", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imports[0].provider").value("GITHUB_CODE_SCANNING"))
+                .andExpect(jsonPath("$.counts.high").value(1));
+    }
+
+    @Test
+    void ciTemplateEndpointGeneratesProductScopedTemplateAndSourceCanDisconnect() throws Exception {
+        User owner = saveUser("scanner-template-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        UUID productId = createProduct(owner);
+        MvcResult sourceResult = mockMvc.perform(post("/api/scanner/sources")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "providerType": "CI_UPLOAD",
+                                  "displayName": "Customer CI",
+                                  "externalReference": "https://github.com/acme/payments/actions"
+                                }
+                                """.formatted(productId)))
+                .andExpect(status().isOk())
+                .andReturn();
+        UUID sourceId = readId(sourceResult);
+
+        mockMvc.perform(get("/api/scanner/ci-templates/GITHUB_ACTIONS")
+                        .with(auth(owner))
+                        .param("productId", productId.toString())
+                        .param("sourceId", sourceId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.template").value(containsString(productId.toString())))
+                .andExpect(jsonPath("$.template").value(containsString(sourceId.toString())))
+                .andExpect(jsonPath("$.template").value(containsString("PRODUS_CI_UPLOAD_TOKEN")))
+                .andExpect(jsonPath("$.template").value(containsString("/api/scanner/runs/ci-upload")));
+
+        mockMvc.perform(post("/api/scanner/sources/{sourceId}/disconnect", sourceId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Rotating CI source.\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authorizationStatus").value("REVOKED"))
+                .andExpect(jsonPath("$.scopeNote").value("Rotating CI source."));
+    }
+
     private UUID createProduct(User owner) throws Exception {
         MvcResult productResult = mockMvc.perform(post("/api/products")
                         .with(auth(owner))
