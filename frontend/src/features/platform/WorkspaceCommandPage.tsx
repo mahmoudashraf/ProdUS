@@ -32,16 +32,25 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import {
+  AcceptanceCriterion,
   AttachmentDownloadUrl,
   AttachmentScope,
+  AutomatedCheck,
   Deliverable,
   DisputeCase,
   EvidenceAttachment,
+  EvidenceRequirement,
+  HandoffDocument,
+  IntegrationConnection,
+  IntegrationSignal,
   Milestone,
   PackageInstance,
+  ProductHealthReview,
   ProjectWorkspace,
+  ReviewDecision,
   SupportRequest,
   Team,
+  WorkspaceGovernance,
   WorkspaceParticipant,
 } from './types';
 
@@ -98,11 +107,65 @@ interface DisputeStatusPayload {
   resolution: string;
 }
 
+interface EvidenceStatusPayload {
+  status: EvidenceRequirement['status'];
+  evidenceReference?: string;
+}
+
+interface CheckPayload {
+  checkType: string;
+  provider: string;
+  externalRef?: string;
+  status: AutomatedCheck['status'];
+  summary?: string;
+  rawPayload?: string;
+}
+
+interface ReviewPayload {
+  decision: ReviewDecision['decision'];
+  note: string;
+}
+
+interface HandoffPayload {
+  title: string;
+  runbook: string;
+  accessChecklist: string;
+  knownIssues: string;
+  supportScope: string;
+  status: HandoffDocument['status'];
+}
+
+interface HealthPayload {
+  healthScore: number;
+  summary: string;
+  risks: string;
+  actions: string;
+  status: ProductHealthReview['status'];
+}
+
+interface IntegrationPayload {
+  providerType: IntegrationConnection['providerType'];
+  name: string;
+  externalRef?: string;
+  scopedAccessNote?: string;
+  status: IntegrationConnection['status'];
+}
+
+interface SignalPayload {
+  milestoneId?: string;
+  criterionId?: string;
+  signalType: string;
+  status: IntegrationSignal['status'];
+  summary?: string;
+  evidencePayload?: string;
+}
+
 const participantRoles: WorkspaceParticipant['role'][] = ['COORDINATOR', 'TEAM_LEAD', 'SPECIALIST', 'ADVISOR', 'VIEWER'];
 const supportPriorities: SupportRequest['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 const supportStatuses: SupportRequest['status'][] = ['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'WAITING_ON_OWNER', 'RESOLVED', 'CANCELLED'];
 const disputeSeverities: DisputeCase['severity'][] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const disputeStatuses: DisputeCase['status'][] = ['OPEN', 'UNDER_REVIEW', 'OWNER_RESPONSE_NEEDED', 'TEAM_RESPONSE_NEEDED', 'RESOLVED', 'CANCELLED'];
+const integrationProviderOptions: IntegrationConnection['providerType'][] = ['GITHUB', 'CI_CD', 'DEPENDENCY_SCAN', 'SECRETS_SCAN', 'DEPLOYMENT', 'MONITORING', 'DATABASE', 'ISSUE_TRACKER', 'SUPPORT_TOOL', 'OTHER'];
 
 const workspaceAccent = (status?: string) => {
   if (!status) return appleColors.purple;
@@ -143,6 +206,8 @@ export default function WorkspaceCommandPage() {
   const [supportResolutionById, setSupportResolutionById] = useState<Record<string, string>>({});
   const [disputeStatusById, setDisputeStatusById] = useState<Record<string, DisputeCase['status']>>({});
   const [disputeResolutionById, setDisputeResolutionById] = useState<Record<string, string>>({});
+  const [governanceNotice, setGovernanceNotice] = useState('');
+  const [integrationProvider, setIntegrationProvider] = useState<IntegrationConnection['providerType']>('GITHUB');
 
   const workspaceForm = useAdvancedForm<WorkspacePayload>({
     initialValues: { packageInstanceId: '', name: '', status: 'ACTIVE_DELIVERY' },
@@ -244,6 +309,11 @@ export default function WorkspaceCommandPage() {
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<EvidenceAttachment[]>(`/attachments?workspaceId=${selectedWorkspace?.id}`),
   });
+  const governance = useQuery({
+    queryKey: ['productization-engine', 'workspace-governance', selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () => getJson<WorkspaceGovernance>(`/productization-engine/workspaces/${selectedWorkspace?.id}/governance`),
+  });
 
   const attachmentsByScope = useMemo(
     () =>
@@ -334,11 +404,101 @@ export default function WorkspaceCommandPage() {
     },
     onSettled: () => setUploadingAttachmentKey(''),
   });
+  const refreshGovernance = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-governance', selectedWorkspace?.id] });
+    await queryClient.invalidateQueries({ queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'] });
+  };
+  const generateCriteria = useMutation({
+    mutationFn: () => postJson<AcceptanceCriterion[], Record<string, never>>(`/productization-engine/milestones/${selectedMilestone?.id}/criteria/generate`, {}),
+    onSuccess: async () => {
+      setGovernanceNotice('Acceptance criteria generated from the service plan.');
+      await refreshGovernance();
+    },
+  });
+  const updateEvidenceRequirement = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: EvidenceStatusPayload }) =>
+      putJson<EvidenceRequirement, EvidenceStatusPayload>(`/productization-engine/evidence-requirements/${id}`, payload),
+    onSuccess: async () => {
+      setGovernanceNotice('Evidence requirement updated.');
+      await refreshGovernance();
+    },
+  });
+  const createCheck = useMutation({
+    mutationFn: ({ criterionId, payload }: { criterionId: string; payload: CheckPayload }) =>
+      postJson<AutomatedCheck, CheckPayload>(`/productization-engine/criteria/${criterionId}/checks`, payload),
+    onSuccess: async () => {
+      setGovernanceNotice('Manual check recorded.');
+      await refreshGovernance();
+    },
+  });
+  const reviewCriterion = useMutation({
+    mutationFn: ({ criterionId, payload }: { criterionId: string; payload: ReviewPayload }) =>
+      postJson<ReviewDecision, ReviewPayload>(`/productization-engine/criteria/${criterionId}/reviews`, payload),
+    onSuccess: async () => {
+      setGovernanceNotice('Review decision recorded.');
+      await refreshGovernance();
+    },
+  });
+  const upsertHandoff = useMutation({
+    mutationFn: () =>
+      postJson<HandoffDocument, HandoffPayload>(`/productization-engine/workspaces/${selectedWorkspace?.id}/handoff`, {
+        title: `${selectedWorkspace?.name || 'Workspace'} owner handoff`,
+        runbook: 'Operating runbook, release notes, rollback path, monitoring ownership, and escalation contacts are ready for owner review.',
+        accessChecklist: 'Repository, deployment, database, monitoring, support, and billing access boundaries reviewed.',
+        knownIssues: 'Open risks are tracked in the workspace risk section before handoff acceptance.',
+        supportScope: 'Post-launch support covers monitoring, incident response, minor fixes, and owner health reporting.',
+        status: 'READY_FOR_OWNER',
+      }),
+    onSuccess: async () => {
+      setGovernanceNotice('Handoff document prepared for owner review.');
+      await refreshGovernance();
+    },
+  });
+  const createHealthReview = useMutation({
+    mutationFn: () =>
+      postJson<ProductHealthReview, HealthPayload>(`/productization-engine/workspaces/${selectedWorkspace?.id}/health-reviews`, {
+        healthScore: Math.max(55, workspaceProgress || 70),
+        summary: 'Workspace health review generated from milestone acceptance, open support, risk, and evidence status.',
+        risks: disputeList.length ? `${disputeList.length} open workspace risk records need review.` : 'No open workspace disputes are recorded.',
+        actions: supportList.length ? 'Review support requests and close overdue items before owner handoff.' : 'Keep evidence current and prepare handoff acceptance.',
+        status: 'PUBLISHED',
+      }),
+    onSuccess: async () => {
+      setGovernanceNotice('Health review published.');
+      await refreshGovernance();
+    },
+  });
+  const createIntegration = useMutation({
+    mutationFn: (payload: IntegrationPayload) =>
+      postJson<IntegrationConnection, IntegrationPayload>(`/productization-engine/workspaces/${selectedWorkspace?.id}/integrations`, payload),
+    onSuccess: async () => {
+      setGovernanceNotice('Integration connection registered.');
+      await refreshGovernance();
+    },
+  });
+  const createIntegrationSignal = useMutation({
+    mutationFn: ({ connectionId, payload }: { connectionId: string; payload: SignalPayload }) =>
+      postJson<IntegrationSignal, SignalPayload>(`/productization-engine/integrations/${connectionId}/signals`, payload),
+    onSuccess: async () => {
+      setGovernanceNotice('Integration signal recorded and linked to acceptance evidence.');
+      await refreshGovernance();
+    },
+  });
 
   const deliverableList = deliverables.data || [];
   const participantList = participants.data || [];
   const supportList = supportRequests.data || [];
   const disputeList = disputes.data || [];
+  const governanceCriteria = governance.data?.criteria || [];
+  const selectedMilestoneCriteria = selectedMilestone?.id
+    ? governanceCriteria.filter((criterion) => criterion.milestoneId === selectedMilestone.id)
+    : governanceCriteria;
+  const latestHandoff = governance.data?.handoffs?.[0];
+  const latestHealthReview = governance.data?.healthReviews?.[0];
+  const integrationList = governance.data?.integrations || [];
+  const latestIntegration = integrationList[0];
+  const passedCriteriaCount = governanceCriteria.filter((criterion) => criterion.status === 'PASSED' || criterion.status === 'WAIVED').length;
+  const missingEvidenceCount = governanceCriteria.flatMap((criterion) => criterion.evidenceRequirements).filter((requirement) => requirement.required && requirement.status === 'MISSING').length;
   const activeWorkspaceCount = workspaceList.filter((workspace) => workspace.status === 'ACTIVE_DELIVERY').length;
   const completedMilestones = milestoneList.filter((milestone) => milestone.status === 'ACCEPTED').length;
   const blockedItems = workspaceList.filter((workspace) => workspace.status === 'BLOCKED').length
@@ -438,9 +598,42 @@ export default function WorkspaceCommandPage() {
         description="One focused place to run a productization workspace: milestones, evidence, people, support, and risk."
       />
       <QueryState
-        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || milestones.isLoading || deliverables.isLoading || participants.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading}
-        error={packages.error || workspaces.error || teams.error || milestones.error || deliverables.error || participants.error || supportRequests.error || disputes.error || attachments.error || createWorkspace.error || createMilestone.error || createDeliverable.error || addParticipant.error || createSupport.error || updateSupport.error || createDispute.error || updateDispute.error || uploadAttachment.error}
+        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || milestones.isLoading || deliverables.isLoading || participants.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading || governance.isLoading}
+        error={
+          packages.error
+          || workspaces.error
+          || teams.error
+          || milestones.error
+          || deliverables.error
+          || participants.error
+          || supportRequests.error
+          || disputes.error
+          || attachments.error
+          || governance.error
+          || createWorkspace.error
+          || createMilestone.error
+          || createDeliverable.error
+          || addParticipant.error
+          || createSupport.error
+          || updateSupport.error
+          || createDispute.error
+          || updateDispute.error
+          || uploadAttachment.error
+          || generateCriteria.error
+          || updateEvidenceRequirement.error
+          || createCheck.error
+          || reviewCriterion.error
+          || upsertHandoff.error
+          || createHealthReview.error
+          || createIntegration.error
+          || createIntegrationSignal.error
+        }
       />
+      {governanceNotice && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setGovernanceNotice('')}>
+          {governanceNotice}
+        </Alert>
+      )}
       {attachmentOpenError && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setAttachmentOpenError('')}>
           {attachmentOpenError}
@@ -614,6 +807,139 @@ export default function WorkspaceCommandPage() {
                 </Typography>
                 {evidencePanel('WORKSPACE', selectedWorkspace.id)}
               </Surface>
+
+              <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)' }}>
+                <SectionTitle
+                  title="Acceptance And Evidence Review"
+                  action={<PastelChip label={`${passedCriteriaCount}/${governanceCriteria.length || 0} passed`} accent={passedCriteriaCount === governanceCriteria.length && governanceCriteria.length ? appleColors.green : appleColors.amber} bg={passedCriteriaCount === governanceCriteria.length && governanceCriteria.length ? '#e7f8ee' : '#fff4dc'} />}
+                />
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" sx={{ mb: 1.5 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6, maxWidth: 720 }}>
+                    Generate acceptance criteria from the service plan, attach or verify required evidence, record checks, and make owner review decisions from one place.
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    onClick={() => generateCriteria.mutate()}
+                    disabled={!selectedMilestone?.id || generateCriteria.isPending}
+                    sx={{ minHeight: 40, flex: { md: '0 0 auto' } }}
+                  >
+                    Generate checklist
+                  </Button>
+                </Stack>
+                {(governance.isFetching || generateCriteria.isPending) && <LinearProgress sx={{ mb: 1.5, borderRadius: 999 }} />}
+                {selectedMilestoneCriteria.length ? (
+                  <Stack spacing={1.25}>
+                    {selectedMilestoneCriteria.map((criterion) => {
+                      const hasMissingRequired = criterion.evidenceRequirements.some((requirement) => requirement.required && requirement.status === 'MISSING');
+                      return (
+                        <Box key={criterion.id} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: '#fff' }}>
+                          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'flex-start' }}>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+                                <Typography sx={{ fontWeight: 900 }}>{criterion.title}</Typography>
+                                {criterion.serviceName && <PastelChip label={criterion.serviceName} accent={appleColors.cyan} bg="#e4f9fd" />}
+                              </Stack>
+                              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
+                                {criterion.description || 'Acceptance criterion requires owner-visible evidence before approval.'}
+                              </Typography>
+                            </Box>
+                            <StatusChip label={criterion.status} color={criterion.status === 'PASSED' ? 'success' : criterion.status === 'FAILED' ? 'error' : 'default'} />
+                          </Stack>
+
+                          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 250px' }, gap: 1.25, mt: 1.25 }}>
+                            <Stack spacing={0.75}>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+                                Required evidence
+                              </Typography>
+                              {criterion.evidenceRequirements.map((requirement) => (
+                                <Box key={requirement.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) auto' }, gap: 1, alignItems: 'center', border: '1px solid', borderColor: '#e5edf7', borderRadius: 1, p: 1 }}>
+                                  <Box sx={{ minWidth: 0 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 800 }}>{requirement.evidenceType}</Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                      {requirement.evidenceReference || requirement.description || 'No reference attached'}
+                                    </Typography>
+                                  </Box>
+                                  <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                                    <Button
+                                      size="small"
+                                      variant={requirement.status === 'ATTACHED' ? 'contained' : 'outlined'}
+                                      onClick={() => updateEvidenceRequirement.mutate({ id: requirement.id, payload: { status: 'ATTACHED', evidenceReference: requirement.evidenceReference || 'Workspace evidence attached' } })}
+                                      disabled={updateEvidenceRequirement.isPending}
+                                      sx={{ minHeight: 32 }}
+                                    >
+                                      Attach
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      variant={requirement.status === 'VERIFIED' ? 'contained' : 'outlined'}
+                                      onClick={() => updateEvidenceRequirement.mutate({ id: requirement.id, payload: { status: 'VERIFIED', evidenceReference: requirement.evidenceReference || 'Verified workspace evidence' } })}
+                                      disabled={updateEvidenceRequirement.isPending}
+                                      sx={{ minHeight: 32 }}
+                                    >
+                                      Verify
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      variant={requirement.status === 'WAIVED' ? 'contained' : 'outlined'}
+                                      color="warning"
+                                      onClick={() => updateEvidenceRequirement.mutate({ id: requirement.id, payload: { status: 'WAIVED', evidenceReference: requirement.evidenceReference || 'Waived by workspace coordinator' } })}
+                                      disabled={updateEvidenceRequirement.isPending}
+                                      sx={{ minHeight: 32 }}
+                                    >
+                                      Waive
+                                    </Button>
+                                  </Stack>
+                                </Box>
+                              ))}
+                            </Stack>
+                            <Stack spacing={0.75}>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+                                Review actions
+                              </Typography>
+                              <Button
+                                variant="outlined"
+                                onClick={() => createCheck.mutate({
+                                  criterionId: criterion.id,
+                                  payload: {
+                                    checkType: 'manual-evidence-review',
+                                    provider: 'ProdUS Workspace',
+                                    status: hasMissingRequired ? 'WARNING' : 'PASSED',
+                                    summary: hasMissingRequired ? 'Evidence review found missing required proof.' : 'Evidence review passed with available proof.',
+                                  },
+                                })}
+                                disabled={createCheck.isPending}
+                                sx={{ minHeight: 38 }}
+                              >
+                                Record check
+                              </Button>
+                              <Button
+                                variant="contained"
+                                color="success"
+                                onClick={() => reviewCriterion.mutate({ criterionId: criterion.id, payload: { decision: 'APPROVE', note: 'Evidence is acceptable for this milestone criterion.' } })}
+                                disabled={hasMissingRequired || reviewCriterion.isPending}
+                                sx={{ minHeight: 38 }}
+                              >
+                                Approve criterion
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                color="warning"
+                                onClick={() => reviewCriterion.mutate({ criterionId: criterion.id, payload: { decision: 'REQUEST_CHANGES', note: 'Additional evidence or remediation is required before approval.' } })}
+                                disabled={reviewCriterion.isPending}
+                                sx={{ minHeight: 38 }}
+                              >
+                                Request changes
+                              </Button>
+                            </Stack>
+                          </Box>
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                ) : (
+                  <EmptyState label={selectedMilestone ? 'No acceptance checklist exists yet. Generate it from the selected milestone service plan.' : 'Select a milestone to review acceptance criteria.'} />
+                )}
+              </Surface>
             </>
           ) : (
             <Surface>
@@ -647,6 +973,116 @@ export default function WorkspaceCommandPage() {
                 ))
               ) : (
                 <Typography variant="body2" color="text.secondary">Add owners, team leads, specialists, and advisors before delivery starts.</Typography>
+              )}
+            </Stack>
+          </Surface>
+
+          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f6fffb)' }}>
+            <SectionTitle title="Handoff And Health" action={<PastelChip label={latestHealthReview ? `${latestHealthReview.healthScore}/100` : 'No review'} accent={latestHealthReview ? appleColors.green : appleColors.purple} bg={latestHealthReview ? '#e7f8ee' : '#f1efff'} />} />
+            <Stack spacing={1.25}>
+              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.25, bgcolor: '#fff' }}>
+                <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{latestHandoff?.title || 'Owner handoff'}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {latestHandoff ? formatLabel(latestHandoff.status) : 'Prepare runbook, access, known issues, and support scope.'}
+                    </Typography>
+                  </Box>
+                  {latestHandoff && <StatusChip label={latestHandoff.status} color={latestHandoff.status === 'ACCEPTED' ? 'success' : 'default'} />}
+                </Stack>
+                {latestHandoff?.runbook && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.5 }}>
+                    {latestHandoff.runbook}
+                  </Typography>
+                )}
+              </Box>
+              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.25, bgcolor: '#fff' }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <ProgressRing value={latestHealthReview?.healthScore || Math.max(55, workspaceProgress || 70)} size={64} color={latestHealthReview ? appleColors.green : appleColors.amber} label="health" />
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{latestHealthReview?.summary || 'No health review published yet.'}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {missingEvidenceCount ? `${missingEvidenceCount} required evidence items missing` : 'Evidence requirements are current'}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Box>
+              {selectedWorkspace && canCoordinate && (
+                <Stack direction={{ xs: 'column', sm: 'row', lg: 'column' }} spacing={1}>
+                  <Button variant="outlined" onClick={() => upsertHandoff.mutate()} disabled={upsertHandoff.isPending} sx={{ minHeight: 40 }}>
+                    Prepare handoff
+                  </Button>
+                  <Button variant="outlined" onClick={() => createHealthReview.mutate()} disabled={createHealthReview.isPending} sx={{ minHeight: 40 }}>
+                    Publish health review
+                  </Button>
+                </Stack>
+              )}
+            </Stack>
+          </Surface>
+
+          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8fbff)' }}>
+            <SectionTitle title="Integration Signals" action={<PastelChip label={`${integrationList.length} connected`} accent={appleColors.blue} bg="#eaf3ff" />} />
+            <Stack spacing={1.25}>
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+                Register workspace-scoped integrations and record readiness signals. These records are AI-ready context but no AI execution happens here.
+              </Typography>
+              {selectedWorkspace && canCoordinate && (
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 1 }}>
+                  <TextField select size="small" label="Provider" value={integrationProvider} onChange={(event) => setIntegrationProvider(event.target.value as IntegrationConnection['providerType'])}>
+                    {integrationProviderOptions.map((provider) => <MenuItem key={provider} value={provider}>{formatLabel(provider)}</MenuItem>)}
+                  </TextField>
+                  <Button
+                    variant="outlined"
+                    onClick={() => createIntegration.mutate({
+                      providerType: integrationProvider,
+                      name: `${formatLabel(integrationProvider)} workspace connection`,
+                      externalRef: `${selectedWorkspace.name}-${integrationProvider.toLowerCase()}`,
+                      scopedAccessNote: 'Workspace-scoped access only; no long-lived broad permissions recorded.',
+                      status: 'CONFIGURED',
+                    })}
+                    disabled={createIntegration.isPending}
+                  >
+                    Add
+                  </Button>
+                </Box>
+              )}
+              <Stack spacing={1}>
+                {integrationList.length ? integrationList.map((connection) => (
+                  <Box key={connection.id} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.25, bgcolor: '#fff' }}>
+                    <Stack direction="row" spacing={1} justifyContent="space-between">
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 900 }}>{connection.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">{formatLabel(connection.providerType)} · {formatLabel(connection.status)}</Typography>
+                      </Box>
+                      <StatusChip label={connection.status} color={connection.status === 'ACTIVE' ? 'success' : connection.status === 'NEEDS_ATTENTION' ? 'warning' : 'default'} />
+                    </Stack>
+                    {connection.signals.slice(0, 2).map((signal) => (
+                      <Typography key={signal.id} variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                        {formatLabel(signal.status)} · {signal.summary || signal.signalType}
+                      </Typography>
+                    ))}
+                  </Box>
+                )) : <Typography variant="body2" color="text.secondary">No integration connections are registered yet.</Typography>}
+              </Stack>
+              {latestIntegration && canCoordinate && (
+                <Button
+                  variant="outlined"
+                  onClick={() => createIntegrationSignal.mutate({
+                    connectionId: latestIntegration.id,
+                    payload: {
+                      ...(selectedMilestone?.id ? { milestoneId: selectedMilestone.id } : {}),
+                      ...(selectedMilestoneCriteria[0]?.id ? { criterionId: selectedMilestoneCriteria[0].id } : {}),
+                      signalType: 'workspace-readiness-signal',
+                      status: missingEvidenceCount ? 'WARNING' : 'PASSED',
+                      summary: missingEvidenceCount ? 'Integration signal recorded with missing acceptance evidence.' : 'Integration signal supports current acceptance evidence.',
+                      evidencePayload: JSON.stringify({ workspaceId: selectedWorkspace?.id, missingEvidenceCount }),
+                    },
+                  })}
+                  disabled={createIntegrationSignal.isPending}
+                  sx={{ minHeight: 40 }}
+                >
+                  Record signal
+                </Button>
               )}
             </Stack>
           </Surface>

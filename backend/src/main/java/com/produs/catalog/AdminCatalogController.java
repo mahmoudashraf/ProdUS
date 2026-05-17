@@ -3,10 +3,13 @@ package com.produs.catalog;
 import com.produs.dto.PlatformDtos.ServiceCategoryResponse;
 import com.produs.dto.PlatformDtos.ServiceDependencyResponse;
 import com.produs.dto.PlatformDtos.ServiceModuleResponse;
+import com.produs.entity.User;
+import com.produs.service.AuditService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,20 +31,23 @@ public class AdminCatalogController {
     private final ServiceCategoryRepository categoryRepository;
     private final ServiceModuleRepository moduleRepository;
     private final ServiceDependencyRepository dependencyRepository;
+    private final AuditService auditService;
 
     @PostMapping("/categories")
-    public ServiceCategoryResponse createCategory(@Valid @RequestBody CategoryRequest request) {
+    public ServiceCategoryResponse createCategory(@AuthenticationPrincipal User user, @Valid @RequestBody CategoryRequest request) {
         ServiceCategory category = new ServiceCategory();
         category.setName(request.name());
         category.setSlug(request.slug());
         category.setDescription(request.description());
         category.setSortOrder(request.sortOrder() == null ? 0 : request.sortOrder());
         category.setActive(request.active() == null || request.active());
-        return toServiceCategoryResponse(categoryRepository.save(category));
+        ServiceCategory saved = categoryRepository.save(category);
+        auditService.logAdminAction(user.getId(), "CREATE_CATALOG_CATEGORY", saved.getSlug());
+        return toServiceCategoryResponse(saved);
     }
 
     @PostMapping("/modules")
-    public ServiceModuleResponse createModule(@Valid @RequestBody ModuleRequest request) {
+    public ServiceModuleResponse createModule(@AuthenticationPrincipal User user, @Valid @RequestBody ModuleRequest request) {
         ServiceCategory category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown service category"));
 
@@ -69,11 +75,13 @@ public class AdminCatalogController {
         module.setSourceAliases(request.sourceAliases());
         module.setSortOrder(request.sortOrder() == null ? 0 : request.sortOrder());
         module.setActive(request.active() == null || request.active());
-        return toServiceModuleResponse(moduleRepository.save(module));
+        ServiceModule saved = moduleRepository.save(module);
+        auditService.logAdminAction(user.getId(), "CREATE_CATALOG_MODULE", saved.getStableCode() == null ? saved.getSlug() : saved.getStableCode());
+        return toServiceModuleResponse(saved);
     }
 
     @PostMapping("/dependencies")
-    public ServiceDependencyResponse createDependency(@Valid @RequestBody DependencyRequest request) {
+    public ServiceDependencyResponse createDependency(@AuthenticationPrincipal User user, @Valid @RequestBody DependencyRequest request) {
         ServiceModule source = moduleRepository.findById(request.sourceModuleId())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown source module"));
         ServiceModule dependency = moduleRepository.findById(request.dependsOnModuleId())
@@ -88,7 +96,13 @@ public class AdminCatalogController {
         serviceDependency.setSeverity(request.severity() == null ? ServiceDependency.DependencySeverity.BLOCKER : request.severity());
         serviceDependency.setRuleMetadata(request.ruleMetadata());
         serviceDependency.setRequired(request.required() == null || request.required());
-        return toServiceDependencyResponse(dependencyRepository.save(serviceDependency));
+        ServiceDependency saved = dependencyRepository.save(serviceDependency);
+        auditService.logAdminAction(user.getId(), "CREATE_CATALOG_DEPENDENCY", auditCode(source) + " -> " + auditCode(dependency));
+        return toServiceDependencyResponse(saved);
+    }
+
+    private String auditCode(ServiceModule module) {
+        return module.getStableCode() == null || module.getStableCode().isBlank() ? module.getSlug() : module.getStableCode();
     }
 
     public record CategoryRequest(

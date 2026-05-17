@@ -517,6 +517,28 @@ class ProductizationWorkflowIntegrationTest {
                 .andReturn();
         UUID productId = readId(productResult);
 
+        mockMvc.perform(post("/api/productization-engine/products/{id}/diagnoses", productId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "businessGoal": "Prepare Inventory OS for production launch with payment, API, deployment, and monitoring evidence.",
+                                  "currentProblems": "Auth, API, database, performance, support handoff, and deployment readiness are unknown.",
+                                  "accessSignals": "Repository available, staging incomplete, monitoring not connected.",
+                                  "summary": "Owner diagnosis for launch readiness."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aiReady").value(true))
+                .andExpect(jsonPath("$.aiExecuted").value(false))
+                .andExpect(jsonPath("$.findings", hasSize(greaterThan(1))))
+                .andExpect(jsonPath("$.findings[0].title").value("Production readiness baseline"));
+
+        mockMvc.perform(get("/api/productization-engine/products/{id}/diagnoses", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].findings", hasSize(greaterThan(1))));
+
         mockMvc.perform(get("/api/products/{id}", productId).with(auth(anotherOwner)))
                 .andExpect(status().isForbidden());
 
@@ -948,6 +970,147 @@ class ProductizationWorkflowIntegrationTest {
                 .andReturn();
         UUID milestoneId = UUID.fromString(objectMapper.readTree(milestonesResult.getResponse().getContentAsString()).get(0).get("id").asText());
 
+        MvcResult criteriaResult = mockMvc.perform(post("/api/productization-engine/milestones/{id}/criteria/generate", milestoneId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(greaterThan(0))))
+                .andExpect(jsonPath("$[0].evidenceRequirements", hasSize(greaterThan(0))))
+                .andReturn();
+        JsonNode criteriaNode = objectMapper.readTree(criteriaResult.getResponse().getContentAsString());
+        UUID criterionId = UUID.fromString(criteriaNode.get(0).get("id").asText());
+        UUID evidenceRequirementId = UUID.fromString(criteriaNode.get(0).get("evidenceRequirements").get(0).get("id").asText());
+
+        mockMvc.perform(post("/api/productization-engine/criteria/{id}/reviews", criterionId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "decision": "APPROVE",
+                                  "note": "Attempt approval before evidence is attached."
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("Required evidence")));
+
+        mockMvc.perform(put("/api/productization-engine/evidence-requirements/{id}", evidenceRequirementId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "VERIFIED",
+                                  "evidenceReference": "workspace://launch-readiness/evidence-pack"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("VERIFIED"));
+
+        mockMvc.perform(post("/api/productization-engine/criteria/{id}/checks", criterionId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "checkType": "manual-evidence-review",
+                                  "provider": "ProdUS Workspace",
+                                  "status": "PASSED",
+                                  "summary": "Evidence reviewed and accepted."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PASSED"));
+
+        mockMvc.perform(post("/api/productization-engine/criteria/{id}/reviews", criterionId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "decision": "APPROVE",
+                                  "note": "Evidence is complete for this criterion."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.decision").value("APPROVE"));
+
+        mockMvc.perform(post("/api/productization-engine/workspaces/{id}/handoff", workspaceId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Inventory OS owner handoff",
+                                  "runbook": "Release notes, rollback path, monitoring ownership, and support contacts.",
+                                  "accessChecklist": "Repository, deployment, database, and monitoring access reviewed.",
+                                  "knownIssues": "No critical launch blockers remain for the accepted milestone.",
+                                  "supportScope": "Launch monitoring and incident response.",
+                                  "status": "READY_FOR_OWNER"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY_FOR_OWNER"));
+
+        mockMvc.perform(post("/api/productization-engine/workspaces/{id}/health-reviews", workspaceId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "healthScore": 84,
+                                  "summary": "Launch workspace is healthy with one accepted criterion and active evidence trail.",
+                                  "risks": "Monitor support SLA during launch week.",
+                                  "actions": "Prepare support handoff.",
+                                  "status": "PUBLISHED"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.healthScore").value(84))
+                .andExpect(jsonPath("$.status").value("PUBLISHED"));
+
+        MvcResult integrationResult = mockMvc.perform(post("/api/productization-engine/workspaces/{id}/integrations", workspaceId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "providerType": "GITHUB",
+                                  "name": "Inventory OS repository",
+                                  "externalRef": "github://produs/inventory-os",
+                                  "scopedAccessNote": "Read-only launch evidence checks.",
+                                  "status": "CONFIGURED"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIGURED"))
+                .andReturn();
+        UUID integrationId = readId(integrationResult);
+
+        mockMvc.perform(post("/api/productization-engine/integrations/{id}/signals", integrationId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "milestoneId": "%s",
+                                  "criterionId": "%s",
+                                  "signalType": "repository-readiness",
+                                  "status": "PASSED",
+                                  "summary": "Repository checks are linked to launch acceptance.",
+                                  "evidencePayload": "{\\"branch\\":\\"main\\",\\"checks\\":\\"passed\\"}"
+                                }
+                                """.formatted(milestoneId, criterionId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PASSED"));
+
+        mockMvc.perform(get("/api/productization-engine/workspaces/{id}/governance", workspaceId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.criteria", hasSize(greaterThan(0))))
+                .andExpect(jsonPath("$.automatedChecks", hasSize(greaterThan(0))))
+                .andExpect(jsonPath("$.handoffs", hasSize(1)))
+                .andExpect(jsonPath("$.healthReviews", hasSize(1)))
+                .andExpect(jsonPath("$.integrations", hasSize(1)))
+                .andExpect(jsonPath("$.integrations[0].signals", hasSize(1)));
+
+        mockMvc.perform(get("/api/admin/audit-events").with(auth(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.action == 'CREATE_DIAGNOSIS')]", hasSize(greaterThan(0))))
+                .andExpect(jsonPath("$[?(@.action == 'CREATE_INTEGRATION_SIGNAL')]", hasSize(greaterThan(0))));
+
         mockMvc.perform(post("/api/workspaces/{id}/milestones", workspaceId)
                         .with(auth(specialist))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -1054,6 +1217,7 @@ class ProductizationWorkflowIntegrationTest {
         launchReadiness.setDescription("Owner-ready launch planning, milestones, and evidence");
         launchReadiness.setExpectedDeliverables("Launch plan, risk register, release milestones");
         launchReadiness.setAcceptanceCriteria("Owner can approve launch readiness evidence");
+        launchReadiness.setRequiredEvidenceTypes("Owner evidence pack");
         launchReadiness = moduleRepository.save(launchReadiness);
 
         ServiceModule securityReview = new ServiceModule();
@@ -1063,6 +1227,7 @@ class ProductizationWorkflowIntegrationTest {
         securityReview.setDescription("Security readiness check before production launch");
         securityReview.setExpectedDeliverables("Security notes and remediation decisions");
         securityReview.setAcceptanceCriteria("Critical launch risks are documented");
+        securityReview.setRequiredEvidenceTypes("Security review notes");
         securityReview = moduleRepository.save(securityReview);
 
         ServiceDependency dependency = new ServiceDependency();

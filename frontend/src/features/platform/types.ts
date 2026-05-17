@@ -589,3 +589,146 @@ export interface AIRecommendation extends BaseRecord {
   outputJson?: string;
   humanFeedback?: string;
 }
+
+export interface ProductFinding extends BaseRecord {
+  title: string;
+  description: string;
+  affectedLayer?: string;
+  severity: 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  confidenceLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  confidenceBasis?: string;
+  sourceSignal?: string;
+  status: 'OPEN' | 'SERVICE_SELECTED' | 'ACCEPTED_RISK' | 'RESOLVED' | 'DISMISSED';
+  recommendedModuleId?: string;
+  recommendedModuleName?: string;
+  recommendedModuleCode?: string;
+}
+
+export interface ProductDiagnosis extends BaseRecord {
+  productId: string;
+  productName: string;
+  readinessScore: number;
+  summary: string;
+  accessSignals?: string;
+  status: 'DRAFT' | 'READY' | 'FINDINGS_REVIEWED' | 'SERVICE_PLAN_CREATED' | 'ARCHIVED';
+  aiReady: boolean;
+  aiExecuted: boolean;
+  findings: ProductFinding[];
+}
+
+export interface EvidenceRequirement extends BaseRecord {
+  criterionId: string;
+  evidenceType: string;
+  description?: string;
+  required: boolean;
+  status: 'MISSING' | 'ATTACHED' | 'VERIFIED' | 'WAIVED';
+  evidenceReference?: string;
+}
+
+export interface AutomatedCheck extends BaseRecord {
+  workspaceId: string;
+  milestoneId?: string;
+  criterionId?: string;
+  checkType: string;
+  provider: string;
+  externalRef?: string;
+  status: 'PENDING' | 'PASSED' | 'WARNING' | 'FAILED';
+  summary?: string;
+  rawPayload?: string;
+  observedAt?: string;
+}
+
+export interface ReviewDecision extends BaseRecord {
+  milestoneId: string;
+  criterionId?: string;
+  reviewerEmail: string;
+  decision: 'APPROVE' | 'REQUEST_CHANGES' | 'REJECT' | 'COMMENT';
+  note?: string;
+}
+
+export interface AcceptanceCriterion extends BaseRecord {
+  milestoneId: string;
+  packageModuleId?: string;
+  serviceName?: string;
+  title: string;
+  description?: string;
+  required: boolean;
+  status: 'PENDING' | 'IN_REVIEW' | 'PASSED' | 'FAILED' | 'WAIVED';
+  humanReviewRequired: boolean;
+  evidenceRequirements: EvidenceRequirement[];
+  automatedChecks: AutomatedCheck[];
+  reviews: ReviewDecision[];
+}
+
+export interface HandoffDocument extends BaseRecord {
+  workspaceId: string;
+  title: string;
+  runbook?: string;
+  accessChecklist?: string;
+  knownIssues?: string;
+  supportScope?: string;
+  status: 'DRAFT' | 'READY_FOR_OWNER' | 'ACCEPTED' | 'ARCHIVED';
+}
+
+export interface ProductHealthReview extends BaseRecord {
+  workspaceId: string;
+  periodStart?: string;
+  periodEnd?: string;
+  healthScore: number;
+  summary: string;
+  risks?: string;
+  actions?: string;
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+}
+
+export interface IntegrationSignal extends BaseRecord {
+  connectionId: string;
+  workspaceId?: string;
+  milestoneId?: string;
+  criterionId?: string;
+  signalType: string;
+  status: 'INFO' | 'PASSED' | 'WARNING' | 'FAILED';
+  summary?: string;
+  evidencePayload?: string;
+  recordedAt?: string;
+}
+
+export interface IntegrationConnection extends BaseRecord {
+  workspaceId?: string;
+  providerType:
+    | 'GITHUB'
+    | 'CI_CD'
+    | 'DEPENDENCY_SCAN'
+    | 'SECRETS_SCAN'
+    | 'DEPLOYMENT'
+    | 'MONITORING'
+    | 'DATABASE'
+    | 'ISSUE_TRACKER'
+    | 'SUPPORT_TOOL'
+    | 'OTHER';
+  name: string;
+  externalRef?: string;
+  scopedAccessNote?: string;
+  status: 'CONFIGURED' | 'ACTIVE' | 'NEEDS_ATTENTION' | 'DISCONNECTED';
+  lastCheckedAt?: string;
+  signals: IntegrationSignal[];
+}
+
+export interface WorkspaceGovernance {
+  workspaceId: string;
+  workspaceName: string;
+  criteria: AcceptanceCriterion[];
+  automatedChecks: AutomatedCheck[];
+  handoffs: HandoffDocument[];
+  healthReviews: ProductHealthReview[];
+  integrations: IntegrationConnection[];
+}
+
+export interface AuditEvent extends BaseRecord {
+  actorEmail?: string;
+  action: string;
+  entityType: string;
+  entityId?: string;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  details?: string;
+}

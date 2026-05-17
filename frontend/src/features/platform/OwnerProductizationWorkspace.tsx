@@ -45,6 +45,7 @@ import {
   Milestone,
   PackageInstance,
   PackageModule,
+  ProductDiagnosis,
   ProductProfile,
   ProductizationCart,
   ProductizationCartConvertResponse,
@@ -108,6 +109,13 @@ interface CartTalentPayload {
 
 interface CartConvertPayload {
   projectName: string;
+}
+
+interface DiagnosisPayload {
+  businessGoal: string;
+  currentProblems: string;
+  accessSignals: string;
+  summary: string;
 }
 
 const productInitialValues: ProductProfilePayload = {
@@ -235,6 +243,11 @@ export default function OwnerProductizationWorkspace({
   const [pendingRequirementId, setPendingRequirementId] = useState('');
   const [projectName, setProjectName] = useState('');
   const [cartNotice, setCartNotice] = useState('');
+  const diagnoses = useQuery({
+    queryKey: ['productization-engine', selectedProductId, 'diagnoses'],
+    enabled: !!selectedProductId,
+    queryFn: () => getJson<ProductDiagnosis[]>(`/productization-engine/products/${selectedProductId}/diagnoses`),
+  });
 
   const productForm = useAdvancedForm<ProductProfilePayload>({
     initialValues: productInitialValues,
@@ -246,6 +259,14 @@ export default function OwnerProductizationWorkspace({
     initialValues: requirementInitialValues,
     validationRules: {
       businessGoal: [{ type: 'required', message: 'Business goal is required' }],
+    },
+  });
+  const diagnosisForm = useAdvancedForm<DiagnosisPayload>({
+    initialValues: {
+      businessGoal: '',
+      currentProblems: '',
+      accessSignals: '',
+      summary: '',
     },
   });
 
@@ -406,6 +427,19 @@ export default function OwnerProductizationWorkspace({
       await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
     },
   });
+  const createDiagnosis = useMutation({
+    mutationFn: () =>
+      postJson<ProductDiagnosis, DiagnosisPayload>(`/productization-engine/products/${selectedProduct?.id}/diagnoses`, {
+        businessGoal: diagnosisForm.values.businessGoal || requirementForm.values.businessGoal || cart.data?.businessGoal || '',
+        currentProblems: diagnosisForm.values.currentProblems || selectedProduct?.riskProfile || '',
+        accessSignals: diagnosisForm.values.accessSignals,
+        summary: diagnosisForm.values.summary,
+      }),
+    onSuccess: async () => {
+      diagnosisForm.resetForm();
+      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
+    },
+  });
 
   const productProposals = (proposals.data || []).filter((proposal) => proposal.packageInstance?.productProfile?.id === selectedProduct?.id);
   const activeShortlists = (shortlists.data || []).filter((shortlist) => shortlist.status !== 'ARCHIVED');
@@ -421,6 +455,7 @@ export default function OwnerProductizationWorkspace({
   const suggestedTeams = (teams.data || []).slice(0, 3);
   const suggestedExperts = (experts.data || []).filter((expert) => expert.active).slice(0, 3);
   const health = productHealth(selectedProduct, selectedPackage, packageModules.data);
+  const latestDiagnosis = diagnoses.data?.[0];
   const blockedMilestones = (milestones.data || []).filter((milestone) => milestone.status === 'BLOCKED').length;
   const submittedRequirement = selectedProductRequirements.find((requirement) => requirement.status === 'SUBMITTED' || requirement.status === 'PACKAGE_RECOMMENDED');
   const buildTargetRequirementId = pendingRequirementId || submittedRequirement?.id || '';
@@ -433,8 +468,8 @@ export default function OwnerProductizationWorkspace({
     }
   });
 
-  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart].some((query) => query.isLoading);
-  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
+  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses].some((query) => query.isLoading);
+  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
     || createProduct.error
     || createRequirement.error
     || buildPackage.error
@@ -445,7 +480,8 @@ export default function OwnerProductizationWorkspace({
     || removeServiceFromCart.error
     || addTalentToCart.error
     || removeTalentFromCart.error
-    || convertCart.error;
+    || convertCart.error
+    || createDiagnosis.error;
 
   const recordShortlist = (teamId: string, status: TeamShortlist['status']) => {
     if (!selectedPackage?.id) return;
@@ -585,6 +621,98 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           ) : (
             <EmptyState label="Create a product profile to start the owner productization workflow." />
+          )}
+
+          {selectedProduct && (
+            <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
+              <SectionTitle
+                title="Diagnosis And Findings"
+                action={<PastelChip label={latestDiagnosis ? `${latestDiagnosis.findings.length} findings` : 'Not run'} accent={latestDiagnosis ? appleColors.amber : appleColors.purple} />}
+              />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '320px minmax(0, 1fr)' }, gap: 2 }}>
+                <Box component="form" onSubmit={diagnosisForm.handleSubmit(() => createDiagnosis.mutate())}>
+                  <Stack spacing={1.25}>
+                    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                      Run a deterministic productization diagnosis from the product profile, owner goal, access signals, and catalog rules. It prepares AI-ready context without executing AI.
+                    </Typography>
+                    <TextField
+                      size="small"
+                      label="Production goal"
+                      value={diagnosisForm.values.businessGoal}
+                      onChange={(event) => diagnosisForm.setValue('businessGoal', event.target.value)}
+                    />
+                    <TextField
+                      size="small"
+                      label="Known blockers"
+                      value={diagnosisForm.values.currentProblems}
+                      onChange={(event) => diagnosisForm.setValue('currentProblems', event.target.value)}
+                      multiline
+                    />
+                    <TextField
+                      size="small"
+                      label="Access signals"
+                      placeholder="Repo available, staging missing, no monitoring, payment flow exists..."
+                      value={diagnosisForm.values.accessSignals}
+                      onChange={(event) => diagnosisForm.setValue('accessSignals', event.target.value)}
+                      multiline
+                    />
+                    <Button type="submit" variant="contained" disabled={createDiagnosis.isPending} sx={{ minHeight: 42 }}>
+                      Run diagnosis
+                    </Button>
+                  </Stack>
+                </Box>
+                <Stack spacing={1.25}>
+                  {latestDiagnosis ? (
+                    <>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between">
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          <ProgressRing value={latestDiagnosis.readinessScore} size={82} color={latestDiagnosis.readinessScore >= 70 ? appleColors.green : appleColors.amber} label="ready" />
+                          <Box>
+                            <Typography variant="h4">{latestDiagnosis.productName}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>{latestDiagnosis.summary}</Typography>
+                          </Box>
+                        </Stack>
+                        <PastelChip label={latestDiagnosis.aiExecuted ? 'AI executed' : 'AI-ready, deterministic'} accent={appleColors.blue} bg="#eaf3ff" />
+                      </Stack>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
+                        {latestDiagnosis.findings.map((finding) => {
+                          const recommendedModule = (catalogModules.data || []).find((module) => module.id === finding.recommendedModuleId);
+                          const inCart = !!recommendedModule && cartServiceIds.has(recommendedModule.id);
+                          return (
+                            <Box key={finding.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.25, bgcolor: '#fff' }}>
+                              <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                                <Box sx={{ minWidth: 0 }}>
+                                  <Typography sx={{ fontWeight: 900 }}>{finding.title}</Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.5 }}>{finding.description}</Typography>
+                                </Box>
+                                <StatusChip label={finding.severity} color={finding.severity === 'CRITICAL' || finding.severity === 'HIGH' ? 'error' : 'warning'} />
+                              </Stack>
+                              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                                <PastelChip label={finding.confidenceLevel} accent={appleColors.cyan} bg="#e4f9fd" />
+                                {finding.recommendedModuleName && <PastelChip label={finding.recommendedModuleName} accent={appleColors.purple} />}
+                              </Stack>
+                              {recommendedModule && (
+                                <Button
+                                  variant={inCart ? 'outlined' : 'contained'}
+                                  size="small"
+                                  disabled={inCart || addServiceToCart.isPending}
+                                  onClick={() => addLifecycleService(recommendedModule, 'Diagnosis')}
+                                  sx={{ mt: 1.25, minHeight: 36 }}
+                                >
+                                  {inCart ? 'Service in plan' : 'Add recommended service'}
+                                </Button>
+                              )}
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </>
+                  ) : (
+                    <EmptyState label="No diagnosis has been created for this product yet." />
+                  )}
+                </Stack>
+              </Box>
+            </Surface>
           )}
 
           <Surface>

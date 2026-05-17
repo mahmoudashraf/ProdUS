@@ -5,7 +5,7 @@ import { Box, Divider, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getJson, postJson } from './api';
 import { EmptyState, PageHeader, PastelChip, QueryState, SaveButton, SectionTitle, StatusChip, Surface, TextInput, appleColors } from './PlatformComponents';
-import { AICapabilityConfig, CatalogRule, CatalogTemplateDefinition, PackageTemplate, ServiceCategory, ServiceModule } from './types';
+import { AICapabilityConfig, AuditEvent, CatalogRule, CatalogTemplateDefinition, PackageTemplate, ServiceCategory, ServiceModule } from './types';
 
 interface CategoryPayload {
   name: string;
@@ -41,6 +41,10 @@ export default function AdminCatalogPage() {
     queryKey: ['catalog-ai-capabilities'],
     queryFn: () => getJson<AICapabilityConfig[]>('/catalog/ai-capabilities'),
   });
+  const auditEvents = useQuery({
+    queryKey: ['admin-audit-events'],
+    queryFn: () => getJson<AuditEvent[]>('/admin/audit-events'),
+  });
   const [form, setForm] = useState<CategoryPayload>({
     name: '',
     slug: '',
@@ -65,8 +69,8 @@ export default function AdminCatalogPage() {
     <>
       <PageHeader title="Admin Catalog" description="Govern service taxonomy, package templates, dependency rules, evidence templates, and AI-ready contracts." />
       <QueryState
-        isLoading={categories.isLoading || modules.isLoading || packageTemplates.isLoading || rules.isLoading || definitions.isLoading || aiCapabilities.isLoading}
-        error={categories.error || modules.error || packageTemplates.error || rules.error || definitions.error || aiCapabilities.error || createCategory.error}
+        isLoading={categories.isLoading || modules.isLoading || packageTemplates.isLoading || rules.isLoading || definitions.isLoading || aiCapabilities.isLoading || auditEvents.isLoading}
+        error={categories.error || modules.error || packageTemplates.error || rules.error || definitions.error || aiCapabilities.error || auditEvents.error || createCategory.error}
       />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '360px 1fr' }, gap: 2 }}>
         <Surface>
@@ -178,6 +182,24 @@ export default function AdminCatalogPage() {
               {(definitions.data || []).map((definition) => (
                 <PastelChip key={definition.id} label={`${definition.templateType}: ${definition.name}`} accent={appleColors.blue} bg="#eaf3ff" />
               ))}
+            </Stack>
+          </Surface>
+
+          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8fbff)' }}>
+            <SectionTitle title="Governance Audit" action={<PastelChip label={`${auditEvents.data?.length || 0} events`} accent={appleColors.blue} bg="#eaf3ff" />} />
+            <Stack spacing={1}>
+              {(auditEvents.data || []).slice(0, 12).map((event) => (
+                <Box key={event.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr auto' }, gap: 1, alignItems: 'center', borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 900 }}>{event.action}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {event.actorEmail || 'System'} · {event.entityType}{event.details ? ` · ${event.details}` : ''}
+                    </Typography>
+                  </Box>
+                  <StatusChip label={event.riskLevel} color={event.riskLevel === 'HIGH' || event.riskLevel === 'CRITICAL' ? 'error' : event.riskLevel === 'MEDIUM' ? 'warning' : 'default'} />
+                </Box>
+              ))}
+              {!(auditEvents.data || []).length && <EmptyState label="No governance audit events have been recorded yet." />}
             </Stack>
           </Surface>
         </Stack>
