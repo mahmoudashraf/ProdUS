@@ -7,6 +7,7 @@ import {
   AddShoppingCartOutlined,
   AutoAwesomeOutlined,
   BugReportOutlined,
+  CancelOutlined,
   CheckCircleOutlineOutlined,
   CloudUploadOutlined,
   CompareArrowsOutlined,
@@ -16,12 +17,14 @@ import {
   Inventory2Outlined,
   OpenInNewOutlined,
   PersonAddAltOutlined,
+  PlayArrowOutlined,
+  RefreshOutlined,
   RocketLaunchOutlined,
   SendOutlined,
   ShoppingCartOutlined,
   ShieldOutlined,
 } from '@mui/icons-material';
-import { Alert, Box, Button, Divider, IconButton, LinearProgress, MenuItem, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Checkbox, Divider, FormControlLabel, IconButton, LinearProgress, MenuItem, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import { deleteJson, getJson, patchJson, postJson, putJson } from './api';
@@ -135,6 +138,21 @@ interface ScanSourcePayload {
   scopeNote: string;
 }
 
+interface HostedScanPayload {
+  productId: string;
+  workspaceId?: string;
+  sourceId?: string;
+  depth: ScanRun['depth'];
+  toolKeys?: string[];
+  branchRef?: string;
+  runtimeTargetUrl?: string;
+  containerImageRef?: string;
+  authorizationConfirmed: boolean;
+  runtimeAuthorizationConfirmed: boolean;
+  reason: string;
+  comparisonBaseRunId?: string;
+}
+
 interface ScannerUploadPayload {
   productId: string;
   workspaceId?: string;
@@ -175,6 +193,22 @@ const requirementInitialValues: RequirementPayload = {
 };
 
 const stageOptions: ProductProfile['businessStage'][] = ['IDEA', 'PROTOTYPE', 'VALIDATED', 'LIVE', 'SCALING'];
+
+const scanToolOptions = [
+  { key: 'gitleaks', label: 'Gitleaks', depths: ['SAFE_STATIC', 'DEEP_REVIEW'] },
+  { key: 'osv-scanner', label: 'OSV-Scanner', depths: ['SAFE_STATIC', 'DEEP_REVIEW'] },
+  { key: 'semgrep', label: 'Semgrep', depths: ['SAFE_STATIC', 'DEEP_REVIEW'] },
+  { key: 'trivy-fs', label: 'Trivy FS', depths: ['SAFE_STATIC', 'DEEP_REVIEW'] },
+  { key: 'checkov', label: 'Checkov', depths: ['SAFE_STATIC', 'DEEP_REVIEW'] },
+  { key: 'syft', label: 'Syft SBOM', depths: ['DEPENDENCY_CONTAINER', 'DEEP_REVIEW'] },
+  { key: 'grype', label: 'Grype', depths: ['DEPENDENCY_CONTAINER', 'DEEP_REVIEW'] },
+  { key: 'trivy-image', label: 'Trivy Image', depths: ['DEPENDENCY_CONTAINER'] },
+  { key: 'lighthouse', label: 'Lighthouse', depths: ['RUNTIME_BASELINE'] },
+  { key: 'zap-baseline', label: 'ZAP Baseline', depths: ['RUNTIME_BASELINE'] },
+] as const;
+
+const defaultToolsForDepth = (depth: ScanRun['depth']) =>
+  scanToolOptions.filter((tool) => (tool.depths as readonly string[]).includes(depth)).map((tool) => tool.key);
 
 const formatMoney = (amountCents: number, currency: string) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format((amountCents || 0) / 100);
@@ -246,6 +280,38 @@ const intakeActionButtonSx = {
   },
 };
 
+const hostedScanBlockReason = (
+  product: ProductProfile | undefined,
+  source: ScanSource | undefined,
+  form: {
+    depth: ScanRun['depth'];
+    authorizationConfirmed: boolean;
+    runtimeAuthorizationConfirmed: boolean;
+    runtimeTargetUrl: string;
+    containerImageRef: string;
+    toolKeys: string[];
+    reason: string;
+  }
+) => {
+  if (!product) return 'Select a product first.';
+  if (!form.authorizationConfirmed) return 'Confirm that you are authorized to run this scan.';
+  if (!form.reason.trim()) return 'Add an audit reason for scanner execution.';
+  if (!form.toolKeys.length) return 'Select at least one scanner tool.';
+  if (form.depth === 'RUNTIME_BASELINE') {
+    const target = form.runtimeTargetUrl || source?.externalReference || product.productUrl || '';
+    if (!target.trim()) return 'Add an authorized runtime URL.';
+    if (!form.runtimeAuthorizationConfirmed) return 'Confirm runtime URL authorization.';
+    return '';
+  }
+  if (form.depth === 'DEPENDENCY_CONTAINER') {
+    if (!form.containerImageRef.trim()) return 'Add a container image reference for dependency/container scanning.';
+    return '';
+  }
+  if (!source && !product.repositoryUrl) return 'Connect an authorized repository source or add a repository URL to the product.';
+  if (source && source.authorizationStatus !== 'AUTHORIZED') return 'Authorize the selected source before running hosted scanners.';
+  return '';
+};
+
 const productHealth = (product?: ProductProfile, packageInstance?: PackageInstance, modules?: PackageModule[]) => {
   if (!product) return 0;
   if (!packageInstance) return product.businessStage === 'LIVE' ? 66 : 58;
@@ -287,13 +353,39 @@ export default function OwnerProductizationWorkspace({
     queryKey: ['scanner-summary', selectedProductId],
     enabled: !!selectedProductId,
     queryFn: () => getJson<ProductScannerSummary>(`/scanner/products/${selectedProductId}/summary`),
+    refetchInterval: (query) => {
+      const data = query.state.data as ProductScannerSummary | undefined;
+      return data?.recentRuns.some((run) => run.status === 'QUEUED' || run.status === 'RUNNING') ? 5000 : false;
+    },
   });
 
   const [scanSourceForm, setScanSourceForm] = useState({
     providerType: 'GITHUB' as ScanSource['providerType'],
     displayName: 'GitHub Security Pipeline',
     externalReference: '',
+    authorizationConfirmed: false,
     scopeNote: 'CI and security evidence imported for production readiness review.',
+  });
+  const [hostedScanForm, setHostedScanForm] = useState<{
+    sourceId: string;
+    depth: ScanRun['depth'];
+    toolKeys: string[];
+    branchRef: string;
+    runtimeTargetUrl: string;
+    containerImageRef: string;
+    authorizationConfirmed: boolean;
+    runtimeAuthorizationConfirmed: boolean;
+    reason: string;
+  }>({
+    sourceId: '',
+    depth: 'SAFE_STATIC' as ScanRun['depth'],
+    toolKeys: defaultToolsForDepth('SAFE_STATIC'),
+    branchRef: 'main',
+    runtimeTargetUrl: '',
+    containerImageRef: '',
+    authorizationConfirmed: false,
+    runtimeAuthorizationConfirmed: false,
+    reason: 'Owner authorized scanner execution for productization readiness.',
   });
   const [scannerUploadForm, setScannerUploadForm] = useState({
     sourceId: '',
@@ -505,7 +597,7 @@ export default function OwnerProductizationWorkspace({
         providerType: scanSourceForm.providerType,
         displayName: scanSourceForm.displayName,
         externalReference: scanSourceForm.externalReference,
-        authorizationStatus: scanSourceForm.providerType === 'CI_UPLOAD' ? 'AUTHORIZED' : 'PENDING',
+        authorizationStatus: scanSourceForm.providerType === 'CI_UPLOAD' || scanSourceForm.authorizationConfirmed ? 'AUTHORIZED' : 'PENDING',
         scopeNote: scanSourceForm.scopeNote,
       };
       if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
@@ -513,7 +605,8 @@ export default function OwnerProductizationWorkspace({
     },
     onSuccess: async (source) => {
       setScannerUploadForm((current) => ({ ...current, sourceId: source.id }));
-      setScanSourceForm((current) => ({ ...current, externalReference: '' }));
+      setHostedScanForm((current) => ({ ...current, sourceId: source.id }));
+      setScanSourceForm((current) => ({ ...current, externalReference: '', authorizationConfirmed: false }));
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
     },
   });
@@ -532,6 +625,39 @@ export default function OwnerProductizationWorkspace({
       if (scannerUploadForm.milestoneId) payload.milestoneId = scannerUploadForm.milestoneId;
       return postJson<ScanRun, ScannerUploadPayload>('/scanner/runs/ci-upload', payload);
     },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
+  const startHostedScan = useMutation({
+    mutationFn: () => {
+      const payload: HostedScanPayload = {
+        productId: selectedProduct?.id || '',
+        depth: hostedScanForm.depth,
+        toolKeys: hostedScanForm.toolKeys,
+        authorizationConfirmed: hostedScanForm.authorizationConfirmed,
+        runtimeAuthorizationConfirmed: hostedScanForm.depth === 'RUNTIME_BASELINE' ? hostedScanForm.runtimeAuthorizationConfirmed : false,
+        reason: hostedScanForm.reason,
+      };
+      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
+      if (hostedScanForm.sourceId) payload.sourceId = hostedScanForm.sourceId;
+      if (hostedScanForm.branchRef.trim()) payload.branchRef = hostedScanForm.branchRef.trim();
+      if (hostedScanForm.runtimeTargetUrl.trim()) payload.runtimeTargetUrl = hostedScanForm.runtimeTargetUrl.trim();
+      if (hostedScanForm.containerImageRef.trim()) payload.containerImageRef = hostedScanForm.containerImageRef.trim();
+      return postJson<ScanRun, HostedScanPayload>('/scanner/runs/hosted', payload);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
+  const cancelScannerRun = useMutation({
+    mutationFn: (runId: string) => postJson<ScanRun, { reason: string }>(`/scanner/runs/${runId}/cancel`, { reason: 'Owner canceled scanner run from Studio.' }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
+  const rescanRun = useMutation({
+    mutationFn: (runId: string) => postJson<ScanRun, { reason: string }>(`/scanner/runs/${runId}/rescan`, { reason: 'Owner requested rescan after remediation or evidence review.' }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
     },
@@ -562,6 +688,9 @@ export default function OwnerProductizationWorkspace({
   const scannerCounts = scannerSummary.data?.counts;
   const scannerReadiness = scannerSummary.data?.readinessScore ?? (scannerCounts?.total ? 72 : 100);
   const scannerOpenFindings = (scannerSummary.data?.findings || []).filter((finding) => ['NEW', 'OPEN', 'REGRESSED'].includes(finding.status));
+  const activeScanRun = scannerSummary.data?.recentRuns.find((run) => run.status === 'QUEUED' || run.status === 'RUNNING');
+  const selectedScanSource = (scannerSummary.data?.sources || []).find((source) => source.id === hostedScanForm.sourceId);
+  const hostedScanBlockedReason = hostedScanBlockReason(selectedProduct, selectedScanSource, hostedScanForm);
   const blockedMilestones = (milestones.data || []).filter((milestone) => milestone.status === 'BLOCKED').length;
   const submittedRequirement = selectedProductRequirements.find((requirement) => requirement.status === 'SUBMITTED' || requirement.status === 'PACKAGE_RECOMMENDED');
   const buildTargetRequirementId = pendingRequirementId || submittedRequirement?.id || '';
@@ -570,7 +699,10 @@ export default function OwnerProductizationWorkspace({
     if (!scannerUploadForm.sourceId && scannerSummary.data?.sources[0]?.id) {
       setScannerUploadForm((current) => ({ ...current, sourceId: scannerSummary.data?.sources[0]?.id || '' }));
     }
-  }, [scannerSummary.data?.sources, scannerUploadForm.sourceId]);
+    if (!hostedScanForm.sourceId && scannerSummary.data?.sources[0]?.id) {
+      setHostedScanForm((current) => ({ ...current, sourceId: scannerSummary.data?.sources[0]?.id || '' }));
+    }
+  }, [scannerSummary.data?.sources, scannerUploadForm.sourceId, hostedScanForm.sourceId]);
 
   const submitProduct = productForm.handleSubmit(() => createProduct.mutate());
   const submitRequirement = requirementForm.handleSubmit(() => {
@@ -596,6 +728,9 @@ export default function OwnerProductizationWorkspace({
     || createDiagnosis.error
     || createScanSource.error
     || uploadScannerEvidence.error
+    || startHostedScan.error
+    || cancelScannerRun.error
+    || rescanRun.error
     || updateFindingStatus.error;
 
   const recordShortlist = (teamId: string, status: TeamShortlist['status']) => {
@@ -903,6 +1038,19 @@ export default function OwnerProductizationWorkspace({
                         multiline
                         minRows={2}
                       />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={scanSourceForm.authorizationConfirmed}
+                            onChange={(event) => setScanSourceForm((current) => ({ ...current, authorizationConfirmed: event.target.checked }))}
+                          />
+                        }
+                        label={
+                          <Typography variant="body2" color="text.secondary">
+                            I confirm this source is authorized for scanner evidence collection.
+                          </Typography>
+                        }
+                      />
                       <Button
                         type="submit"
                         variant="outlined"
@@ -912,6 +1060,144 @@ export default function OwnerProductizationWorkspace({
                       >
                         Save Source
                       </Button>
+                    </Stack>
+                  </Box>
+
+                  <Divider />
+
+                  <Box component="form" onSubmit={(event) => {
+                    event.preventDefault();
+                    if (!hostedScanBlockedReason && !activeScanRun) startHostedScan.mutate();
+                  }}>
+                    <Stack spacing={1.25}>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                        <Typography sx={{ fontWeight: 900 }}>Run governed scan</Typography>
+                        {activeScanRun && <StatusChip label={activeScanRun.status} color={activeScanRun.status === 'RUNNING' ? 'warning' : 'default'} />}
+                      </Stack>
+                      <TextField
+                        select
+                        size="small"
+                        label="Evidence source"
+                        value={hostedScanForm.sourceId}
+                        onChange={(event) => setHostedScanForm((current) => ({ ...current, sourceId: event.target.value }))}
+                      >
+                        <MenuItem value="">Use product repository / target</MenuItem>
+                        {(scannerSummary.data?.sources || []).map((source) => (
+                          <MenuItem key={source.id} value={source.id}>
+                            {source.displayName} · {formatLabel(source.authorizationStatus)}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        select
+                        size="small"
+                        label="Scan depth"
+                        value={hostedScanForm.depth}
+                        onChange={(event) => {
+                          const depth = event.target.value as ScanRun['depth'];
+                          setHostedScanForm((current) => ({ ...current, depth, toolKeys: defaultToolsForDepth(depth) }));
+                        }}
+                      >
+                        <MenuItem value="SAFE_STATIC">L1 Safe static</MenuItem>
+                        <MenuItem value="DEPENDENCY_CONTAINER">L2 Dependency / container</MenuItem>
+                        <MenuItem value="RUNTIME_BASELINE">L3 Runtime baseline</MenuItem>
+                      </TextField>
+                      <TextField
+                        select
+                        size="small"
+                        label="Scanner tools"
+                        value={hostedScanForm.toolKeys}
+                        SelectProps={{ multiple: true }}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setHostedScanForm((current) => ({
+                            ...current,
+                            toolKeys: typeof value === 'string' ? value.split(',') : value as string[],
+                          }));
+                        }}
+                      >
+                        {scanToolOptions
+                          .filter((tool) => (tool.depths as readonly string[]).includes(hostedScanForm.depth))
+                          .map((tool) => (
+                            <MenuItem key={tool.key} value={tool.key}>{tool.label}</MenuItem>
+                          ))}
+                      </TextField>
+                      {hostedScanForm.depth === 'SAFE_STATIC' && (
+                        <TextField
+                          size="small"
+                          label="Branch"
+                          value={hostedScanForm.branchRef}
+                          onChange={(event) => setHostedScanForm((current) => ({ ...current, branchRef: event.target.value }))}
+                        />
+                      )}
+                      {hostedScanForm.depth === 'DEPENDENCY_CONTAINER' && (
+                        <TextField
+                          size="small"
+                          label="Container image"
+                          placeholder="registry.example.com/app:sha"
+                          value={hostedScanForm.containerImageRef}
+                          onChange={(event) => setHostedScanForm((current) => ({ ...current, containerImageRef: event.target.value }))}
+                        />
+                      )}
+                      {hostedScanForm.depth === 'RUNTIME_BASELINE' && (
+                        <TextField
+                          size="small"
+                          label="Runtime URL"
+                          placeholder={selectedProduct?.productUrl || 'https://staging.example.com'}
+                          value={hostedScanForm.runtimeTargetUrl}
+                          onChange={(event) => setHostedScanForm((current) => ({ ...current, runtimeTargetUrl: event.target.value }))}
+                        />
+                      )}
+                      <TextField
+                        size="small"
+                        label="Audit reason"
+                        value={hostedScanForm.reason}
+                        onChange={(event) => setHostedScanForm((current) => ({ ...current, reason: event.target.value }))}
+                      />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={hostedScanForm.authorizationConfirmed}
+                            onChange={(event) => setHostedScanForm((current) => ({ ...current, authorizationConfirmed: event.target.checked }))}
+                          />
+                        }
+                        label={<Typography variant="body2" color="text.secondary">I am authorized to run selected scanners on this source.</Typography>}
+                      />
+                      {hostedScanForm.depth === 'RUNTIME_BASELINE' && (
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={hostedScanForm.runtimeAuthorizationConfirmed}
+                              onChange={(event) => setHostedScanForm((current) => ({ ...current, runtimeAuthorizationConfirmed: event.target.checked }))}
+                            />
+                          }
+                          label={<Typography variant="body2" color="text.secondary">I confirm the runtime URL/domain is authorized for baseline scanning.</Typography>}
+                        />
+                      )}
+                      {hostedScanBlockedReason && <Alert severity="info" sx={{ borderRadius: 1 }}>{hostedScanBlockedReason}</Alert>}
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                        <Button
+                          type="submit"
+                          variant="contained"
+                          startIcon={<PlayArrowOutlined />}
+                          disabled={!!hostedScanBlockedReason || !!activeScanRun || startHostedScan.isPending}
+                          sx={{ minHeight: 44, flex: 1 }}
+                        >
+                          Start Scan
+                        </Button>
+                        {activeScanRun && (
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            startIcon={<CancelOutlined />}
+                            disabled={cancelScannerRun.isPending}
+                            onClick={() => cancelScannerRun.mutate(activeScanRun.id)}
+                            sx={{ minHeight: 44, flex: 1 }}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                      </Stack>
                     </Stack>
                   </Box>
 
@@ -1005,7 +1291,7 @@ export default function OwnerProductizationWorkspace({
                 </Stack>
 
                 <Stack spacing={1.5}>
-                  {(scannerSummary.isFetching || uploadScannerEvidence.isPending || updateFindingStatus.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
+                  {(scannerSummary.isFetching || uploadScannerEvidence.isPending || startHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || updateFindingStatus.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
                   {scannerSummary.data?.sources.length ? (
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                       {scannerSummary.data.sources.slice(0, 5).map((source) => (
@@ -1077,7 +1363,7 @@ export default function OwnerProductizationWorkspace({
                       })}
                     </Stack>
                   ) : (
-                    <EmptyState label="No normalized findings yet. Upload SARIF, JSON, JUnit, or CI log evidence to create scanner-backed findings." />
+                    <EmptyState label="No normalized findings yet. Run a governed scan or upload SARIF, JSON, JUnit, or CI log evidence." />
                   )}
 
                   {scannerSummary.data?.recentRuns.length ? (
@@ -1089,8 +1375,24 @@ export default function OwnerProductizationWorkspace({
                             <StatusChip label={run.status} color={run.status === 'COMPLETED' ? 'success' : run.status === 'FAILED' ? 'error' : 'default'} />
                           </Stack>
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                            {(run.toolRuns || []).map((tool) => `${tool.toolName}: ${tool.normalizedCount}`).join(' · ') || 'No tool runs'}
+                            {(run.toolRuns || []).map((tool) => `${tool.toolName}: ${formatLabel(tool.status)} · ${tool.normalizedCount}`).join(' · ') || 'No tool runs'}
                           </Typography>
+                          {run.failureSummary && (
+                            <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.75, lineHeight: 1.4 }}>
+                              {run.failureSummary}
+                            </Typography>
+                          )}
+                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                            {(run.status === 'QUEUED' || run.status === 'RUNNING') ? (
+                              <Button size="small" variant="outlined" color="error" startIcon={<CancelOutlined />} disabled={cancelScannerRun.isPending} onClick={() => cancelScannerRun.mutate(run.id)}>
+                                Cancel
+                              </Button>
+                            ) : (
+                              <Button size="small" variant="outlined" startIcon={<RefreshOutlined />} disabled={!!activeScanRun || rescanRun.isPending} onClick={() => rescanRun.mutate(run.id)}>
+                                Rescan
+                              </Button>
+                            )}
+                          </Stack>
                         </Box>
                       ))}
                     </Box>

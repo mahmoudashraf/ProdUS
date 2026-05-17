@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.entity.User;
 import com.produs.repository.UserRepository;
+import com.produs.scanner.ScannerProperties;
+import com.produs.scanner.ScannerWorker;
 import com.produs.service.S3Service;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -23,6 +26,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -51,6 +56,12 @@ class ScannerEvidenceIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ScannerWorker scannerWorker;
+
+    @Autowired
+    private ScannerProperties scannerProperties;
 
     @MockBean
     private S3Service s3Service;
@@ -185,6 +196,120 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void hostedSafeStaticScanRunsConfiguredToolAndPersistsNormalizedFindings(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
+        assumeGitAvailable();
+        User owner = saveUser("scanner-hosted-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        UUID productId = createProduct(owner);
+        Path repo = createGitRepository(tempDir.resolve("repo"));
+        Path fakeScanner = createFakeGitleaksScanner(tempDir.resolve("fake-gitleaks.sh"));
+        ScannerProperties.ToolProperties gitleaks = scannerProperties.getTools().get("gitleaks");
+        gitleaks.setCommand("'" + fakeScanner + "' {target} {output}");
+        gitleaks.setVersionCommand("'" + fakeScanner + "' --version");
+        gitleaks.setEnabled(true);
+
+        MvcResult sourceResult = mockMvc.perform(post("/api/scanner/sources")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "providerType": "GITHUB",
+                                  "displayName": "Local authorized repository",
+                                  "externalReference": "%s",
+                                  "scopeNote": "Test repository authorized for safe static scanner execution."
+                                }
+                                """.formatted(productId, repo.toUri())))
+                .andExpect(status().isOk())
+                .andReturn();
+        UUID sourceId = readId(sourceResult);
+
+        MvcResult runResult = mockMvc.perform(post("/api/scanner/runs/hosted")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "sourceId": "%s",
+                                  "depth": "SAFE_STATIC",
+                                  "toolKeys": ["gitleaks"],
+                                  "authorizationConfirmed": true,
+                                  "reason": "Owner authorized safe static scan for productization readiness."
+                                }
+                                """.formatted(productId, sourceId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("QUEUED"))
+                .andExpect(jsonPath("$.toolRuns[0].toolKey").value("gitleaks"))
+                .andReturn();
+        UUID runId = readId(runResult);
+
+        org.assertj.core.api.Assertions.assertThat(scannerWorker.executeNextQueuedJob()).isTrue();
+
+        mockMvc.perform(get("/api/scanner/runs/{runId}", runId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.toolRuns[0].status").value("COMPLETED"))
+                .andExpect(jsonPath("$.toolRuns[0].normalizedCount").value(1));
+
+        mockMvc.perform(get("/api/scanner/runs/{runId}/findings", runId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sourceTool").value("Gitleaks"))
+                .andExpect(jsonPath("$[0].severity").value("HIGH"))
+                .andExpect(jsonPath("$[0].description", not(containsString("ghp_"))))
+                .andExpect(jsonPath("$[0].description").value(containsString("[REDACTED_SECRET]")));
+    }
+
+    @Test
+    void hostedScanCanBeCanceledBeforeExecution(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
+        assumeGitAvailable();
+        User owner = saveUser("scanner-cancel-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        UUID productId = createProduct(owner);
+        Path repo = createGitRepository(tempDir.resolve("repo"));
+
+        MvcResult sourceResult = mockMvc.perform(post("/api/scanner/sources")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "providerType": "GITHUB",
+                                  "displayName": "Cancelable repository",
+                                  "externalReference": "%s"
+                                }
+                                """.formatted(productId, repo.toUri())))
+                .andExpect(status().isOk())
+                .andReturn();
+        UUID sourceId = readId(sourceResult);
+
+        MvcResult runResult = mockMvc.perform(post("/api/scanner/runs/hosted")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "sourceId": "%s",
+                                  "depth": "SAFE_STATIC",
+                                  "toolKeys": ["gitleaks"],
+                                  "authorizationConfirmed": true,
+                                  "reason": "Owner authorized safe static scan."
+                                }
+                                """.formatted(productId, sourceId)))
+                .andExpect(status().isOk())
+                .andReturn();
+        UUID runId = readId(runResult);
+
+        mockMvc.perform(post("/api/scanner/runs/{runId}/cancel", runId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"No longer needed.\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELED"))
+                .andExpect(jsonPath("$.cancelRequested").value(true))
+                .andExpect(jsonPath("$.toolRuns[0].status").value("CANCELED"));
+
+        org.assertj.core.api.Assertions.assertThat(scannerWorker.executeNextQueuedJob()).isFalse();
+    }
+
     private UUID createProduct(User owner) throws Exception {
         MvcResult productResult = mockMvc.perform(post("/api/products")
                         .with(auth(owner))
@@ -206,6 +331,54 @@ class ScannerEvidenceIntegrationTest {
     private UUID readId(MvcResult result) throws Exception {
         JsonNode json = objectMapper.readTree(result.getResponse().getContentAsString());
         return UUID.fromString(json.get("id").asText());
+    }
+
+    private void assumeGitAvailable() {
+        try {
+            Process process = new ProcessBuilder("git", "--version").start();
+            Assumptions.assumeTrue(process.waitFor() == 0, "git is required for hosted scan tests");
+        } catch (Exception ex) {
+            Assumptions.assumeTrue(false, "git is required for hosted scan tests");
+        }
+    }
+
+    private Path createGitRepository(Path repo) throws Exception {
+        Files.createDirectories(repo);
+        Files.writeString(repo.resolve("config.env"), "API_TOKEN=ghp_12345678901234567890");
+        run(repo, "git", "init");
+        run(repo, "git", "config", "user.email", "scanner@produs.test");
+        run(repo, "git", "config", "user.name", "Scanner Test");
+        run(repo, "git", "add", ".");
+        run(repo, "git", "commit", "-m", "fixture");
+        return repo;
+    }
+
+    private Path createFakeGitleaksScanner(Path script) throws Exception {
+        Files.writeString(script, """
+                #!/bin/sh
+                if [ "$1" = "--version" ]; then
+                  echo "fake-gitleaks 1.0.0"
+                  exit 0
+                fi
+                output="$2"
+                cat > "$output" <<'JSON'
+                [{
+                  "RuleID": "generic-api-key",
+                  "Description": "Hardcoded token ghp_12345678901234567890 found in repository",
+                  "File": "config.env",
+                  "StartLine": 1
+                }]
+                JSON
+                exit 0
+                """);
+        script.toFile().setExecutable(true);
+        return script;
+    }
+
+    private void run(Path directory, String... command) throws Exception {
+        Process process = new ProcessBuilder(command).directory(directory.toFile()).start();
+        int exit = process.waitFor();
+        org.assertj.core.api.Assertions.assertThat(exit).as(String.join(" ", command)).isZero();
     }
 
     private User saveUser(String email, User.UserRole role) {

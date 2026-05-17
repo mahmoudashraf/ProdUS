@@ -16,6 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -61,6 +62,24 @@ public class ScanRun extends BaseEntity {
     @Column(name = "failure_summary", columnDefinition = "TEXT")
     private String failureSummary;
 
+    @Column(name = "cancel_requested", nullable = false)
+    private boolean cancelRequested;
+
+    @Column(name = "scan_plan", columnDefinition = "TEXT")
+    private String scanPlan;
+
+    @Column(name = "branch_ref")
+    private String branchRef;
+
+    @Column(name = "runtime_target_url", length = 1000)
+    private String runtimeTargetUrl;
+
+    @Column(name = "container_image_ref", length = 1000)
+    private String containerImageRef;
+
+    @Column(name = "comparison_base_run_id")
+    private UUID comparisonBaseRunId;
+
     public enum TriggerType {
         MANUAL_UPLOAD,
         CI_UPLOAD,
@@ -80,6 +99,7 @@ public class ScanRun extends BaseEntity {
     public enum ScanDepth {
         CI_EVIDENCE,
         SAFE_STATIC,
+        DEPENDENCY_CONTAINER,
         RUNTIME_BASELINE,
         DEEP_REVIEW
     }

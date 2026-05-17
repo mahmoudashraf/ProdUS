@@ -32,11 +32,14 @@ import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -60,11 +63,14 @@ public class ScannerService {
     private final ScanSourceRepository sourceRepository;
     private final ScanRunRepository scanRunRepository;
     private final ToolRunRepository toolRunRepository;
+    private final ScannerJobRepository scannerJobRepository;
     private final ScannerEvidenceItemRepository evidenceRepository;
     private final NormalizedFindingRepository findingRepository;
     private final S3Service s3Service;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final ScannerProperties scannerProperties;
+    private final ScannerProcessRunner scannerProcessRunner;
 
     @Transactional
     public ScanSourceResponse createSource(User actor, CreateScanSourceRequest request) {
@@ -222,6 +228,145 @@ public class ScannerService {
         }
     }
 
+    @Transactional
+    public ScanRunResponse startHostedScan(User actor, StartHostedScanRequest request) {
+        ProductProfile product = productRepository.findById(request.productId())
+                .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
+        ProjectWorkspace workspace = resolveWorkspace(request.workspaceId(), product);
+        requireProductOrWorkspaceWrite(actor, product, workspace);
+        ScanRun.ScanDepth depth = request.depth() == null ? ScanRun.ScanDepth.SAFE_STATIC : request.depth();
+        if (depth == ScanRun.ScanDepth.CI_EVIDENCE) {
+            throw new IllegalArgumentException("CI_EVIDENCE runs must use the CI upload endpoint");
+        }
+        if (!request.authorizationConfirmed()) {
+            throw new IllegalArgumentException("Hosted scans require explicit repository, image, or URL authorization confirmation");
+        }
+        if (scanRunRepository.existsByProductProfileIdAndDepthAndStatusIn(
+                product.getId(),
+                depth,
+                List.of(ScanRun.RunStatus.QUEUED, ScanRun.RunStatus.RUNNING)
+        )) {
+            throw new IllegalStateException("A scan at this depth is already queued or running for this product");
+        }
+
+        ScanSource source = resolveHostedSource(actor, product, workspace, request, depth);
+        List<String> toolKeys = selectedToolKeys(request.toolKeys(), depth);
+        validateToolKeys(toolKeys);
+        ScanRun run = new ScanRun();
+        run.setScanSource(source);
+        run.setProductProfile(product);
+        run.setWorkspace(workspace);
+        run.setTriggerType(ScanRun.TriggerType.HOSTED_SCAN);
+        run.setStatus(ScanRun.RunStatus.QUEUED);
+        run.setDepth(depth);
+        run.setRequestedBy(actor);
+        run.setBranchRef(trimToNull(request.branchRef()));
+        run.setRuntimeTargetUrl(resolveRuntimeTarget(product, source, request, depth));
+        run.setContainerImageRef(trimToNull(request.containerImageRef()));
+        run.setComparisonBaseRunId(request.comparisonBaseRunId());
+        run.setScanPlan(scanPlan(depth, toolKeys, source, request.reason()));
+        ScanRun savedRun = scanRunRepository.save(run);
+
+        for (String toolKey : toolKeys) {
+            ScannerProperties.ToolProperties tool = scannerProperties.tool(toolKey);
+            ToolRun toolRun = new ToolRun();
+            toolRun.setScanRun(savedRun);
+            toolRun.setToolKey(toolKey);
+            toolRun.setToolName(tool == null || isBlank(tool.getDisplayName()) ? toolKey : tool.getDisplayName());
+            toolRun.setStatus(ToolRun.ToolStatus.QUEUED);
+            toolRunRepository.save(toolRun);
+        }
+
+        ScannerJob job = new ScannerJob();
+        job.setScanRun(savedRun);
+        job.setStatus(ScannerJob.JobStatus.QUEUED);
+        job.setMaxAttempts(Math.max(1, scannerProperties.getMaxAttempts()));
+        job.setNextRunAt(LocalDateTime.now());
+        scannerJobRepository.save(job);
+        audit(actor, "SCANNER_HOSTED_SCAN_QUEUED", "SCAN_RUN", savedRun.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Queued %s scan for product %s using tools %s".formatted(depth, product.getId(), toolKeys));
+        return toScanRunResponse(savedRun, toolRunRepository.findByScanRunIdOrderByCreatedAtAsc(savedRun.getId()));
+    }
+
+    @Transactional
+    public ScanRunResponse cancelScanRun(User actor, UUID runId, ScanCancelRequest request) {
+        ScanRun run = scanRunRepository.findById(runId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scan run not found"));
+        requireProductOrWorkspaceWrite(actor, run.getProductProfile(), run.getWorkspace());
+        if (run.getStatus() == ScanRun.RunStatus.COMPLETED || run.getStatus() == ScanRun.RunStatus.FAILED || run.getStatus() == ScanRun.RunStatus.CANCELED) {
+            return toScanRunResponse(run, toolRunRepository.findByScanRunIdOrderByCreatedAtAsc(runId));
+        }
+        run.setCancelRequested(true);
+        run.setFailureSummary(trimToNull(request == null ? null : request.reason()));
+        if (run.getStatus() == ScanRun.RunStatus.QUEUED) {
+            run.setStatus(ScanRun.RunStatus.CANCELED);
+            run.setCompletedAt(LocalDateTime.now());
+            toolRunRepository.findByScanRunIdOrderByCreatedAtAsc(runId).forEach(tool -> {
+                if (tool.getStatus() == ToolRun.ToolStatus.QUEUED) {
+                    tool.setStatus(ToolRun.ToolStatus.CANCELED);
+                    tool.setErrorSummary("Scan canceled before execution.");
+                    tool.setCompletedAt(LocalDateTime.now());
+                    toolRunRepository.save(tool);
+                }
+            });
+            scannerJobRepository.findByScanRunId(runId).ifPresent(job -> {
+                job.setStatus(ScannerJob.JobStatus.CANCELED);
+                job.setCompletedAt(LocalDateTime.now());
+                job.setFailureSummary("Scan canceled before execution.");
+                scannerJobRepository.save(job);
+            });
+        }
+        ScanRun saved = scanRunRepository.save(run);
+        audit(actor, "SCANNER_SCAN_CANCELED", "SCAN_RUN", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Canceled scanner run for product " + saved.getProductProfile().getId());
+        return toScanRunResponse(saved, toolRunRepository.findByScanRunIdOrderByCreatedAtAsc(runId));
+    }
+
+    @Transactional
+    public ScanRunResponse rescan(User actor, UUID runId, RescanRequest request) {
+        ScanRun previous = scanRunRepository.findById(runId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scan run not found"));
+        requireProductOrWorkspaceWrite(actor, previous.getProductProfile(), previous.getWorkspace());
+        StartHostedScanRequest start = new StartHostedScanRequest(
+                previous.getProductProfile().getId(),
+                previous.getWorkspace() == null ? null : previous.getWorkspace().getId(),
+                previous.getScanSource().getId(),
+                previous.getDepth(),
+                request == null ? null : request.toolKeys(),
+                previous.getBranchRef(),
+                previous.getRuntimeTargetUrl(),
+                previous.getContainerImageRef(),
+                true,
+                previous.getDepth() == ScanRun.ScanDepth.RUNTIME_BASELINE,
+                defaultString(request == null ? null : request.reason(), "Rescan requested from previous run " + previous.getId()),
+                previous.getId()
+        );
+        return startHostedScan(actor, start);
+    }
+
+    @Transactional(readOnly = true)
+    public ScannerAdminHealthResponse adminHealth(User actor) {
+        if (actor.getRole() != User.UserRole.ADMIN) {
+            throw new AccessDeniedException("Scanner operations health is available to admins only");
+        }
+        List<ScannerJob> jobs = scannerJobRepository.findByStatusInOrderByCreatedAtAsc(List.of(ScannerJob.JobStatus.QUEUED, ScannerJob.JobStatus.RUNNING));
+        List<ToolHealthResponse> tools = scannerProperties.getTools().entrySet().stream()
+                .map(entry -> {
+                    ScannerProperties.ToolProperties tool = entry.getValue();
+                    String executable = firstCommandToken(tool.getCommand());
+                    boolean available = tool.isEnabled() && executable != null && scannerProcessRunner.isExecutableAvailable(executable);
+                    return new ToolHealthResponse(entry.getKey(), tool.getDisplayName(), tool.isEnabled(), executable, available, tool.getTargetType(), tool.isRequiresIac(), tool.getTimeoutSeconds());
+                })
+                .toList();
+        return new ScannerAdminHealthResponse(
+                scannerProperties.isWorkerEnabled(),
+                scannerProperties.isSchedulerEnabled(),
+                jobs.stream().filter(job -> job.getStatus() == ScannerJob.JobStatus.QUEUED).count(),
+                jobs.stream().filter(job -> job.getStatus() == ScannerJob.JobStatus.RUNNING).count(),
+                tools
+        );
+    }
+
     @Transactional(readOnly = true)
     public ProductScannerSummaryResponse getProductSummary(User actor, UUID productId) {
         ProductProfile product = productRepository.findById(productId)
@@ -356,6 +501,181 @@ public class ScannerService {
         throw new IllegalArgumentException("At least one evidence filter is required");
     }
 
+    @Transactional
+    public void markToolRunning(UUID toolRunId, String toolVersion) {
+        ToolRun toolRun = toolRunRepository.findById(toolRunId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tool run not found"));
+        toolRun.setStatus(ToolRun.ToolStatus.RUNNING);
+        toolRun.setToolVersion(truncate(trimToNull(toolVersion), 255));
+        toolRun.setStartedAt(LocalDateTime.now());
+        toolRunRepository.save(toolRun);
+    }
+
+    @Transactional
+    public void markToolFailed(UUID toolRunId, String error, Integer exitCode, Long durationMs, String logs) {
+        ToolRun toolRun = toolRunRepository.findById(toolRunId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tool run not found"));
+        toolRun.setStatus(ToolRun.ToolStatus.FAILED);
+        toolRun.setCompletedAt(LocalDateTime.now());
+        toolRun.setErrorSummary(safeScannerFailure(error));
+        toolRun.setExitCode(exitCode);
+        toolRun.setDurationMs(durationMs);
+        toolRun.setLogExcerpt(truncate(redactScannerText(logs), 2000));
+        toolRunRepository.save(toolRun);
+        audit(toolRun.getScanRun().getRequestedBy(), "SCANNER_TOOL_FAILED", "TOOL_RUN", toolRun.getId(), AuditEvent.RiskLevel.HIGH,
+                "%s failed for scan %s: %s".formatted(toolRun.getToolName(), toolRun.getScanRun().getId(), toolRun.getErrorSummary()));
+    }
+
+    @Transactional
+    public void markToolSkipped(UUID toolRunId, String reason) {
+        ToolRun toolRun = toolRunRepository.findById(toolRunId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tool run not found"));
+        toolRun.setStatus(ToolRun.ToolStatus.SKIPPED);
+        toolRun.setCompletedAt(LocalDateTime.now());
+        toolRun.setErrorSummary(safeScannerFailure(reason));
+        toolRunRepository.save(toolRun);
+    }
+
+    @Transactional
+    public void markToolCanceled(UUID toolRunId, String reason) {
+        ToolRun toolRun = toolRunRepository.findById(toolRunId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tool run not found"));
+        toolRun.setStatus(ToolRun.ToolStatus.CANCELED);
+        toolRun.setCompletedAt(LocalDateTime.now());
+        toolRun.setErrorSummary(safeScannerFailure(reason));
+        toolRunRepository.save(toolRun);
+    }
+
+    @Transactional
+    public void recordToolOutput(
+            User actor,
+            UUID toolRunId,
+            CiEvidenceFormat format,
+            String artifactFileName,
+            String payload,
+            Integer exitCode,
+            Long durationMs,
+            String logExcerpt
+    ) {
+        ToolRun toolRun = toolRunRepository.findById(toolRunId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tool run not found"));
+        ScanRun scanRun = toolRun.getScanRun();
+        ProductProfile product = scanRun.getProductProfile();
+        ProjectWorkspace workspace = scanRun.getWorkspace();
+        String cleanPayload = defaultString(payload, "");
+        if (cleanPayload.getBytes(StandardCharsets.UTF_8).length > MAX_EVIDENCE_PAYLOAD_BYTES) {
+            throw new IllegalArgumentException("Scanner output exceeds the 2MB API upload limit");
+        }
+
+        String artifactName = defaultString(artifactFileName, defaultArtifactName(format));
+        String storageKey = s3Service.generateFileKey("scanner/%s/%s".formatted(product.getId(), scanRun.getId()), artifactName);
+        String artifactRef = s3Service.uploadFile(storageKey, cleanPayload.getBytes(StandardCharsets.UTF_8), contentTypeFor(format));
+        List<ParsedFinding> parsedFindings = parseEvidencePayload(format, cleanPayload, toolRun.getToolName());
+        int normalizedCount = 0;
+        if (parsedFindings.isEmpty()) {
+            ScannerEvidenceItem evidence = baseEvidence(actor, product, workspace, null, scanRun, toolRun);
+            evidence.setTitle(toolRun.getToolName() + " completed");
+            evidence.setSummary("The scanner completed without normalized findings.");
+            evidence.setSource(toolRun.getToolName());
+            evidence.setArtifactRef(artifactRef);
+            evidence.setStorageKey(storageKey);
+            evidenceRepository.save(evidence);
+        } else {
+            for (ParsedFinding parsed : parsedFindings) {
+                NormalizedRecord normalized = normalizeFinding(parsed, toolRun.getToolName());
+                ScannerEvidenceItem evidence = baseEvidence(actor, product, workspace, null, scanRun, toolRun);
+                evidence.setTitle(normalized.title());
+                evidence.setSummary(normalized.description());
+                evidence.setSource(normalized.sourceTool());
+                evidence.setArtifactRef(artifactRef);
+                evidence.setStorageKey(storageKey);
+                evidence.setRedactionStatus(normalized.redacted() ? ScannerEvidenceItem.RedactionStatus.REDACTED : ScannerEvidenceItem.RedactionStatus.NONE);
+                evidence.setConfidenceLevel(confidenceFor(normalized.severity()));
+                ScannerEvidenceItem savedEvidence = evidenceRepository.save(evidence);
+
+                NormalizedFinding finding = new NormalizedFinding();
+                finding.setProductProfile(product);
+                finding.setWorkspace(workspace);
+                finding.setScanRun(scanRun);
+                finding.setToolRun(toolRun);
+                finding.setFingerprint(fingerprint(product.getId(), normalized));
+                finding.setSourceTool(normalized.sourceTool());
+                finding.setSourceRuleId(normalized.ruleId());
+                finding.setTitle(normalized.title());
+                finding.setDescription(normalized.description());
+                finding.setSeverity(normalized.severity());
+                finding.setStatus(initialFindingStatus(scanRun, finding.getFingerprint()));
+                finding.setAffectedComponent(normalized.affectedComponent());
+                finding.setEvidenceItem(savedEvidence);
+                finding.setRecommendedModule(recommendServiceModule(normalized));
+                finding.setConfidenceBasis(normalized.confidenceBasis());
+                NormalizedFinding savedFinding = findingRepository.save(finding);
+                savedEvidence.setFinding(savedFinding);
+                evidenceRepository.save(savedEvidence);
+                normalizedCount++;
+            }
+        }
+
+        toolRun.setRawArtifactRef(artifactRef);
+        toolRun.setStorageKey(storageKey);
+        toolRun.setExitCode(exitCode);
+        toolRun.setDurationMs(durationMs);
+        toolRun.setLogExcerpt(truncate(redactScannerText(logExcerpt), 2000));
+        toolRun.setNormalizedCount(normalizedCount);
+        toolRun.setStatus(ToolRun.ToolStatus.COMPLETED);
+        toolRun.setCompletedAt(LocalDateTime.now());
+        toolRunRepository.save(toolRun);
+        audit(actor, "SCANNER_TOOL_COMPLETED", "TOOL_RUN", toolRun.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "%s completed for scan %s with %d normalized findings".formatted(toolRun.getToolName(), scanRun.getId(), normalizedCount));
+    }
+
+    @Transactional
+    public void completeHostedScanRun(UUID runId) {
+        ScanRun run = scanRunRepository.findById(runId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scan run not found"));
+        List<ToolRun> tools = toolRunRepository.findByScanRunIdOrderByCreatedAtAsc(runId);
+        boolean failed = tools.stream().anyMatch(tool -> tool.getStatus() == ToolRun.ToolStatus.FAILED);
+        boolean canceled = run.isCancelRequested() || tools.stream().allMatch(tool -> tool.getStatus() == ToolRun.ToolStatus.CANCELED);
+        if (canceled) {
+            run.setStatus(ScanRun.RunStatus.CANCELED);
+            run.setFailureSummary(defaultString(run.getFailureSummary(), "Scan canceled by request."));
+        } else if (failed) {
+            run.setStatus(ScanRun.RunStatus.FAILED);
+            run.setFailureSummary(scannerFailureSummary(tools));
+        } else {
+            run.setStatus(ScanRun.RunStatus.COMPLETED);
+            run.setFailureSummary(null);
+        }
+        run.setCompletedAt(LocalDateTime.now());
+        scanRunRepository.save(run);
+        audit(run.getRequestedBy(), "SCANNER_RUN_FINISHED", "SCAN_RUN", run.getId(), failed ? AuditEvent.RiskLevel.HIGH : AuditEvent.RiskLevel.MEDIUM,
+                "Scanner run finished with status " + run.getStatus());
+    }
+
+    @Transactional
+    public void failHostedScanRun(UUID runId, String failure) {
+        ScanRun run = scanRunRepository.findById(runId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scan run not found"));
+        run.setStatus(run.isCancelRequested() ? ScanRun.RunStatus.CANCELED : ScanRun.RunStatus.FAILED);
+        run.setFailureSummary(safeScannerFailure(failure));
+        run.setCompletedAt(LocalDateTime.now());
+        scanRunRepository.save(run);
+        audit(run.getRequestedBy(), "SCANNER_RUN_FAILED", "SCAN_RUN", run.getId(), AuditEvent.RiskLevel.HIGH,
+                "Scanner run failed: " + run.getFailureSummary());
+    }
+
+    public String redactScannerText(String value) {
+        return redact(value).value();
+    }
+
+    public String safeScannerFailure(Throwable ex) {
+        return safeScannerFailure(ex == null ? null : ex.getMessage());
+    }
+
+    public String safeScannerFailure(String value) {
+        return truncate(defaultString(redactScannerText(value), "Scanner execution failed"), 500);
+    }
+
     private ScannerEvidenceItem baseEvidence(
             User actor,
             ProductProfile product,
@@ -463,6 +783,10 @@ public class ScannerService {
     }
 
     private List<ParsedFinding> parseGenericJson(JsonNode root, String fallbackToolName) {
+        List<ParsedFinding> toolSpecific = parseToolSpecificJson(root, fallbackToolName);
+        if (!toolSpecific.isEmpty()) {
+            return toolSpecific;
+        }
         JsonNode findingsNode = root.isArray()
                 ? root
                 : firstArray(root, "findings", "issues", "results", "vulnerabilities", "alerts");
@@ -487,6 +811,242 @@ public class ScannerService {
             ));
         }
         return findings;
+    }
+
+    private List<ParsedFinding> parseToolSpecificJson(JsonNode root, String fallbackToolName) {
+        String tool = defaultString(fallbackToolName, "").toLowerCase(Locale.ROOT);
+        if (tool.contains("gitleaks")) {
+            return parseGitleaks(root, fallbackToolName);
+        }
+        if (tool.contains("semgrep")) {
+            return parseSemgrep(root, fallbackToolName);
+        }
+        if (tool.contains("osv")) {
+            return parseOsv(root, fallbackToolName);
+        }
+        if (tool.contains("trivy")) {
+            return parseTrivy(root, fallbackToolName);
+        }
+        if (tool.contains("checkov")) {
+            return parseCheckov(root, fallbackToolName);
+        }
+        if (tool.contains("grype")) {
+            return parseGrype(root, fallbackToolName);
+        }
+        if (tool.contains("lighthouse")) {
+            return parseLighthouse(root, fallbackToolName);
+        }
+        if (tool.contains("zap")) {
+            return parseZap(root, fallbackToolName);
+        }
+        return List.of();
+    }
+
+    private List<ParsedFinding> parseGitleaks(JsonNode root, String toolName) {
+        JsonNode array = root.isArray() ? root : firstArray(root, "findings", "leaks", "results");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!array.isArray()) return findings;
+        for (JsonNode node : array) {
+            String file = firstText(node, "File", "file", "Path", "path");
+            String line = firstText(node, "StartLine", "line");
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(node, "RuleID", "ruleId", "rule"),
+                    defaultString(firstText(node, "Description", "description"), "Potential secret detected"),
+                    defaultString(firstText(node, "Description", "description", "Secret", "secret"), "Gitleaks detected a potential secret."),
+                    "high",
+                    location(file, line),
+                    "Gitleaks secret detection"
+            ));
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseSemgrep(JsonNode root, String toolName) {
+        JsonNode results = firstArray(root, "results");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!results.isArray()) return findings;
+        for (JsonNode node : results) {
+            JsonNode extra = node.path("extra");
+            String message = firstText(extra, "message", "metadata");
+            String severity = firstText(extra, "severity");
+            String path = firstText(node, "path");
+            String line = firstText(node.path("start"), "line");
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(node, "check_id", "ruleId"),
+                    defaultString(message, defaultString(firstText(node, "check_id"), "Semgrep finding")),
+                    defaultString(message, "Semgrep static analysis finding."),
+                    severity,
+                    location(path, line),
+                    "Semgrep static analysis result"
+            ));
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseOsv(JsonNode root, String toolName) {
+        List<ParsedFinding> findings = new ArrayList<>();
+        JsonNode results = firstArray(root, "results");
+        if (!results.isArray()) return findings;
+        for (JsonNode result : results) {
+            JsonNode packages = firstArray(result, "packages");
+            for (JsonNode pkg : packages) {
+                String packageName = firstText(pkg.path("package"), "name", "version");
+                JsonNode vulnerabilities = firstArray(pkg, "vulnerabilities");
+                for (JsonNode vuln : vulnerabilities) {
+                    String id = firstText(vuln, "id", "aliases");
+                    String summary = firstText(vuln, "summary", "details");
+                    findings.add(new ParsedFinding(
+                            toolName,
+                            id,
+                            defaultString(summary, defaultString(id, "Dependency vulnerability")),
+                            defaultString(firstText(vuln, "details", "summary"), "OSV reported a dependency vulnerability."),
+                            firstText(vuln.path("database_specific"), "severity"),
+                            packageName,
+                            "OSV vulnerability database match"
+                    ));
+                }
+            }
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseTrivy(JsonNode root, String toolName) {
+        List<ParsedFinding> findings = new ArrayList<>();
+        JsonNode results = firstArray(root, "Results");
+        if (!results.isArray()) return findings;
+        for (JsonNode result : results) {
+            String target = firstText(result, "Target", "Class", "Type");
+            for (JsonNode vuln : firstArray(result, "Vulnerabilities")) {
+                findings.add(new ParsedFinding(
+                        toolName,
+                        firstText(vuln, "VulnerabilityID", "PkgID"),
+                        defaultString(firstText(vuln, "Title"), defaultString(firstText(vuln, "VulnerabilityID"), "Vulnerability detected")),
+                        defaultString(firstText(vuln, "Description", "Title"), "Trivy reported a vulnerability."),
+                        firstText(vuln, "Severity"),
+                        defaultString(firstText(vuln, "PkgName"), target),
+                        "Trivy vulnerability result"
+                ));
+            }
+            for (JsonNode misconfig : firstArray(result, "Misconfigurations")) {
+                findings.add(new ParsedFinding(
+                        toolName,
+                        firstText(misconfig, "ID", "AVDID"),
+                        defaultString(firstText(misconfig, "Title"), "Configuration misconfiguration"),
+                        defaultString(firstText(misconfig, "Description", "Message", "Resolution"), "Trivy reported a misconfiguration."),
+                        firstText(misconfig, "Severity"),
+                        defaultString(firstText(misconfig, "CauseMetadata"), target),
+                        "Trivy misconfiguration result"
+                ));
+            }
+            for (JsonNode secret : firstArray(result, "Secrets")) {
+                findings.add(new ParsedFinding(
+                        toolName,
+                        firstText(secret, "RuleID", "Category"),
+                        defaultString(firstText(secret, "Title"), "Secret detected"),
+                        defaultString(firstText(secret, "Match", "Title"), "Trivy reported a secret."),
+                        firstText(secret, "Severity"),
+                        target,
+                        "Trivy secret result"
+                ));
+            }
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseCheckov(JsonNode root, String toolName) {
+        JsonNode failed = root.path("results").path("failed_checks");
+        if (!failed.isArray()) {
+            failed = firstArray(root, "failed_checks");
+        }
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!failed.isArray()) return findings;
+        for (JsonNode node : failed) {
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(node, "check_id", "bc_check_id"),
+                    defaultString(firstText(node, "check_name"), "IaC policy failure"),
+                    defaultString(firstText(node, "guideline", "check_name"), "Checkov reported an IaC policy failure."),
+                    firstText(node, "severity"),
+                    location(firstText(node, "file_path"), firstText(node, "file_line_range")),
+                    "Checkov IaC policy result"
+            ));
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseGrype(JsonNode root, String toolName) {
+        JsonNode matches = firstArray(root, "matches");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!matches.isArray()) return findings;
+        for (JsonNode match : matches) {
+            JsonNode vuln = match.path("vulnerability");
+            JsonNode artifact = match.path("artifact");
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(vuln, "id"),
+                    defaultString(firstText(vuln, "id"), "SBOM vulnerability"),
+                    defaultString(firstText(vuln, "description"), "Grype reported an SBOM or image vulnerability."),
+                    firstText(vuln, "severity"),
+                    firstText(artifact, "name", "version", "type"),
+                    "Grype vulnerability match"
+            ));
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseLighthouse(JsonNode root, String toolName) {
+        List<ParsedFinding> findings = new ArrayList<>();
+        JsonNode categories = root.path("categories");
+        categories.fields().forEachRemaining(entry -> {
+            JsonNode category = entry.getValue();
+            double score = category.path("score").asDouble(1.0);
+            if (score < 0.8) {
+                findings.add(new ParsedFinding(
+                        toolName,
+                        "lighthouse-" + entry.getKey(),
+                        defaultString(firstText(category, "title"), "Lighthouse score below threshold"),
+                        "Lighthouse category score is " + Math.round(score * 100) + "/100.",
+                        score < 0.5 ? "high" : "medium",
+                        entry.getKey(),
+                        "Lighthouse web quality audit"
+                ));
+            }
+        });
+        return findings;
+    }
+
+    private List<ParsedFinding> parseZap(JsonNode root, String toolName) {
+        List<ParsedFinding> findings = new ArrayList<>();
+        JsonNode sites = firstArray(root, "site", "sites");
+        if (!sites.isArray()) return findings;
+        for (JsonNode site : sites) {
+            JsonNode alerts = firstArray(site, "alerts");
+            for (JsonNode alert : alerts) {
+                findings.add(new ParsedFinding(
+                        toolName,
+                        firstText(alert, "pluginid", "alertRef"),
+                        defaultString(firstText(alert, "alert", "name"), "Runtime security alert"),
+                        defaultString(firstText(alert, "desc", "description", "solution"), "ZAP baseline reported an alert."),
+                        firstText(alert, "riskdesc", "riskcode", "confidence"),
+                        firstText(site, "name", "@name"),
+                        "OWASP ZAP baseline alert"
+                ));
+            }
+        }
+        return findings;
+    }
+
+    private String location(String file, String line) {
+        if (isBlank(file)) {
+            return null;
+        }
+        if (isBlank(line)) {
+            return file;
+        }
+        String normalized = line.replace("[", "").replace("]", "").split(",")[0].trim();
+        return normalized.isBlank() ? file : file + ":" + normalized;
     }
 
     private List<ParsedFinding> parseLog(String payload, String fallbackToolName) {
@@ -633,6 +1193,160 @@ public class ScannerService {
                 });
     }
 
+    private ScanSource resolveHostedSource(User actor, ProductProfile product, ProjectWorkspace workspace, StartHostedScanRequest request, ScanRun.ScanDepth depth) {
+        if (request.sourceId() != null) {
+            ScanSource source = sourceRepository.findById(request.sourceId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Scan source not found"));
+            if (!source.getProductProfile().getId().equals(product.getId())) {
+                throw new IllegalArgumentException("Scan source belongs to another product");
+            }
+            if (source.getAuthorizationStatus() != ScanSource.AuthorizationStatus.AUTHORIZED) {
+                throw new IllegalArgumentException("Scan source must be authorized before hosted execution");
+            }
+            return source;
+        }
+        if (depth == ScanRun.ScanDepth.RUNTIME_BASELINE) {
+            String target = trimToNull(request.runtimeTargetUrl());
+            if (isBlank(target)) {
+                target = trimToNull(product.getProductUrl());
+            }
+            if (isBlank(target)) {
+                throw new IllegalArgumentException("Runtime scan requires an authorized product URL");
+            }
+            ScanSource source = new ScanSource();
+            source.setOwner(product.getOwner());
+            source.setProductProfile(product);
+            source.setWorkspace(workspace);
+            source.setProviderType(ScanSource.ProviderType.RUNTIME_URL);
+            source.setDisplayName("Authorized runtime URL");
+            source.setExternalReference(target);
+            source.setAuthorizationStatus(ScanSource.AuthorizationStatus.AUTHORIZED);
+            source.setScopeNote("Runtime URL authorized by " + actor.getEmail());
+            source.setCreatedBy(actor);
+            return sourceRepository.save(source);
+        }
+        if (depth == ScanRun.ScanDepth.DEPENDENCY_CONTAINER) {
+            if (isBlank(request.containerImageRef())) {
+                throw new IllegalArgumentException("Dependency/container scan requires a container image reference");
+            }
+            ScanSource source = new ScanSource();
+            source.setOwner(product.getOwner());
+            source.setProductProfile(product);
+            source.setWorkspace(workspace);
+            source.setProviderType(ScanSource.ProviderType.EXTERNAL_TOOL);
+            source.setDisplayName("Container image source");
+            source.setExternalReference(request.containerImageRef());
+            source.setAuthorizationStatus(ScanSource.AuthorizationStatus.AUTHORIZED);
+            source.setScopeNote("Container image authorized for dependency and SBOM scanning.");
+            source.setCreatedBy(actor);
+            return sourceRepository.save(source);
+        }
+        String repo = trimToNull(product.getRepositoryUrl());
+        if (isBlank(repo)) {
+            throw new IllegalArgumentException("Hosted static scan requires a repository source or product repository URL");
+        }
+        ScanSource source = new ScanSource();
+        source.setOwner(product.getOwner());
+        source.setProductProfile(product);
+        source.setWorkspace(workspace);
+        source.setProviderType(repo.toLowerCase(Locale.ROOT).contains("gitlab") ? ScanSource.ProviderType.GITLAB : ScanSource.ProviderType.GITHUB);
+        source.setDisplayName("Product repository");
+        source.setExternalReference(repo);
+        source.setAuthorizationStatus(ScanSource.AuthorizationStatus.AUTHORIZED);
+        source.setScopeNote("Repository authorized for safe static scanner execution.");
+        source.setCreatedBy(actor);
+        return sourceRepository.save(source);
+    }
+
+    private List<String> selectedToolKeys(List<String> requested, ScanRun.ScanDepth depth) {
+        List<String> defaults = switch (depth) {
+            case SAFE_STATIC -> List.of("gitleaks", "osv-scanner", "semgrep", "trivy-fs", "checkov");
+            case DEPENDENCY_CONTAINER -> List.of("syft", "grype", "trivy-image");
+            case RUNTIME_BASELINE -> List.of("lighthouse", "zap-baseline");
+            case DEEP_REVIEW -> List.of("gitleaks", "osv-scanner", "semgrep", "trivy-fs", "checkov", "syft", "grype");
+            case CI_EVIDENCE -> List.of();
+        };
+        List<String> keys = requested == null || requested.isEmpty() ? defaults : requested;
+        return keys.stream()
+                .filter(key -> key != null && !key.isBlank())
+                .map(key -> key.trim().toLowerCase(Locale.ROOT))
+                .distinct()
+                .toList();
+    }
+
+    private void validateToolKeys(List<String> toolKeys) {
+        if (toolKeys.isEmpty()) {
+            throw new IllegalArgumentException("At least one scanner tool is required");
+        }
+        Set<String> known = scannerProperties.getTools().keySet();
+        List<String> unknown = toolKeys.stream().filter(key -> !known.contains(key)).toList();
+        if (!unknown.isEmpty()) {
+            throw new IllegalArgumentException("Unsupported scanner tools: " + unknown);
+        }
+    }
+
+    private String resolveRuntimeTarget(ProductProfile product, ScanSource source, StartHostedScanRequest request, ScanRun.ScanDepth depth) {
+        if (depth != ScanRun.ScanDepth.RUNTIME_BASELINE) {
+            return null;
+        }
+        if (!request.runtimeAuthorizationConfirmed()) {
+            throw new IllegalArgumentException("Runtime baseline scan requires explicit URL/domain authorization");
+        }
+        String target = trimToNull(request.runtimeTargetUrl());
+        if (isBlank(target)) {
+            target = trimToNull(source.getExternalReference());
+        }
+        if (isBlank(target)) {
+            target = trimToNull(product.getProductUrl());
+        }
+        if (isBlank(target) || !(target.startsWith("https://") || target.startsWith("http://"))) {
+            throw new IllegalArgumentException("Runtime baseline scan requires an http(s) URL");
+        }
+        return target;
+    }
+
+    private String scanPlan(ScanRun.ScanDepth depth, List<String> toolKeys, ScanSource source, String reason) {
+        Map<String, Object> plan = new LinkedHashMap<>();
+        plan.put("depth", depth.name());
+        plan.put("toolKeys", toolKeys);
+        plan.put("sourceType", source.getProviderType().name());
+        plan.put("source", source.getDisplayName());
+        plan.put("reason", trimToNull(reason));
+        try {
+            return objectMapper.writeValueAsString(plan);
+        } catch (Exception ex) {
+            return "depth=%s tools=%s source=%s".formatted(depth, toolKeys, source.getDisplayName());
+        }
+    }
+
+    private NormalizedFinding.FindingStatus initialFindingStatus(ScanRun scanRun, String fingerprint) {
+        if (scanRun.getComparisonBaseRunId() == null) {
+            return NormalizedFinding.FindingStatus.OPEN;
+        }
+        Optional<NormalizedFinding> previous = findingRepository.findByScanRunIdOrderBySeverityDescCreatedAtDesc(scanRun.getComparisonBaseRunId()).stream()
+                .filter(finding -> finding.getFingerprint().equals(fingerprint))
+                .findFirst();
+        if (previous.isEmpty()) {
+            return NormalizedFinding.FindingStatus.NEW;
+        }
+        if (previous.get().getStatus() == NormalizedFinding.FindingStatus.RESOLVED) {
+            return NormalizedFinding.FindingStatus.REGRESSED;
+        }
+        return NormalizedFinding.FindingStatus.OPEN;
+    }
+
+    private String scannerFailureSummary(List<ToolRun> tools) {
+        List<String> failed = tools.stream()
+                .filter(tool -> tool.getStatus() == ToolRun.ToolStatus.FAILED)
+                .map(tool -> tool.getToolName() + ": " + defaultString(tool.getErrorSummary(), "failed"))
+                .toList();
+        return truncate(String.join("; ", failed), 500);
+    }
+
+    private String firstCommandToken(String command) {
+        return scannerProcessRunner.renderCommand(command, Map.of()).stream().findFirst().orElse(null);
+    }
+
     private ProjectWorkspace resolveWorkspace(UUID workspaceId, ProductProfile product) {
         if (workspaceId == null) {
             return null;
@@ -752,6 +1466,12 @@ public class ScannerService {
                 run.getCompletedAt(),
                 run.getRequestedBy().getEmail(),
                 run.getFailureSummary(),
+                run.isCancelRequested(),
+                run.getScanPlan(),
+                run.getBranchRef(),
+                run.getRuntimeTargetUrl(),
+                run.getContainerImageRef(),
+                run.getComparisonBaseRunId(),
                 toolRuns.stream().map(this::toToolRunResponse).toList()
         );
     }
@@ -763,6 +1483,7 @@ public class ScannerService {
                 toolRun.getUpdatedAt(),
                 toolRun.getScanRun().getId(),
                 toolRun.getToolName(),
+                toolRun.getToolKey(),
                 toolRun.getToolVersion(),
                 toolRun.getStatus(),
                 toolRun.getStartedAt(),
@@ -770,7 +1491,10 @@ public class ScannerService {
                 toolRun.getRawArtifactRef(),
                 toolRun.getStorageKey(),
                 toolRun.getNormalizedCount(),
-                toolRun.getErrorSummary()
+                toolRun.getErrorSummary(),
+                toolRun.getExitCode(),
+                toolRun.getDurationMs(),
+                toolRun.getLogExcerpt()
         );
     }
 
@@ -939,10 +1663,48 @@ public class ScannerService {
             UUID milestoneId
     ) {}
 
+    public record StartHostedScanRequest(
+            @NotNull UUID productId,
+            UUID workspaceId,
+            UUID sourceId,
+            ScanRun.ScanDepth depth,
+            List<String> toolKeys,
+            String branchRef,
+            String runtimeTargetUrl,
+            String containerImageRef,
+            boolean authorizationConfirmed,
+            boolean runtimeAuthorizationConfirmed,
+            String reason,
+            UUID comparisonBaseRunId
+    ) {}
+
+    public record ScanCancelRequest(String reason) {}
+
+    public record RescanRequest(List<String> toolKeys, String reason) {}
+
     public record FindingStatusRequest(
             @NotNull NormalizedFinding.FindingStatus status,
             String reason,
             LocalDate reviewDueOn
+    ) {}
+
+    public record ScannerAdminHealthResponse(
+            boolean workerEnabled,
+            boolean schedulerEnabled,
+            long queuedJobs,
+            long runningJobs,
+            List<ToolHealthResponse> tools
+    ) {}
+
+    public record ToolHealthResponse(
+            String key,
+            String displayName,
+            boolean enabled,
+            String executable,
+            boolean executableAvailable,
+            String targetType,
+            boolean requiresIac,
+            int timeoutSeconds
     ) {}
 
     public record ProductScannerSummaryResponse(
@@ -995,6 +1757,12 @@ public class ScannerService {
             LocalDateTime completedAt,
             String requestedByEmail,
             String failureSummary,
+            boolean cancelRequested,
+            String scanPlan,
+            String branchRef,
+            String runtimeTargetUrl,
+            String containerImageRef,
+            UUID comparisonBaseRunId,
             List<ToolRunResponse> toolRuns
     ) {}
 
@@ -1004,6 +1772,7 @@ public class ScannerService {
             LocalDateTime updatedAt,
             UUID scanRunId,
             String toolName,
+            String toolKey,
             String toolVersion,
             ToolRun.ToolStatus status,
             LocalDateTime startedAt,
@@ -1011,7 +1780,10 @@ public class ScannerService {
             String rawArtifactRef,
             String storageKey,
             int normalizedCount,
-            String errorSummary
+            String errorSummary,
+            Integer exitCode,
+            Long durationMs,
+            String logExcerpt
     ) {}
 
     public record NormalizedFindingResponse(

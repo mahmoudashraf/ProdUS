@@ -6,6 +6,7 @@ import {
   IconDashboard,
   IconPackage,
   IconRobot,
+  IconScan,
   IconSettings,
   IconSparkles,
   IconUsers,
@@ -23,6 +24,7 @@ const icons = {
   IconDashboard,
   IconPackage,
   IconRobot,
+  IconScan,
   IconSettings,
   IconSparkles,
   IconUsers,
@@ -150,6 +152,15 @@ const produs: NavItemType = {
       type: 'item',
       url: '/admin/recommendations',
       icon: icons.IconRobot,
+      roles: [UserRole.ADMIN],
+      breadcrumbs: true
+    },
+    {
+      id: 'scanner-operations',
+      title: 'Scanner Ops',
+      type: 'item',
+      url: '/admin/scanners',
+      icon: icons.IconScan,
       roles: [UserRole.ADMIN],
       breadcrumbs: true
     }

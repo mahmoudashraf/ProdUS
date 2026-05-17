@@ -172,14 +172,18 @@ export interface ScanSource extends BaseRecord {
 export interface ToolRun extends BaseRecord {
   scanRunId: string;
   toolName: string;
+  toolKey?: string;
   toolVersion?: string;
-  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED' | 'SKIPPED';
   startedAt?: string;
   completedAt?: string;
   rawArtifactRef?: string;
   storageKey?: string;
   normalizedCount: number;
   errorSummary?: string;
+  exitCode?: number;
+  durationMs?: number;
+  logExcerpt?: string;
 }
 
 export interface ScanRun extends BaseRecord {
@@ -188,11 +192,17 @@ export interface ScanRun extends BaseRecord {
   workspaceId?: string;
   triggerType: 'MANUAL_UPLOAD' | 'CI_UPLOAD' | 'SCHEDULED' | 'HOSTED_SCAN' | 'EXTERNAL_IMPORT';
   status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED';
-  depth: 'CI_EVIDENCE' | 'SAFE_STATIC' | 'RUNTIME_BASELINE' | 'DEEP_REVIEW';
+  depth: 'CI_EVIDENCE' | 'SAFE_STATIC' | 'DEPENDENCY_CONTAINER' | 'RUNTIME_BASELINE' | 'DEEP_REVIEW';
   startedAt?: string;
   completedAt?: string;
   requestedByEmail: string;
   failureSummary?: string;
+  cancelRequested: boolean;
+  scanPlan?: string;
+  branchRef?: string;
+  runtimeTargetUrl?: string;
+  containerImageRef?: string;
+  comparisonBaseRunId?: string;
   toolRuns: ToolRun[];
 }
 
@@ -256,6 +266,25 @@ export interface ProductScannerSummary {
   recentRuns: ScanRun[];
   findings: NormalizedFinding[];
   evidence: ScannerEvidenceItem[];
+}
+
+export interface ScannerToolHealth {
+  key: string;
+  displayName: string;
+  enabled: boolean;
+  executable?: string;
+  executableAvailable: boolean;
+  targetType: string;
+  requiresIac: boolean;
+  timeoutSeconds: number;
+}
+
+export interface ScannerAdminHealth {
+  workerEnabled: boolean;
+  schedulerEnabled: boolean;
+  queuedJobs: number;
+  runningJobs: number;
+  tools: ScannerToolHealth[];
 }
 
 export interface RequirementIntake extends BaseRecord {

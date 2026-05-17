@@ -6,9 +6,13 @@ import com.produs.scanner.ScannerService.CreateScanSourceRequest;
 import com.produs.scanner.ScannerService.FindingStatusRequest;
 import com.produs.scanner.ScannerService.NormalizedFindingResponse;
 import com.produs.scanner.ScannerService.ProductScannerSummaryResponse;
+import com.produs.scanner.ScannerService.RescanRequest;
+import com.produs.scanner.ScannerService.ScanCancelRequest;
 import com.produs.scanner.ScannerService.ScanRunResponse;
 import com.produs.scanner.ScannerService.ScanSourceResponse;
+import com.produs.scanner.ScannerService.ScannerAdminHealthResponse;
 import com.produs.scanner.ScannerService.ScannerEvidenceItemResponse;
+import com.produs.scanner.ScannerService.StartHostedScanRequest;
 import com.produs.scanner.ScannerService.ToolRunResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +61,32 @@ public class ScannerController {
         return scannerService.uploadCiEvidence(user, request);
     }
 
+    @PostMapping("/runs/hosted")
+    public ScanRunResponse startHostedScan(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody StartHostedScanRequest request
+    ) {
+        return scannerService.startHostedScan(user, request);
+    }
+
+    @PostMapping("/runs/{runId}/cancel")
+    public ScanRunResponse cancelScanRun(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID runId,
+            @RequestBody(required = false) ScanCancelRequest request
+    ) {
+        return scannerService.cancelScanRun(user, runId, request);
+    }
+
+    @PostMapping("/runs/{runId}/rescan")
+    public ScanRunResponse rescan(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID runId,
+            @RequestBody(required = false) RescanRequest request
+    ) {
+        return scannerService.rescan(user, runId, request);
+    }
+
     @GetMapping("/runs/{runId}")
     public ScanRunResponse getRun(@AuthenticationPrincipal User user, @PathVariable UUID runId) {
         return scannerService.getRun(user, runId);
@@ -103,5 +133,10 @@ public class ScannerController {
             @PathVariable UUID productId
     ) {
         return scannerService.getProductSummary(user, productId);
+    }
+
+    @GetMapping("/admin/health")
+    public ScannerAdminHealthResponse adminHealth(@AuthenticationPrincipal User user) {
+        return scannerService.adminHealth(user);
     }
 }

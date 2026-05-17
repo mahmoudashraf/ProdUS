@@ -80,6 +80,14 @@ app:
         secret: ${APP_PAYMENT_WEBHOOK_SECRET:dev-payment-webhook-secret}
       signatures:
         secret: ${APP_SIGNATURE_WEBHOOK_SECRET:dev-signature-webhook-secret}
+  scanner:
+    scheduler-enabled: ${APP_SCANNER_SCHEDULER_ENABLED:true}
+    worker-enabled: ${APP_SCANNER_WORKER_ENABLED:true}
+    poll-fixed-delay-ms: ${APP_SCANNER_POLL_FIXED_DELAY_MS:10000}
+    max-attempts: ${APP_SCANNER_MAX_ATTEMPTS:1}
+    default-timeout-seconds: ${APP_SCANNER_DEFAULT_TIMEOUT_SECONDS:300}
+    work-root: ${APP_SCANNER_WORK_ROOT:}
+    max-output-bytes: ${APP_SCANNER_MAX_OUTPUT_BYTES:2000000}
 
 aws:
   s3:

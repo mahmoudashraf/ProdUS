@@ -29,3 +29,5 @@ databaseChangeLog:
       file: db/changelog/V014__catalog_productization_foundation.yaml
   - include:
       file: db/changelog/V015__scanner_evidence_foundation.yaml
+  - include:
+      file: db/changelog/V016__scanner_execution_jobs.yaml

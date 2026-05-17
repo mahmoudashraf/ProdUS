@@ -1,0 +1,87 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1600
+      author: produs
+      changes:
+        - addColumn:
+            tableName: scan_runs
+            columns:
+              - column:
+                  name: cancel_requested
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: scan_plan
+                  type: TEXT
+              - column:
+                  name: branch_ref
+                  type: VARCHAR(255)
+              - column:
+                  name: runtime_target_url
+                  type: VARCHAR(1000)
+              - column:
+                  name: container_image_ref
+                  type: VARCHAR(1000)
+              - column:
+                  name: comparison_base_run_id
+                  type: UUID
+        - addColumn:
+            tableName: tool_runs
+            columns:
+              - column:
+                  name: tool_key
+                  type: VARCHAR(100)
+              - column:
+                  name: exit_code
+                  type: INT
+              - column:
+                  name: duration_ms
+                  type: BIGINT
+              - column:
+                  name: log_excerpt
+                  type: TEXT
+        - addForeignKeyConstraint:
+            baseTableName: scan_runs
+            baseColumnNames: comparison_base_run_id
+            constraintName: fk_scan_runs_comparison_base
+            referencedTableName: scan_runs
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 1601
+      author: produs
+      changes:
+        - createTable:
+            tableName: scanner_jobs
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: scan_run_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: attempt_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: max_attempts, type: INT, defaultValueNumeric: 1, constraints: { nullable: false } }
+              - column: { name: next_run_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: locked_at, type: TIMESTAMP }
+              - column: { name: lock_owner, type: VARCHAR(255) }
+              - column: { name: started_at, type: TIMESTAMP }
+              - column: { name: completed_at, type: TIMESTAMP }
+              - column: { name: failure_summary, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: scanner_jobs
+            columnNames: scan_run_id
+            constraintName: uq_scanner_jobs_scan_run
+        - addForeignKeyConstraint:
+            baseTableName: scanner_jobs
+            baseColumnNames: scan_run_id
+            constraintName: fk_scanner_jobs_scan_run
+            referencedTableName: scan_runs
+            referencedColumnNames: id
+        - createIndex:
+            tableName: scanner_jobs
+            indexName: idx_scanner_jobs_status_next_run
+            columns:
+              - column: { name: status }
+              - column: { name: next_run_at }

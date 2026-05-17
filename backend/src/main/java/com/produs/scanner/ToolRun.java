@@ -28,6 +28,9 @@ public class ToolRun extends BaseEntity {
     @Column(name = "tool_name", nullable = false)
     private String toolName;
 
+    @Column(name = "tool_key")
+    private String toolKey;
+
     @Column(name = "tool_version")
     private String toolVersion;
 
@@ -53,11 +56,21 @@ public class ToolRun extends BaseEntity {
     @Column(name = "error_summary", columnDefinition = "TEXT")
     private String errorSummary;
 
+    @Column(name = "exit_code")
+    private Integer exitCode;
+
+    @Column(name = "duration_ms")
+    private Long durationMs;
+
+    @Column(name = "log_excerpt", columnDefinition = "TEXT")
+    private String logExcerpt;
+
     public enum ToolStatus {
         QUEUED,
         RUNNING,
         COMPLETED,
         FAILED,
-        CANCELED
+        CANCELED,
+        SKIPPED
     }
 }

@@ -50,6 +50,13 @@ app:
         secret: test-payment-webhook-secret
       signatures:
         secret: test-signature-webhook-secret
+  scanner:
+    scheduler-enabled: false
+    worker-enabled: true
+    poll-fixed-delay-ms: 60000
+    max-attempts: 1
+    default-timeout-seconds: 30
+    max-output-bytes: 2000000
 
 aws:
   s3:
