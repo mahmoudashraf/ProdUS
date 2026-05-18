@@ -55,6 +55,31 @@ app:
     max-attempts: 1
     default-timeout-seconds: 30
     max-output-bytes: 2000000
+    require-runtime-tool-availability: false
+    storage:
+      raw-artifact-retention-days: 30
+      import-payload-retention-days: 30
+      evidence-artifact-retention-days: 365
+      retention-cleanup-enabled: false
+      export-enabled: true
+      signed-url-duration-seconds: 300
+    providers:
+      github:
+        enabled: true
+        app-id: test-github-app
+        client-id: test-github-client
+        client-secret: test-github-secret
+        private-key-path: ""
+        webhook-secret: test-github-webhook-secret
+        install-url: https://github.com/apps/produs-test/installations/new
+        callback-url: http://localhost:8080/api/scanner/connectors/github/callback
+      gitlab:
+        enabled: true
+        client-id: test-gitlab-client
+        client-secret: test-gitlab-secret
+        redirect-uri: http://localhost:8080/api/scanner/connectors/gitlab/callback
+        webhook-secret: test-gitlab-webhook-secret
+        base-url: https://gitlab.com
 
 aws:
   s3:

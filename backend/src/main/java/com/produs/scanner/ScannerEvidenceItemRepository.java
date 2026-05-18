@@ -2,6 +2,7 @@ package com.produs.scanner;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,4 +12,5 @@ public interface ScannerEvidenceItemRepository extends JpaRepository<ScannerEvid
     List<ScannerEvidenceItem> findByMilestoneIdOrderByCreatedAtDesc(UUID milestoneId);
     List<ScannerEvidenceItem> findByFindingIdOrderByCreatedAtDesc(UUID findingId);
     List<ScannerEvidenceItem> findByScanRunIdInOrderByCreatedAtDesc(List<UUID> scanRunIds);
+    List<ScannerEvidenceItem> findByCreatedAtBeforeAndStorageKeyIsNotNull(LocalDateTime cutoff);
 }

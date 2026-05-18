@@ -77,8 +77,13 @@ import {
   ScanSource,
   CiTemplateResponse,
   ConnectorPermission,
+  ConnectorInstallUrlResponse,
+  EvidenceExportBundle,
   ExternalImportProvider,
   AssistantSuggestionsResponse,
+  ScannerConnectorInstallation,
+  ScannerEvidenceItem,
+  SignedArtifactResponse,
 } from './types';
 
 interface ProductProfilePayload {
@@ -144,8 +149,21 @@ interface ScanSourcePayload {
   providerType: ScanSource['providerType'];
   displayName: string;
   externalReference: string;
+  externalInstallationId?: string;
+  externalRepositoryFullName?: string;
+  defaultBranch?: string;
   authorizationStatus: ScanSource['authorizationStatus'];
   scopeNote: string;
+}
+
+interface ProviderSourcePayload {
+  installationId: string;
+  productId: string;
+  workspaceId?: string;
+  repositoryFullName: string;
+  cloneUrl?: string;
+  defaultBranch?: string;
+  displayName?: string;
 }
 
 interface DisconnectSourcePayload {
@@ -449,6 +467,10 @@ export default function OwnerProductizationWorkspace({
     queryKey: ['scanner-connector-permissions'],
     queryFn: () => getJson<ConnectorPermission[]>('/scanner/connector-permissions'),
   });
+  const scannerConnectors = useQuery({
+    queryKey: ['scanner-connectors'],
+    queryFn: () => getJson<ScannerConnectorInstallation[]>('/scanner/connectors'),
+  });
 
   const [scanSourceForm, setScanSourceForm] = useState({
     providerType: 'GITHUB' as ScanSource['providerType'],
@@ -456,6 +478,12 @@ export default function OwnerProductizationWorkspace({
     externalReference: '',
     authorizationConfirmed: false,
     scopeNote: 'CI and security evidence imported for production readiness review.',
+  });
+  const [providerSourceForm, setProviderSourceForm] = useState({
+    installationId: '',
+    repositoryFullName: '',
+    cloneUrl: '',
+    defaultBranch: 'main',
   });
   const [hostedScanForm, setHostedScanForm] = useState<{
     sourceId: string;
@@ -751,6 +779,38 @@ export default function OwnerProductizationWorkspace({
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
     },
   });
+  const requestConnectorInstall = useMutation({
+    mutationFn: (provider: 'github' | 'gitlab') =>
+      postJson<ConnectorInstallUrlResponse, { returnPath: string }>(`/scanner/connectors/${provider}/install-url`, {
+        returnPath: typeof window === 'undefined' ? '/owner/productization' : window.location.pathname + window.location.search,
+      }),
+    onSuccess: (response) => {
+      if (response.url) {
+        window.location.assign(response.url);
+      }
+    },
+  });
+  const createProviderSource = useMutation({
+    mutationFn: () => {
+      const provider = scanSourceForm.providerType === 'GITLAB' ? 'gitlab' : 'github';
+      const payload: ProviderSourcePayload = {
+        installationId: providerSourceForm.installationId || activeProviderInstallations[0]?.id || '',
+        productId: selectedProduct?.id || '',
+        repositoryFullName: providerSourceForm.repositoryFullName.trim(),
+        defaultBranch: providerSourceForm.defaultBranch.trim() || 'main',
+        displayName: scanSourceForm.displayName || providerSourceForm.repositoryFullName,
+      };
+      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
+      if (providerSourceForm.cloneUrl.trim()) payload.cloneUrl = providerSourceForm.cloneUrl.trim();
+      return postJson<ScanSource, ProviderSourcePayload>(`/scanner/connectors/${provider}/sources`, payload);
+    },
+    onSuccess: async (source) => {
+      setScannerUploadForm((current) => ({ ...current, sourceId: source.id }));
+      setHostedScanForm((current) => ({ ...current, sourceId: source.id }));
+      setProviderSourceForm((current) => ({ ...current, repositoryFullName: '', cloneUrl: '' }));
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
   const uploadScannerEvidence = useMutation({
     mutationFn: () => {
       const payload: ScannerUploadPayload = {
@@ -885,6 +945,24 @@ export default function OwnerProductizationWorkspace({
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
     },
   });
+  const openSignedEvidence = useMutation({
+    mutationFn: (evidenceId: string) => getJson<SignedArtifactResponse>(`/scanner/evidence/${evidenceId}/artifact-url`),
+    onSuccess: (response) => {
+      window.open(response.signedUrl, '_blank', 'noopener,noreferrer');
+    },
+  });
+  const createEvidenceExport = useMutation({
+    mutationFn: () => postJson<EvidenceExportBundle, { productId: string; workspaceId?: string }>('/scanner/evidence-exports', {
+      productId: selectedProduct?.id || '',
+      ...(selectedWorkspace?.id ? { workspaceId: selectedWorkspace.id } : {}),
+    }),
+    onSuccess: async (bundle) => {
+      if (bundle.signedUrl) {
+        window.open(bundle.signedUrl, '_blank', 'noopener,noreferrer');
+      }
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
 
   const productProposals = (proposals.data || []).filter((proposal) => proposal.packageInstance?.productProfile?.id === selectedProduct?.id);
   const activeShortlists = (shortlists.data || []).filter((shortlist) => shortlist.status !== 'ARCHIVED');
@@ -916,6 +994,9 @@ export default function OwnerProductizationWorkspace({
   const selectedScanSource = (scannerSummary.data?.sources || []).find((source) => source.id === hostedScanForm.sourceId);
   const hostedScanBlockedReason = hostedScanBlockReason(selectedProduct, selectedScanSource, hostedScanForm);
   const selectedConnectorPermission = (connectorPermissions.data || []).find((permission) => permission.providerType === scanSourceForm.providerType);
+  const activeProviderInstallations = (scannerConnectors.data || []).filter(
+    (connector) => connector.providerType === scanSourceForm.providerType && connector.status === 'ACTIVE'
+  );
   const scheduleInterval = Number.parseInt(scheduleForm.intervalDays, 10);
   const scheduleBlockedReason = !selectedProduct
     ? 'Select a product first.'
@@ -959,8 +1040,8 @@ export default function OwnerProductizationWorkspace({
     }
   });
 
-  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, scannerSummary].some((query) => query.isLoading);
-  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, scannerSummary, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
+  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, scannerSummary, scannerConnectors].some((query) => query.isLoading);
+  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, scannerSummary, scannerConnectors, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
     || createProduct.error
     || createRequirement.error
     || buildPackage.error
@@ -974,6 +1055,8 @@ export default function OwnerProductizationWorkspace({
     || convertCart.error
     || createDiagnosis.error
     || createScanSource.error
+    || requestConnectorInstall.error
+    || createProviderSource.error
     || uploadScannerEvidence.error
     || importExternalEvidence.error
     || fetchCiTemplate.error
@@ -981,7 +1064,9 @@ export default function OwnerProductizationWorkspace({
     || startHostedScan.error
     || cancelScannerRun.error
     || rescanRun.error
-    || updateFindingStatus.error;
+    || updateFindingStatus.error
+    || openSignedEvidence.error
+    || createEvidenceExport.error;
 
   const recordShortlist = (teamId: string, status: TeamShortlist['status']) => {
     if (!selectedPackage?.id) return;
@@ -1064,6 +1149,16 @@ export default function OwnerProductizationWorkspace({
         title: `${product.name} productization plan`,
         businessGoal: cart.data?.businessGoal || `Move ${product.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
       });
+    }
+  };
+
+  const openEvidenceArtifact = (evidence: ScannerEvidenceItem) => {
+    if (evidence.storageKey) {
+      openSignedEvidence.mutate(evidence.id);
+      return;
+    }
+    if (evidence.artifactRef) {
+      window.open(evidence.artifactRef, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -1315,6 +1410,84 @@ export default function OwnerProductizationWorkspace({
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, lineHeight: 1.45 }}>
                             {selectedConnectorPermission.operatingNote}
                           </Typography>
+                        </Box>
+                      )}
+                      {(scanSourceForm.providerType === 'GITHUB' || scanSourceForm.providerType === 'GITLAB') && (
+                        <Box sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e7e4ff', bgcolor: '#fbfaff' }}>
+                          <Stack spacing={1}>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 900 }}>
+                                  {scanSourceForm.providerType === 'GITHUB' ? 'GitHub App connection' : 'GitLab project connection'}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Connect once, then attach repository sources to this product with an auditable installation record.
+                                </Typography>
+                              </Box>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<OpenInNewOutlined />}
+                                onClick={() => requestConnectorInstall.mutate(scanSourceForm.providerType === 'GITHUB' ? 'github' : 'gitlab')}
+                                disabled={requestConnectorInstall.isPending}
+                                sx={{ minHeight: 36, minWidth: 154 }}
+                              >
+                                Connect App
+                              </Button>
+                            </Stack>
+                            {activeProviderInstallations.length ? (
+                              <>
+                                <TextField
+                                  select
+                                  size="small"
+                                  label="Connected account"
+                                  value={providerSourceForm.installationId || activeProviderInstallations[0]?.id || ''}
+                                  onChange={(event) => setProviderSourceForm((current) => ({ ...current, installationId: event.target.value }))}
+                                >
+                                  {activeProviderInstallations.map((installation) => (
+                                    <MenuItem key={installation.id} value={installation.id}>
+                                      {installation.accountLogin || installation.externalInstallationId} · {formatLabel(installation.providerType)}
+                                    </MenuItem>
+                                  ))}
+                                </TextField>
+                                <TextField
+                                  size="small"
+                                  label="Repository full name"
+                                  placeholder={scanSourceForm.providerType === 'GITHUB' ? 'owner/repository' : 'group/project'}
+                                  value={providerSourceForm.repositoryFullName}
+                                  onChange={(event) => setProviderSourceForm((current) => ({ ...current, repositoryFullName: event.target.value }))}
+                                />
+                                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 2fr' }, gap: 1 }}>
+                                  <TextField
+                                    size="small"
+                                    label="Default branch"
+                                    value={providerSourceForm.defaultBranch}
+                                    onChange={(event) => setProviderSourceForm((current) => ({ ...current, defaultBranch: event.target.value }))}
+                                  />
+                                  <TextField
+                                    size="small"
+                                    label="Clone URL override"
+                                    placeholder="Optional. Leave empty for standard provider HTTPS URL."
+                                    value={providerSourceForm.cloneUrl}
+                                    onChange={(event) => setProviderSourceForm((current) => ({ ...current, cloneUrl: event.target.value }))}
+                                  />
+                                </Box>
+                                <Button
+                                  variant="contained"
+                                  startIcon={<AddOutlined />}
+                                  disabled={!selectedProduct || !providerSourceForm.repositoryFullName.trim() || !(providerSourceForm.installationId || activeProviderInstallations[0]?.id) || createProviderSource.isPending}
+                                  onClick={() => createProviderSource.mutate()}
+                                  sx={{ minHeight: 42 }}
+                                >
+                                  Add Repository Source
+                                </Button>
+                              </>
+                            ) : (
+                              <Alert severity="info" sx={{ borderRadius: 1 }}>
+                                No active {formatLabel(scanSourceForm.providerType)} connector is attached yet. Manual source entry still works for public repositories and CI imports.
+                              </Alert>
+                            )}
+                          </Stack>
                         </Box>
                       )}
                       <TextField
@@ -1786,7 +1959,7 @@ export default function OwnerProductizationWorkspace({
                 </Stack>
 
                 <Stack spacing={1.5}>
-                  {(scannerSummary.isFetching || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
+                  {(scannerSummary.isFetching || createProviderSource.isPending || requestConnectorInstall.isPending || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending || openSignedEvidence.isPending || createEvidenceExport.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
                   {scannerSummary.data?.sources.length ? (
                     <Stack spacing={1}>
                       <FormControlLabel
@@ -1898,19 +2071,31 @@ export default function OwnerProductizationWorkspace({
                         <ArticleOutlined sx={{ color: appleColors.purple }} />
                         <Typography sx={{ fontWeight: 900 }}>Evidence Center</Typography>
                       </Stack>
-                      <TextField
-                        select
-                        size="small"
-                        label="Filter"
-                        value={evidenceFilter}
-                        onChange={(event) => setEvidenceFilter(event.target.value as typeof evidenceFilter)}
-                        sx={{ minWidth: { xs: '100%', sm: 180 } }}
-                      >
-                        <MenuItem value="ALL">All evidence</MenuItem>
-                        <MenuItem value="FINDINGS">Finding-linked</MenuItem>
-                        <MenuItem value="MILESTONES">Milestone-linked</MenuItem>
-                        <MenuItem value="REDACTED">Redacted</MenuItem>
-                      </TextField>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<CloudUploadOutlined />}
+                          disabled={!selectedProduct || createEvidenceExport.isPending}
+                          onClick={() => createEvidenceExport.mutate()}
+                          sx={{ minHeight: 40, minWidth: 132 }}
+                        >
+                          Export
+                        </Button>
+                        <TextField
+                          select
+                          size="small"
+                          label="Filter"
+                          value={evidenceFilter}
+                          onChange={(event) => setEvidenceFilter(event.target.value as typeof evidenceFilter)}
+                          sx={{ minWidth: { xs: '100%', sm: 180 } }}
+                        >
+                          <MenuItem value="ALL">All evidence</MenuItem>
+                          <MenuItem value="FINDINGS">Finding-linked</MenuItem>
+                          <MenuItem value="MILESTONES">Milestone-linked</MenuItem>
+                          <MenuItem value="REDACTED">Redacted</MenuItem>
+                        </TextField>
+                      </Stack>
                     </Stack>
                     {filteredScannerEvidence.length ? (
                       <Stack spacing={1}>
@@ -1928,14 +2113,14 @@ export default function OwnerProductizationWorkspace({
                                 </Typography>
                               </Box>
                               <Stack direction="row" spacing={1}>
-                                <Tooltip title={evidence.artifactRef ? 'Open the stored evidence artifact' : 'No artifact link exists for this evidence item'}>
+                                <Tooltip title={evidence.storageKey ? 'Open with a short-lived signed artifact URL' : evidence.artifactRef ? 'Open the stored evidence artifact' : 'No artifact link exists for this evidence item'}>
                                   <span>
                                     <Button
                                       size="small"
                                       variant="outlined"
                                       startIcon={<VisibilityOutlined />}
-                                      disabled={!evidence.artifactRef}
-                                      onClick={() => evidence.artifactRef && window.open(evidence.artifactRef, '_blank', 'noopener,noreferrer')}
+                                      disabled={(!evidence.storageKey && !evidence.artifactRef) || openSignedEvidence.isPending}
+                                      onClick={() => openEvidenceArtifact(evidence)}
                                       sx={{ minHeight: 34 }}
                                     >
                                       Open
@@ -2094,8 +2279,8 @@ export default function OwnerProductizationWorkspace({
                               <Button
                                 size="small"
                                 variant="outlined"
-                                disabled={!item.artifactRef}
-                                onClick={() => item.artifactRef && window.open(item.artifactRef, '_blank', 'noopener,noreferrer')}
+                                disabled={(!item.storageKey && !item.artifactRef) || openSignedEvidence.isPending}
+                                onClick={() => openEvidenceArtifact(item)}
                                 sx={{ minHeight: 34, minWidth: 112 }}
                               >
                                 Open Evidence

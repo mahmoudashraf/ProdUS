@@ -44,6 +44,15 @@ public class ScanSource extends BaseEntity {
     @Column(name = "external_reference", length = 1000)
     private String externalReference;
 
+    @Column(name = "external_installation_id", length = 255)
+    private String externalInstallationId;
+
+    @Column(name = "external_repository_full_name", length = 500)
+    private String externalRepositoryFullName;
+
+    @Column(name = "default_branch", length = 255)
+    private String defaultBranch;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "authorization_status", nullable = false)
     private AuthorizationStatus authorizationStatus = AuthorizationStatus.AUTHORIZED;

@@ -52,7 +52,7 @@ public class ScannerService {
 
     private static final int MAX_EVIDENCE_PAYLOAD_BYTES = 2_000_000;
     private static final Pattern SECRET_PATTERN = Pattern.compile(
-            "(?i)(sk_(live|test)_[a-z0-9_\\-]{8,}|ghp_[a-z0-9_]{16,}|(api[_-]?key|access[_-]?key|secret|token|password|private[_-]?key)\\s*[:=]\\s*[\\\"']?[^\\s\\\"',;]{8,})"
+            "(?i)(https://x-access-token:[^@\\s]+@github\\.com|sk_(live|test)_[a-z0-9_\\-]{8,}|gh[pousr]_[a-z0-9_]{16,}|(api[_-]?key|access[_-]?key|secret|token|password|private[_-]?key)\\s*[:=]\\s*[\\\"']?[^\\s\\\"',;]{8,})"
     );
 
     private final ProductProfileRepository productRepository;
@@ -88,6 +88,9 @@ public class ScannerService {
         source.setProviderType(request.providerType() == null ? ScanSource.ProviderType.CI_UPLOAD : request.providerType());
         source.setDisplayName(cleanRequired(request.displayName(), "Source display name is required"));
         source.setExternalReference(trimToNull(request.externalReference()));
+        source.setExternalInstallationId(trimToNull(request.externalInstallationId()));
+        source.setExternalRepositoryFullName(trimToNull(request.externalRepositoryFullName()));
+        source.setDefaultBranch(trimToNull(request.defaultBranch()));
         source.setAuthorizationStatus(request.authorizationStatus() == null ? ScanSource.AuthorizationStatus.AUTHORIZED : request.authorizationStatus());
         source.setScopeNote(trimToNull(request.scopeNote()));
         source.setCreatedBy(actor);
@@ -2239,6 +2242,9 @@ public class ScannerService {
                 source.getProviderType(),
                 source.getDisplayName(),
                 source.getExternalReference(),
+                source.getExternalInstallationId(),
+                source.getExternalRepositoryFullName(),
+                source.getDefaultBranch(),
                 source.getAuthorizationStatus(),
                 source.getScopeNote(),
                 source.getCreatedBy().getEmail()
@@ -2512,6 +2518,9 @@ public class ScannerService {
             ScanSource.ProviderType providerType,
             @NotBlank String displayName,
             String externalReference,
+            String externalInstallationId,
+            String externalRepositoryFullName,
+            String defaultBranch,
             ScanSource.AuthorizationStatus authorizationStatus,
             String scopeNote
     ) {}
@@ -2708,6 +2717,9 @@ public class ScannerService {
             ScanSource.ProviderType providerType,
             String displayName,
             String externalReference,
+            String externalInstallationId,
+            String externalRepositoryFullName,
+            String defaultBranch,
             ScanSource.AuthorizationStatus authorizationStatus,
             String scopeNote,
             String createdByEmail

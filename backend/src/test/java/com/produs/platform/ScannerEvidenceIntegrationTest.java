@@ -19,13 +19,18 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.HexFormat;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -46,6 +51,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@TestPropertySource(properties = {
+        "app.scanner.providers.github.enabled=true",
+        "app.scanner.providers.github.app-id=test-github-app",
+        "app.scanner.providers.github.client-id=test-github-client",
+        "app.scanner.providers.github.client-secret=test-github-secret",
+        "app.scanner.providers.github.webhook-secret=test-github-webhook-secret",
+        "app.scanner.providers.github.install-url=https://github.com/apps/produs-test/installations/new",
+        "app.scanner.providers.github.callback-url=http://localhost:8080/api/scanner/connectors/github/callback",
+        "app.scanner.providers.gitlab.enabled=true",
+        "app.scanner.providers.gitlab.client-id=test-gitlab-client",
+        "app.scanner.providers.gitlab.client-secret=test-gitlab-secret",
+        "app.scanner.providers.gitlab.redirect-uri=http://localhost:8080/api/scanner/connectors/gitlab/callback",
+        "app.scanner.providers.gitlab.webhook-secret=test-gitlab-webhook-secret",
+        "app.scanner.providers.gitlab.base-url=https://gitlab.com"
+})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class ScannerEvidenceIntegrationTest {
 
@@ -544,6 +564,154 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(jsonPath("$.schedules[0].id").value(scheduleId.toString()));
     }
 
+    @Test
+    void providerConnectorFlowCreatesSourcesAndVerifiesWebhookSignatures() throws Exception {
+        User owner = saveUser("scanner-connector-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        UUID productId = createProduct(owner);
+
+        MvcResult installUrlResult = mockMvc.perform(post("/api/scanner/connectors/github/install-url")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"returnPath\":\"/owner/productization\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.providerType").value("GITHUB"))
+                .andExpect(jsonPath("$.url").value(containsString("state=")))
+                .andReturn();
+        String state = objectMapper.readTree(installUrlResult.getResponse().getContentAsString()).get("state").asText();
+
+        MvcResult installationResult = mockMvc.perform(get("/api/scanner/connectors/github/callback")
+                        .with(auth(owner))
+                        .param("installation_id", "123456")
+                        .param("setup_action", "install")
+                        .param("state", state)
+                        .param("account", "acme")
+                        .param("account_type", "Organization"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.externalInstallationId").value("123456"))
+                .andReturn();
+        UUID installationId = readId(installationResult);
+
+        mockMvc.perform(post("/api/scanner/connectors/github/sources")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "installationId": "%s",
+                                  "productId": "%s",
+                                  "repositoryFullName": "acme/payments",
+                                  "defaultBranch": "main",
+                                  "displayName": "Acme Payments Repository"
+                                }
+                                """.formatted(installationId, productId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.providerType").value("GITHUB"))
+                .andExpect(jsonPath("$.authorizationStatus").value("AUTHORIZED"))
+                .andExpect(jsonPath("$.externalInstallationId").value("123456"))
+                .andExpect(jsonPath("$.externalRepositoryFullName").value("acme/payments"))
+                .andExpect(jsonPath("$.defaultBranch").value("main"));
+
+        String githubPayload = "{\"action\":\"suspend\",\"installation\":{\"id\":123456}}";
+        mockMvc.perform(post("/api/scanner/connectors/github/webhook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-GitHub-Event", "installation")
+                        .header("X-Hub-Signature-256", githubSignature(githubPayload))
+                        .content(githubPayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accepted").value(true))
+                .andExpect(jsonPath("$.externalInstallationId").value("123456"));
+
+        mockMvc.perform(post("/api/scanner/connectors/gitlab/webhook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Gitlab-Event", "Project Hook")
+                        .header("X-Gitlab-Token", "bad-token")
+                        .content("{\"project_id\": 77}"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/scanner/connectors/gitlab/webhook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Gitlab-Event", "Project Hook")
+                        .header("X-Gitlab-Token", "test-gitlab-webhook-secret")
+                        .content("{\"project_id\": 77}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accepted").value(true));
+    }
+
+    @Test
+    void scannerStorageGovernanceSignsArtifactsExportsEvidenceAndRestrictsRetention() throws Exception {
+        User owner = saveUser("scanner-storage-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        User admin = saveUser("scanner-storage-admin@produs.test", User.UserRole.ADMIN);
+        UUID productId = createProduct(owner);
+
+        String sarif = """
+                {
+                  "version": "2.1.0",
+                  "runs": [{
+                    "tool": {"driver": {"name": "Semgrep", "rules": [{"id": "python.lang.security.audit.subprocess-shell-true"}]}},
+                    "results": [{
+                      "ruleId": "python.lang.security.audit.subprocess-shell-true",
+                      "level": "warning",
+                      "message": {"text": "Shell=True subprocess invocation should be reviewed"},
+                      "locations": [{
+                        "physicalLocation": {
+                          "artifactLocation": { "uri": "workers/job.py" },
+                          "region": { "startLine": 88 }
+                        }
+                      }]
+                    }]
+                  }]
+                }
+                """;
+
+        mockMvc.perform(post("/api/scanner/runs/ci-upload")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "productId", productId.toString(),
+                                "toolName", "Semgrep",
+                                "format", "SARIF",
+                                "artifactFileName", "semgrep.sarif",
+                                "artifactPayload", sarif
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+
+        MvcResult summary = mockMvc.perform(get("/api/scanner/products/{productId}/summary", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.evidence[0].storageKey").exists())
+                .andReturn();
+        String evidenceId = objectMapper.readTree(summary.getResponse().getContentAsString()).get("evidence").get(0).get("id").asText();
+
+        mockMvc.perform(get("/api/scanner/evidence/{evidenceId}/artifact-url", evidenceId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entityType").value("SCANNER_EVIDENCE"))
+                .andExpect(jsonPath("$.signedUrl").value(containsString("https://storage.produs.test/signed/")));
+
+        mockMvc.perform(post("/api/scanner/evidence-exports")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"productId\":\"%s\"}".formatted(productId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.findingCount").value(1))
+                .andExpect(jsonPath("$.evidenceCount").value(1))
+                .andExpect(jsonPath("$.signedUrl").value(containsString("https://storage.produs.test/signed/")));
+
+        mockMvc.perform(post("/api/scanner/admin/storage/retention")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dryRun\":true}"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/scanner/admin/storage/retention")
+                        .with(auth(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dryRun\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dryRun").value(true))
+                .andExpect(jsonPath("$.candidateCount").value(0));
+    }
+
     private UUID createProduct(User owner) throws Exception {
         MvcResult productResult = mockMvc.perform(post("/api/products")
                         .with(auth(owner))
@@ -635,6 +803,12 @@ class ScannerEvidenceIntegrationTest {
         Process process = new ProcessBuilder(command).directory(directory.toFile()).start();
         int exit = process.waitFor();
         org.assertj.core.api.Assertions.assertThat(exit).as(String.join(" ", command)).isZero();
+    }
+
+    private String githubSignature(String payload) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec("test-github-webhook-secret".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return "sha256=" + HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
     }
 
     private User saveUser(String email, User.UserRole role) {

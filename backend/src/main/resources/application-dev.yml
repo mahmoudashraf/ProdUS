@@ -30,6 +30,19 @@ supabase:
 app:
   mock-auth:
     enabled: true
+  scanner:
+    require-runtime-tool-availability: false
+    storage:
+      retention-cleanup-enabled: false
+      export-enabled: true
+    providers:
+      github:
+        enabled: false
+        install-url: ${APP_SCANNER_GITHUB_INSTALL_URL:https://github.com/apps/produs-network/installations/new}
+        callback-url: ${APP_SCANNER_GITHUB_CALLBACK_URL:http://localhost:8080/api/scanner/connectors/github/callback}
+      gitlab:
+        enabled: false
+        redirect-uri: ${APP_SCANNER_GITLAB_REDIRECT_URI:http://localhost:8080/api/scanner/connectors/gitlab/callback}
 
 aws:
   s3:

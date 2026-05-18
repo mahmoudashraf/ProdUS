@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -20,6 +21,10 @@ public class ScannerProperties {
     private int defaultTimeoutSeconds = 300;
     private String workRoot = "";
     private int maxOutputBytes = 2_000_000;
+    private boolean requireRuntimeToolAvailability = false;
+    private String runtimeImageName = "produs-scanner-worker";
+    private String runtimeImageTag = "local";
+    private List<String> requiredToolKeys = List.of("gitleaks", "semgrep", "osv-scanner", "trivy-fs");
     private Map<String, ToolProperties> tools = defaultTools();
 
     public ToolProperties tool(String key) {

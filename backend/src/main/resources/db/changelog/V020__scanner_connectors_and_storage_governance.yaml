@@ -1,0 +1,167 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2000
+      author: produs
+      changes:
+        - addColumn:
+            tableName: scan_sources
+            columns:
+              - column: { name: external_installation_id, type: VARCHAR(255) }
+              - column: { name: external_repository_full_name, type: VARCHAR(255) }
+              - column: { name: default_branch, type: VARCHAR(255) }
+        - createIndex:
+            tableName: scan_sources
+            indexName: idx_scan_sources_external_installation
+            columns:
+              - column: { name: provider_type }
+              - column: { name: external_installation_id }
+
+  - changeSet:
+      id: 2001
+      author: produs
+      changes:
+        - createTable:
+            tableName: scanner_connector_auth_states
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: provider_type, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: state_hash, type: VARCHAR(128), constraints: { nullable: false, unique: true } }
+              - column: { name: requested_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: return_path, type: VARCHAR(1000) }
+              - column: { name: expires_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: consumed_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: scanner_connector_auth_states
+            baseColumnNames: requested_by
+            constraintName: fk_scanner_connector_auth_requested_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: scanner_connector_auth_states
+            indexName: idx_scanner_connector_auth_state_hash
+            columns:
+              - column: { name: state_hash }
+
+  - changeSet:
+      id: 2002
+      author: produs
+      changes:
+        - createTable:
+            tableName: scanner_connector_installations
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: provider_type, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: external_installation_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: account_login, type: VARCHAR(255) }
+              - column: { name: account_type, type: VARCHAR(80) }
+              - column: { name: permissions_json, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: connected_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: disconnected_at, type: TIMESTAMP }
+              - column: { name: last_webhook_at, type: TIMESTAMP }
+              - column: { name: last_webhook_event, type: VARCHAR(120) }
+              - column: { name: last_error, type: TEXT }
+              - column: { name: created_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: scanner_connector_installations
+            columnNames: provider_type, external_installation_id
+            constraintName: uq_scanner_connector_installation_provider_external
+        - addForeignKeyConstraint:
+            baseTableName: scanner_connector_installations
+            baseColumnNames: owner_id
+            constraintName: fk_scanner_connector_installations_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_connector_installations
+            baseColumnNames: created_by
+            constraintName: fk_scanner_connector_installations_created_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: scanner_connector_installations
+            indexName: idx_scanner_connector_installations_owner
+            columns:
+              - column: { name: owner_id }
+              - column: { name: created_at }
+
+  - changeSet:
+      id: 2003
+      author: produs
+      changes:
+        - createTable:
+            tableName: scanner_artifact_deletions
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: storage_key, type: VARCHAR(1000), constraints: { nullable: false } }
+              - column: { name: source_type, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: source_id, type: UUID }
+              - column: { name: reason, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: deleted_at, type: TIMESTAMP }
+              - column: { name: failure_summary, type: TEXT }
+              - column: { name: requested_by, type: UUID }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: scanner_artifact_deletions
+            baseColumnNames: requested_by
+            constraintName: fk_scanner_artifact_deletions_requested_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: scanner_artifact_deletions
+            indexName: idx_scanner_artifact_deletions_storage_key
+            columns:
+              - column: { name: storage_key }
+
+  - changeSet:
+      id: 2004
+      author: produs
+      changes:
+        - createTable:
+            tableName: scanner_evidence_export_bundles
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: artifact_ref, type: VARCHAR(1000) }
+              - column: { name: storage_key, type: VARCHAR(1000) }
+              - column: { name: finding_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: evidence_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: tool_run_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: completed_at, type: TIMESTAMP }
+              - column: { name: failure_summary, type: TEXT }
+              - column: { name: requested_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: scanner_evidence_export_bundles
+            baseColumnNames: product_profile_id
+            constraintName: fk_scanner_exports_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_evidence_export_bundles
+            baseColumnNames: workspace_id
+            constraintName: fk_scanner_exports_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_evidence_export_bundles
+            baseColumnNames: requested_by
+            constraintName: fk_scanner_exports_requested_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: scanner_evidence_export_bundles
+            indexName: idx_scanner_exports_product
+            columns:
+              - column: { name: product_profile_id }
+              - column: { name: created_at }

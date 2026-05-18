@@ -37,3 +37,5 @@ databaseChangeLog:
       file: db/changelog/V018__ai_provider_trace.yaml
   - include:
       file: db/changelog/V019__scanner_schedules_and_artifact_deletion.yaml
+  - include:
+      file: db/changelog/V020__scanner_connectors_and_storage_governance.yaml

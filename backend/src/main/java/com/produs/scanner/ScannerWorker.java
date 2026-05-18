@@ -33,6 +33,7 @@ public class ScannerWorker {
     private final ScannerService scannerService;
     private final ScannerProcessRunner processRunner;
     private final AuditService auditService;
+    private final ScannerSourceCredentialService sourceCredentialService;
 
     public boolean executeNextQueuedJob() {
         return jobRepository.findTopByStatusAndNextRunAtLessThanEqualOrderByCreatedAtAsc(ScannerJob.JobStatus.QUEUED, LocalDateTime.now())
@@ -163,7 +164,7 @@ public class ScannerWorker {
         if (run.getDepth() == ScanRun.ScanDepth.DEPENDENCY_CONTAINER) {
             return jobRoot;
         }
-        String source = run.getScanSource().getExternalReference();
+        String source = sourceCredentialService.cloneReferenceFor(run.getScanSource());
         if (source == null || source.isBlank()) {
             throw new IllegalArgumentException("Hosted repository scan requires an authorized repository source");
         }

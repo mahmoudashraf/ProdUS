@@ -6,7 +6,10 @@ import com.produs.dto.PlatformDtos.AdminReadinessResponse;
 import com.produs.dto.PlatformDtos.AdminDashboardResponse;
 import com.produs.dto.PlatformDtos.CurrentUserSummary;
 import com.produs.entity.User;
+import com.produs.scanner.ScannerProcessRunner;
 import com.produs.scanner.ScannerProperties;
+import com.produs.scanner.ScannerProviderProperties;
+import com.produs.scanner.ScannerStorageProperties;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -22,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -34,6 +38,9 @@ public class AdminController {
     private final Environment environment;
     private final LoomAIProperties loomAIProperties;
     private final ScannerProperties scannerProperties;
+    private final ScannerProcessRunner scannerProcessRunner;
+    private final ScannerProviderProperties scannerProviderProperties;
+    private final ScannerStorageProperties scannerStorageProperties;
 
     @GetMapping("/dashboard")
     @Operation(summary = "Get admin dashboard", description = "Returns admin dashboard information")
@@ -89,6 +96,29 @@ public class AdminController {
                 "Scanner tool pack configured",
                 "Required scanner commands are present in scanner configuration.",
                 "Configure gitleaks, semgrep, osv-scanner, and trivy-fs command templates.");
+        addGate(gates, "scanner-runtime-tools", "Scanner", scannerRuntimeToolsStatus(),
+                "Scanner runtime executable availability",
+                scannerRuntimeToolsDetail(),
+                scannerProperties.isRequireRuntimeToolAvailability()
+                        ? "Build and run the hardened scanner image or install required scanner binaries on PATH before enabling production hosted scans."
+                        : "Set APP_SCANNER_REQUIRE_RUNTIME_TOOL_AVAILABILITY=true in production after the scanner image is approved.");
+        addGate(gates, "scanner-runtime-image", "Scanner", configured(scannerProperties.getRuntimeImageName()) && configured(scannerProperties.getRuntimeImageTag()) ? "PASS" : "WARN",
+                "Scanner runtime image configured",
+                "Runtime image reference: " + scannerProperties.getRuntimeImageName() + ":" + scannerProperties.getRuntimeImageTag(),
+                "Build and publish the scanner runtime image from backend/Dockerfile.scanner, then set APP_SCANNER_RUNTIME_IMAGE_NAME and APP_SCANNER_RUNTIME_IMAGE_TAG.");
+        addGate(gates, "scanner-storage-governance", "Evidence", scannerStorageProperties.isExportEnabled() ? "PASS" : "WARN",
+                "Scanner storage export and retention",
+                "Evidence exports are " + (scannerStorageProperties.isExportEnabled() ? "enabled" : "disabled")
+                        + "; retention cleanup is " + (scannerStorageProperties.isRetentionCleanupEnabled() ? "enabled" : "manual/dry-run only") + ".",
+                "Enable retention cleanup only after storage lifecycle and audit export policy are approved.");
+        addGate(gates, "github-scanner-connector", "Integrations", providerGateStatus(scannerProviderProperties.getGithub().isEnabled(), githubConnectorConfigured()),
+                "GitHub scanner connector",
+                scannerProviderProperties.getGithub().isEnabled() ? "GitHub App connector is enabled." : "GitHub App connector is disabled until credentials are provided.",
+                "Configure APP_SCANNER_GITHUB_* values: app id, client id/secret, private key path, install URL, callback URL, and webhook secret.");
+        addGate(gates, "gitlab-scanner-connector", "Integrations", providerGateStatus(scannerProviderProperties.getGitlab().isEnabled(), gitlabConnectorConfigured()),
+                "GitLab scanner connector",
+                scannerProviderProperties.getGitlab().isEnabled() ? "GitLab connector is enabled." : "GitLab connector is disabled until credentials are provided.",
+                "Configure APP_SCANNER_GITLAB_* values: client id/secret, redirect URI, base URL, and webhook secret.");
         addGate(gates, "loomai-runtime", "AI", loomAIProperties.isEnabled() ? (configured(loomAIProperties.getBaseUrl()) ? "PASS" : "BLOCKED") : "WARN",
                 "LoomAI runtime",
                 loomAIProperties.isEnabled() ? "LoomAI is enabled for " + loomAIProperties.getEnvironment() + "." : "LoomAI is disabled; deterministic fallback remains active.",
@@ -130,10 +160,67 @@ public class AdminController {
     }
 
     private boolean requiredScannerToolsConfigured() {
-        return List.of("gitleaks", "semgrep", "osv-scanner", "trivy-fs").stream()
+        return scannerProperties.getRequiredToolKeys().stream()
                 .allMatch(key -> scannerProperties.getTools().containsKey(key)
                         && scannerProperties.getTools().get(key).isEnabled()
                         && configured(scannerProperties.getTools().get(key).getCommand()));
+    }
+
+    private String scannerRuntimeToolsStatus() {
+        boolean available = requiredScannerToolsExecutableAvailable();
+        if (available) {
+            return "PASS";
+        }
+        return scannerProperties.isRequireRuntimeToolAvailability() ? "BLOCKED" : "WARN";
+    }
+
+    private String scannerRuntimeToolsDetail() {
+        List<String> missing = scannerProperties.getRequiredToolKeys().stream()
+                .filter(key -> scannerProperties.getTools().containsKey(key))
+                .filter(key -> !scannerProcessRunner.isExecutableAvailable(executableFor(scannerProperties.getTools().get(key))))
+                .toList();
+        if (missing.isEmpty()) {
+            return "Required scanner binaries are available on the current runtime PATH.";
+        }
+        return "Missing scanner binaries on current runtime PATH: " + String.join(", ", missing) + ".";
+    }
+
+    private boolean requiredScannerToolsExecutableAvailable() {
+        return scannerProperties.getRequiredToolKeys().stream()
+                .allMatch(key -> scannerProperties.getTools().containsKey(key)
+                        && scannerProcessRunner.isExecutableAvailable(executableFor(scannerProperties.getTools().get(key))));
+    }
+
+    private String executableFor(ScannerProperties.ToolProperties tool) {
+        List<String> command = scannerProcessRunner.renderCommand(tool.getCommand(), Map.of());
+        return command.isEmpty() ? "" : command.getFirst();
+    }
+
+    private String providerGateStatus(boolean enabled, boolean configured) {
+        if (!enabled) {
+            return "WARN";
+        }
+        return configured ? "PASS" : "BLOCKED";
+    }
+
+    private boolean githubConnectorConfigured() {
+        ScannerProviderProperties.GitHub github = scannerProviderProperties.getGithub();
+        return configured(github.getAppId())
+                && configured(github.getClientId())
+                && configured(github.getClientSecret())
+                && configured(github.getPrivateKeyPath())
+                && configured(github.getWebhookSecret())
+                && configured(github.getInstallUrl())
+                && configured(github.getCallbackUrl());
+    }
+
+    private boolean gitlabConnectorConfigured() {
+        ScannerProviderProperties.GitLab gitlab = scannerProviderProperties.getGitlab();
+        return configured(gitlab.getClientId())
+                && configured(gitlab.getClientSecret())
+                && configured(gitlab.getRedirectUri())
+                && configured(gitlab.getWebhookSecret())
+                && configured(gitlab.getBaseUrl());
     }
 
     private boolean mcpToolProfileReady() {

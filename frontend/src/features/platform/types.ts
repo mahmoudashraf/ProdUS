@@ -164,6 +164,9 @@ export interface ScanSource extends BaseRecord {
   providerType: 'CI_UPLOAD' | 'GITHUB' | 'GITLAB' | 'RUNTIME_URL' | 'EXTERNAL_TOOL';
   displayName: string;
   externalReference?: string;
+  externalInstallationId?: string;
+  externalRepositoryFullName?: string;
+  defaultBranch?: string;
   authorizationStatus: 'PENDING' | 'AUTHORIZED' | 'REVOKED' | 'FAILED';
   scopeNote?: string;
   createdByEmail: string;
@@ -375,6 +378,64 @@ export interface ScannerAdminHealth {
   tools: ScannerToolHealth[];
   recentJobs: ScannerJobHealth[];
   recentImports: ScannerImportRun[];
+}
+
+export interface ScannerConnectorInstallation extends BaseRecord {
+  providerType: ScanSource['providerType'];
+  externalInstallationId: string;
+  accountLogin?: string;
+  accountType?: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'DISCONNECTED' | 'FAILED';
+  connectedAt?: string;
+  disconnectedAt?: string;
+  lastWebhookAt?: string;
+  lastWebhookEvent?: string;
+  lastError?: string;
+}
+
+export interface ConnectorInstallUrlResponse {
+  providerType: ScanSource['providerType'];
+  providerEnabled: boolean;
+  url: string;
+  state: string;
+  callbackUrl?: string;
+  note: string;
+}
+
+export interface SignedArtifactResponse {
+  entityId: string;
+  entityType: string;
+  storageKey: string;
+  signedUrl: string;
+  expiresInSeconds: number;
+}
+
+export interface EvidenceExportBundle extends BaseRecord {
+  productProfileId: string;
+  workspaceId?: string;
+  status: 'REQUESTED' | 'COMPLETED' | 'FAILED';
+  artifactRef?: string;
+  storageKey?: string;
+  signedUrl?: string;
+  signedUrlExpiresInSeconds: number;
+  findingCount: number;
+  evidenceCount: number;
+  toolRunCount: number;
+  completedAt?: string;
+  failureSummary?: string;
+  requestedByEmail: string;
+}
+
+export interface RetentionCandidate {
+  sourceType: string;
+  sourceId?: string;
+  storageKey: string;
+}
+
+export interface ScannerRetentionRun {
+  dryRun: boolean;
+  candidateCount: number;
+  candidates: RetentionCandidate[];
 }
 
 export interface RequirementIntake extends BaseRecord {

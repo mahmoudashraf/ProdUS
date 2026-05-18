@@ -88,6 +88,35 @@ app:
     default-timeout-seconds: ${APP_SCANNER_DEFAULT_TIMEOUT_SECONDS:300}
     work-root: ${APP_SCANNER_WORK_ROOT:}
     max-output-bytes: ${APP_SCANNER_MAX_OUTPUT_BYTES:2000000}
+    require-runtime-tool-availability: ${APP_SCANNER_REQUIRE_RUNTIME_TOOL_AVAILABILITY:false}
+    runtime-image-name: ${APP_SCANNER_RUNTIME_IMAGE_NAME:produs-scanner-worker}
+    runtime-image-tag: ${APP_SCANNER_RUNTIME_IMAGE_TAG:local}
+    required-tool-keys: ${APP_SCANNER_REQUIRED_TOOL_KEYS:gitleaks,semgrep,osv-scanner,trivy-fs}
+    storage:
+      raw-artifact-retention-days: ${APP_SCANNER_RAW_ARTIFACT_RETENTION_DAYS:90}
+      import-payload-retention-days: ${APP_SCANNER_IMPORT_PAYLOAD_RETENTION_DAYS:90}
+      evidence-artifact-retention-days: ${APP_SCANNER_EVIDENCE_ARTIFACT_RETENTION_DAYS:365}
+      retention-cleanup-enabled: ${APP_SCANNER_RETENTION_CLEANUP_ENABLED:false}
+      export-enabled: ${APP_SCANNER_EVIDENCE_EXPORT_ENABLED:true}
+      signed-url-duration-seconds: ${APP_SCANNER_SIGNED_URL_DURATION_SECONDS:900}
+    providers:
+      github:
+        enabled: ${APP_SCANNER_GITHUB_ENABLED:false}
+        app-id: ${APP_SCANNER_GITHUB_APP_ID:}
+        client-id: ${APP_SCANNER_GITHUB_CLIENT_ID:}
+        client-secret: ${APP_SCANNER_GITHUB_CLIENT_SECRET:}
+        private-key-path: ${APP_SCANNER_GITHUB_PRIVATE_KEY_PATH:}
+        webhook-secret: ${APP_SCANNER_GITHUB_WEBHOOK_SECRET:}
+        install-url: ${APP_SCANNER_GITHUB_INSTALL_URL:}
+        callback-url: ${APP_SCANNER_GITHUB_CALLBACK_URL:}
+        api-base-url: ${APP_SCANNER_GITHUB_API_BASE_URL:https://api.github.com}
+      gitlab:
+        enabled: ${APP_SCANNER_GITLAB_ENABLED:false}
+        client-id: ${APP_SCANNER_GITLAB_CLIENT_ID:}
+        client-secret: ${APP_SCANNER_GITLAB_CLIENT_SECRET:}
+        redirect-uri: ${APP_SCANNER_GITLAB_REDIRECT_URI:}
+        webhook-secret: ${APP_SCANNER_GITLAB_WEBHOOK_SECRET:}
+        base-url: ${APP_SCANNER_GITLAB_BASE_URL:https://gitlab.com}
 
 aws:
   s3:
