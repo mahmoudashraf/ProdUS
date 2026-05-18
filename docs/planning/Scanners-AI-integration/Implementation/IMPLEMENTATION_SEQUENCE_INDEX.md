@@ -2,7 +2,7 @@
 
 Date: 2026-05-17
 
-Status: implemented - scanner execution, Studio UI, MCP allowlist, LoomAI bridge, scanner BRD gap closure, and readiness gates
+Status: implemented - scanner execution, Studio UI, MCP allowlist, LoomAI bridge, scanner BRD gap closure, connector readiness, storage governance, and readiness gates
 
 ## Purpose
 
@@ -148,6 +148,11 @@ Verified from code and tests:
 - Service catalog, package templates, dependency rules, and AI capability contracts are the first safe knowledge sources for retrieval/data sync.
 - Scanner connector permissions, disconnect artifact deletion, and persistent scan schedules are implemented.
 - Runtime URL scans require explicit authorization and are covered by backend integration tests.
+- Scanner provider connector code exists for GitHub and GitLab callbacks, source creation, token boundaries, and webhook verification.
+- Scanner storage governance exists for signed artifact URLs, evidence export bundles, retention cleanup, and deletion ledger records.
+- Scanner worker Dockerfile exists with pinned tools and non-root runtime.
+- Studio owner UI includes GitHub/GitLab source setup, signed artifact access, and evidence export.
+- Admin scanner operations UI includes connector configuration visibility and storage governance controls.
 - Product scanner summary includes sources, runs, findings, evidence, imports, schedules, counts, and readiness.
 - Studio scanner UI includes permission explanation, authorized scan controls, CI upload, external imports, evidence center, schedule creation/pause/resume, and disconnect/delete controls.
 
@@ -163,9 +168,20 @@ cd frontend && npm run build
 
 Most recent scanner verification on 2026-05-18:
 
-- `cd backend && mvn -Dtest=ScannerEvidenceIntegrationTest test` passed with 7 tests, 0 failures.
+- `cd backend && mvn -q -DskipTests compile` passed.
+- `cd backend && mvn -q -Dtest=ScannerEvidenceIntegrationTest,LoomAIIntegrationControllerTest,LoomAIStagingIntegrationTest -Dlogging.level.org.hibernate.SQL=OFF -Dlogging.level.org.hibernate.orm.jdbc.bind=OFF test` passed.
+- `ScannerEvidenceIntegrationTest` passed with 9 tests, 0 failures.
+- `LoomAIIntegrationControllerTest` passed with 3 tests, 0 failures.
+- `LoomAIStagingIntegrationTest` passed with 1 test, 0 failures.
 - `cd frontend && npm run type-check` passed.
 - `cd frontend && npm run build` passed.
+- `docker info` passed; Docker Desktop is running.
+- Scanner Docker image verification must use `cd backend && docker build -f Dockerfile.scanner -t produs-scanner-worker:local .`.
+- Docker Desktop was restarted and build cache was pruned after host disk pressure caused Docker's BuildKit storage to become read-only.
+- `DOCKER_CONFIG=/tmp/produs-docker-config DOCKER_BUILDKIT=0 docker build -f Dockerfile.scanner -t produs-scanner-worker:local .` passed from `backend/`.
+- `produs-scanner-worker:local` image `93ebe5a6c1d5` passed non-root container tool-version checks for Java 21, Gitleaks 8.24.3, Semgrep 1.106.0, OSV-Scanner 2.0.3, Trivy 0.70.0, Checkov 3.2.337, Syft 1.18.1, Grype 0.85.0, Hadolint 2.12.0, and Lighthouse 12.3.0.
+- `hadolint /tmp/Dockerfile.scanner` passed against the final Dockerfile.
+- After verification, dangling build containers/images were pruned; Docker is healthy but no application containers are currently running.
 
 ## Scanner BRD Traceability
 

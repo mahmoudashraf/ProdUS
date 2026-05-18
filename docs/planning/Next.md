@@ -19,24 +19,35 @@ Tracked in:
 - `docs/planning/Scanners-AI-integration/Implementation/08-brd-gap-closure-runtime-connectors-and-schedules.md`
 - `docs/planning/Scanners-AI-integration/PRODUCTION_READINESS_PLAN.md`
 
+Implemented in the current codebase:
+
+- GitHub App connector code paths, callback endpoints, token service boundaries, source creation, and webhook signature verification.
+- GitLab connector code paths, callback endpoints, source creation, and webhook token verification.
+- hardened scanner worker Dockerfile with pinned scanner binaries and non-root runtime.
+- scanner runtime/admin readiness gates.
+- object-storage signed URL, retention, export, and deletion ledger backend structures.
+- Studio owner UI for connector setup, repository source creation, signed artifact open, and evidence export.
+- Admin scanner operations UI for provider status and storage governance.
+- LoomAI staging/mock endpoint wiring and fallback tests.
+- Local Docker verification for `produs-scanner-worker:local` from `backend/` context, including non-root tool-version checks.
+
 Production dependencies still pending:
 
-- GitHub App install/token/webhook implementation with real credentials
-- GitLab app/OAuth implementation with real credentials
-- hardened scanner worker image with pinned scanner binaries
-- production object-store retention/export/deletion policy
-- real LoomAI staging/production deployment configuration
+- real GitHub App credentials, private key, webhook secret, install validation, token-backed hosted scan validation, and provider event validation.
+- real GitLab app/OAuth credentials, webhook secret, project validation, and GitLab report import validation.
+- scanner worker image SBOM and vulnerability scan gate.
+- production object-store bucket, KMS/provider encryption, block-public-access, retention/export/deletion validation.
+- real LoomAI staging/production deployment configuration and live productization allowlist validation.
 
 Recommended production-readiness order:
 
-1. Harden scanner worker image and object storage in staging.
-2. Implement GitHub App connector in staging.
-3. Verify real GitHub-backed scanner flows against internal/test repositories.
-4. Enable retention cleanup and export/deletion verification in staging.
-5. Integrate LoomAI staging with the productization MCP allowlist.
-6. Deploy scanner worker and GitHub connector to production behind feature flags.
-7. Enable LoomAI production after fallback and allowlist verification.
-8. Implement GitLab connector after GitHub path stabilizes unless a committed customer requires GitLab first.
+1. Generate SBOM for `produs-scanner-worker:local` and run image vulnerability scan.
+2. Configure object storage in staging and validate signed URL, retention cleanup, export bundle, and deletion ledger flows.
+3. Configure GitHub App credentials in staging and verify install, repository picker, webhook, token-backed hosted scan, disconnect, and audit events.
+4. Integrate LoomAI staging with the productization MCP allowlist and validate fallback/disallowed-action behavior.
+5. Deploy scanner worker and GitHub connector to production behind feature flags.
+6. Enable LoomAI production after fallback and allowlist verification.
+7. Validate GitLab when a customer path requires it or after the GitHub path stabilizes.
 
 ## Operations Support Direction
 

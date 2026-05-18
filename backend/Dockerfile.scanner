@@ -1,21 +1,24 @@
-# syntax=docker/dockerfile:1.7
-
-ARG MAVEN_IMAGE=maven:3.9.9-eclipse-temurin-21
-ARG RUNTIME_IMAGE=eclipse-temurin:21-jre-jammy
-
-FROM ${MAVEN_IMAGE} AS build
+FROM eclipse-temurin:21-jdk-jammy AS build
 WORKDIR /workspace
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends maven \
+    && rm -rf /var/lib/apt/lists/*
 COPY pom.xml .
 COPY src ./src
-RUN --mount=type=cache,target=/root/.m2 mvn -q -DskipTests package
+RUN mvn -q -DskipTests package
 
-FROM ${RUNTIME_IMAGE} AS scanner-runtime
+FROM eclipse-temurin:21-jre-jammy AS scanner-runtime
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG GITLEAKS_VERSION=8.24.3
 ARG OSV_SCANNER_VERSION=2.0.3
-ARG TRIVY_VERSION=0.58.2
+ARG TRIVY_VERSION=0.70.0
 ARG SYFT_VERSION=1.18.1
 ARG GRYPE_VERSION=0.85.0
 ARG HADOLINT_VERSION=2.12.0
+ARG NODE_VERSION=20.18.1
+ARG SEMGREP_VERSION=1.106.0
+ARG CHECKOV_VERSION=3.2.337
 
 ENV APP_SCANNER_WORKER_ENABLED=true \
     APP_SCANNER_REQUIRE_RUNTIME_TOOL_AVAILABILITY=true \
@@ -23,18 +26,20 @@ ENV APP_SCANNER_WORKER_ENABLED=true \
     JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom" \
     NO_COLOR=1
 
+# hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
         git \
         jq \
-        nodejs \
-        npm \
         python3 \
         python3-pip \
+        xz-utils \
         unzip \
-    && pip3 install --no-cache-dir --break-system-packages semgrep==1.105.0 checkov==3.2.337 \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+        | tar -xJ -C /usr/local --strip-components=1 \
+    && pip3 install --no-cache-dir semgrep==${SEMGREP_VERSION} checkov==${CHECKOV_VERSION} \
     && npm install -g lighthouse@12.3.0 \
     && curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
         | tar -xz -C /usr/local/bin gitleaks \
@@ -49,11 +54,15 @@ RUN apt-get update \
     && curl -fsSL "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-x86_64" -o /usr/local/bin/hadolint \
     && chmod 0755 /usr/local/bin/hadolint \
     && groupadd --system produs \
-    && useradd --system --gid produs --home-dir /nonexistent --shell /usr/sbin/nologin produs \
-    && mkdir -p /app /var/lib/produs/scanner \
-    && chown -R produs:produs /app /var/lib/produs \
-    && apt-get purge -y --auto-remove unzip \
+    && useradd --system --gid produs --home-dir /home/produs --shell /usr/sbin/nologin produs \
+    && mkdir -p /app /home/produs /var/lib/produs/scanner/cache/semgrep \
+    && chown -R produs:produs /app /home/produs /var/lib/produs \
+    && apt-get purge -y --auto-remove unzip xz-utils \
     && rm -rf /var/lib/apt/lists/* /tmp/*
+
+ENV HOME=/home/produs \
+    XDG_CACHE_HOME=/var/lib/produs/scanner/cache \
+    SEMGREP_SETTINGS_FILE=/var/lib/produs/scanner/cache/semgrep/settings.yml
 
 WORKDIR /app
 COPY --from=build --chown=produs:produs /workspace/target/produs-backend-*.jar /app/produs-backend.jar

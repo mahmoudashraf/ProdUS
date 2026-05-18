@@ -2,7 +2,7 @@
 
 Date: 2026-05-18
 
-Status: planned - ready for implementation sequencing
+Status: partially implemented - live provider material, SBOM/image vulnerability gate, and production storage validation remain
 
 Owner: ProdUS Platform
 
@@ -18,13 +18,49 @@ Source documents:
 
 This plan turns the remaining production dependencies into implementation-ready work. The current code already supports scanner sources, hosted scans, CI uploads, external imports, runtime authorization, scanner schedules, evidence summaries, artifact deletion on disconnect, Studio owner UI, and admin scanner operations.
 
-The remaining work is not feature ideation. It is production hardening and real provider integration:
+The remaining work is not feature ideation. It is production hardening, real provider integration, and staging validation:
 
-- real GitHub App connector
-- hardened scanner worker image and runtime
-- production object storage, retention, export, and deletion controls
-- real GitLab connector
-- LoomAI staging and production integration
+- GitHub App connector exists in code; real GitHub App credentials, installation, repository picker validation, webhook events, and hosted scan validation remain.
+- GitLab connector exists in code; real GitLab app/OAuth credentials, project picker validation, webhook events, and GitLab SAST import validation remain.
+- scanner worker Dockerfile exists with pinned scanner tools, non-root runtime, writable scanner cache/home, and verified local image/tool execution from the `backend/` context.
+- object-storage retention, signed artifact URL, export bundle, and deletion ledger structures exist in code; production bucket/KMS/block-public-access validation remains.
+- LoomAI staging wiring and fallback tests exist; real LoomAI staging/production deployment configuration and live allowlist validation remain.
+
+## Current Implementation Status
+
+Implemented and pushed in commit `d6861e8`:
+
+- `backend/Dockerfile.scanner` hardened scanner worker image definition.
+- Scanner runtime readiness gates in admin production readiness.
+- GitHub connector models, callback endpoints, source creation, webhook signature verification, and token service boundaries.
+- GitLab connector models, callback endpoints, source creation, webhook token verification, and token service boundaries.
+- Object-storage governance endpoints for signed artifact URLs, export bundles, retention dry-runs/execution, and artifact deletion ledgers.
+- Studio owner UI for GitHub/GitLab connections, repository source creation, signed artifact access, and evidence export.
+- Admin scanner operations UI for provider status, connector configuration, storage retention, and cleanup controls.
+- LoomAI staging/mock endpoint tests and deterministic fallback coverage.
+
+Verified after implementation:
+
+```bash
+cd backend && mvn -q -DskipTests compile
+cd backend && mvn -q -Dtest=ScannerEvidenceIntegrationTest,LoomAIIntegrationControllerTest,LoomAIStagingIntegrationTest -Dlogging.level.org.hibernate.SQL=OFF -Dlogging.level.org.hibernate.orm.jdbc.bind=OFF test
+cd frontend && npm run type-check
+cd frontend && npm run build
+```
+
+Docker cleanup notes on 2026-05-18:
+
+- `docker info` succeeds and Docker Desktop is running.
+- local cached images run successfully.
+- using the repo root as Docker build context sent about 1.6 GB and was incorrect for this Dockerfile.
+- the correct scanner build command is `cd backend && docker build -f Dockerfile.scanner -t produs-scanner-worker:local .`.
+- the local Docker credential helper path hung on public pulls; a clean Docker config without `credsStore` worked for verification.
+- the verified local build command was `cd backend && DOCKER_CONFIG=/tmp/produs-docker-config DOCKER_BUILDKIT=0 docker build -f Dockerfile.scanner -t produs-scanner-worker:local .`.
+- `produs-scanner-worker:local` built successfully as image `93ebe5a6c1d5`.
+- container runtime verification passed as non-root `produs` user with writable `HOME=/home/produs`.
+- verified scanner tools inside the image: Java 21, Gitleaks 8.24.3, Semgrep 1.106.0, OSV-Scanner 2.0.3, Trivy 0.70.0, Checkov 3.2.337, Syft 1.18.1, Grype 0.85.0, Hadolint 2.12.0, and Lighthouse 12.3.0.
+- `hadolint /tmp/Dockerfile.scanner` passed against the final Dockerfile.
+- Docker containers/images were pruned after verification; no application containers are currently running.
 
 ProdUS remains the system of record. External providers and LoomAI must not own ProdUS authorization, scanner execution policy, evidence retention, package approval, milestone approval, or customer data boundaries.
 
@@ -43,6 +79,8 @@ ProdUS remains the system of record. External providers and LoomAI must not own 
 ## Readiness Tracks
 
 ### Track 1 - GitHub App Connector
+
+Status: code implemented; live GitHub App credentials, repository picker validation, event processing validation, and hosted scan validation remain.
 
 Goal:
 
@@ -113,6 +151,8 @@ Manual verification:
 
 ### Track 2 - Hardened Scanner Worker Image And Runtime
 
+Status: Dockerfile, backend readiness checks, local image build, and scanner tool verification implemented; SBOM generation and image vulnerability gate remain.
+
 Goal:
 
 Run scanners in a production-safe worker environment with pinned tools, controlled resources, and clear operational behavior.
@@ -157,6 +197,7 @@ Security and operations:
 Acceptance criteria:
 
 - Docker scanner image builds reproducibly.
+- Scanner tool versions pass inside the image as the non-root runtime user.
 - Admin scanner health shows every approved tool and version.
 - Backend production readiness fails if required tool binaries are missing.
 - Failed, timed-out, and canceled jobs clean the workspace.
@@ -166,12 +207,12 @@ Acceptance criteria:
 Verification:
 
 ```bash
-docker build -f backend/Dockerfile.scanner -t produs-scanner-worker:local .
-docker run --rm produs-scanner-worker:local gitleaks version
-docker run --rm produs-scanner-worker:local semgrep --version
-docker run --rm produs-scanner-worker:local osv-scanner --version
-docker run --rm produs-scanner-worker:local trivy --version
-docker run --rm produs-scanner-worker:local checkov --version
+cd backend && docker build -f Dockerfile.scanner -t produs-scanner-worker:local .
+docker run --rm --entrypoint sh produs-scanner-worker:local -lc 'gitleaks version'
+docker run --rm --entrypoint sh produs-scanner-worker:local -lc 'semgrep --version'
+docker run --rm --entrypoint sh produs-scanner-worker:local -lc 'osv-scanner --version'
+docker run --rm --entrypoint sh produs-scanner-worker:local -lc 'trivy --version'
+docker run --rm --entrypoint sh produs-scanner-worker:local -lc 'checkov --version'
 cd backend && mvn -Dtest=ScannerEvidenceIntegrationTest test
 ```
 
@@ -185,6 +226,8 @@ Manual verification:
 - Confirm workspace cleanup after each case.
 
 ### Track 3 - Production Object Storage, Retention, Export, And Deletion
+
+Status: backend structures and UI controls implemented; real object storage bucket/KMS/retention validation remains.
 
 Goal:
 
@@ -252,6 +295,8 @@ Manual verification:
 
 ### Track 4 - GitLab Connector
 
+Status: code implemented; live GitLab app/OAuth credentials, project picker validation, webhook validation, and GitLab report import validation remain.
+
 Goal:
 
 Support production GitLab repository authorization, project selection, CI evidence, and security report imports.
@@ -303,6 +348,8 @@ Manual verification:
 - GitLab SAST import.
 
 ### Track 5 - LoomAI Staging And Production Integration
+
+Status: staging wiring and fallback tests implemented; live LoomAI staging/production deployment configuration and allowlist validation remain.
 
 Goal:
 
@@ -373,6 +420,8 @@ No production rollout until all applicable gates pass:
 - MCP tests/type-check/build pass
 - Docker scanner image builds
 - required scanner tools are present and versioned
+- scanner tool versions pass inside the image as the non-root runtime user
+- worker image SBOM and vulnerability scan are completed or approved through accepted risk
 - production database migrations apply cleanly
 - Supabase auth path works and mock auth is disabled
 - CORS is locked to production domains
@@ -392,15 +441,14 @@ No production rollout until all applicable gates pass:
 
 ## Rollout Order
 
-1. Harden scanner worker image and object storage in staging.
-2. Implement GitHub App connector in staging.
-3. Run real GitHub-backed scanner flows against internal/test repositories.
-4. Enable retention cleanup and export/deletion verification in staging.
-5. Integrate LoomAI staging with the productization MCP allowlist.
-6. Run production-readiness scorecard across scanner, storage, MCP, and LoomAI.
-7. Deploy scanner worker and GitHub connector to production behind feature flags.
-8. Enable LoomAI production after staging evaluation and fallback verification.
-9. Implement GitLab connector after GitHub path stabilizes.
+1. Generate SBOM for `produs-scanner-worker:local` and run image vulnerability scan.
+2. Configure real object storage in staging and validate signed URL, retention, export, and deletion flows.
+3. Configure real GitHub App credentials in staging and validate install, repository picker, webhook, token-backed hosted scan, disconnect, and audit events.
+4. Configure real LoomAI staging and validate the productization MCP allowlist, fallback, tracing, and disallowed action boundaries.
+5. Run production-readiness scorecard across scanner, storage, MCP, connectors, and LoomAI.
+6. Deploy scanner worker and GitHub connector to production behind feature flags.
+7. Enable LoomAI production after staging evaluation and fallback verification.
+8. Validate GitLab with real app/OAuth credentials when GitLab is required for a customer path.
 
 ## Feature Flags And Kill Switches
 
