@@ -14,6 +14,15 @@ Implementation update on 2026-05-17:
 - Added admin Scanner Operations UI for worker/scheduler status, queued/running jobs, and executable availability.
 - Verified hosted scan behavior with integration tests using a local git repository and a configured scanner command fixture.
 
+Implementation update on 2026-05-18:
+
+- Added persistent scanner schedules for recurring evidence refresh.
+- Added scheduler enqueue path for due active schedules.
+- Added runtime URL authorization coverage and Lighthouse runtime scan normalization coverage.
+- Added connector permission visibility so the scanner workflow can explain source access before authorization.
+- Added disconnect-time stored artifact deletion support across scan runs, tool runs, import runs, and scanner evidence items.
+- Verified with `mvn -Dtest=ScannerEvidenceIntegrationTest test`.
+
 ## Objective
 
 Implement controlled scanner execution and robust normalization so ProdUS can generate evidence-backed findings from authorized repositories and runtime URLs.

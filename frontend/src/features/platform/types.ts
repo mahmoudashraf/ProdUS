@@ -289,6 +289,33 @@ export interface ScannerEvidenceItem extends BaseRecord {
   createdByEmail: string;
 }
 
+export interface ScannerSchedule extends BaseRecord {
+  productProfileId: string;
+  workspaceId?: string;
+  scanSourceId: string;
+  depth: ScanRun['depth'];
+  toolKeys: string[];
+  branchRef?: string;
+  runtimeTargetUrl?: string;
+  containerImageRef?: string;
+  intervalDays: number;
+  nextRunAt: string;
+  lastRunAt?: string;
+  lastScanRunId?: string;
+  active: boolean;
+  reason?: string;
+  createdByEmail: string;
+}
+
+export interface ConnectorPermission {
+  providerType: ScanSource['providerType'];
+  label: string;
+  purpose: string;
+  permissions: string[];
+  operatingNote: string;
+  appConnectorPreferred: boolean;
+}
+
 export interface ScannerSummaryCounts {
   total: number;
   open: number;
@@ -310,6 +337,7 @@ export interface ProductScannerSummary {
   findings: NormalizedFinding[];
   evidence: ScannerEvidenceItem[];
   imports: ScannerImportRun[];
+  schedules: ScannerSchedule[];
 }
 
 export interface ScannerToolHealth {

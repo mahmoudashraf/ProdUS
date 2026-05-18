@@ -3,9 +3,9 @@
 **Document type:** Business Requirements Document  
 **Product:** ProdOps Network  
 **Module:** Integration Layer  
-**Version:** 1.0  
-**Date:** 2026-05-17  
-**Status:** Draft for product and engineering planning
+**Version:** 1.1
+**Date:** 2026-05-18
+**Status:** Implementation-aligned baseline for current scanner/evidence code
 
 ---
 
@@ -28,6 +28,32 @@ Evidence -> Finding -> Service -> Package -> Dependency -> Milestone -> Evidence
 ```
 
 Scanners produce evidence. AI explains and recommends. ProdOps governs the productization workflow. Humans approve critical decisions.
+
+### 1.1 Current Implementation Alignment
+
+This BRD is now aligned to the current ProdUS implementation as of 2026-05-18.
+
+Implemented in the current Spring Boot backend and Next.js Studio UI:
+
+- scanner source creation, authorization tracking, listing, disconnect, and optional stored-artifact deletion
+- connector permission visibility for GitHub, GitLab, runtime URL, CI upload, and external tool imports
+- CI evidence upload for SARIF, JSON, JUnit XML, and log evidence
+- external import ledger and normalizers for GitHub code scanning, GitLab SAST, Snyk, SonarQube, Semgrep, generic SARIF, and generic scanner JSON
+- hosted scan runs with DB-backed queue, tool runs, cancellation, rescan, status polling, and admin scanner health
+- configured command execution for scanner tools, with missing binaries recorded as real failed/skipped tool states rather than synthetic findings
+- runtime URL scanning behind explicit authorization confirmation
+- normalized findings, evidence items, redaction state, service recommendations, product scanner summary, and finding status updates
+- persistent scanner schedules with pause/resume and scheduler enqueue support
+- Studio owner scanner workflow, source permission panel, scan controls, CI upload, external import, evidence center, finding-to-service action, schedule controls, and disconnect/delete controls
+- admin scanner operations view for tool health, recent jobs, import ledger, retry, and cancel actions
+
+Externally dependent and not represented as complete until credentials/infrastructure are provided:
+
+- real GitHub App installation flow, installation-token minting, and provider webhook processing
+- real GitLab app/OAuth connection flow and provider webhook processing
+- production object-store bucket, retention policy, and deletion SLA enforcement
+- production scanner worker isolation runtime, network egress policy, and scalable worker pool
+- real LoomAI staging/production deployment, model contract credentials, and provider telemetry
 
 ---
 
@@ -140,9 +166,11 @@ The Integration Layer must support three execution modes. This allows ProdOps to
 | Mode 2: External tool import | ProdOps imports findings from GitHub, GitLab, Snyk, SonarQube, Semgrep, Socket.dev, etc. | Teams already using security/quality tools | Lower duplicated scanning, stronger enterprise fit | Vendor-specific APIs, permissions, formats, and pricing |
 | Mode 3: CI evidence mode | Customer runs scanners in GitHub Actions, GitLab CI, or other CI and uploads SARIF/JSON/evidence to ProdOps. | Privacy-sensitive customers and enterprise teams | Source code stays in customer environment | More setup effort and less instant onboarding |
 
-### 6.1 Recommended MVP Mode
+### 6.1 Recommended First Production Slice
 
-Start with **Mode 1** for GitHub repositories and public/staging URL scans. Add **Mode 3** early for privacy-sensitive teams. Mode 2 should follow once demand proves which external tools customers already use.
+Start with **Mode 1** for authorized repositories and public/staging URL scans, backed by clear permission visibility and artifact deletion controls. Add **Mode 3** early for privacy-sensitive teams. Mode 2 should follow for the external tools customers already use.
+
+Current implementation supports Mode 1 orchestration through configured scanner commands, Mode 2 through payload/import adapters, and Mode 3 through CI upload endpoints and generated CI templates. Real provider installation flows remain a production integration task.
 
 ---
 
@@ -187,20 +215,22 @@ Frontend Dashboard
 | Service/Package Mapper | Turns findings into productization plan | Finding-to-service mapping, dependency rules, package recommendation |
 | Audit Log | Records sensitive actions | Access, scans, evidence updates, AI recommendations, approvals, overrides |
 
-### 7.3 MVP Deployment Pattern
+### 7.3 Current ProdUS Deployment Pattern
 
-For the MVP, avoid over-engineering. Use:
+The current ProdUS codebase uses:
 
 ```text
-- Web app: Next.js or equivalent
-- Backend/API: Node/NestJS or equivalent
-- Database: PostgreSQL
-- Queue: Redis + BullMQ or equivalent
-- Scanner workers: containerized background jobs
-- Object store: S3-compatible storage for raw outputs and evidence
-- AI: frontier model API with deterministic rules outside the model
-- Auth: organization-based RBAC
+- Web app: Next.js Studio frontend
+- Backend/API: Spring Boot
+- Database: PostgreSQL-compatible schema managed through Liquibase
+- Scanner queue: DB-backed scanner_jobs with scheduled worker execution
+- Scanner workers: backend worker contract executing configured scanner commands in temporary workspaces
+- Object store: S3-compatible storage abstraction for raw outputs and evidence artifacts
+- AI: ProdUS provider abstraction with deterministic fallbacks and optional LoomAI integration
+- Auth: Supabase-backed user identity plus backend role enforcement
 ```
+
+Production deployment must harden this pattern with isolated worker containers, object-store retention policies, provider-specific connection credentials, rate limits, and operational dashboards.
 
 ### 7.4 Mature Deployment Pattern
 
@@ -482,6 +512,22 @@ Priority definitions:
 | FR-OP-002 | P1 | Retries and timeouts | System shall support retry and timeout policies per tool. |
 | FR-OP-003 | P1 | Tool health dashboard | System should expose scanner worker, queue, failure, and integration health metrics to admins. |
 
+### 12.1 Current Requirement Coverage
+
+| Area | Current Status | Notes |
+|---|---|---|
+| Repository/source connection | Partially implemented | `scan_sources` supports provider, branch/reference, authorization status, source listing, and disconnect. Real GitHub/GitLab app install and provider webhooks remain external integration work. |
+| Permission visibility | Implemented | `/api/scanner/connector-permissions` exposes provider-specific requested permissions and purpose text; Studio displays it before source authorization. |
+| Disconnect and delete | Implemented | `/api/scanner/sources/{sourceId}/disconnect` supports `deleteArtifacts`; backend deletes stored artifact keys through storage service, clears artifact refs/storage keys, redacts evidence state, and audits the deletion. |
+| Hosted scanner execution | Implemented | `/api/scanner/runs/hosted`, DB queue, worker execution, command timeouts, artifact storage, normalization, status polling, cancel, and rescan are implemented. Real scanner binaries must exist in the runtime image. |
+| Runtime URL authorization | Implemented | Hosted runtime scans require target URL and explicit authorization confirmation before execution. |
+| External imports | Implemented | External import endpoint and import ledger handle GitHub, GitLab, Snyk, SonarQube, Semgrep, generic SARIF, and generic JSON payloads. |
+| CI evidence mode | Implemented | CI upload endpoint and generated GitHub Actions/GitLab CI templates support customer-owned scanner execution. |
+| Scan scheduling | Implemented | Persistent `scanner_schedules` support product/workspace scope, interval, next run, selected tools, pause/resume, scheduler enqueue, and summary visibility. |
+| Admin operations | Implemented | Admin health endpoint exposes tool availability, queue status, recent jobs, recent imports, retry/cancel paths, and access control. |
+| AI/LoomAI | Partially implemented | Provider abstraction, MCP allowlist, deterministic fallback, and docs exist. Real LoomAI staging/production credentials and deployment must be supplied before production AI execution. |
+| Retention policy automation | Partially implemented | Per-disconnect artifact deletion is implemented. Automatic time-based retention jobs and export/delete SLA reports remain production readiness work. |
+
 ---
 
 ## 13. Non-Functional Requirements
@@ -620,6 +666,8 @@ Never display: full token value
 | Audit logs | Longer retention, e.g. 1 year+ | Needed for security and accountability |
 | AI prompts/outputs | Retained with redaction controls | Model evaluation and traceability |
 
+Current implementation supports explicit artifact deletion on disconnect. Time-based retention automation, customer-visible retention settings, and export bundles remain production-readiness requirements.
+
 ---
 
 ## 17. External Tool Connector Requirements
@@ -665,19 +713,24 @@ Cloud provider direct integrations are P2/mature because they carry higher permi
 
 ## 18. API and UI Requirements
 
-### 18.1 API Endpoints Conceptual Map
+### 18.1 Implemented API Endpoint Map
 
 | Endpoint Area | Example Endpoints | Purpose |
 |---|---|---|
-| Connections | `POST /integrations/github/install`, `GET /integrations`, `DELETE /integrations/{id}` | Connect/disconnect external sources |
-| Scan Runs | `POST /products/{id}/scans`, `GET /scans/{id}`, `POST /scans/{id}/cancel` | Start and monitor scans |
-| Tool Runs | `GET /scans/{id}/tools` | Show individual tool status and errors |
-| Findings | `GET /products/{id}/findings`, `PATCH /findings/{id}` | View and manage normalized findings |
-| Evidence | `POST /milestones/{id}/evidence`, `GET /evidence/{id}` | Submit and review evidence |
-| AI | `GET /findings/{id}/summary`, `POST /packages/recommend` | AI summaries and recommendations |
-| Packages | `POST /packages/build`, `GET /packages/{id}` | Create dependency-aware packages |
-| Milestones | `POST /packages/{id}/milestones`, `PATCH /milestones/{id}/review` | Generate and review milestones |
-| CI Upload | `POST /ci/scans/{scan_id}/upload` | Receive customer-owned scan outputs |
+| Connector permissions | `GET /api/scanner/connector-permissions` | Show provider permissions and why they are needed before users authorize evidence collection. |
+| Sources | `POST /api/scanner/sources`, `GET /api/scanner/sources`, `POST /api/scanner/sources/{sourceId}/disconnect` | Create, list, disconnect, and optionally delete stored artifacts for scanner sources. |
+| CI upload | `POST /api/scanner/runs/ci-upload` | Receive customer-owned scanner outputs without cloning source code. |
+| External imports | `POST /api/scanner/imports/external`, `GET /api/scanner/imports` | Import and audit external scanner/provider payloads. |
+| CI templates | `GET /api/scanner/ci-templates/{type}` | Generate customer-owned GitHub Actions or GitLab CI templates. |
+| Schedules | `POST /api/scanner/schedules`, `GET /api/scanner/schedules`, `PATCH /api/scanner/schedules/{scheduleId}` | Create, list, pause, resume, and update scanner schedules. |
+| Hosted scan runs | `POST /api/scanner/runs/hosted`, `GET /api/scanner/runs/{runId}`, `POST /api/scanner/runs/{runId}/cancel`, `POST /api/scanner/runs/{runId}/rescan` | Start, monitor, cancel, and rerun hosted scanner jobs. |
+| Tool runs | `GET /api/scanner/runs/{runId}/tools` | Show individual scanner tool status, logs, artifact refs, and normalized counts. |
+| Findings | `GET /api/scanner/runs/{runId}/findings`, `GET /api/scanner/findings/{findingId}`, `PATCH /api/scanner/findings/{findingId}/status` | View and govern normalized findings. |
+| Evidence | `GET /api/scanner/evidence` | List scanner evidence by product, workspace, milestone, or finding. |
+| Product scanner summary | `GET /api/scanner/products/{productId}/summary` | Fetch Studio scanner sources, runs, tool status, findings, evidence, imports, schedules, counts, and readiness score. |
+| Admin operations | `GET /api/scanner/admin/health` | Admin-only scanner health, queue state, recent jobs, recent imports, and executable availability. |
+
+Package, milestone, workspace, and AI endpoints remain owned by their existing platform modules. Scanner endpoints feed those modules through normalized findings, service recommendations, evidence items, and Studio UI actions.
 
 ### 18.2 User-Facing Screens Impacted
 
@@ -691,6 +744,8 @@ Cloud provider direct integrations are P2/mature because they carry higher permi
 | Milestone Review | Acceptance criteria checklist, automated check results, evidence, pass/fail/insufficient |
 | Evidence Center | Raw artifacts, scan reports, PRs, logs, screenshots, runbooks |
 | Admin Integration Health | Scanner failures, queue status, connector errors, tool versions |
+
+Implementation note: `docs/planning/Scanners-AI-integration/INTEGRATION_LAYER_UI_DESIGN.md` is the UI guidance document for these screens. Current Studio implementation uses the owner productization workspace and admin scanner operations page to surface this flow with Apple-like layout, permission cards, journey indicators, evidence center, scheduled scans, and concrete backend-backed actions.
 
 ---
 
@@ -754,6 +809,22 @@ Cloud provider direct integrations are P2/mature because they carry higher permi
 | `team_delivery_records` | Reputation data | `id`, `team_id`, `package_id`, `milestone_id`, `acceptance_rate`, `evidence_quality` |
 | `ai_recommendations` | AI outputs | `id`, `type`, `source_refs`, `confidence`, `model_version`, `prompt_version` |
 | `audit_logs` | Security and operational logs | `id`, `actor`, `action`, `target`, `timestamp`, `metadata` |
+
+### 20.1.1 Current Physical Tables In Code
+
+The current backend uses these concrete table names for the implemented scanner layer:
+
+| Table | Purpose |
+|---|---|
+| `scan_sources` | Authorized scanner evidence sources across repo, runtime URL, CI upload, and external tools. |
+| `scan_runs` | Hosted, CI, imported, and rescan executions with depth, status, plan, branch, runtime target, and comparison run. |
+| `scanner_jobs` | DB-backed queued/running/completed/failed/canceled scanner work items. |
+| `tool_runs` | Per-tool execution status, duration, exit code, log excerpt, raw artifact reference, storage key, and normalized count. |
+| `normalized_findings` | Unified scanner findings with source tool, severity, confidence, fingerprint, status, evidence link, and service recommendation. |
+| `scanner_evidence_items` | Scanner-backed evidence artifacts, summaries, redaction status, verification state, milestone/finding links, and artifact references. |
+| `scanner_import_runs` | External import audit ledger with provider, method, source, payload hash, imported count, failures, and artifact refs. |
+| `scanner_schedules` | Persistent scheduled scan definitions with scope, source, depth, selected tools, interval, next run, last run, active state, and audit reason. |
+| `audit_events` | Security and operational audit events for scan source changes, scan execution, imports, evidence changes, and artifact deletion. |
 
 ### 20.2 Relationship Map
 
@@ -850,17 +921,37 @@ Audit Logs -> All sensitive actions
 
 ## 24. BRD Acceptance Criteria
 
-| Area | Acceptance Criteria |
-|---|---|
-| Repo Integration | Owner can connect GitHub repo, select branch, start L1 scan, and disconnect integration. |
-| Scanner Execution | At least Gitleaks, Semgrep, OSV-Scanner, and Trivy run in isolated worker and return raw outputs. |
-| Normalization | Outputs are converted into unified Finding records with severity, confidence, category, fingerprint, and source. |
-| AI Summary | Findings are summarized with source references and confidence basis. |
-| Service Mapping | At least 20 common findings map to service modules and package recommendations. |
-| Evidence Workflow | Team can submit evidence, owner can review it, and system can re-scan to update finding status. |
-| Security | Secrets are redacted; repo clones deleted after scan; audit logs record scan activity. |
-| Runtime Scan | Lighthouse scan works for authorized URLs; ZAP baseline available behind explicit authorization. |
-| Admin Operations | Admin can view scan failures, tool run statuses, worker health, and integration errors. |
+| Area | Acceptance Criteria | Current Status |
+|---|---|---|
+| Repo Integration | Owner can connect repo/source, select branch/reference, start L1 scan, and disconnect integration. | Partially implemented: source/branch/reference, scan, and disconnect exist. Real GitHub App install/token/webhook flow remains external provider integration work. |
+| Permission Visibility | Owner can see requested connector permissions and purpose before authorization. | Implemented through `/api/scanner/connector-permissions` and Studio permission cards. |
+| Scanner Execution | Configured scanner tools run in worker execution and return raw outputs or real failure/skipped states. | Implemented. Runtime image must include the configured binaries for production. |
+| Normalization | Outputs are converted into unified Finding records with severity, confidence, category, fingerprint, and source. | Implemented for hosted outputs, CI uploads, SARIF, JSON, JUnit/log evidence, and supported external imports. |
+| AI Summary | Findings are summarized with source references and confidence basis. | Partially implemented through provider abstraction, deterministic fallback, MCP/LoomAI planning. Real LoomAI production deployment remains pending. |
+| Service Mapping | Common scanner findings map to service modules and package recommendations. | Implemented through normalized finding service recommendation fields and Studio finding-to-service actions. |
+| Evidence Workflow | Team/customer can submit evidence, owner can inspect evidence, and rescan can update status. | Implemented for CI upload, evidence listing, artifact links, finding status updates, hosted rescan, and Studio evidence center. Full milestone final approval remains governed by workspace review flows. |
+| Security | Secrets are redacted; repo workspaces are cleaned; audit logs record scan activity and deletion. | Implemented for log redaction, cleanup, audit events, and disconnect artifact deletion. Production isolation/runtime policy remains deployment hardening. |
+| Runtime Scan | Lighthouse scan works for authorized URLs; ZAP baseline available behind explicit authorization. | Lighthouse runtime command path is implemented and tested with authorization. ZAP is modeled/configurable and must be enabled in production image/policy. |
+| Scan Scheduling | Active workspaces/support plans can run scheduled evidence refreshes. | Implemented with `scanner_schedules`, scheduler enqueue, pause/resume, and Studio schedule controls. |
+| Admin Operations | Admin can view scan failures, tool run statuses, worker health, integration errors, recent jobs, and imports. | Implemented through `/api/scanner/admin/health` and admin scanner operations UI. |
+
+### 24.1 Verified Implementation Checks
+
+Latest local verification:
+
+```bash
+cd backend && mvn -Dtest=ScannerEvidenceIntegrationTest test
+cd frontend && npm run type-check
+cd frontend && npm run build
+```
+
+Result on 2026-05-18:
+
+- Backend scanner integration suite: 7 tests passed, 0 failures.
+- Frontend TypeScript check: passed.
+- Frontend production build: passed.
+
+The test suite covers connector permission visibility, hosted scan execution, runtime authorization enforcement, CI evidence upload, external imports, artifact deletion on disconnect, scanner schedules, admin scanner operations, and normalized findings.
 
 ---
 

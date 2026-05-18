@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface ToolRunRepository extends JpaRepository<ToolRun, UUID> {
     List<ToolRun> findByScanRunIdOrderByCreatedAtAsc(UUID scanRunId);
+    List<ToolRun> findByScanRunIdInOrderByCreatedAtAsc(List<UUID> scanRunIds);
 }

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 public class ScannerJobScheduler {
 
     private final ScannerProperties properties;
+    private final ScannerService scannerService;
     private final ScannerWorker worker;
 
     @Scheduled(fixedDelayString = "${app.scanner.poll-fixed-delay-ms:10000}")
@@ -16,6 +17,7 @@ public class ScannerJobScheduler {
         if (!properties.isSchedulerEnabled() || !properties.isWorkerEnabled()) {
             return;
         }
+        scannerService.enqueueDueSchedules();
         worker.executeNextQueuedJob();
     }
 }

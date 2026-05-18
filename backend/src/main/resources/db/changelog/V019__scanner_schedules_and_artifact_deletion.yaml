@@ -1,0 +1,67 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1900
+      author: produs
+      changes:
+        - createTable:
+            tableName: scanner_schedules
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: scan_source_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: created_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: depth, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: tool_keys, type: TEXT }
+              - column: { name: branch_ref, type: VARCHAR(255) }
+              - column: { name: runtime_target_url, type: VARCHAR(1000) }
+              - column: { name: container_image_ref, type: VARCHAR(1000) }
+              - column: { name: interval_days, type: INT, defaultValueNumeric: 7, constraints: { nullable: false } }
+              - column: { name: next_run_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: last_run_at, type: TIMESTAMP }
+              - column: { name: last_scan_run_id, type: UUID }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: reason, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: scanner_schedules
+            baseColumnNames: product_profile_id
+            constraintName: fk_scanner_schedules_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_schedules
+            baseColumnNames: workspace_id
+            constraintName: fk_scanner_schedules_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_schedules
+            baseColumnNames: scan_source_id
+            constraintName: fk_scanner_schedules_source
+            referencedTableName: scan_sources
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_schedules
+            baseColumnNames: created_by
+            constraintName: fk_scanner_schedules_created_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_schedules
+            baseColumnNames: last_scan_run_id
+            constraintName: fk_scanner_schedules_last_run
+            referencedTableName: scan_runs
+            referencedColumnNames: id
+        - createIndex:
+            tableName: scanner_schedules
+            indexName: idx_scanner_schedules_due
+            columns:
+              - column: { name: active }
+              - column: { name: next_run_at }
+        - createIndex:
+            tableName: scanner_schedules
+            indexName: idx_scanner_schedules_product
+            columns:
+              - column: { name: product_profile_id }

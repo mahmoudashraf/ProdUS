@@ -64,6 +64,7 @@ public class ScannerService {
     private final ScanRunRepository scanRunRepository;
     private final ToolRunRepository toolRunRepository;
     private final ScannerJobRepository scannerJobRepository;
+    private final ScannerScheduleRepository scannerScheduleRepository;
     private final ScannerImportRunRepository importRunRepository;
     private final ScannerEvidenceItemRepository evidenceRepository;
     private final NormalizedFindingRepository findingRepository;
@@ -125,9 +126,59 @@ public class ScannerService {
         source.setAuthorizationStatus(ScanSource.AuthorizationStatus.REVOKED);
         source.setScopeNote(defaultString(trimToNull(request == null ? null : request.reason()), "Disconnected by " + actor.getEmail()));
         ScanSource saved = sourceRepository.save(source);
+        int deletedArtifacts = 0;
+        if (request != null && Boolean.TRUE.equals(request.deleteArtifacts())) {
+            deletedArtifacts = deleteStoredArtifactsForSource(actor, saved);
+        }
         audit(actor, "SCANNER_SOURCE_DISCONNECTED", "SCAN_SOURCE", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
-                "Disconnected scanner source " + saved.getDisplayName() + " for product " + saved.getProductProfile().getId());
+                "Disconnected scanner source %s for product %s. Deleted artifacts=%d".formatted(saved.getDisplayName(), saved.getProductProfile().getId(), deletedArtifacts));
         return toSourceResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ConnectorPermissionResponse> listConnectorPermissions() {
+        return List.of(
+                new ConnectorPermissionResponse(
+                        ScanSource.ProviderType.GITHUB,
+                        "GitHub repository",
+                        "Used for repository metadata, branch selection, safe static scans, and optional GitHub security result imports.",
+                        List.of("Repository contents: read", "Metadata: read", "Code scanning alerts: read when enabled", "Dependabot alerts: read when enabled", "Secret scanning alerts: read when enabled"),
+                        "Use a GitHub App installation for private repositories. Dev/manual sources may use a repository URL only when the owner has confirmed authorization.",
+                        true
+                ),
+                new ConnectorPermissionResponse(
+                        ScanSource.ProviderType.GITLAB,
+                        "GitLab repository",
+                        "Used for repository metadata, branch selection, GitLab security report imports, and customer-owned CI evidence.",
+                        List.of("Project repository: read", "Security reports: read", "Pipeline artifacts: read"),
+                        "GitLab connector sync is a near-term expansion path. Current production-safe path supports customer-owned import payloads and CI templates.",
+                        true
+                ),
+                new ConnectorPermissionResponse(
+                        ScanSource.ProviderType.RUNTIME_URL,
+                        "Authorized runtime URL",
+                        "Used for Lighthouse and passive ZAP baseline checks against owner-authorized public or staging URLs.",
+                        List.of("URL/domain authorization confirmation", "Passive baseline scan scope", "No active production DAST by default"),
+                        "Runtime scans require explicit URL/domain confirmation for every run.",
+                        false
+                ),
+                new ConnectorPermissionResponse(
+                        ScanSource.ProviderType.CI_UPLOAD,
+                        "Customer-owned CI evidence",
+                        "Used when the customer runs scanners inside their own CI and uploads SARIF, JSON, JUnit, or logs to ProdUS.",
+                        List.of("ProdUS upload token", "Product/workspace-scoped target", "No source code upload required"),
+                        "Recommended for privacy-sensitive teams and enterprise accounts.",
+                        false
+                ),
+                new ConnectorPermissionResponse(
+                        ScanSource.ProviderType.EXTERNAL_TOOL,
+                        "External scanner platform",
+                        "Used for Snyk, SonarQube, SonarCloud, Semgrep Platform, GitHub security exports, and generic scanner JSON/SARIF imports.",
+                        List.of("Provider project/run reference", "Exported findings payload", "Timestamp/source metadata"),
+                        "Connector sync imports are audited and normalized; paid-provider credentials remain customer-controlled unless explicitly connected.",
+                        false
+                )
+        );
     }
 
     @Transactional(readOnly = true)
@@ -603,6 +654,10 @@ public class ScannerService {
                 .limit(8)
                 .map(this::toImportRunResponse)
                 .toList();
+        List<ScannerScheduleResponse> schedules = scannerScheduleRepository.findByProductProfileIdOrderByCreatedAtDesc(productId).stream()
+                .limit(8)
+                .map(this::toScheduleResponse)
+                .toList();
         ScannerSummaryCounts counts = counts(findingRepository.findByProductProfileIdOrderBySeverityDescCreatedAtDesc(productId));
         return new ProductScannerSummaryResponse(
                 toProductProfileResponse(product),
@@ -612,7 +667,8 @@ public class ScannerService {
                 runs,
                 findings,
                 evidence,
-                imports
+                imports,
+                schedules
         );
     }
 
@@ -716,6 +772,135 @@ public class ScannerService {
             return evidenceRepository.findByProductProfileIdOrderByCreatedAtDesc(productId).stream().map(this::toEvidenceResponse).toList();
         }
         throw new IllegalArgumentException("At least one evidence filter is required");
+    }
+
+    @Transactional
+    public ScannerScheduleResponse createSchedule(User actor, CreateScannerScheduleRequest request) {
+        ProductProfile product = productRepository.findById(request.productId())
+                .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
+        ProjectWorkspace workspace = resolveWorkspace(request.workspaceId(), product);
+        requireProductOrWorkspaceWrite(actor, product, workspace);
+        ScanSource source = sourceRepository.findById(request.sourceId())
+                .orElseThrow(() -> new ResourceNotFoundException("Scan source not found"));
+        if (!source.getProductProfile().getId().equals(product.getId())) {
+            throw new IllegalArgumentException("Scan source belongs to another product");
+        }
+        if (source.getAuthorizationStatus() != ScanSource.AuthorizationStatus.AUTHORIZED) {
+            throw new IllegalArgumentException("Only authorized scanner sources can be scheduled");
+        }
+        ScanRun.ScanDepth depth = request.depth() == null ? ScanRun.ScanDepth.SAFE_STATIC : request.depth();
+        if (depth == ScanRun.ScanDepth.CI_EVIDENCE) {
+            throw new IllegalArgumentException("CI evidence upload cannot be scheduled by ProdUS workers");
+        }
+        int intervalDays = request.intervalDays() == null ? 7 : request.intervalDays();
+        if (intervalDays < 1 || intervalDays > 90) {
+            throw new IllegalArgumentException("Schedule interval must be between 1 and 90 days");
+        }
+        List<String> toolKeys = selectedToolKeys(request.toolKeys(), depth);
+        validateToolKeys(toolKeys);
+
+        ScannerSchedule schedule = new ScannerSchedule();
+        schedule.setProductProfile(product);
+        schedule.setWorkspace(workspace);
+        schedule.setScanSource(source);
+        schedule.setCreatedBy(actor);
+        schedule.setDepth(depth);
+        schedule.setToolKeys(String.join(",", toolKeys));
+        schedule.setBranchRef(trimToNull(request.branchRef()));
+        schedule.setRuntimeTargetUrl(trimToNull(request.runtimeTargetUrl()));
+        schedule.setContainerImageRef(trimToNull(request.containerImageRef()));
+        schedule.setIntervalDays(intervalDays);
+        schedule.setNextRunAt(request.nextRunAt() == null ? LocalDateTime.now().plusDays(intervalDays) : request.nextRunAt());
+        schedule.setActive(request.active() == null || request.active());
+        schedule.setReason(defaultString(trimToNull(request.reason()), "Scheduled scanner run for productization readiness."));
+        ScannerSchedule saved = scannerScheduleRepository.save(schedule);
+        audit(actor, "SCANNER_SCHEDULE_CREATED", "SCANNER_SCHEDULE", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Created %s scanner schedule for product %s every %d days".formatted(depth, product.getId(), intervalDays));
+        return toScheduleResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ScannerScheduleResponse> listSchedules(User actor, UUID productId, UUID workspaceId) {
+        if (productId == null && workspaceId == null) {
+            throw new IllegalArgumentException("productId or workspaceId is required");
+        }
+        if (workspaceId != null) {
+            ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
+            requireWorkspaceRead(actor, workspace);
+            return scannerScheduleRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
+                    .map(this::toScheduleResponse)
+                    .toList();
+        }
+        ProductProfile product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
+        requireProductOwnerOrAdmin(actor, product);
+        return scannerScheduleRepository.findByProductProfileIdOrderByCreatedAtDesc(productId).stream()
+                .map(this::toScheduleResponse)
+                .toList();
+    }
+
+    @Transactional
+    public ScannerScheduleResponse updateSchedule(User actor, UUID scheduleId, UpdateScannerScheduleRequest request) {
+        ScannerSchedule schedule = scannerScheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scanner schedule not found"));
+        requireProductOrWorkspaceWrite(actor, schedule.getProductProfile(), schedule.getWorkspace());
+        if (request.active() != null) {
+            schedule.setActive(request.active());
+        }
+        if (request.intervalDays() != null) {
+            if (request.intervalDays() < 1 || request.intervalDays() > 90) {
+                throw new IllegalArgumentException("Schedule interval must be between 1 and 90 days");
+            }
+            schedule.setIntervalDays(request.intervalDays());
+        }
+        if (request.nextRunAt() != null) {
+            schedule.setNextRunAt(request.nextRunAt());
+        }
+        if (request.reason() != null) {
+            schedule.setReason(trimToNull(request.reason()));
+        }
+        ScannerSchedule saved = scannerScheduleRepository.save(schedule);
+        audit(actor, "SCANNER_SCHEDULE_UPDATED", "SCANNER_SCHEDULE", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Updated scanner schedule active=" + saved.isActive() + " nextRunAt=" + saved.getNextRunAt());
+        return toScheduleResponse(saved);
+    }
+
+    @Transactional
+    public int enqueueDueSchedules() {
+        List<ScannerSchedule> due = scannerScheduleRepository.findTop20ByActiveTrueAndNextRunAtLessThanEqualOrderByNextRunAtAsc(LocalDateTime.now());
+        int queued = 0;
+        for (ScannerSchedule schedule : due) {
+            try {
+                StartHostedScanRequest request = new StartHostedScanRequest(
+                        schedule.getProductProfile().getId(),
+                        schedule.getWorkspace() == null ? null : schedule.getWorkspace().getId(),
+                        schedule.getScanSource().getId(),
+                        schedule.getDepth(),
+                        parseToolKeys(schedule.getToolKeys()),
+                        schedule.getBranchRef(),
+                        schedule.getRuntimeTargetUrl(),
+                        schedule.getContainerImageRef(),
+                        true,
+                        schedule.getDepth() == ScanRun.ScanDepth.RUNTIME_BASELINE,
+                        defaultString(schedule.getReason(), "Scheduled scanner execution"),
+                        null
+                );
+                ScanRunResponse run = startHostedScan(schedule.getCreatedBy(), request);
+                schedule.setLastRunAt(LocalDateTime.now());
+                schedule.setLastScanRunId(run.id());
+                schedule.setNextRunAt(LocalDateTime.now().plusDays(Math.max(1, schedule.getIntervalDays())));
+                scannerScheduleRepository.save(schedule);
+                queued++;
+            } catch (RuntimeException ex) {
+                schedule.setNextRunAt(LocalDateTime.now().plusHours(6));
+                schedule.setReason(defaultString(schedule.getReason(), "Scheduled scanner execution") + "\nLast enqueue failure: " + safeScannerFailure(ex));
+                scannerScheduleRepository.save(schedule);
+                audit(schedule.getCreatedBy(), "SCANNER_SCHEDULE_ENQUEUE_FAILED", "SCANNER_SCHEDULE", schedule.getId(), AuditEvent.RiskLevel.HIGH,
+                        "Scheduled scan enqueue failed for product " + schedule.getProductProfile().getId() + ": " + safeScannerFailure(ex));
+            }
+        }
+        return queued;
     }
 
     @Transactional
@@ -1846,6 +2031,17 @@ public class ScannerService {
         }
     }
 
+    private List<String> parseToolKeys(String toolKeys) {
+        if (isBlank(toolKeys)) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(toolKeys.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .toList();
+    }
+
     private String resolveRuntimeTarget(ProductProfile product, ScanSource source, StartHostedScanRequest request, ScanRun.ScanDepth depth) {
         if (depth != ScanRun.ScanDepth.RUNTIME_BASELINE) {
             return null;
@@ -1902,6 +2098,43 @@ public class ScannerService {
                 .map(tool -> tool.getToolName() + ": " + defaultString(tool.getErrorSummary(), "failed"))
                 .toList();
         return truncate(String.join("; ", failed), 500);
+    }
+
+    private int deleteStoredArtifactsForSource(User actor, ScanSource source) {
+        List<ScanRun> runs = scanRunRepository.findByScanSourceIdOrderByCreatedAtDesc(source.getId());
+        List<UUID> runIds = runs.stream().map(ScanRun::getId).toList();
+        List<ToolRun> toolRuns = runIds.isEmpty() ? List.of() : toolRunRepository.findByScanRunIdInOrderByCreatedAtAsc(runIds);
+        List<ScannerEvidenceItem> evidenceItems = runIds.isEmpty() ? List.of() : evidenceRepository.findByScanRunIdInOrderByCreatedAtDesc(runIds);
+        List<ScannerImportRun> imports = importRunRepository.findByScanSourceIdOrderByCreatedAtDesc(source.getId());
+
+        List<String> storageKeys = new ArrayList<>();
+        toolRuns.stream().map(ToolRun::getStorageKey).filter(key -> !isBlank(key)).forEach(storageKeys::add);
+        evidenceItems.stream().map(ScannerEvidenceItem::getStorageKey).filter(key -> !isBlank(key)).forEach(storageKeys::add);
+        imports.stream().map(ScannerImportRun::getStorageKey).filter(key -> !isBlank(key)).forEach(storageKeys::add);
+        List<String> uniqueKeys = storageKeys.stream().distinct().toList();
+        if (!uniqueKeys.isEmpty()) {
+            s3Service.deleteFiles(uniqueKeys);
+        }
+
+        toolRuns.forEach(toolRun -> {
+            toolRun.setRawArtifactRef(null);
+            toolRun.setStorageKey(null);
+            toolRunRepository.save(toolRun);
+        });
+        evidenceItems.forEach(evidence -> {
+            evidence.setArtifactRef(null);
+            evidence.setStorageKey(null);
+            evidence.setRedactionStatus(ScannerEvidenceItem.RedactionStatus.SENSITIVE_HIDDEN);
+            evidenceRepository.save(evidence);
+        });
+        imports.forEach(importRun -> {
+            importRun.setArtifactRef(null);
+            importRun.setStorageKey(null);
+            importRunRepository.save(importRun);
+        });
+        audit(actor, "SCANNER_SOURCE_ARTIFACTS_DELETED", "SCAN_SOURCE", source.getId(), AuditEvent.RiskLevel.HIGH,
+                "Deleted " + uniqueKeys.size() + " scanner artifact objects for source " + source.getDisplayName());
+        return uniqueKeys.size();
     }
 
     private String firstCommandToken(String command) {
@@ -2158,6 +2391,29 @@ public class ScannerService {
         );
     }
 
+    private ScannerScheduleResponse toScheduleResponse(ScannerSchedule schedule) {
+        return new ScannerScheduleResponse(
+                schedule.getId(),
+                schedule.getCreatedAt(),
+                schedule.getUpdatedAt(),
+                schedule.getProductProfile().getId(),
+                schedule.getWorkspace() == null ? null : schedule.getWorkspace().getId(),
+                schedule.getScanSource().getId(),
+                schedule.getDepth(),
+                parseToolKeys(schedule.getToolKeys()),
+                schedule.getBranchRef(),
+                schedule.getRuntimeTargetUrl(),
+                schedule.getContainerImageRef(),
+                schedule.getIntervalDays(),
+                schedule.getNextRunAt(),
+                schedule.getLastRunAt(),
+                schedule.getLastScanRunId(),
+                schedule.isActive(),
+                schedule.getReason(),
+                schedule.getCreatedBy().getEmail()
+        );
+    }
+
     private Redaction redact(String value) {
         if (value == null) {
             return new Redaction(null, false);
@@ -2260,7 +2516,29 @@ public class ScannerService {
             String scopeNote
     ) {}
 
-    public record DisconnectScanSourceRequest(String reason) {}
+    public record DisconnectScanSourceRequest(String reason, Boolean deleteArtifacts) {}
+
+    public record CreateScannerScheduleRequest(
+            @NotNull UUID productId,
+            UUID workspaceId,
+            @NotNull UUID sourceId,
+            ScanRun.ScanDepth depth,
+            List<String> toolKeys,
+            String branchRef,
+            String runtimeTargetUrl,
+            String containerImageRef,
+            Integer intervalDays,
+            LocalDateTime nextRunAt,
+            Boolean active,
+            String reason
+    ) {}
+
+    public record UpdateScannerScheduleRequest(
+            Boolean active,
+            Integer intervalDays,
+            LocalDateTime nextRunAt,
+            String reason
+    ) {}
 
     public record CiEvidenceUploadRequest(
             @NotNull UUID productId,
@@ -2405,7 +2683,8 @@ public class ScannerService {
             List<ScanRunResponse> recentRuns,
             List<NormalizedFindingResponse> findings,
             List<ScannerEvidenceItemResponse> evidence,
-            List<ScannerImportRunResponse> imports
+            List<ScannerImportRunResponse> imports,
+            List<ScannerScheduleResponse> schedules
     ) {}
 
     public record ScannerSummaryCounts(
@@ -2521,6 +2800,36 @@ public class ScannerService {
             ScannerEvidenceItem.RedactionStatus redactionStatus,
             ScannerEvidenceItem.ConfidenceLevel confidenceLevel,
             String createdByEmail
+    ) {}
+
+    public record ScannerScheduleResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            UUID productProfileId,
+            UUID workspaceId,
+            UUID scanSourceId,
+            ScanRun.ScanDepth depth,
+            List<String> toolKeys,
+            String branchRef,
+            String runtimeTargetUrl,
+            String containerImageRef,
+            int intervalDays,
+            LocalDateTime nextRunAt,
+            LocalDateTime lastRunAt,
+            UUID lastScanRunId,
+            boolean active,
+            String reason,
+            String createdByEmail
+    ) {}
+
+    public record ConnectorPermissionResponse(
+            ScanSource.ProviderType providerType,
+            String label,
+            String purpose,
+            List<String> permissions,
+            String operatingNote,
+            boolean appConnectorPreferred
     ) {}
 
     private record ParsedFinding(

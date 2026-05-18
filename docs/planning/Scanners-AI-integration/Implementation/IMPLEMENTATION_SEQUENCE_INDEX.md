@@ -2,7 +2,7 @@
 
 Date: 2026-05-17
 
-Status: implemented - scanner execution, Studio UI, MCP allowlist, LoomAI bridge, and readiness gates
+Status: implemented - scanner execution, Studio UI, MCP allowlist, LoomAI bridge, scanner BRD gap closure, and readiness gates
 
 ## Purpose
 
@@ -104,6 +104,11 @@ Team data is allowed only for package/workspace matching explanations, shortlist
    - Verify production-like Postgres/Supabase/MCP/LoomAI paths.
    - Define release gates and rollback.
 
+8. [BRD Gap Closure, Runtime Connectors, And Schedules](./08-brd-gap-closure-runtime-connectors-and-schedules.md)
+   - Align the scanner BRD to the current implementation.
+   - Add connector permission visibility, disconnect artifact deletion, persistent scan schedules, runtime authorization test coverage, and Studio schedule controls.
+   - Keep external GitHub/GitLab app credentials and LoomAI deployment dependencies visible instead of treating them as implemented.
+
 ## Dependency Order
 
 ```text
@@ -117,6 +122,7 @@ Team data is allowed only for package/workspace matching explanations, shortlist
               -> 05B Studio Integration UI And Usability
                 -> 06 Real LoomAI Staging Integration
                   -> 07 Production Readiness And Operations
+                    -> 08 BRD Gap Closure, Runtime Connectors, And Schedules
 ```
 
 Sequence 03A can run in parallel with Sequence 03 if the provider boundary and allowlist are stable. Sequence 04 can begin before Sequence 03 is visually complete if the backend team is available. Sequence 05B can run in parallel with backend scanner work, but each enabled UI action must wait for its backend API. Sequence 06 must not start until the provider contract, allowlist, retrieval boundaries, scanner/evidence data boundaries, and approved UI assistant placements are stable.
@@ -140,6 +146,10 @@ Verified from code and tests:
 - Admin LoomAI endpoints expose status, safe knowledge preview, and safe knowledge sync.
 - Admin production-readiness endpoint reports database, auth, scanner, MCP, LoomAI, storage, webhook, CORS, and rate-limit gates without exposing secrets.
 - Service catalog, package templates, dependency rules, and AI capability contracts are the first safe knowledge sources for retrieval/data sync.
+- Scanner connector permissions, disconnect artifact deletion, and persistent scan schedules are implemented.
+- Runtime URL scans require explicit authorization and are covered by backend integration tests.
+- Product scanner summary includes sources, runs, findings, evidence, imports, schedules, counts, and readiness.
+- Studio scanner UI includes permission explanation, authorized scan controls, CI upload, external imports, evidence center, schedule creation/pause/resume, and disconnect/delete controls.
 
 Latest verification:
 
@@ -147,7 +157,15 @@ Latest verification:
 cd mcp-server && npm test && npm run type-check
 cd backend && mvn -q clean -Dtest=LoomAIIntegrationControllerTest test
 cd frontend && npm run type-check
+cd backend && mvn -Dtest=ScannerEvidenceIntegrationTest test
+cd frontend && npm run build
 ```
+
+Most recent scanner verification on 2026-05-18:
+
+- `cd backend && mvn -Dtest=ScannerEvidenceIntegrationTest test` passed with 7 tests, 0 failures.
+- `cd frontend && npm run type-check` passed.
+- `cd frontend && npm run build` passed.
 
 ## Scanner BRD Traceability
 
@@ -168,11 +186,12 @@ The scanner sequences cover the BRD as follows:
 | Section 16, Security, Privacy, and Trust Requirements | Sequence 04, Sequence 05, Sequence 05A, and Sequence 07 |
 | Section 17, External Tool Connector Requirements | Sequence 05A |
 | Section 18, API and UI Requirements | Sequence 04, Sequence 05, Sequence 05A, and Sequence 05B |
+| Section 18, implemented scanner endpoint map and UI alignment | Sequence 08 |
 | Section 19, Milestone Acceptance and Evidence Rules | Sequence 04, Sequence 05B, and Sequence 07 |
-| Section 20, Data Model | Sequence 04, Sequence 05, Sequence 05A, and Sequence 07 |
+| Section 20, Data Model | Sequence 04, Sequence 05, Sequence 05A, Sequence 07, and Sequence 08 |
 | Section 21, Reporting and Metrics | Sequence 05B and Sequence 07 |
 | Section 23, Risks and Mitigations | Sequence 05, Sequence 05A, and Sequence 07 |
-| Section 24, BRD Acceptance Criteria | Sequence 04 through Sequence 07 |
+| Section 24, BRD Acceptance Criteria | Sequence 04 through Sequence 08 |
 
 Scanner work is considered incomplete until the BRD acceptance areas are traceable in code and tests:
 
@@ -185,6 +204,9 @@ Scanner work is considered incomplete until the BRD acceptance areas are traceab
 - secret redaction, repo clone cleanup, and audit logs
 - authorized runtime scanning
 - admin scanner and connector operations
+- connector permission visibility
+- disconnect artifact deletion
+- scheduled scanner evidence refresh
 
 ## UI Quality Guardrails
 

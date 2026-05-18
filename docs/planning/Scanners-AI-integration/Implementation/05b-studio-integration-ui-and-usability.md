@@ -47,6 +47,14 @@ Verification performed:
 - `mvn -q -Dtest=ScannerEvidenceIntegrationTest#externalGithubCodeScanningImportCreatesImportRunAndNormalizedFinding test`
 - `npm run type-check`
 
+Implementation Update - 2026-05-18:
+
+- Added connector permission visibility to the owner source setup panel.
+- Added explicit disconnect-and-delete-artifacts UI control.
+- Added schedule evidence refresh form with validation, schedule list, and pause/resume actions.
+- Wired schedule and disconnect/delete controls to the scanner backend.
+- Verified with `mvn -Dtest=ScannerEvidenceIntegrationTest test`, `npm run type-check`, and `npm run build`.
+
 ## BRD Requirements Considered
 
 This sequence implements the scanner-related UI and workflow requirements from `docs/planning/Scanners-AI-integration/integration_brd.md`.

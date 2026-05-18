@@ -14,6 +14,7 @@ import {
   ContentCopyOutlined,
   CompareArrowsOutlined,
   DeleteOutlineOutlined,
+  EventRepeatOutlined,
   FactCheckOutlined,
   GroupAddOutlined,
   InfoOutlined,
@@ -75,6 +76,7 @@ import {
   ScanRun,
   ScanSource,
   CiTemplateResponse,
+  ConnectorPermission,
   ExternalImportProvider,
   AssistantSuggestionsResponse,
 } from './types';
@@ -146,6 +148,11 @@ interface ScanSourcePayload {
   scopeNote: string;
 }
 
+interface DisconnectSourcePayload {
+  reason: string;
+  deleteArtifacts?: boolean;
+}
+
 interface HostedScanPayload {
   productId: string;
   workspaceId?: string;
@@ -159,6 +166,21 @@ interface HostedScanPayload {
   runtimeAuthorizationConfirmed: boolean;
   reason: string;
   comparisonBaseRunId?: string;
+}
+
+interface ScannerSchedulePayload {
+  productId: string;
+  workspaceId?: string;
+  sourceId: string;
+  depth: ScanRun['depth'];
+  toolKeys?: string[];
+  branchRef?: string;
+  runtimeTargetUrl?: string;
+  containerImageRef?: string;
+  intervalDays: number;
+  nextRunAt?: string;
+  active?: boolean;
+  reason: string;
 }
 
 interface ScannerUploadPayload {
@@ -423,6 +445,10 @@ export default function OwnerProductizationWorkspace({
       return data?.recentRuns.some((run) => run.status === 'QUEUED' || run.status === 'RUNNING') ? 5000 : false;
     },
   });
+  const connectorPermissions = useQuery({
+    queryKey: ['scanner-connector-permissions'],
+    queryFn: () => getJson<ConnectorPermission[]>('/scanner/connector-permissions'),
+  });
 
   const [scanSourceForm, setScanSourceForm] = useState({
     providerType: 'GITHUB' as ScanSource['providerType'],
@@ -488,6 +514,12 @@ export default function OwnerProductizationWorkspace({
   });
   const [ciTemplateType, setCiTemplateType] = useState<CiTemplateResponse['type']>('GITHUB_ACTIONS');
   const [ciTemplate, setCiTemplate] = useState<CiTemplateResponse | null>(null);
+  const [deleteArtifactsOnDisconnect, setDeleteArtifactsOnDisconnect] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    intervalDays: '7',
+    nextRunAt: '',
+    reason: 'Scheduled evidence refresh for productization readiness.',
+  });
   const [selectedFindingId, setSelectedFindingId] = useState('');
   const [evidenceFilter, setEvidenceFilter] = useState<'ALL' | 'FINDINGS' | 'MILESTONES' | 'REDACTED'>('ALL');
   const [findingReasonById, setFindingReasonById] = useState<Record<string, string>>({});
@@ -774,8 +806,12 @@ export default function OwnerProductizationWorkspace({
     },
   });
   const disconnectScanSource = useMutation({
-    mutationFn: (sourceId: string) => postJson<ScanSource, { reason: string }>(`/scanner/sources/${sourceId}/disconnect`, { reason: 'Owner disconnected source from Studio.' }),
+    mutationFn: (sourceId: string) => postJson<ScanSource, DisconnectSourcePayload>(`/scanner/sources/${sourceId}/disconnect`, {
+      reason: deleteArtifactsOnDisconnect ? 'Owner disconnected source and requested scanner artifact deletion from Studio.' : 'Owner disconnected source from Studio.',
+      deleteArtifacts: deleteArtifactsOnDisconnect,
+    }),
     onSuccess: async () => {
+      setDeleteArtifactsOnDisconnect(false);
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
     },
   });
@@ -808,6 +844,36 @@ export default function OwnerProductizationWorkspace({
   });
   const rescanRun = useMutation({
     mutationFn: (runId: string) => postJson<ScanRun, { reason: string }>(`/scanner/runs/${runId}/rescan`, { reason: 'Owner requested rescan after remediation or evidence review.' }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
+  const createScannerSchedule = useMutation({
+    mutationFn: () => {
+      const intervalDays = Number.parseInt(scheduleForm.intervalDays, 10);
+      const payload: ScannerSchedulePayload = {
+        productId: selectedProduct?.id || '',
+        sourceId: hostedScanForm.sourceId,
+        depth: hostedScanForm.depth,
+        toolKeys: hostedScanForm.toolKeys,
+        intervalDays: Number.isFinite(intervalDays) ? intervalDays : 7,
+        reason: scheduleForm.reason,
+        active: true,
+      };
+      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
+      if (hostedScanForm.branchRef.trim()) payload.branchRef = hostedScanForm.branchRef.trim();
+      if (hostedScanForm.runtimeTargetUrl.trim()) payload.runtimeTargetUrl = hostedScanForm.runtimeTargetUrl.trim();
+      if (hostedScanForm.containerImageRef.trim()) payload.containerImageRef = hostedScanForm.containerImageRef.trim();
+      if (scheduleForm.nextRunAt) payload.nextRunAt = scheduleForm.nextRunAt;
+      return postJson('/scanner/schedules', payload);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+    },
+  });
+  const updateScannerSchedule = useMutation({
+    mutationFn: ({ scheduleId, active }: { scheduleId: string; active: boolean }) =>
+      patchJson(`/scanner/schedules/${scheduleId}`, { active }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
     },
@@ -849,6 +915,17 @@ export default function OwnerProductizationWorkspace({
   const activeScanRun = scannerSummary.data?.recentRuns.find((run) => run.status === 'QUEUED' || run.status === 'RUNNING');
   const selectedScanSource = (scannerSummary.data?.sources || []).find((source) => source.id === hostedScanForm.sourceId);
   const hostedScanBlockedReason = hostedScanBlockReason(selectedProduct, selectedScanSource, hostedScanForm);
+  const selectedConnectorPermission = (connectorPermissions.data || []).find((permission) => permission.providerType === scanSourceForm.providerType);
+  const scheduleInterval = Number.parseInt(scheduleForm.intervalDays, 10);
+  const scheduleBlockedReason = !selectedProduct
+    ? 'Select a product first.'
+    : !hostedScanForm.sourceId || !selectedScanSource
+      ? 'Choose an authorized evidence source before scheduling scans.'
+      : selectedScanSource.authorizationStatus !== 'AUTHORIZED'
+        ? 'Only authorized evidence sources can be scheduled.'
+        : !Number.isFinite(scheduleInterval) || scheduleInterval < 1 || scheduleInterval > 90
+          ? 'Use a schedule interval between 1 and 90 days.'
+          : '';
   const blockedMilestones = (milestones.data || []).filter((milestone) => milestone.status === 'BLOCKED').length;
   const submittedRequirement = selectedProductRequirements.find((requirement) => requirement.status === 'SUBMITTED' || requirement.status === 'PACKAGE_RECOMMENDED');
   const buildTargetRequirementId = pendingRequirementId || submittedRequirement?.id || '';
@@ -1219,6 +1296,27 @@ export default function OwnerProductizationWorkspace({
                         <MenuItem value="RUNTIME_URL">Runtime URL</MenuItem>
                         <MenuItem value="EXTERNAL_TOOL">External tool</MenuItem>
                       </TextField>
+                      {selectedConnectorPermission && (
+                        <Box sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#dbeafe', bgcolor: '#f8fbff' }}>
+                          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 900 }}>{selectedConnectorPermission.label}</Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35, lineHeight: 1.45 }}>
+                                {selectedConnectorPermission.purpose}
+                              </Typography>
+                            </Box>
+                            {selectedConnectorPermission.appConnectorPreferred && <PastelChip label="App Preferred" accent={appleColors.purple} />}
+                          </Stack>
+                          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                            {selectedConnectorPermission.permissions.map((permission) => (
+                              <PastelChip key={permission} label={permission} accent={appleColors.cyan} bg="#e8f8ff" />
+                            ))}
+                          </Stack>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, lineHeight: 1.45 }}>
+                            {selectedConnectorPermission.operatingNote}
+                          </Typography>
+                        </Box>
+                      )}
                       <TextField
                         size="small"
                         label="Display name"
@@ -1400,6 +1498,52 @@ export default function OwnerProductizationWorkspace({
                           </Button>
                         )}
                       </Stack>
+                    </Stack>
+                  </Box>
+
+                  <Box component="form" onSubmit={(event) => {
+                    event.preventDefault();
+                    if (!scheduleBlockedReason) createScannerSchedule.mutate();
+                  }}>
+                    <Stack spacing={1.25}>
+                      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                        <Typography sx={{ fontWeight: 900 }}>Schedule evidence refresh</Typography>
+                        <EventRepeatOutlined sx={{ color: appleColors.cyan }} />
+                      </Stack>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1.4fr' }, gap: 1 }}>
+                        <TextField
+                          size="small"
+                          type="number"
+                          label="Every days"
+                          value={scheduleForm.intervalDays}
+                          inputProps={{ min: 1, max: 90 }}
+                          onChange={(event) => setScheduleForm((current) => ({ ...current, intervalDays: event.target.value }))}
+                        />
+                        <TextField
+                          size="small"
+                          type="datetime-local"
+                          label="First run"
+                          value={scheduleForm.nextRunAt}
+                          onChange={(event) => setScheduleForm((current) => ({ ...current, nextRunAt: event.target.value }))}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Box>
+                      <TextField
+                        size="small"
+                        label="Schedule reason"
+                        value={scheduleForm.reason}
+                        onChange={(event) => setScheduleForm((current) => ({ ...current, reason: event.target.value }))}
+                      />
+                      {scheduleBlockedReason && <Alert severity="info" sx={{ borderRadius: 1 }}>{scheduleBlockedReason}</Alert>}
+                      <Button
+                        type="submit"
+                        variant="outlined"
+                        startIcon={<EventRepeatOutlined />}
+                        disabled={!!scheduleBlockedReason || createScannerSchedule.isPending}
+                        sx={{ minHeight: 42 }}
+                      >
+                        Create Schedule
+                      </Button>
                     </Stack>
                   </Box>
 
@@ -1642,52 +1786,90 @@ export default function OwnerProductizationWorkspace({
                 </Stack>
 
                 <Stack spacing={1.5}>
-                  {(scannerSummary.isFetching || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || updateFindingStatus.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
+                  {(scannerSummary.isFetching || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
                   {scannerSummary.data?.sources.length ? (
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
-                      {scannerSummary.data.sources.slice(0, 5).map((source) => (
-                        <Stack
-                          key={source.id}
-                          spacing={1}
-                          sx={{
-                            border: 1,
-                            borderColor: source.authorizationStatus === 'AUTHORIZED' ? '#c8f2da' : appleColors.line,
-                            borderRadius: 1,
-                            p: 1.25,
-                            bgcolor: source.authorizationStatus === 'AUTHORIZED' ? '#fbfffd' : '#fff',
-                          }}
-                        >
-                          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{source.displayName}</Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap>{source.externalReference || formatLabel(source.providerType)}</Typography>
-                            </Box>
-                            <StatusChip label={source.authorizationStatus} color={source.authorizationStatus === 'AUTHORIZED' ? 'success' : source.authorizationStatus === 'FAILED' ? 'error' : 'warning'} />
+                    <Stack spacing={1}>
+                      <FormControlLabel
+                        control={<Checkbox checked={deleteArtifactsOnDisconnect} onChange={(event) => setDeleteArtifactsOnDisconnect(event.target.checked)} />}
+                        label={<Typography variant="body2" color="text.secondary">Delete stored scanner artifacts when disconnecting a source.</Typography>}
+                      />
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
+                        {scannerSummary.data.sources.slice(0, 5).map((source) => (
+                          <Stack
+                            key={source.id}
+                            spacing={1}
+                            sx={{
+                              border: 1,
+                              borderColor: source.authorizationStatus === 'AUTHORIZED' ? '#c8f2da' : appleColors.line,
+                              borderRadius: 1,
+                              p: 1.25,
+                              bgcolor: source.authorizationStatus === 'AUTHORIZED' ? '#fbfffd' : '#fff',
+                            }}
+                          >
+                            <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{source.displayName}</Typography>
+                                <Typography variant="caption" color="text.secondary" noWrap>{source.externalReference || formatLabel(source.providerType)}</Typography>
+                              </Box>
+                              <StatusChip label={source.authorizationStatus} color={source.authorizationStatus === 'AUTHORIZED' ? 'success' : source.authorizationStatus === 'FAILED' ? 'error' : 'warning'} />
+                            </Stack>
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+                              <PastelChip label={formatLabel(source.providerType)} accent={appleColors.cyan} bg="#e4f9fd" />
+                              {source.scopeNote && <PastelChip label="Scoped" accent={appleColors.purple} />}
+                            </Stack>
+                            <Tooltip title={source.authorizationStatus === 'AUTHORIZED' ? 'Disconnect this source from future scanner use' : 'Only authorized sources can be disconnected'}>
+                              <span>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color={deleteArtifactsOnDisconnect ? 'error' : 'inherit'}
+                                  disabled={source.authorizationStatus !== 'AUTHORIZED' || disconnectScanSource.isPending}
+                                  onClick={() => disconnectScanSource.mutate(source.id)}
+                                  sx={{ minHeight: 34, alignSelf: 'flex-start' }}
+                                >
+                                  {deleteArtifactsOnDisconnect ? 'Disconnect + Delete' : 'Disconnect'}
+                                </Button>
+                              </span>
+                            </Tooltip>
                           </Stack>
-                          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                            <PastelChip label={formatLabel(source.providerType)} accent={appleColors.cyan} bg="#e4f9fd" />
-                            {source.scopeNote && <PastelChip label="Scoped" accent={appleColors.purple} />}
-                          </Stack>
-                          <Tooltip title={source.authorizationStatus === 'AUTHORIZED' ? 'Disconnect this source from future scanner use' : 'Only authorized sources can be disconnected'}>
-                            <span>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                color="inherit"
-                                disabled={source.authorizationStatus !== 'AUTHORIZED' || disconnectScanSource.isPending}
-                                onClick={() => disconnectScanSource.mutate(source.id)}
-                                sx={{ minHeight: 34, alignSelf: 'flex-start' }}
-                              >
-                                Disconnect
-                              </Button>
-                            </span>
-                          </Tooltip>
-                        </Stack>
-                      ))}
-                    </Box>
+                        ))}
+                      </Box>
+                    </Stack>
                   ) : (
                     <EmptyState label="No scanner source exists yet. Save a source, upload CI evidence, or import a customer-owned scanner result to start the evidence chain." />
                   )}
+
+                  {scannerSummary.data?.schedules?.length ? (
+                    <Box sx={{ border: '1px solid', borderColor: appleColors.line, borderRadius: 1, p: 1.5, bgcolor: '#fff' }}>
+                      <SectionTitle title="Scheduled Scans" action={<PastelChip label={`${scannerSummary.data.schedules.length} configured`} accent={appleColors.cyan} bg="#e4f9fd" />} />
+                      <Stack spacing={1}>
+                        {scannerSummary.data.schedules.slice(0, 4).map((schedule) => (
+                          <Box key={schedule.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e5edf7', bgcolor: schedule.active ? '#fbfffd' : '#f8fafc' }}>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+                                  <Typography variant="body2" sx={{ fontWeight: 900 }}>{formatLabel(schedule.depth)}</Typography>
+                                  <StatusChip label={schedule.active ? 'ACTIVE' : 'PAUSED'} color={schedule.active ? 'success' : 'default'} />
+                                </Stack>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                  Every {schedule.intervalDays} days · Next {shortDateTime(schedule.nextRunAt)} · {schedule.toolKeys.join(', ') || 'default tools'}
+                                </Typography>
+                              </Box>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                disabled={updateScannerSchedule.isPending}
+                                onClick={() => updateScannerSchedule.mutate({ scheduleId: schedule.id, active: !schedule.active })}
+                                sx={{ minHeight: 34, minWidth: 92 }}
+                              >
+                                {schedule.active ? 'Pause' : 'Resume'}
+                              </Button>
+                            </Stack>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Box>
+                  ) : null}
 
                   {scannerSummary.data?.imports?.length ? (
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>

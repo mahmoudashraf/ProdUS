@@ -10,4 +10,5 @@ public interface ScannerEvidenceItemRepository extends JpaRepository<ScannerEvid
     List<ScannerEvidenceItem> findByWorkspaceIdOrderByCreatedAtDesc(UUID workspaceId);
     List<ScannerEvidenceItem> findByMilestoneIdOrderByCreatedAtDesc(UUID milestoneId);
     List<ScannerEvidenceItem> findByFindingIdOrderByCreatedAtDesc(UUID findingId);
+    List<ScannerEvidenceItem> findByScanRunIdInOrderByCreatedAtDesc(List<UUID> scanRunIds);
 }

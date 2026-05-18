@@ -9,5 +9,6 @@ import java.util.UUID;
 public interface ScanRunRepository extends JpaRepository<ScanRun, UUID> {
     List<ScanRun> findByProductProfileIdOrderByCreatedAtDesc(UUID productProfileId);
     List<ScanRun> findByWorkspaceIdOrderByCreatedAtDesc(UUID workspaceId);
+    List<ScanRun> findByScanSourceIdOrderByCreatedAtDesc(UUID scanSourceId);
     boolean existsByProductProfileIdAndDepthAndStatusIn(UUID productProfileId, ScanRun.ScanDepth depth, Collection<ScanRun.RunStatus> statuses);
 }

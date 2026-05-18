@@ -4,6 +4,8 @@ import com.produs.entity.User;
 import com.produs.scanner.ScannerService.CiEvidenceUploadRequest;
 import com.produs.scanner.ScannerService.CiTemplateResponse;
 import com.produs.scanner.ScannerService.CiTemplateType;
+import com.produs.scanner.ScannerService.ConnectorPermissionResponse;
+import com.produs.scanner.ScannerService.CreateScannerScheduleRequest;
 import com.produs.scanner.ScannerService.CreateScanSourceRequest;
 import com.produs.scanner.ScannerService.DisconnectScanSourceRequest;
 import com.produs.scanner.ScannerService.ExternalImportRequest;
@@ -14,11 +16,13 @@ import com.produs.scanner.ScannerService.RescanRequest;
 import com.produs.scanner.ScannerService.ScanCancelRequest;
 import com.produs.scanner.ScannerService.ScanRunResponse;
 import com.produs.scanner.ScannerService.ScanSourceResponse;
+import com.produs.scanner.ScannerService.ScannerScheduleResponse;
 import com.produs.scanner.ScannerService.ScannerAdminHealthResponse;
 import com.produs.scanner.ScannerService.ScannerEvidenceItemResponse;
 import com.produs.scanner.ScannerService.ScannerImportRunResponse;
 import com.produs.scanner.ScannerService.StartHostedScanRequest;
 import com.produs.scanner.ScannerService.ToolRunResponse;
+import com.produs.scanner.ScannerService.UpdateScannerScheduleRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -40,6 +44,11 @@ import java.util.UUID;
 public class ScannerController {
 
     private final ScannerService scannerService;
+
+    @GetMapping("/connector-permissions")
+    public List<ConnectorPermissionResponse> listConnectorPermissions() {
+        return scannerService.listConnectorPermissions();
+    }
 
     @PostMapping("/sources")
     public ScanSourceResponse createSource(
@@ -102,6 +111,32 @@ public class ScannerController {
             @RequestParam(required = false) UUID sourceId
     ) {
         return scannerService.getCiTemplate(user, type, productId, workspaceId, sourceId);
+    }
+
+    @PostMapping("/schedules")
+    public ScannerScheduleResponse createSchedule(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody CreateScannerScheduleRequest request
+    ) {
+        return scannerService.createSchedule(user, request);
+    }
+
+    @GetMapping("/schedules")
+    public List<ScannerScheduleResponse> listSchedules(
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) UUID productId,
+            @RequestParam(required = false) UUID workspaceId
+    ) {
+        return scannerService.listSchedules(user, productId, workspaceId);
+    }
+
+    @PatchMapping("/schedules/{scheduleId}")
+    public ScannerScheduleResponse updateSchedule(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID scheduleId,
+            @Valid @RequestBody UpdateScannerScheduleRequest request
+    ) {
+        return scannerService.updateSchedule(user, scheduleId, request);
     }
 
     @PostMapping("/runs/hosted")

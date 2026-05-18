@@ -34,6 +34,7 @@ import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -413,13 +414,134 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(jsonPath("$.template").value(containsString("PRODUS_CI_UPLOAD_TOKEN")))
                 .andExpect(jsonPath("$.template").value(containsString("/api/scanner/runs/ci-upload")));
 
+        mockMvc.perform(post("/api/scanner/runs/ci-upload")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "productId", productId.toString(),
+                                "sourceId", sourceId.toString(),
+                                "toolName", "Semgrep",
+                                "format", "SARIF",
+                                "artifactFileName", "semgrep.sarif",
+                                "artifactPayload", "{\"runs\":[]}"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+
         mockMvc.perform(post("/api/scanner/sources/{sourceId}/disconnect", sourceId)
                         .with(auth(owner))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reason\":\"Rotating CI source.\"}"))
+                        .content("{\"reason\":\"Rotating CI source.\",\"deleteArtifacts\":true}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authorizationStatus").value("REVOKED"))
                 .andExpect(jsonPath("$.scopeNote").value("Rotating CI source."));
+        verify(s3Service).deleteFiles(org.mockito.ArgumentMatchers.anyList());
+    }
+
+    @Test
+    void connectorPermissionsRuntimeScanAndSchedulesAreExposedAndEnforced(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
+        User owner = saveUser("scanner-runtime-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        UUID productId = createProduct(owner);
+        Path fakeLighthouse = createFakeLighthouseScanner(tempDir.resolve("fake-lighthouse.sh"));
+        ScannerProperties.ToolProperties lighthouse = scannerProperties.getTools().get("lighthouse");
+        lighthouse.setCommand("'" + fakeLighthouse + "' {url} {output}");
+        lighthouse.setVersionCommand("'" + fakeLighthouse + "' --version");
+        lighthouse.setEnabled(true);
+
+        mockMvc.perform(get("/api/scanner/connector-permissions").with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].providerType").value("GITHUB"))
+                .andExpect(jsonPath("$[0].permissions[0]").exists());
+
+        MvcResult sourceResult = mockMvc.perform(post("/api/scanner/sources")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "providerType": "RUNTIME_URL",
+                                  "displayName": "Authorized staging URL",
+                                  "externalReference": "https://staging.example.test",
+                                  "scopeNote": "Owner confirmed domain authorization."
+                                }
+                                """.formatted(productId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authorizationStatus").value("AUTHORIZED"))
+                .andReturn();
+        UUID sourceId = readId(sourceResult);
+
+        mockMvc.perform(post("/api/scanner/runs/hosted")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "sourceId": "%s",
+                                  "depth": "RUNTIME_BASELINE",
+                                  "toolKeys": ["lighthouse"],
+                                  "authorizationConfirmed": true,
+                                  "runtimeAuthorizationConfirmed": false,
+                                  "reason": "Owner forgot runtime authorization confirmation."
+                                }
+                                """.formatted(productId, sourceId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("Runtime baseline scan requires explicit URL/domain authorization")));
+
+        MvcResult runResult = mockMvc.perform(post("/api/scanner/runs/hosted")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "sourceId": "%s",
+                                  "depth": "RUNTIME_BASELINE",
+                                  "toolKeys": ["lighthouse"],
+                                  "authorizationConfirmed": true,
+                                  "runtimeAuthorizationConfirmed": true,
+                                  "reason": "Owner authorized baseline runtime scan."
+                                }
+                                """.formatted(productId, sourceId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("QUEUED"))
+                .andReturn();
+        UUID runId = readId(runResult);
+        org.assertj.core.api.Assertions.assertThat(scannerWorker.executeNextQueuedJob()).isTrue();
+        mockMvc.perform(get("/api/scanner/runs/{runId}/findings", runId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sourceTool").value("Lighthouse"))
+                .andExpect(jsonPath("$[0].sourceRuleId").value("lighthouse-performance"));
+
+        MvcResult scheduleResult = mockMvc.perform(post("/api/scanner/schedules")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "sourceId": "%s",
+                                  "depth": "RUNTIME_BASELINE",
+                                  "toolKeys": ["lighthouse"],
+                                  "intervalDays": 7,
+                                  "nextRunAt": "2026-05-18T10:00:00",
+                                  "active": true,
+                                  "reason": "Weekly runtime baseline evidence refresh."
+                                }
+                                """.formatted(productId, sourceId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(true))
+                .andExpect(jsonPath("$.intervalDays").value(7))
+                .andReturn();
+        UUID scheduleId = readId(scheduleResult);
+
+        mockMvc.perform(patch("/api/scanner/schedules/{scheduleId}", scheduleId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(false));
+
+        mockMvc.perform(get("/api/scanner/products/{productId}/summary", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.schedules[0].id").value(scheduleId.toString()));
     }
 
     private UUID createProduct(User owner) throws Exception {
@@ -480,6 +602,28 @@ class ScannerEvidenceIntegrationTest {
                   "File": "config.env",
                   "StartLine": 1
                 }]
+                JSON
+                exit 0
+                """);
+        script.toFile().setExecutable(true);
+        return script;
+    }
+
+    private Path createFakeLighthouseScanner(Path script) throws Exception {
+        Files.writeString(script, """
+                #!/bin/sh
+                if [ "$1" = "--version" ]; then
+                  echo "fake-lighthouse 1.0.0"
+                  exit 0
+                fi
+                output="$2"
+                cat > "$output" <<'JSON'
+                {
+                  "categories": {
+                    "performance": { "title": "Performance", "score": 0.42 },
+                    "accessibility": { "title": "Accessibility", "score": 0.98 }
+                  }
+                }
                 JSON
                 exit 0
                 """);
