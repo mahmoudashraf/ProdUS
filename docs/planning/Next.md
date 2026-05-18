@@ -17,6 +17,7 @@ Tracked in:
 
 - `docs/planning/Scanners-AI-integration/integration_brd.md`
 - `docs/planning/Scanners-AI-integration/Implementation/08-brd-gap-closure-runtime-connectors-and-schedules.md`
+- `docs/planning/Scanners-AI-integration/PRODUCTION_READINESS_PLAN.md`
 
 Production dependencies still pending:
 
@@ -25,6 +26,17 @@ Production dependencies still pending:
 - hardened scanner worker image with pinned scanner binaries
 - production object-store retention/export/deletion policy
 - real LoomAI staging/production deployment configuration
+
+Recommended production-readiness order:
+
+1. Harden scanner worker image and object storage in staging.
+2. Implement GitHub App connector in staging.
+3. Verify real GitHub-backed scanner flows against internal/test repositories.
+4. Enable retention cleanup and export/deletion verification in staging.
+5. Integrate LoomAI staging with the productization MCP allowlist.
+6. Deploy scanner worker and GitHub connector to production behind feature flags.
+7. Enable LoomAI production after fallback and allowlist verification.
+8. Implement GitLab connector after GitHub path stabilizes unless a committed customer requires GitLab first.
 
 ## Operations Support Direction
 
