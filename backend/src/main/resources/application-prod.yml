@@ -86,6 +86,21 @@ aws:
 loomai:
   base-url: ${LOOMAI_BASE_URL:}
   api-key: ${LOOMAI_API_KEY:}
+  integration-mode: ${LOOMAI_INTEGRATION_MODE:BACKEND_MEDIATED_PRIVATE_RUNTIME}
+  auth-mode: ${LOOMAI_AUTH_MODE:PRIVATE_RUNTIME_ASSERTION}
+  api-key-header-name: ${LOOMAI_API_KEY_HEADER_NAME:X-PLATFORM-API-KEY}
+  runtime-api-key: ${LOOMAI_RUNTIME_API_KEY:}
+  runtime-api-key-header-name: ${LOOMAI_RUNTIME_API_KEY_HEADER_NAME:X-AIFABRIC-RUNTIME-API-KEY}
+  runtime-authorization-header-name: ${LOOMAI_RUNTIME_AUTHORIZATION_HEADER_NAME:X-AIFABRIC-RUNTIME-AUTHORIZATION}
+  assertion-issuer: ${LOOMAI_ASSERTION_ISSUER:}
+  assertion-audience: ${LOOMAI_ASSERTION_AUDIENCE:}
+  assertion-signing-algorithm: ${LOOMAI_ASSERTION_SIGNING_ALGORITHM:HS256}
+  assertion-signing-secret: ${LOOMAI_ASSERTION_SIGNING_SECRET:}
+  assertion-private-key-path: ${LOOMAI_ASSERTION_PRIVATE_KEY_PATH:}
+  assertion-ttl-seconds: ${LOOMAI_ASSERTION_TTL_SECONDS:300}
+  assertion-scopes: "${LOOMAI_ASSERTION_SCOPES:chat:read}"
+  default-mode: ${LOOMAI_DEFAULT_MODE:support_assistant}
+  default-position: ${LOOMAI_DEFAULT_POSITION:productization}
   enabled: ${LOOMAI_ENABLED:false}
   environment: ${LOOMAI_ENVIRONMENT:production}
   timeout-ms: ${LOOMAI_TIMEOUT_MS:2500}

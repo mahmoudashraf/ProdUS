@@ -4,6 +4,7 @@ import com.produs.entity.User;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
 import com.produs.repository.UserRepository;
+import com.nimbusds.jwt.SignedJWT;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterAll;
@@ -55,7 +56,12 @@ class LoomAIStagingIntegrationTest {
         ensureServer();
         registry.add("loomai.enabled", () -> "true");
         registry.add("loomai.environment", () -> "staging");
-        registry.add("loomai.api-key", () -> "test-loomai-api-key");
+        registry.add("loomai.integration-mode", () -> "BACKEND_MEDIATED_PRIVATE_RUNTIME");
+        registry.add("loomai.auth-mode", () -> "PRIVATE_RUNTIME_ASSERTION");
+        registry.add("loomai.runtime-api-key", () -> "test-runtime-api-key");
+        registry.add("loomai.assertion-issuer", () -> "produs-staging-backend");
+        registry.add("loomai.assertion-audience", () -> "dep-7706fafb");
+        registry.add("loomai.assertion-signing-secret", () -> "test-loomai-private-runtime-secret-32");
         registry.add("loomai.timeout-ms", () -> "1000");
         registry.add("loomai.base-url", () -> "http://127.0.0.1:" + server.getAddress().getPort());
     }
@@ -86,9 +92,8 @@ class LoomAIStagingIntegrationTest {
                                 {"context":{"pageType":"owner-product-workspace","productId":"%s"}}
                                 """.formatted(product.getId())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.provider").value("LOOMAI"))
-                .andExpect(jsonPath("$.mode").value("LIVE"))
-                .andExpect(jsonPath("$.providerRequestId").value("loom-staging-request"));
+                .andExpect(jsonPath("$.provider").value("PRODUS_SESSION"))
+                .andExpect(jsonPath("$.mode").value("LOCAL"));
 
         mockMvc.perform(post("/api/ai/assistant/query")
                         .with(auth(owner))
@@ -102,7 +107,8 @@ class LoomAIStagingIntegrationTest {
                                 """.formatted(product.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.provider").value("LOOMAI"))
-                .andExpect(jsonPath("$.answer").value(containsString("Use scanner evidence")));
+                .andExpect(jsonPath("$.answer").value(containsString("Use scanner evidence")))
+                .andExpect(jsonPath("$.providerRequestId").value("loom-staging-request"));
 
         mockMvc.perform(post("/api/ai/assistant/query")
                         .with(auth(owner))
@@ -141,16 +147,76 @@ class LoomAIStagingIntegrationTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/api/public/chat/session", exchange -> respond(exchange, 200, "{\"sessionId\":\"loom-session-123\"}"));
         server.createContext("/api/chat/me/query", exchange -> {
+            if (!privateRuntimeAuthorized(exchange)) {
+                respond(exchange, 401, "{\"error\":\"unauthorized\"}");
+                return;
+            }
             String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            if (!requestBody.contains("\"query\"") || !requestBody.contains("\"conversationId\"") || requestBody.contains("\"message\"")) {
+                respond(exchange, 400, "{\"error\":\"query and conversationId are required\"}");
+                return;
+            }
             if (requestBody.contains("force fallback")) {
                 respond(exchange, 503, "{\"error\":\"temporarily unavailable\"}");
                 return;
             }
-            respond(exchange, 200, "{\"answer\":\"Use scanner evidence and product context to prioritize readiness.\",\"confidence\":0.86,\"sources\":[{\"type\":\"scanner\"}],\"actions\":[]}");
+            respond(exchange, 200, """
+                    {
+                      "success": true,
+                      "result": {
+                        "message": "Use scanner evidence and product context to prioritize readiness.",
+                        "sanitizedPayload": {
+                          "safeSummary": "Use scanner evidence and product context to prioritize readiness.",
+                          "sources": [{"type": "scanner"}],
+                          "actions": []
+                        },
+                        "metadata": {"requestId": "loom-result-request"}
+                      }
+                    }
+                    """);
         });
-        server.createContext("/api/chat/me/suggestions", exchange -> respond(exchange, 200, "{\"suggestions\":[\"Prioritize critical scanner findings\",\"Export evidence for owner review\"]}"));
-        server.createContext("/api/ai/data-sync/batch", exchange -> respond(exchange, 200, "{\"status\":\"accepted\"}"));
+        server.createContext("/api/chat/me/suggestions", exchange -> {
+            if (!privateRuntimeAuthorized(exchange)) {
+                respond(exchange, 401, "{\"error\":\"unauthorized\"}");
+                return;
+            }
+            respond(exchange, 200, """
+                    {
+                      "success": true,
+                      "result": {
+                        "sanitizedPayload": {
+                          "suggestions": ["Prioritize critical scanner findings", "Export evidence for owner review"]
+                        },
+                        "metadata": {"requestId": "loom-suggestions-request"}
+                      }
+                    }
+                    """);
+        });
+        server.createContext("/api/ai/data-sync/batch", exchange -> {
+            if (!privateRuntimeAuthorized(exchange)) {
+                respond(exchange, 401, "{\"error\":\"unauthorized\"}");
+                return;
+            }
+            respond(exchange, 200, "{\"status\":\"accepted\"}");
+        });
         server.start();
+    }
+
+    private static boolean privateRuntimeAuthorized(HttpExchange exchange) {
+        String runtimeKey = exchange.getRequestHeaders().getFirst("X-AIFABRIC-RUNTIME-API-KEY");
+        String authorization = exchange.getRequestHeaders().getFirst("X-AIFABRIC-RUNTIME-AUTHORIZATION");
+        if (!"test-runtime-api-key".equals(runtimeKey) || authorization == null || !authorization.startsWith("Bearer ")) {
+            return false;
+        }
+        try {
+            SignedJWT jwt = SignedJWT.parse(authorization.substring("Bearer ".length()));
+            return "produs-staging-backend".equals(jwt.getJWTClaimsSet().getIssuer())
+                    && jwt.getJWTClaimsSet().getAudience().contains("dep-7706fafb")
+                    && jwt.getJWTClaimsSet().getStringClaim("sid") != null
+                    && jwt.getJWTClaimsSet().getStringListClaim("scopes").contains("chat:read");
+        } catch (Exception exception) {
+            return false;
+        }
     }
 
     private static void respond(HttpExchange exchange, int status, String body) throws IOException {

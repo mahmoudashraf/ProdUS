@@ -3,6 +3,7 @@ package com.produs.ai;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.ai.loom.LoomAIProperties;
+import com.produs.ai.loom.LoomAIRuntimeAssertionService;
 import com.produs.catalog.AICapabilityConfig;
 import com.produs.catalog.AICapabilityConfigRepository;
 import com.produs.catalog.PackageTemplate;
@@ -49,27 +50,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class LoomAIIntegrationService {
 
-    private static final List<String> ALLOWED_ACTIONS = List.of(
-            "produs.catalog.search",
-            "produs.product.list",
-            "produs.package.inspect",
-            "produs.workspace.inspect",
-            "produs.requirement.submit",
-            "produs.package.build_from_requirement",
-            "produs.team.shortlist",
-            "produs.workspace.create",
-            "produs.deliverable.update",
-            "produs.scan.start",
-            "produs.scan.status",
-            "produs.scan.cancel",
-            "produs.finding.inspect",
-            "produs.finding.accept_risk",
-            "produs.evidence.list",
-            "produs.evidence.upload_ci_result",
-            "produs.milestone.review_evidence"
-    );
+    private static final List<String> ALLOWED_ACTIONS = LoomAIToolAllowlist.toolNames();
 
     private final LoomAIProperties properties;
+    private final LoomAIRuntimeAssertionService runtimeAssertionService;
     private final ObjectMapper objectMapper;
     private final ProductProfileRepository productRepository;
     private final PackageInstanceRepository packageRepository;
@@ -90,6 +74,10 @@ public class LoomAIIntegrationService {
                 properties.isEnabled(),
                 isConfigured(),
                 properties.getEnvironment(),
+                properties.getIntegrationMode(),
+                properties.getAuthMode(),
+                properties.isPrivateRuntimeMode(),
+                runtimeAssertionService.isConfigured(),
                 configuredPath(properties.getAssistantSessionPath()),
                 configuredPath(properties.getAssistantQueryPath()),
                 configuredPath(properties.getAssistantSuggestionsPath()),
@@ -104,12 +92,15 @@ public class LoomAIIntegrationService {
         if (!isConfigured()) {
             return fallbackSession("LOOMAI_DISABLED", context);
         }
+        if (properties.isPrivateRuntimeMode() || properties.isPlatformBridgeMode()) {
+            return localSession(context);
+        }
         try {
             ProviderJsonResponse response = postJson(properties.getAssistantSessionPath(), Map.of(
                     "environment", properties.getEnvironment(),
                     "context", context,
                     "allowedActions", ALLOWED_ACTIONS
-            ));
+            ), user, "assistant-session");
             JsonNode body = response.body();
             String sessionId = textOr(body, "sessionId", UUID.randomUUID().toString());
             return new AssistantSessionResponse(
@@ -138,21 +129,20 @@ public class LoomAIIntegrationService {
             return fallbackAnswer("LOOMAI_DISABLED", context);
         }
         try {
-            ProviderJsonResponse response = postJson(properties.getAssistantQueryPath(), Map.of(
-                    "environment", properties.getEnvironment(),
-                    "sessionId", request.sessionId() == null ? "" : request.sessionId(),
-                    "message", request.message(),
-                    "context", context,
-                    "allowedActions", ALLOWED_ACTIONS
-            ));
+            ProviderJsonResponse response = postJson(
+                    properties.getAssistantQueryPath(),
+                    assistantQueryPayload(request, context),
+                    user,
+                    conversationId(request.sessionId(), context)
+            );
             JsonNode body = response.body();
             return new AssistantQueryResponse(
                     "LOOMAI",
                     "LIVE",
-                    textOr(body, "answer", textOr(body, "message", "")),
-                    doubleOr(body, "confidence", 0.0),
-                    jsonList(body.path("sources")),
-                    jsonList(body.path("actions")),
+                    normalizedAnswer(body),
+                    normalizedConfidence(body),
+                    jsonList(firstArray(body, "sources")),
+                    jsonList(firstArray(body, "actions")),
                     null,
                     response.providerRequestId()
             );
@@ -169,17 +159,14 @@ public class LoomAIIntegrationService {
             return fallbackSuggestions("LOOMAI_DISABLED", context);
         }
         try {
-            ProviderJsonResponse response = postJson(properties.getAssistantSuggestionsPath(), Map.of(
-                    "environment", properties.getEnvironment(),
-                    "context", context,
-                    "allowedActions", ALLOWED_ACTIONS
-            ));
+            ProviderJsonResponse response = postJson(
+                    properties.getAssistantSuggestionsPath(),
+                    assistantSuggestionsPayload(context),
+                    user,
+                    conversationId(null, context)
+            );
             JsonNode body = response.body();
-            List<String> parsedSuggestions = new ArrayList<>();
-            JsonNode values = body.path("suggestions");
-            if (values.isArray()) {
-                values.forEach(item -> parsedSuggestions.add(item.isTextual() ? item.asText() : item.path("title").asText(item.toString())));
-            }
+            List<String> parsedSuggestions = suggestionList(body);
             List<String> suggestions = parsedSuggestions.isEmpty() ? defaultSuggestionText(context) : parsedSuggestions;
             return new AssistantSuggestionsResponse("LOOMAI", "LIVE", suggestions, null, response.providerRequestId());
         } catch (RuntimeException exception) {
@@ -200,7 +187,7 @@ public class LoomAIIntegrationService {
                     "environment", properties.getEnvironment(),
                     "source", "ProdUS",
                     "records", records
-            ));
+            ), user, "knowledge-sync");
             return new KnowledgeSyncResponse("SYNCED", records.size(), response.providerRequestId(), null);
         } catch (RuntimeException exception) {
             log.warn("loomai_knowledge_sync_failed reason={}", exception.getClass().getSimpleName());
@@ -357,7 +344,63 @@ public class LoomAIIntegrationService {
         return safe;
     }
 
-    private ProviderJsonResponse postJson(String path, Object payload) {
+    private Map<String, Object> assistantQueryPayload(AssistantQueryRequest request, Map<String, Object> context) {
+        if (properties.isPrivateRuntimeMode() || properties.isPlatformBridgeMode()) {
+            Map<String, Object> payload = runtimeChatPayload(context, conversationId(request.sessionId(), context));
+            payload.put("query", request.message());
+            return payload;
+        }
+        return Map.of(
+                "environment", properties.getEnvironment(),
+                "sessionId", request.sessionId() == null ? "" : request.sessionId(),
+                "message", request.message(),
+                "context", context,
+                "allowedActions", ALLOWED_ACTIONS
+        );
+    }
+
+    private Map<String, Object> assistantSuggestionsPayload(Map<String, Object> context) {
+        if (properties.isPrivateRuntimeMode() || properties.isPlatformBridgeMode()) {
+            Map<String, Object> payload = runtimeChatPayload(context, conversationId(null, context));
+            payload.put("query", "Suggest the most useful next productization questions or actions for this page.");
+            return payload;
+        }
+        return Map.of(
+                "environment", properties.getEnvironment(),
+                "context", context,
+                "allowedActions", ALLOWED_ACTIONS
+        );
+    }
+
+    private Map<String, Object> runtimeChatPayload(Map<String, Object> context, String conversationId) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("conversationId", conversationId);
+        payload.put("mode", blank(properties.getDefaultMode()) ? "support_assistant" : properties.getDefaultMode());
+        payload.put("position", blank(properties.getDefaultPosition()) ? "productization" : properties.getDefaultPosition());
+        payload.put("storefrontContext", storefrontContext(context));
+        payload.put("context", context);
+        payload.put("allowedActions", ALLOWED_ACTIONS);
+        return payload;
+    }
+
+    private Map<String, Object> storefrontContext(Map<String, Object> context) {
+        String pageType = String.valueOf(context.getOrDefault("pageType", "productization"));
+        return Map.of(
+                "pageType", pageType,
+                "pageTitle", pageType.replace('-', ' ')
+        );
+    }
+
+    private String conversationId(String sessionId, Map<String, Object> context) {
+        if (!blank(sessionId)) {
+            return sessionId;
+        }
+        String actorRole = String.valueOf(context.getOrDefault("actorRole", "user"));
+        String pageType = String.valueOf(context.getOrDefault("pageType", "productization"));
+        return "produs-" + actorRole.toLowerCase() + "-" + pageType.toLowerCase();
+    }
+
+    private ProviderJsonResponse postJson(String path, Object payload, User user, String sessionId) {
         if (!isConfigured()) {
             throw new IllegalStateException("LoomAI is not configured");
         }
@@ -368,9 +411,7 @@ public class LoomAIIntegrationService {
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)));
-            if (properties.getApiKey() != null && !properties.getApiKey().isBlank()) {
-                builder.header("Authorization", "Bearer " + properties.getApiKey().trim());
-            }
+            applyProviderAuth(builder, user, sessionId);
             String requestId = MDC.get("requestId");
             if (requestId != null && !requestId.isBlank()) {
                 builder.header("X-Request-ID", requestId);
@@ -385,13 +426,141 @@ public class LoomAIIntegrationService {
             JsonNode body = response.body() == null || response.body().isBlank()
                     ? objectMapper.createObjectNode()
                     : objectMapper.readTree(response.body());
-            return new ProviderJsonResponse(body, response.headers().firstValue("X-Request-ID").orElse(null));
+            return new ProviderJsonResponse(body, providerRequestId(response, body));
         } catch (InterruptedException interruptedException) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("LoomAI request interrupted", interruptedException);
         } catch (Exception exception) {
             throw new IllegalStateException("LoomAI request failed", exception);
         }
+    }
+
+    private void applyProviderAuth(HttpRequest.Builder builder, User user, String sessionId) {
+        if (properties.isPrivateRuntimeAssertionAuth()) {
+            builder.header(
+                    blank(properties.getRuntimeApiKeyHeaderName()) ? "X-AIFABRIC-RUNTIME-API-KEY" : properties.getRuntimeApiKeyHeaderName(),
+                    properties.getRuntimeApiKey().trim()
+            );
+            builder.header(
+                    blank(properties.getRuntimeAuthorizationHeaderName()) ? "X-AIFABRIC-RUNTIME-AUTHORIZATION" : properties.getRuntimeAuthorizationHeaderName(),
+                    "Bearer " + runtimeAssertionService.createAssertion(user, sessionId)
+            );
+            return;
+        }
+        if (properties.isPlatformApiKeyAuth()) {
+            builder.header(
+                    blank(properties.getApiKeyHeaderName()) ? "X-PLATFORM-API-KEY" : properties.getApiKeyHeaderName(),
+                    properties.getApiKey().trim()
+            );
+            return;
+        }
+        if (properties.getApiKey() != null && !properties.getApiKey().isBlank()) {
+            builder.header("Authorization", "Bearer " + properties.getApiKey().trim());
+        }
+    }
+
+    private String providerRequestId(HttpResponse<?> response, JsonNode body) {
+        String headerValue = response.headers().firstValue("X-Request-ID")
+                .or(() -> response.headers().firstValue("X-AIFABRIC-REQUEST-ID"))
+                .or(() -> response.headers().firstValue("X-Provider-Request-ID"))
+                .orElse(null);
+        if (!blank(headerValue)) {
+            return headerValue;
+        }
+        JsonNode metadata = body.path("metadata");
+        JsonNode resultMetadata = body.path("result").path("metadata");
+        return firstText(
+                body.path("requestId"),
+                metadata.path("requestId"),
+                metadata.path("providerRequestId"),
+                resultMetadata.path("requestId"),
+                resultMetadata.path("providerRequestId")
+        );
+    }
+
+    private String normalizedAnswer(JsonNode body) {
+        String answer = firstText(
+                body.path("answer"),
+                body.path("message"),
+                body.path("safeSummary"),
+                body.path("result").path("answer"),
+                body.path("result").path("message"),
+                body.path("result").path("sanitizedPayload").path("safeSummary"),
+                body.path("result").path("sanitizedPayload").path("answer"),
+                body.path("sanitizedPayload").path("safeSummary"),
+                body.path("sanitizedPayload").path("answer")
+        );
+        return blank(answer) ? "LoomAI returned an empty answer." : answer;
+    }
+
+    private double normalizedConfidence(JsonNode body) {
+        JsonNode value = firstNumber(
+                body.path("confidence"),
+                body.path("result").path("confidence"),
+                body.path("result").path("sanitizedPayload").path("confidence"),
+                body.path("sanitizedPayload").path("confidence")
+        );
+        return value == null ? 0.0 : value.asDouble();
+    }
+
+    private JsonNode firstArray(JsonNode body, String field) {
+        JsonNode[] candidates = new JsonNode[]{
+                body.path(field),
+                body.path("result").path(field),
+                body.path("result").path("sanitizedPayload").path(field),
+                body.path("sanitizedPayload").path(field)
+        };
+        for (JsonNode candidate : candidates) {
+            if (candidate.isArray()) {
+                return candidate;
+            }
+        }
+        return objectMapper.createArrayNode();
+    }
+
+    private List<String> suggestionList(JsonNode body) {
+        JsonNode values = firstArray(body, "suggestions");
+        List<String> suggestions = new ArrayList<>();
+        values.forEach(item -> {
+            if (item.isTextual()) {
+                suggestions.add(item.asText());
+            } else {
+                String title = firstText(item.path("title"), item.path("label"), item.path("message"));
+                suggestions.add(blank(title) ? item.toString() : title);
+            }
+        });
+        return suggestions;
+    }
+
+    private String firstText(JsonNode... nodes) {
+        for (JsonNode node : nodes) {
+            if (node != null && node.isTextual() && !node.asText().isBlank()) {
+                return node.asText();
+            }
+        }
+        return null;
+    }
+
+    private JsonNode firstNumber(JsonNode... nodes) {
+        for (JsonNode node : nodes) {
+            if (node != null && node.isNumber()) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    private AssistantSessionResponse localSession(Map<String, Object> context) {
+        return new AssistantSessionResponse(
+                "PRODUS_SESSION",
+                "LOCAL",
+                "produs-" + UUID.randomUUID(),
+                LocalDateTime.now().plusMinutes(30),
+                null,
+                ALLOWED_ACTIONS,
+                null,
+                null
+        );
     }
 
     private AssistantSessionResponse fallbackSession(String reason, Map<String, Object> context) {
@@ -475,7 +644,12 @@ public class LoomAIIntegrationService {
     }
 
     private boolean isConfigured() {
-        return properties.isEnabled() && properties.getBaseUrl() != null && !properties.getBaseUrl().isBlank();
+        return properties.isEnabled()
+                && properties.getBaseUrl() != null
+                && !properties.getBaseUrl().isBlank()
+                && (!properties.isPrivateRuntimeMode() || properties.isPrivateRuntimeAssertionAuth())
+                && (!properties.isPlatformApiKeyAuth() || !blank(properties.getApiKey()))
+                && runtimeAssertionService.isConfigured();
     }
 
     private boolean configuredPath(String path) {
@@ -510,6 +684,10 @@ public class LoomAIIntegrationService {
 
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private boolean blank(String value) {
+        return value == null || value.isBlank();
     }
 
     private String joinText(String... parts) {
@@ -573,6 +751,10 @@ public class LoomAIIntegrationService {
             boolean enabled,
             boolean configured,
             String environment,
+            String integrationMode,
+            String authMode,
+            boolean privateRuntimeMode,
+            boolean privateRuntimeAuthConfigured,
             boolean assistantSessionConfigured,
             boolean assistantQueryConfigured,
             boolean assistantSuggestionsConfigured,

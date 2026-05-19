@@ -148,6 +148,31 @@ class LoomAIIntegrationControllerTest {
                 .andExpect(jsonPath("$.suggestions[0]").value(containsString("finding")));
     }
 
+    @Test
+    void loomAIMcpDiscoveryEndpointsExposeOnlyProductizationAllowlist() throws Exception {
+        mockMvc.perform(get("/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+
+        mockMvc.perform(get("/loomai/tool-allowlist"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ready").value(true))
+                .andExpect(jsonPath("$.profile").value("loomai-productization"))
+                .andExpect(jsonPath("$.tools[?(@.name == 'produs.scan.status')]").exists())
+                .andExpect(jsonPath("$.tools[?(@.name == 'produs.team.profile.update')]").doesNotExist());
+
+        mockMvc.perform(post("/mcp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"jsonrpc":"2.0","id":"tools","method":"tools/list","params":{}}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.jsonrpc").value("2.0"))
+                .andExpect(jsonPath("$.id").value("tools"))
+                .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.catalog.search')]").exists())
+                .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.team.invite')]").doesNotExist());
+    }
+
     private User saveUser(String email, User.UserRole role) {
         User user = new User();
         user.setEmail(email);

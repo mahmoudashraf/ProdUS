@@ -197,18 +197,38 @@ Expected LoomAI runtime configuration:
 
 ```text
 LOOMAI_BASE_URL
-LOOMAI_API_KEY
 LOOMAI_ENABLED
 LOOMAI_ENVIRONMENT
+LOOMAI_INTEGRATION_MODE
+LOOMAI_AUTH_MODE
+LOOMAI_RUNTIME_API_KEY
+LOOMAI_ASSERTION_ISSUER
+LOOMAI_ASSERTION_AUDIENCE
+LOOMAI_ASSERTION_SIGNING_ALGORITHM
+LOOMAI_ASSERTION_SIGNING_SECRET or LOOMAI_ASSERTION_PRIVATE_KEY_PATH
 LOOMAI_TIMEOUT_MS
-LOOMAI_ASSISTANT_SESSION_PATH
 LOOMAI_ASSISTANT_QUERY_PATH
 LOOMAI_ASSISTANT_SUGGESTIONS_PATH
 LOOMAI_DATA_SYNC_BATCH_PATH
 LOOMAI_DATA_SYNC_DELETE_PATH
 ```
 
-Staging currently keeps `LOOMAI_ENABLED=false` until real LoomAI staging credentials are provided.
+Staging should use direct private-runtime integration as the preferred path. The Platform consumer bridge remains an operator fallback, not the target application architecture.
+
+Preferred staging mode:
+
+```text
+LOOMAI_ENABLED=true
+LOOMAI_ENVIRONMENT=staging
+LOOMAI_INTEGRATION_MODE=BACKEND_MEDIATED_PRIVATE_RUNTIME
+LOOMAI_AUTH_MODE=PRIVATE_RUNTIME_ASSERTION
+LOOMAI_BASE_URL=http://dep-7706fafb.46.224.145.148.sslip.io
+LOOMAI_ASSERTION_AUDIENCE=dep-7706fafb
+LOOMAI_ASSISTANT_QUERY_PATH=/api/chat/me/query
+LOOMAI_ASSISTANT_SUGGESTIONS_PATH=/api/chat/me/suggestions
+```
+
+`LOOMAI_RUNTIME_API_KEY` and assertion signing material must be held only in backend/server-side secrets. The browser must never receive runtime keys, signing material, Platform API keys, or private-runtime assertions.
 
 ## MCP Integration Model
 
@@ -317,8 +337,11 @@ LoomAI integration team must provide:
 
 - LoomAI staging deployment ID
 - LoomAI staging base URL
-- LoomAI staging API key or service credential
-- confirmed auth header format
+- LoomAI private runtime API key
+- accepted ProdUS staging assertion issuer, for example `produs-staging-backend`
+- assertion audience, currently `dep-7706fafb`
+- signing strategy, either a ProdUS-owned HMAC secret or a ProdUS-owned private key registered with LoomAI runtime security
+- confirmed private-runtime auth header format
 - confirmed request/response schemas
 - provider request ID field or header
 - rate-limit headers and timeout guidance
@@ -329,10 +352,16 @@ LoomAI integration team must provide:
 ProdUS team must then configure staging:
 
 - set `LOOMAI_BASE_URL`
-- set `LOOMAI_API_KEY`
 - set `LOOMAI_ENVIRONMENT=staging`
+- set `LOOMAI_INTEGRATION_MODE=BACKEND_MEDIATED_PRIVATE_RUNTIME`
+- set `LOOMAI_AUTH_MODE=PRIVATE_RUNTIME_ASSERTION`
+- set `LOOMAI_RUNTIME_API_KEY`
+- set `LOOMAI_ASSERTION_ISSUER`
+- set `LOOMAI_ASSERTION_AUDIENCE`
+- set exactly one signing source: `LOOMAI_ASSERTION_SIGNING_SECRET` or `LOOMAI_ASSERTION_PRIVATE_KEY_PATH`
 - set `LOOMAI_ENABLED=true`
-- confirm assistant/session/query/suggestion endpoint paths
+- confirm query/suggestion endpoint paths
+- keep assistant session creation local to ProdUS unless LoomAI provides a formal session endpoint
 - run knowledge preview
 - run safe knowledge sync
 - validate status endpoint

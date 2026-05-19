@@ -35,6 +35,9 @@ public class LoomAIProvider implements PackageGovernanceProvider {
         if (!isConfigured()) {
             return fallback("LOOMAI_DISABLED", request.deterministicOutputJson(), request.fallbackConfidence(), null);
         }
+        if (properties.isPrivateRuntimeMode()) {
+            return fallback("LOOMAI_PRIVATE_RUNTIME_PACKAGE_GOVERNANCE_NOT_CONFIGURED", request.deterministicOutputJson(), request.fallbackConfidence(), null);
+        }
 
         try {
             String requestBody = objectMapper.writeValueAsString(Map.of(

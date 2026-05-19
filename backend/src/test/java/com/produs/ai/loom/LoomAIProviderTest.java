@@ -23,6 +23,8 @@ class LoomAIProviderTest {
     void disabledProviderReturnsDeterministicFallback() {
         LoomAIProperties properties = new LoomAIProperties();
         properties.setEnabled(false);
+        properties.setIntegrationMode("DIRECT");
+        properties.setAuthMode("BEARER");
         LoomAIProvider provider = new LoomAIProvider(properties, objectMapper);
 
         PackageGovernanceProvider.PackageGovernanceResult result = provider.reviewPackage(request());
@@ -31,6 +33,22 @@ class LoomAIProviderTest {
         assertThat(result.fallback()).isTrue();
         assertThat(result.fallbackReason()).isEqualTo("LOOMAI_DISABLED");
         assertThat(result.outputJson()).contains("DETERMINISTIC_CATALOG");
+    }
+
+    @Test
+    void privateRuntimeModeDoesNotUseLegacyPackageGovernanceEndpoint() {
+        LoomAIProperties properties = new LoomAIProperties();
+        properties.setEnabled(true);
+        properties.setBaseUrl("http://127.0.0.1:1");
+        properties.setIntegrationMode("BACKEND_MEDIATED_PRIVATE_RUNTIME");
+        properties.setAuthMode("PRIVATE_RUNTIME_ASSERTION");
+        LoomAIProvider provider = new LoomAIProvider(properties, objectMapper);
+
+        PackageGovernanceProvider.PackageGovernanceResult result = provider.reviewPackage(request());
+
+        assertThat(result.provider()).isEqualTo("RULES_FALLBACK");
+        assertThat(result.fallback()).isTrue();
+        assertThat(result.fallbackReason()).isEqualTo("LOOMAI_PRIVATE_RUNTIME_PACKAGE_GOVERNANCE_NOT_CONFIGURED");
     }
 
     @Test
@@ -123,6 +141,8 @@ class LoomAIProviderTest {
     private LoomAIProperties propertiesFor(HttpServer server, int timeoutMs) {
         LoomAIProperties properties = new LoomAIProperties();
         properties.setEnabled(true);
+        properties.setIntegrationMode("DIRECT");
+        properties.setAuthMode("BEARER");
         properties.setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
         properties.setApiKey("test-key");
         properties.setTimeoutMs(timeoutMs);
