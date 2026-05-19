@@ -1,275 +1,425 @@
-# ProdOps AI Enablement Plan - Powered by LoomAI Runtime
+# ProdOps AI Enablement Plan - LoomAI Runtime For Staging And Production
 
-## The Relationship
+Date: 2026-05-19
 
-ProdOps is an independent product. LoomAI is its AI service provider.
+Status: revised for the current Coolify staging deployment
 
-ProdOps builds the marketplace, the workflows, the UI, and the business rules. When ProdOps needs AI capabilities - diagnosis, governance, intelligent search, automated checks - it calls its LoomAI deployment. ProdOps configures LoomAI with productization knowledge and uses it internally as an AI tool.
+Product scope: ProdUS Platform / ProdOps Network
 
-This is a vendor-customer relationship. LoomAI sells AI runtime. ProdOps buys it.
+Audience: ProdUS product, backend, frontend, scanner, MCP, and LoomAI integration owners
 
----
+## Executive Position
 
-## Why ProdOps Needs AI (The Business Problem)
+ProdUS is the productization platform. LoomAI is the external AI runtime used by ProdUS for grounded product, project, scanner, package, and evidence intelligence.
 
-The productization marketplace has manual bottlenecks at every step:
+ProdUS owns the marketplace, workflows, UI, business rules, authorization, product data, scanner execution, object storage, and audit records. LoomAI provides AI reasoning, retrieval, suggestions, and governed action preparation through a configured deployment.
 
-| Step | Without AI | Cost of manual |
-|---|---|---|
-| Understanding product state | Owner describes vaguely, reviewer guesses | Hours per intake, inconsistent quality |
-| Identifying what work is needed | Generic checklists, owner picks randomly | Wrong services selected, rework later |
-| Building realistic packages | Manual scoping by experts | Expensive, slow, not scalable |
-| Finding the right team | Directory browsing, hope for the best | Poor matches, failed projects |
-| Tracking delivery quality | Owner checks manually or doesn't check | Disputes, missed issues, silent failures |
-| Deciding when work is done | Subjective opinion | Disagreements, delayed payments |
+The integration must run through ProdUS-controlled backend broker APIs and the ProdUS MCP allowlist. LoomAI must not connect directly to the database, object storage, repositories, user sessions, or scanner runtime.
 
-Every manual step = slower cycle, lower margins, more disputes, worse experience.
+## Current Staging Baseline
 
----
+The proposal is no longer only conceptual. ProdUS now has a running Coolify staging stack that should be treated as the first LoomAI integration target.
 
-## What LoomAI Gives ProdOps (Business Capabilities)
+| Area | Staging Configuration | Current State |
+| --- | --- | --- |
+| Frontend | `https://produs-staging.46.224.145.148.sslip.io` | Running and returning HTTP 200 |
+| Backend API | `https://produs-api-staging.46.224.145.148.sslip.io` | Running with production profile and healthy actuator/API health checks |
+| Database | Coolify Postgres database `produs_staging` | Running and healthy |
+| Auth | Supabase email/password auth | Real Supabase auth is enabled for staging users |
+| Storage | MinIO/S3-compatible storage, bucket `produs-staging` | Running and healthy |
+| Scanner foundation | Backend scanner runtime, normalization, artifact storage, and readiness checks | Available for staging validation once provider credentials/source access are configured |
+| LoomAI runtime | Backend LoomAI integration paths are configurable | Disabled on staging until real LoomAI deployment credentials are provided |
+| GitHub/GitLab providers | Connector code paths, webhook verification, and mocked-provider tests | Real app/client credentials still pending |
 
-ProdOps subscribes to a LoomAI deployment and gets five AI capabilities:
+### Staging Test Identities
 
-### 1. Diagnosis (Thinker)
+These identities are for staging validation only and must not be treated as production credentials. Passwords are maintained in the private deployment handoff/auth runbook and must be rotated before any external pilot.
 
-**Business value:** Turn vague product problems into structured, evidence-backed assessments.
+| Role | Email | Primary AI Validation Use |
+| --- | --- | --- |
+| Admin | `admin@produs.com` | LoomAI status, knowledge sync, readiness checks, provider traces |
+| Product owner | `owner@produs.com` | Product readiness, package guidance, scanner findings, workspace evidence |
+| Team manager | `team@produs.com` | Workspace evidence, deliverables, milestone criteria, scanner results |
+| Specialist | `specialist@produs.com` | Productization service context, assigned evidence, scanner explanation |
+| Advisor | `advisor@produs.com` | Governance review, evidence interpretation, milestone support |
 
-**What it means for ProdOps:**
-- Owner connects their product → AI produces a health report with real evidence
-- Every recommendation is grounded in what was actually found, not generic advice
-- Owners trust the platform because they can see WHY something was recommended
-- Same capability used again later to assess whether deliverables meet acceptance criteria
+## Product Boundary For AI
 
-**Revenue impact:**
-- Justifies $199-499 intake fee (owner receives tangible diagnostic value)
-- Reduces disputes (evidence shows whether work was needed)
-- Increases conversion (owner sees specific gaps, feels urgency)
+ProdUS will use AI where it improves productization outcomes. AI support is focused on:
 
-### 2. Governance (Resolver)
+- product readiness and diagnosis
+- project/workspace status and evidence
+- service/package recommendations
+- scanner findings and normalized risk explanation
+- milestone evidence review
+- owner/team guidance during delivery
+- admin visibility into AI health, knowledge sync, and provider traces
 
-**Business value:** Every important decision goes through a structured check before execution.
+AI must not support or execute unrelated network/community operations:
 
-**What it means for ProdOps:**
-- Package creation: AI checks that dependencies are included, estimates are realistic, no unsupported claims
-- Team assignment: AI checks eligibility, capacity, budget alignment before confirming
-- Handoff approval: AI checks that all required items are complete before closing
+- team creation
+- team invitations
+- solo expert join requests
+- profile edits
+- account settings
+- community messages
+- commercial/payment actions
+- broad admin mutation
+- production approval or compliance certification without human review
 
-**Revenue impact:**
-- Fewer failed packages (caught unrealistic scope early)
-- Fewer disputes (both sides confirmed what they agreed to)
-- Higher trust (owners know the platform governs quality, not just lists services)
+This boundary keeps LoomAI valuable without turning it into an unrestricted operator across the platform.
 
-### 3. Intelligent Search & Answers (Companion)
+## Why ProdUS Needs LoomAI
 
-**Business value:** Anyone can ask questions and get grounded, accurate answers from the platform's knowledge.
+The productization marketplace has manual bottlenecks at every step.
 
-**What it means for ProdOps:**
-- Owner asks "what does my product need?" → gets service recommendations grounded in taxonomy
-- Team asks "what are the acceptance criteria?" → gets answer from the package documents
-- Admin asks "which service category has the most demand?" → gets answer from platform data
+| Step | Without AI | Cost Of Manual Work |
+| --- | --- | --- |
+| Understanding product state | Owner describes vaguely, reviewer guesses | Slow intake, inconsistent recommendations |
+| Identifying needed services | Generic checklists, owner picks randomly | Wrong services selected, missing dependencies |
+| Building realistic packages | Human scoping from scratch | Expensive, slow, hard to scale |
+| Matching teams | Directory browsing and guesswork | Poor matches, failed projects |
+| Tracking delivery quality | Owner asks for updates manually | Late discovery of risks and blockers |
+| Accepting milestones | Subjective opinion | Disputes, delayed payments, weak evidence |
 
-**Revenue impact:**
-- Faster onboarding (owners find what they need without reading documentation)
-- Less support burden (AI answers routine questions)
-- Better retention (workspace assistant adds daily value)
+LoomAI should help ProdUS convert product evidence into structured recommendations, governed decisions, and plain-language answers.
 
-### 4. Automated Checks (MCP Tools)
+## What LoomAI Gives ProdUS
 
-**Business value:** The platform can actually verify claims instead of trusting self-reports.
+### 1. Diagnosis
 
-**What it means for ProdOps:**
-- Scan a repo and confirm tech stack (don't rely on owner's self-description)
-- Probe a deployment and confirm it's live (don't rely on team saying "deployed")
-- Check dependencies and confirm no critical vulnerabilities
-- Verify CI is passing before accepting a milestone
+Business value: turn vague product problems into structured, evidence-backed assessments.
 
-**Revenue impact:**
-- Higher quality outcomes (automated verification catches what humans miss)
-- Faster milestone reviews (automated checks replace manual inspection)
-- Stronger reputation system (based on verified evidence, not just ratings)
+ProdUS usage:
 
-### 5. Knowledge & Pattern Matching (RAG)
+- explain product health from scanner evidence, product metadata, package state, and workspace progress
+- identify blockers such as missing CI/CD, vulnerable dependencies, missing monitoring, weak handoff evidence, or incomplete acceptance criteria
+- produce owner-readable summaries grounded in actual evidence
 
-**Business value:** The platform gets smarter with every completed project.
+Revenue impact:
 
-**What it means for ProdOps:**
-- Service taxonomy, dependency rules, and templates indexed as searchable knowledge
-- Completed packages become anonymized case patterns for future recommendations
-- Team portfolios and outcomes become matching intelligence
-- The longer the platform runs, the better its recommendations
+- stronger intake value
+- higher package conversion
+- lower dispute rate because recommendations are evidence-backed
 
-**Revenue impact:**
-- Improving recommendations over time = higher conversion rates
-- Pattern matching = better budget/timeline estimates = fewer surprises
-- Knowledge accumulation = competitive moat (can't be copied overnight)
+### 2. Governance
 
----
+Business value: important platform decisions are checked before execution.
 
-## AI-Enhanced Owner Journey
+ProdUS usage:
 
-### Step 1: "What's wrong with my product?"
+- validate package completeness against service dependencies
+- identify unrealistic timeline, budget, or acceptance criteria gaps
+- review milestone evidence before a human approves or requests changes
+- explain risk acceptance implications without silently accepting risk
 
-**Today (manual):** Owner fills a form, maybe uploads screenshots, writes paragraphs. A human reviewer spends 2-4 hours assessing.
+Governance rule: LoomAI may recommend, explain, or prepare actions. ProdUS backend remains the authority that authorizes and executes any mutation.
 
-**With LoomAI:** Owner connects their repo or URL. AI produces an evidence-backed health report in minutes. Shows specific findings: "No CI/CD configured. 14 critical dependency vulnerabilities. No monitoring detected. Authentication uses deprecated method."
+### 3. Intelligent Search And Answers
 
-**Business result:** Owner immediately understands what they need. Willingness to pay for the right services increases because the problems are specific and proven, not vague.
+Business value: owners, teams, advisors, and admins can ask grounded questions instead of browsing scattered pages.
 
-### Step 2: "What services do I need?"
+ProdUS usage:
 
-**Today (manual):** Owner guesses from a catalog. Picks "cloud deployment" without realizing they also need security, monitoring, and CI/CD.
+- owner asks what their product needs next
+- team asks what evidence is missing for a milestone
+- admin asks which productization services are driving the most scanner risk
+- advisor asks why a package was recommended
 
-**With LoomAI:** AI recommends services based on the diagnosis evidence. Explains dependencies: "Cloud deployment without CI/CD means manual deployments. Without monitoring, you won't know when it fails." Shows what similar products needed.
+The assistant should use safe indexed knowledge plus live authorized ProdUS context through broker APIs/MCP.
 
-**Business result:** Higher average package value (dependencies are surfaced). Fewer incomplete packages (fewer projects that stall because critical work was skipped).
+### 4. Scanner-Aware Evidence Reasoning
 
-### Step 3: "Is this package realistic?"
+Business value: the platform can explain verified evidence instead of relying on self-reports.
 
-**Today (manual):** Owner accepts whatever the team proposes. No independent validation.
+ProdUS owns scanner execution. LoomAI does not run scanners directly.
 
-**With LoomAI:** AI governance checks the package: Are all dependencies addressed? Is the timeline feasible for this scope? Is the budget in market range? Shows the owner a preview before confirming.
+LoomAI should reason over normalized scanner outputs, such as:
 
-**Business result:** Fewer failed projects. Owners trust the platform's quality control. Teams appreciate that only serious, well-scoped packages reach them.
+- repository metadata and tech-stack evidence
+- dependency and vulnerability findings
+- secrets/configuration findings after redaction
+- CI/CD signal and workflow status
+- deployment probe results
+- handoff readiness checks
+- milestone evidence and acceptance criteria status
 
-### Step 4: "Which team should I work with?"
+AI answers must distinguish verified evidence, missing evidence, inferred risk, and recommendation.
 
-**Today (manual):** Owner browses profiles, reads reviews, picks based on gut feeling.
+### 5. Knowledge And Pattern Matching
 
-**With LoomAI:** AI scores teams against the specific package: tech stack match, similar project experience, completion rate for this service type, budget alignment, availability. Explains WHY each team fits. Compares strengths.
+Business value: the platform improves as service taxonomy, package templates, delivery evidence, and completed case patterns mature.
 
-**Business result:** Better matches = fewer disputes, higher satisfaction, more repeat usage. Teams get relevant opportunities instead of noise.
+ProdUS safe knowledge records include:
 
-### Step 5: "Is the work being done properly?"
+- service categories and modules
+- service dependencies
+- package templates
+- lifecycle workflow templates
+- acceptance criteria templates
+- evidence requirement templates
+- scanner tool descriptions
+- approved anonymized case patterns
+- public productization help content
 
-**Today (manual):** Owner asks for updates. Team says "going well." Problems surface only at delivery.
+Sensitive records must not be indexed directly. Private product/workspace data should be fetched live through authorized ProdUS APIs and returned as redacted summaries.
 
-**With LoomAI:** Workspace AI tracks progress, answers questions from both sides, detects scope creep, and summarizes activity. When milestones are submitted, AI runs automated checks and produces an evidence report.
+## Staging Integration Flow
 
-**Business result:** Problems caught early. Owners stay engaged without micromanaging. Disputes resolved with evidence instead of opinions.
+The staging integration should work this way:
 
-### Step 6: "Is this done? Can I accept it?"
+1. User signs in through the staging frontend with Supabase auth.
+2. Frontend sends the Supabase JWT to the ProdUS backend.
+3. Backend validates the user, role, and tenant context.
+4. Backend builds a safe AI context from authorized product, project, scanner, package, and evidence data.
+5. Backend calls LoomAI only when `LOOMAI_ENABLED=true`.
+6. LoomAI answers using approved knowledge and allowlisted MCP tools.
+7. ProdUS stores provider trace/audit data and returns the answer to the UI.
+8. If LoomAI is disabled, unavailable, slow, or invalid, ProdUS returns deterministic fallback guidance instead of failing the core workflow.
 
-**Today (manual):** Owner looks at the deliverable, compares to their memory of what was agreed, decides subjectively.
+## ProdUS Backend Broker Surface
 
-**With LoomAI:** AI compares the deliverable against acceptance criteria from the original package. Shows: "4/5 criteria met. Missing: deployment documentation. Evidence: no README in deployment directory, no CI/CD pipeline docs found."
+The current backend is the broker between frontend, LoomAI, MCP, scanner evidence, and production data.
 
-**Business result:** Objective milestone acceptance. Both sides know what "done" means. Faster payment cycles because acceptance is evidence-based.
+Frontend-facing AI endpoints:
 
-### Step 7: "Is my product ready to run independently?"
+```text
+GET  /api/ai/loomai/status
+GET  /api/ai/loomai/knowledge-preview
+POST /api/ai/loomai/knowledge-sync
+POST /api/ai/assistant/session
+POST /api/ai/assistant/query
+POST /api/ai/assistant/suggestions
+GET  /api/admin/production-readiness
+```
 
-**Today (manual):** Handoff is informal. Support gaps appear weeks later.
+Expected LoomAI runtime configuration:
 
-**With LoomAI:** AI governance checks handoff readiness: deployment documented, monitoring configured, backups verified, known issues listed, support process defined. Won't approve handoff until evidence exists for each item.
+```text
+LOOMAI_BASE_URL
+LOOMAI_API_KEY
+LOOMAI_ENABLED
+LOOMAI_ENVIRONMENT
+LOOMAI_TIMEOUT_MS
+LOOMAI_ASSISTANT_SESSION_PATH
+LOOMAI_ASSISTANT_QUERY_PATH
+LOOMAI_ASSISTANT_SUGGESTIONS_PATH
+LOOMAI_DATA_SYNC_BATCH_PATH
+LOOMAI_DATA_SYNC_DELETE_PATH
+```
 
-**Business result:** Fewer post-delivery emergencies. Higher support package attach rate (AI shows what ongoing needs remain). Cleaner separation between delivery and operations.
+Staging currently keeps `LOOMAI_ENABLED=false` until real LoomAI staging credentials are provided.
 
----
+## MCP Integration Model
 
-## AI-Enhanced Team Journey
+ProdUS MCP must expose a LoomAI-safe profile only.
 
-### "Is this opportunity worth pursuing?"
+```text
+PRODUS_MCP_TOOL_PROFILE=loomai-productization
+```
 
-**With LoomAI:** Teams receive only pre-qualified, well-scoped packages that match their capabilities. AI explains why the match is strong and what the expected scope is. No more wading through vague, underbudgeted requests.
+Expected MCP endpoints:
 
-### "How should I scope my proposal?"
+```text
+POST /mcp
+GET  /loomai/tool-allowlist
+GET  /health
+```
 
-**With LoomAI:** AI suggests milestone structures based on similar past packages for this service type. Shows typical timelines and budget ranges. Team refines instead of starting from scratch.
+The LoomAI deployment must import only the `loomai-productization` tool profile, not the full internal MCP surface.
 
-### "How do I prove my work is good?"
+Initial AI-visible tool groups should stay focused on productization:
 
-**With LoomAI:** Automated checks validate deliverables against acceptance criteria. Team doesn't need to argue quality - evidence speaks. Strong completion records feed into reputation, which feeds into better future matching.
+- catalog/service search
+- product and package inspection
+- workspace inspection
+- scanner status and finding inspection
+- evidence listing
+- milestone evidence review
+- confirmed requirement/package/workspace actions where explicitly allowed
 
----
+Any mutation must require explicit user confirmation, reason, request ID, role context, and idempotency key.
 
-## What ProdOps Configures in LoomAI
+## Owner Journey With LoomAI
 
-ProdOps doesn't build AI. It configures its LoomAI deployment with domain knowledge:
+### Product Readiness
 
-| Configuration | Content | Business Purpose |
-|---|---|---|
-| **Service taxonomy** | 8 categories, 40+ modules, dependencies between them | Powers service discovery and package recommendations |
-| **Package templates** | Standard packages with milestones, deliverables, acceptance criteria | Powers package governance and estimation |
-| **Dependency rules** | "If cloud deployment, then also need CI/CD and monitoring" | Powers package completeness checks |
-| **Assessment criteria** | What to check for each service type (repo, deployment, security) | Powers automated milestone review |
-| **Handoff checklists** | Required items per service type before handoff | Powers handoff governance |
-| **Matching weights** | How to score teams (stack fit, experience, reputation, budget, availability) | Powers team recommendations |
-| **Case patterns** | Anonymized completed packages (grows over time) | Powers estimation and similar-case matching |
+Owner asks what is blocking the product from production readiness. LoomAI answers from product details, scanner findings, package state, and workspace evidence.
 
-This is ProdOps intellectual property - domain expertise encoded as configuration. LoomAI stores it and reasons over it, but doesn't own it.
+Expected answer quality:
 
----
+- clear top risks
+- evidence-backed reasoning
+- next recommended service/package step
+- confidence and missing evidence
+- no unsupported claims
+
+### Service And Package Planning
+
+Owner asks which lifecycle services should be selected. LoomAI recommends service modules based on diagnosis evidence and service dependency rules.
+
+Expected answer quality:
+
+- recommended services
+- why each service matters
+- dependencies and conflicts
+- expected evidence or acceptance criteria
+- budget/timeline caveats if data is incomplete
+
+### Team And Workspace Guidance
+
+Owner asks whether delivery is progressing properly. LoomAI summarizes milestones, blockers, evidence, scanner results, and next decisions.
+
+Expected answer quality:
+
+- status by milestone
+- blocker explanations
+- evidence gaps
+- suggested owner actions
+- no autonomous team invite or community action
+
+## Team Journey With LoomAI
+
+### Evidence Clarity
+
+Team asks what evidence is needed for a deliverable or milestone. LoomAI answers from the package, acceptance criteria, scanner requirements, and workspace state.
+
+### Scanner Explanation
+
+Team asks why a finding matters. LoomAI explains the normalized scanner result, risk level, affected area, suggested remediation, and evidence expected after remediation.
+
+### Handoff Readiness
+
+Team asks whether handoff is ready. LoomAI reviews documented deployment, monitoring, backup, known issues, rollback, ownership, and support evidence.
+
+LoomAI may explain readiness, but human platform workflow still controls final approval.
+
+## Admin Journey With LoomAI
+
+Admins need operational control, not just chat.
+
+Required admin capabilities:
+
+- view LoomAI enabled/disabled status
+- view configured environment
+- preview safe knowledge before sync
+- sync safe knowledge to LoomAI
+- view sync result and provider trace
+- inspect fallback state
+- confirm MCP allowlist
+- monitor production readiness gaps
+
+The UI should follow the Apple-like design guidance already used in ProdUS: calm white canvas, clear hierarchy, minimal visual noise, rounded cards, precise status labels, and controls that directly map to backend actions.
+
+## Staging Enablement Work Remaining
+
+LoomAI integration team must provide:
+
+- LoomAI staging deployment ID
+- LoomAI staging base URL
+- LoomAI staging API key or service credential
+- confirmed auth header format
+- confirmed request/response schemas
+- provider request ID field or header
+- rate-limit headers and timeout guidance
+- data-sync batch and delete endpoint behavior
+- retrieval/index namespace naming
+- webhook secret if LoomAI webhooks are used
+
+ProdUS team must then configure staging:
+
+- set `LOOMAI_BASE_URL`
+- set `LOOMAI_API_KEY`
+- set `LOOMAI_ENVIRONMENT=staging`
+- set `LOOMAI_ENABLED=true`
+- confirm assistant/session/query/suggestion endpoint paths
+- run knowledge preview
+- run safe knowledge sync
+- validate status endpoint
+- validate owner/team/admin assistant flows
+- validate deterministic fallback by disabling LoomAI again
+
+GitHub/GitLab real provider credentials remain a separate prerequisite for live repository-connected scans. Until those are provided, scanner and connector flows should be validated with configured staging sources, manual imports, and mocked provider tests.
+
+## Staging Acceptance Criteria
+
+Before calling the LoomAI staging integration complete:
+
+- all staging roles can sign in through Supabase
+- frontend shows AI enabled/disabled state accurately
+- `GET /api/ai/loomai/status` reflects current LoomAI connectivity
+- knowledge preview contains only safe records
+- knowledge sync writes only approved records to the staging LoomAI deployment
+- owner assistant answers product readiness and service/package questions from authorized data
+- team assistant answers workspace evidence and scanner questions from authorized data
+- admin UI exposes provider trace/status without leaking secrets
+- fallback behavior works when LoomAI is disabled or unavailable
+- AI does not execute out-of-scope community/profile/team-invite/account actions
+- scanner findings are explained from normalized evidence, not raw unredacted artifacts
+
+## Production Readiness Conditions
+
+Production enablement requires:
+
+- separate LoomAI production deployment and credentials
+- separate production vector/index namespace
+- production-safe rate limits and timeout configuration
+- audit export or provider trace retention agreement
+- secrets rotation plan
+- data deletion/tombstone behavior verified
+- Supabase production auth settings confirmed
+- object-storage retention and deletion policy verified
+- GitHub/GitLab app credentials configured if live repository scans are part of production launch
+- security review of MCP allowlist and mutation confirmation policy
+- UI review across owner, team, advisor, and admin views
+- rollback plan: switch `LOOMAI_ENABLED=false` without breaking productization workflows
 
 ## Revenue Model
 
-### LoomAI Earns From ProdOps
+### LoomAI Earns From ProdUS
 
-LoomAI charges ProdOps a subscription + usage for AI capabilities:
+LoomAI charges ProdUS for AI runtime usage.
 
 | Service | Pricing Model |
-|---|---|
-| Platform subscription | Monthly fee for the deployment |
-| Diagnosis sessions | Per session or monthly allocation |
+| --- | --- |
+| Platform subscription | Monthly fee for staging/production deployments |
+| Diagnosis sessions | Per session or tier allocation |
 | Governance executions | Per execution or included in tier |
-| Search/answer queries | Per query or monthly allocation |
-| Automated checks | Per invocation |
-| Knowledge storage | Per GB indexed |
+| Assistant queries | Per query or monthly allocation |
+| Retrieval/indexing | Per indexed record or storage volume |
+| Tool/action orchestration | Per invocation or tier allocation |
 
-LoomAI earns whether ProdOps succeeds or fails at its marketplace business. Recurring infrastructure revenue.
+### ProdUS Earns From Owners And Teams
 
-### ProdOps Earns From Owners/Teams
+ProdUS monetizes the marketplace value built on top of LoomAI:
 
-ProdOps charges its own marketplace fees on top. The AI capabilities justify premium pricing:
+| Without AI | With LoomAI-Enabled ProdUS |
+| --- | --- |
+| Generic service catalog | Evidence-backed service recommendations |
+| Manual product intake | Paid product readiness diagnosis |
+| Commodity team directory | Governed team matching and package fit |
+| Subjective milestone review | Evidence-based milestone guidance |
+| High dispute risk | Traceable recommendations and scanner evidence |
 
-| Without AI (generic marketplace) | With LoomAI AI (ProdOps) |
-|---|---|
-| $0 intake (no unique value at entry) | $199-499 intake with real diagnosis report |
-| 5% referral fee (commodity platform) | 10-15% fee (AI adds matching, governance, quality) |
-| Low support attach rate | Higher attach rate (AI shows ongoing risks) |
-| High dispute rate | Lower dispute rate (evidence-based reviews) |
-| Slow conversion cycle | Faster conversion (AI reduces scoping time) |
+LoomAI is infrastructure. ProdUS owns the domain logic, marketplace experience, and monetization.
 
----
+## Why ProdUS Uses LoomAI Instead Of Building AI Infrastructure
 
-## Why ProdOps Chooses LoomAI Over Building Its Own AI
+| Build In-House AI Runtime | Use LoomAI Deployment |
+| --- | --- |
+| Months of runtime, RAG, trace, governance, and tool orchestration work | Configure and integrate through controlled backend APIs |
+| Requires specialized AI platform team | Lets ProdUS focus on productization workflows |
+| Higher risk of unsafe tool access | MCP allowlist and brokered action model |
+| Harder to operate consistently | Separate staging/production deployments and provider traces |
+| Distracts from marketplace quality | Keeps ProdUS focused on services, packages, evidence, and delivery |
 
-| Build own AI | Use LoomAI deployment |
-|---|---|
-| 6-12 months of AI infrastructure work | Configure and integrate in weeks |
-| Need AI/ML engineering team | Need only backend engineers who call APIs |
-| Must solve governance, evidence, RAG from scratch | Already solved and deployed |
-| Distracted from marketplace product-market fit | Focused entirely on marketplace value |
-| AI quality depends on ProdOps team's AI expertise | AI quality depends on LoomAI (specialist) |
-
-ProdOps's competitive advantage is in **productization domain expertise** (service taxonomy, dependency logic, team verification, marketplace operations) - not in building AI infrastructure.
-
----
-
-## Why Other Products Would Also Choose LoomAI
-
-The same value proposition applies beyond ProdOps:
-
-| Product Type | Uses Diagnosis For | Uses Governance For | Uses Search For |
-|---|---|---|---|
-| Legal tech | Case assessment | Document approval workflows | Case law retrieval |
-| Healthcare | Patient triage | Treatment protocol governance | Medical knowledge Q&A |
-| Education | Learning gap assessment | Curriculum governance | Course recommendations |
-| HR/Recruiting | Candidate evaluation | Hiring decision governance | Role/candidate matching |
-| Compliance | Risk assessment | Audit workflow governance | Regulation retrieval |
-| Support ops | Issue diagnosis | Escalation governance | Knowledge base answers |
-
-Every product that needs **evidence-based diagnosis**, **governed decisions**, or **grounded intelligent search** is a potential LoomAI customer.
-
-ProdOps is the first external proof that the model works.
-
----
+ProdUS competitive advantage is productization domain expertise: service taxonomy, package logic, scanner evidence, team verification, marketplace operations, and user experience.
 
 ## Summary
 
-- **LoomAI** sells AI runtime (diagnosis, governance, search, checks, knowledge) as a service
-- **ProdOps** buys LoomAI and configures it with productization domain knowledge
-- ProdOps builds the marketplace; LoomAI provides the intelligence layer
-- AI justifies premium pricing at every step of the owner/team journey
-- The knowledge base grows with every completed project (compounding moat for ProdOps)
-- LoomAI earns recurring subscription/usage revenue regardless of ProdOps marketplace performance
-- The same LoomAI deployment model applies to any product in any domain that needs governed AI
+- ProdUS has a live Coolify staging stack with frontend, backend, Postgres, Supabase auth, MinIO storage, and scanner foundations.
+- LoomAI is the planned AI runtime, but it is currently disabled on staging until real LoomAI staging credentials are supplied.
+- ProdUS backend remains the broker and authorization authority.
+- AI support is focused on product, project, package, scanner, evidence, and milestone workflows.
+- AI must not operate team creation, invites, solo expert joins, profiles, account settings, community messages, payment actions, or unrestricted admin mutations.
+- The next practical step is to configure LoomAI staging credentials, enable `LOOMAI_ENABLED=true`, sync safe knowledge, and validate the role-scoped owner/team/admin journeys.
