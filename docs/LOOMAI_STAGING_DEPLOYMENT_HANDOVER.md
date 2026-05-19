@@ -52,7 +52,11 @@ LoomAI must not connect directly to ProdUS Postgres, MinIO, Supabase, repositori
 
 ## 3. Greenfield Contract Decision
 
-ProdUS and LoomAI should use one canonical chat contract from the start. Do not preserve `message` / `sessionId` as the long-term LoomAI contract and do not make the Platform bridge a payload compatibility layer.
+ProdUS and LoomAI should use the platform canonical chat contract from the start. The source-of-truth implementation plan is:
+
+`/Users/mahmoudashraf/Downloads/Projects/TheBaseRepo/doc/Productization/future-work/MarketPlace/Products/Strategy/RoadMaps/Implementation/010_5_LOOMAI_CANONICAL_RUNTIME_BRIDGE_CONTRACT_STANDARDIZATION_PLAN.md`
+
+Do not preserve `message` / `sessionId` as the long-term LoomAI contract and do not make the Platform bridge a payload compatibility layer.
 
 The canonical chat request is:
 
@@ -290,17 +294,9 @@ Required request fields:
 
 Backend response normalization:
 
-The ProdUS backend adapter must return the flat canonical response. If the runtime already returns the canonical response, pass through only the approved fields. If the runtime returns the current nested envelope, normalize it as follows:
+The ProdUS backend adapter must return the flat canonical response. Current LoomAI runtime/bridge responses are expected to be canonical already, so ProdUS should pass through only the approved fields: `success`, `type`, `answer`, `safeSummary`, `conversationId`, `mode`, `position`, `sources`, `actions`, `suggestions`, `fallbackReason`, `providerRequestId`, and safe metadata. Non-2xx provider responses should become deterministic fallback responses. Do not expose runtime/provider envelopes to the browser.
 
-| Runtime/bridge adapter input | Canonical ProdUS response field |
-| --- | --- |
-| `result.sanitizedPayload.safeSummary` | `answer` |
-| `result.sanitizedPayload.safeSummary` | `safeSummary` |
-| `result.sanitizedPayload.suggestions` | `actions` or suggestions after filtering |
-| `result.metadata.requestId` | `providerRequestId` when present |
-| `success=false` or non-2xx | deterministic fallback |
-
-This normalization is provider adapter work, not a compatibility promise for old ProdUS request DTOs. The ProdUS public assistant contract remains `query`, `conversationId`, `context`, and the flat canonical response.
+This is not a compatibility promise for old ProdUS request DTOs. The ProdUS public assistant contract remains `query`, `conversationId`, `context`, and the flat canonical response.
 
 ProdUS can keep the same frontend-facing endpoint paths:
 
@@ -800,19 +796,18 @@ Do not mark ProdUS LoomAI integration complete until these pass:
 Current gaps are expected and should be tracked:
 
 1. ProdUS staging still needs issuer/signing material registered and configured before `LOOMAI_ENABLED=true`.
-2. ProdUS backend/frontend DTOs still need to be aligned to the canonical `query` / `conversationId` / `context` payload if the current code still exposes `message` / `sessionId`.
+2. ProdUS backend DTOs have been aligned to the canonical `query` / `conversationId` / `context` payload. Frontend wiring still needs a browser smoke once the UI surface is enabled.
 3. ProdUS safe knowledge sync is designed but not connected to a confirmed runtime ingestion endpoint.
 4. ProdUS MCP tools are not installed in the LoomAI deployment until discovery is rerun and approved.
 5. Current indexed data is generic help/policy marketplace data, not ProdUS productization knowledge.
 
 ## 15. Recommended Next Work
 
-1. Refactor ProdUS assistant DTOs to the canonical `query` / `conversationId` / `context` contract.
-2. Register the ProdUS staging issuer and signing material with LoomAI deployment security.
-3. Configure Coolify backend env vars for direct private runtime mode.
-4. Keep frontend route paths unchanged through `/api/ai/assistant/*`, but standardize the payload.
-5. Keep session creation local in ProdUS until a runtime session endpoint is formalized.
-6. Rerun MCP discovery against ProdUS `/mcp` and `/loomai/tool-allowlist`.
-7. Decide safe knowledge ingestion path: runtime import endpoint or ProdUS-specific Marketplace DATA plugin.
+1. Register the ProdUS staging issuer and signing material with LoomAI deployment security.
+2. Configure Coolify backend env vars for direct private runtime mode.
+3. Keep frontend route paths unchanged through `/api/ai/assistant/*`, but use the canonical payload.
+4. Keep session creation local in ProdUS until a runtime session endpoint is formalized.
+5. Rerun MCP discovery against ProdUS `/mcp` and `/loomai/tool-allowlist`.
+6. Decide safe knowledge ingestion path: runtime import endpoint or ProdUS-specific Marketplace DATA plugin.
 8. Run end-to-end role tests: admin, owner, team manager, specialist, advisor.
 9. Only after staging passes, design production deployment with separate runtime, credentials, vector namespace, rate limits, and rollback plan.

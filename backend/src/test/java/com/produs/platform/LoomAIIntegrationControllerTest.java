@@ -120,8 +120,8 @@ class LoomAIIntegrationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "sessionId": "fallback-session",
-                                  "message": "What scanner evidence is missing?",
+                                  "conversationId": "fallback-session",
+                                  "query": "What scanner evidence is missing?",
                                   "context": {
                                     "pageType": "scanner-evidence",
                                     "productId": "%s"

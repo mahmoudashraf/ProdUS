@@ -100,8 +100,8 @@ class LoomAIStagingIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "sessionId": "loom-session-123",
-                                  "message": "Summarize scanner readiness",
+                                  "conversationId": "loom-session-123",
+                                  "query": "Summarize scanner readiness",
                                   "context": {"pageType":"scanner-evidence","productId":"%s"}
                                 }
                                 """.formatted(product.getId())))
@@ -115,8 +115,8 @@ class LoomAIStagingIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "sessionId": "loom-session-123",
-                                  "message": "force fallback",
+                                  "conversationId": "loom-session-123",
+                                  "query": "force fallback",
                                   "context": {"pageType":"scanner-evidence","productId":"%s"}
                                 }
                                 """.formatted(product.getId())))
@@ -163,15 +163,12 @@ class LoomAIStagingIntegrationTest {
             respond(exchange, 200, """
                     {
                       "success": true,
-                      "result": {
-                        "message": "Use scanner evidence and product context to prioritize readiness.",
-                        "sanitizedPayload": {
-                          "safeSummary": "Use scanner evidence and product context to prioritize readiness.",
-                          "sources": [{"type": "scanner"}],
-                          "actions": []
-                        },
-                        "metadata": {"requestId": "loom-result-request"}
-                      }
+                      "type": "INFORMATION_PROVIDED",
+                      "answer": "Use scanner evidence and product context to prioritize readiness.",
+                      "safeSummary": "Use scanner evidence and product context to prioritize readiness.",
+                      "sources": [{"type": "scanner"}],
+                      "actions": [],
+                      "metadata": {"requestId": "loom-result-request"}
                     }
                     """);
         });
@@ -183,12 +180,8 @@ class LoomAIStagingIntegrationTest {
             respond(exchange, 200, """
                     {
                       "success": true,
-                      "result": {
-                        "sanitizedPayload": {
-                          "suggestions": ["Prioritize critical scanner findings", "Export evidence for owner review"]
-                        },
-                        "metadata": {"requestId": "loom-suggestions-request"}
-                      }
+                      "suggestions": ["Prioritize critical scanner findings", "Export evidence for owner review"],
+                      "metadata": {"requestId": "loom-suggestions-request"}
                     }
                     """);
         });

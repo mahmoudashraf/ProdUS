@@ -121,8 +121,8 @@ public class LoomAIIntegrationService {
 
     @Transactional(readOnly = true)
     public AssistantQueryResponse query(User user, AssistantQueryRequest request) {
-        if (request == null || request.message() == null || request.message().isBlank()) {
-            throw new IllegalArgumentException("Assistant message is required");
+        if (request == null || request.query() == null || request.query().isBlank()) {
+            throw new IllegalArgumentException("Assistant query is required");
         }
         Map<String, Object> context = safeContext(user, request.context());
         if (!isConfigured()) {
@@ -133,7 +133,7 @@ public class LoomAIIntegrationService {
                     properties.getAssistantQueryPath(),
                     assistantQueryPayload(request, context),
                     user,
-                    conversationId(request.sessionId(), context)
+                    conversationId(request.conversationId(), context)
             );
             JsonNode body = response.body();
             return new AssistantQueryResponse(
@@ -346,14 +346,14 @@ public class LoomAIIntegrationService {
 
     private Map<String, Object> assistantQueryPayload(AssistantQueryRequest request, Map<String, Object> context) {
         if (properties.isPrivateRuntimeMode() || properties.isPlatformBridgeMode()) {
-            Map<String, Object> payload = runtimeChatPayload(context, conversationId(request.sessionId(), context));
-            payload.put("query", request.message());
+            Map<String, Object> payload = runtimeChatPayload(context, conversationId(request.conversationId(), context));
+            payload.put("query", request.query());
             return payload;
         }
         return Map.of(
                 "environment", properties.getEnvironment(),
-                "sessionId", request.sessionId() == null ? "" : request.sessionId(),
-                "message", request.message(),
+                "conversationId", request.conversationId() == null ? "" : request.conversationId(),
+                "query", request.query(),
                 "context", context,
                 "allowedActions", ALLOWED_ACTIONS
         );
@@ -377,30 +377,21 @@ public class LoomAIIntegrationService {
         payload.put("conversationId", conversationId);
         payload.put("mode", blank(properties.getDefaultMode()) ? "support_assistant" : properties.getDefaultMode());
         payload.put("position", blank(properties.getDefaultPosition()) ? "productization" : properties.getDefaultPosition());
-        payload.put("storefrontContext", storefrontContext(context));
         payload.put("context", context);
         payload.put("allowedActions", ALLOWED_ACTIONS);
         return payload;
     }
 
-    private Map<String, Object> storefrontContext(Map<String, Object> context) {
-        String pageType = String.valueOf(context.getOrDefault("pageType", "productization"));
-        return Map.of(
-                "pageType", pageType,
-                "pageTitle", pageType.replace('-', ' ')
-        );
-    }
-
-    private String conversationId(String sessionId, Map<String, Object> context) {
-        if (!blank(sessionId)) {
-            return sessionId;
+    private String conversationId(String requestedConversationId, Map<String, Object> context) {
+        if (!blank(requestedConversationId)) {
+            return requestedConversationId;
         }
         String actorRole = String.valueOf(context.getOrDefault("actorRole", "user"));
         String pageType = String.valueOf(context.getOrDefault("pageType", "productization"));
         return "produs-" + actorRole.toLowerCase() + "-" + pageType.toLowerCase();
     }
 
-    private ProviderJsonResponse postJson(String path, Object payload, User user, String sessionId) {
+    private ProviderJsonResponse postJson(String path, Object payload, User user, String conversationId) {
         if (!isConfigured()) {
             throw new IllegalStateException("LoomAI is not configured");
         }
@@ -411,7 +402,7 @@ public class LoomAIIntegrationService {
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)));
-            applyProviderAuth(builder, user, sessionId);
+            applyProviderAuth(builder, user, conversationId);
             String requestId = MDC.get("requestId");
             if (requestId != null && !requestId.isBlank()) {
                 builder.header("X-Request-ID", requestId);
@@ -435,7 +426,7 @@ public class LoomAIIntegrationService {
         }
     }
 
-    private void applyProviderAuth(HttpRequest.Builder builder, User user, String sessionId) {
+    private void applyProviderAuth(HttpRequest.Builder builder, User user, String conversationId) {
         if (properties.isPrivateRuntimeAssertionAuth()) {
             builder.header(
                     blank(properties.getRuntimeApiKeyHeaderName()) ? "X-AIFABRIC-RUNTIME-API-KEY" : properties.getRuntimeApiKeyHeaderName(),
@@ -443,7 +434,7 @@ public class LoomAIIntegrationService {
             );
             builder.header(
                     blank(properties.getRuntimeAuthorizationHeaderName()) ? "X-AIFABRIC-RUNTIME-AUTHORIZATION" : properties.getRuntimeAuthorizationHeaderName(),
-                    "Bearer " + runtimeAssertionService.createAssertion(user, sessionId)
+                    "Bearer " + runtimeAssertionService.createAssertion(user, conversationId)
             );
             return;
         }
@@ -481,14 +472,9 @@ public class LoomAIIntegrationService {
     private String normalizedAnswer(JsonNode body) {
         String answer = firstText(
                 body.path("answer"),
-                body.path("message"),
                 body.path("safeSummary"),
                 body.path("result").path("answer"),
-                body.path("result").path("message"),
-                body.path("result").path("sanitizedPayload").path("safeSummary"),
-                body.path("result").path("sanitizedPayload").path("answer"),
-                body.path("sanitizedPayload").path("safeSummary"),
-                body.path("sanitizedPayload").path("answer")
+                body.path("result").path("safeSummary")
         );
         return blank(answer) ? "LoomAI returned an empty answer." : answer;
     }
@@ -496,9 +482,7 @@ public class LoomAIIntegrationService {
     private double normalizedConfidence(JsonNode body) {
         JsonNode value = firstNumber(
                 body.path("confidence"),
-                body.path("result").path("confidence"),
-                body.path("result").path("sanitizedPayload").path("confidence"),
-                body.path("sanitizedPayload").path("confidence")
+                body.path("result").path("confidence")
         );
         return value == null ? 0.0 : value.asDouble();
     }
@@ -506,9 +490,7 @@ public class LoomAIIntegrationService {
     private JsonNode firstArray(JsonNode body, String field) {
         JsonNode[] candidates = new JsonNode[]{
                 body.path(field),
-                body.path("result").path(field),
-                body.path("result").path("sanitizedPayload").path(field),
-                body.path("sanitizedPayload").path(field)
+                body.path("result").path(field)
         };
         for (JsonNode candidate : candidates) {
             if (candidate.isArray()) {
@@ -713,7 +695,7 @@ public class LoomAIIntegrationService {
 
     public record AssistantSessionRequest(AssistantContextRequest context) {}
 
-    public record AssistantQueryRequest(String sessionId, String message, AssistantContextRequest context) {}
+    public record AssistantQueryRequest(String conversationId, String query, AssistantContextRequest context) {}
 
     public record AssistantSuggestionsRequest(AssistantContextRequest context) {}
 
