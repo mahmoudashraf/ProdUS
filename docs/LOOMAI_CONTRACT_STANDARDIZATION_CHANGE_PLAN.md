@@ -2,13 +2,21 @@
 
 Date: 2026-05-19
 
-Status: backend implementation completed; frontend/browser smoke and staging env verification still pending.
+Status: backend implementation completed, deployed to staging, and live verified through the LoomAI Platform bridge on 2026-05-19.
 
 Platform source of truth is:
 
 `/Users/mahmoudashraf/Downloads/Projects/TheBaseRepo/doc/Productization/future-work/MarketPlace/Products/Strategy/RoadMaps/Implementation/010_5_LOOMAI_CANONICAL_RUNTIME_BRIDGE_CONTRACT_STANDARDIZATION_PLAN.md`
 
 Related handover: `docs/LOOMAI_STAGING_DEPLOYMENT_HANDOVER.md`
+
+Live verification evidence:
+
+- ProdUS backend deployed to Coolify staging at commit `3935864d795692da4204f7954da18aea8a37d4f8`.
+- `GET /health`, `GET /api/health`, and `GET /actuator/health` returned 200 on `https://produs-api-staging.46.224.145.148.sslip.io`.
+- Platform consumer bridge `POST /api/public/consumers/produs-staging/bridge/chat/query` accepted canonical `query`, `conversationId`, and `context`.
+- The live bridge response returned flat top-level `answer`, `safeSummary`, `conversationId`, `sources`, `actions`, `suggestions`, `providerRequestId`, and `metadata`.
+- Legacy top-level `storefrontContext` was rejected with HTTP 400.
 
 ## 1. Goal
 

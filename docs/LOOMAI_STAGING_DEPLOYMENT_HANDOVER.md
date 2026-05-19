@@ -796,7 +796,7 @@ Do not mark ProdUS LoomAI integration complete until these pass:
 Current gaps are expected and should be tracked:
 
 1. ProdUS staging still needs issuer/signing material registered and configured before `LOOMAI_ENABLED=true`.
-2. ProdUS backend DTOs have been aligned to the canonical `query` / `conversationId` / `context` payload. Frontend wiring still needs a browser smoke once the UI surface is enabled.
+2. ProdUS backend DTOs have been aligned to the canonical `query` / `conversationId` / `context` payload and the Platform bridge path was live-verified on 2026-05-19. Owner-browser smoke through `/api/ai/assistant/*` still depends on the ProdUS UI surface being enabled with an authenticated owner.
 3. ProdUS safe knowledge sync is designed but not connected to a confirmed runtime ingestion endpoint.
 4. ProdUS MCP tools are not installed in the LoomAI deployment until discovery is rerun and approved.
 5. Current indexed data is generic help/policy marketplace data, not ProdUS productization knowledge.
