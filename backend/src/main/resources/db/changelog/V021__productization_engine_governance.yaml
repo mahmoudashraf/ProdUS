@@ -1,0 +1,482 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2100
+      author: produs
+      changes:
+        - createTable:
+            tableName: product_diagnoses
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: requirement_intake_id, type: UUID }
+              - column: { name: created_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: readiness_score, type: INT, defaultValueNumeric: 50, constraints: { nullable: false } }
+              - column: { name: summary, type: TEXT, constraints: { nullable: false } }
+              - column: { name: access_signals, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), defaultValue: READY, constraints: { nullable: false } }
+              - column: { name: ai_ready, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: ai_executed, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: product_diagnoses
+            baseColumnNames: product_profile_id
+            constraintName: fk_product_diagnoses_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: product_diagnoses
+            baseColumnNames: requirement_intake_id
+            constraintName: fk_product_diagnoses_requirement
+            referencedTableName: requirement_intakes
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: product_diagnoses
+            baseColumnNames: created_by
+            constraintName: fk_product_diagnoses_created_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_diagnoses
+            indexName: idx_product_diagnoses_product
+            columns:
+              - column: { name: product_profile_id }
+        - createIndex:
+            tableName: product_diagnoses
+            indexName: idx_product_diagnoses_status
+            columns:
+              - column: { name: status }
+
+  - changeSet:
+      id: 2101
+      author: produs
+      changes:
+        - createTable:
+            tableName: product_findings
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: diagnosis_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: recommended_module_id, type: UUID }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT, constraints: { nullable: false } }
+              - column: { name: affected_layer, type: VARCHAR(255) }
+              - column: { name: severity, type: VARCHAR(50), defaultValue: MEDIUM, constraints: { nullable: false } }
+              - column: { name: confidence_level, type: VARCHAR(50), defaultValue: MEDIUM, constraints: { nullable: false } }
+              - column: { name: confidence_basis, type: TEXT }
+              - column: { name: source_signal, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), defaultValue: OPEN, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: product_findings
+            baseColumnNames: diagnosis_id
+            constraintName: fk_product_findings_diagnosis
+            referencedTableName: product_diagnoses
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: product_findings
+            baseColumnNames: recommended_module_id
+            constraintName: fk_product_findings_recommended_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_findings
+            indexName: idx_product_findings_diagnosis
+            columns:
+              - column: { name: diagnosis_id }
+        - createIndex:
+            tableName: product_findings
+            indexName: idx_product_findings_severity
+            columns:
+              - column: { name: severity }
+
+  - changeSet:
+      id: 2102
+      author: produs
+      changes:
+        - createTable:
+            tableName: acceptance_criteria
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: milestone_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: package_module_id, type: UUID }
+              - column: { name: service_module_id, type: UUID }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: required, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(50), defaultValue: PENDING, constraints: { nullable: false } }
+              - column: { name: human_review_required, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: acceptance_criteria
+            baseColumnNames: milestone_id
+            constraintName: fk_acceptance_criteria_milestone
+            referencedTableName: milestones
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: acceptance_criteria
+            baseColumnNames: package_module_id
+            constraintName: fk_acceptance_criteria_package_module
+            referencedTableName: package_modules
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: acceptance_criteria
+            baseColumnNames: service_module_id
+            constraintName: fk_acceptance_criteria_service_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+        - createIndex:
+            tableName: acceptance_criteria
+            indexName: idx_acceptance_criteria_milestone
+            columns:
+              - column: { name: milestone_id }
+        - createIndex:
+            tableName: acceptance_criteria
+            indexName: idx_acceptance_criteria_status
+            columns:
+              - column: { name: status }
+
+  - changeSet:
+      id: 2103
+      author: produs
+      changes:
+        - createTable:
+            tableName: evidence_requirements
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: milestone_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: criterion_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: evidence_type, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: required, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(50), defaultValue: MISSING, constraints: { nullable: false } }
+              - column: { name: evidence_reference, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: evidence_requirements
+            baseColumnNames: milestone_id
+            constraintName: fk_evidence_requirements_milestone
+            referencedTableName: milestones
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: evidence_requirements
+            baseColumnNames: criterion_id
+            constraintName: fk_evidence_requirements_criterion
+            referencedTableName: acceptance_criteria
+            referencedColumnNames: id
+        - createIndex:
+            tableName: evidence_requirements
+            indexName: idx_evidence_requirements_milestone
+            columns:
+              - column: { name: milestone_id }
+        - createIndex:
+            tableName: evidence_requirements
+            indexName: idx_evidence_requirements_status
+            columns:
+              - column: { name: status }
+
+  - changeSet:
+      id: 2104
+      author: produs
+      changes:
+        - createTable:
+            tableName: automated_checks
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: workspace_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: milestone_id, type: UUID }
+              - column: { name: criterion_id, type: UUID }
+              - column: { name: check_type, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: provider, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: external_ref, type: VARCHAR(255) }
+              - column: { name: status, type: VARCHAR(50), defaultValue: PENDING, constraints: { nullable: false } }
+              - column: { name: summary, type: TEXT }
+              - column: { name: raw_payload, type: TEXT }
+              - column: { name: observed_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: automated_checks
+            baseColumnNames: workspace_id
+            constraintName: fk_automated_checks_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: automated_checks
+            baseColumnNames: milestone_id
+            constraintName: fk_automated_checks_milestone
+            referencedTableName: milestones
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: automated_checks
+            baseColumnNames: criterion_id
+            constraintName: fk_automated_checks_criterion
+            referencedTableName: acceptance_criteria
+            referencedColumnNames: id
+        - createIndex:
+            tableName: automated_checks
+            indexName: idx_automated_checks_workspace
+            columns:
+              - column: { name: workspace_id }
+        - createIndex:
+            tableName: automated_checks
+            indexName: idx_automated_checks_status
+            columns:
+              - column: { name: status }
+
+  - changeSet:
+      id: 2105
+      author: produs
+      changes:
+        - createTable:
+            tableName: review_decisions
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: milestone_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: criterion_id, type: UUID }
+              - column: { name: reviewer_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: decision, type: VARCHAR(50), defaultValue: COMMENT, constraints: { nullable: false } }
+              - column: { name: note, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: review_decisions
+            baseColumnNames: milestone_id
+            constraintName: fk_review_decisions_milestone
+            referencedTableName: milestones
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: review_decisions
+            baseColumnNames: criterion_id
+            constraintName: fk_review_decisions_criterion
+            referencedTableName: acceptance_criteria
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: review_decisions
+            baseColumnNames: reviewer_id
+            constraintName: fk_review_decisions_reviewer
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: review_decisions
+            indexName: idx_review_decisions_milestone
+            columns:
+              - column: { name: milestone_id }
+
+  - changeSet:
+      id: 2106
+      author: produs
+      changes:
+        - createTable:
+            tableName: integration_connections
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: product_profile_id, type: UUID }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: provider_type, type: VARCHAR(50), defaultValue: GITHUB, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: external_ref, type: VARCHAR(255) }
+              - column: { name: scoped_access_note, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), defaultValue: CONFIGURED, constraints: { nullable: false } }
+              - column: { name: last_checked_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: integration_connections
+            baseColumnNames: owner_id
+            constraintName: fk_integration_connections_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: integration_connections
+            baseColumnNames: product_profile_id
+            constraintName: fk_integration_connections_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: integration_connections
+            baseColumnNames: workspace_id
+            constraintName: fk_integration_connections_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - createIndex:
+            tableName: integration_connections
+            indexName: idx_integration_connections_owner
+            columns:
+              - column: { name: owner_id }
+        - createIndex:
+            tableName: integration_connections
+            indexName: idx_integration_connections_status
+            columns:
+              - column: { name: status }
+
+  - changeSet:
+      id: 2107
+      author: produs
+      changes:
+        - createTable:
+            tableName: integration_signals
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: connection_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: milestone_id, type: UUID }
+              - column: { name: criterion_id, type: UUID }
+              - column: { name: signal_type, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(50), defaultValue: INFO, constraints: { nullable: false } }
+              - column: { name: summary, type: TEXT }
+              - column: { name: evidence_payload, type: TEXT }
+              - column: { name: recorded_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: integration_signals
+            baseColumnNames: connection_id
+            constraintName: fk_integration_signals_connection
+            referencedTableName: integration_connections
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: integration_signals
+            baseColumnNames: workspace_id
+            constraintName: fk_integration_signals_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: integration_signals
+            baseColumnNames: milestone_id
+            constraintName: fk_integration_signals_milestone
+            referencedTableName: milestones
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: integration_signals
+            baseColumnNames: criterion_id
+            constraintName: fk_integration_signals_criterion
+            referencedTableName: acceptance_criteria
+            referencedColumnNames: id
+        - createIndex:
+            tableName: integration_signals
+            indexName: idx_integration_signals_connection
+            columns:
+              - column: { name: connection_id }
+        - createIndex:
+            tableName: integration_signals
+            indexName: idx_integration_signals_status
+            columns:
+              - column: { name: status }
+
+  - changeSet:
+      id: 2108
+      author: produs
+      changes:
+        - createTable:
+            tableName: handoff_documents
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: workspace_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: created_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: runbook, type: TEXT }
+              - column: { name: access_checklist, type: TEXT }
+              - column: { name: known_issues, type: TEXT }
+              - column: { name: support_scope, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), defaultValue: DRAFT, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: handoff_documents
+            baseColumnNames: workspace_id
+            constraintName: fk_handoff_documents_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: handoff_documents
+            baseColumnNames: created_by
+            constraintName: fk_handoff_documents_created_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: handoff_documents
+            indexName: idx_handoff_documents_workspace
+            columns:
+              - column: { name: workspace_id }
+
+  - changeSet:
+      id: 2109
+      author: produs
+      changes:
+        - createTable:
+            tableName: product_health_reviews
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: workspace_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: support_subscription_id, type: UUID }
+              - column: { name: created_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: period_start, type: DATE }
+              - column: { name: period_end, type: DATE }
+              - column: { name: health_score, type: INT, defaultValueNumeric: 70, constraints: { nullable: false } }
+              - column: { name: summary, type: TEXT, constraints: { nullable: false } }
+              - column: { name: risks, type: TEXT }
+              - column: { name: actions, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), defaultValue: DRAFT, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: product_health_reviews
+            baseColumnNames: workspace_id
+            constraintName: fk_product_health_reviews_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: product_health_reviews
+            baseColumnNames: support_subscription_id
+            constraintName: fk_product_health_reviews_support_subscription
+            referencedTableName: support_subscriptions
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: product_health_reviews
+            baseColumnNames: created_by
+            constraintName: fk_product_health_reviews_created_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_health_reviews
+            indexName: idx_product_health_reviews_workspace
+            columns:
+              - column: { name: workspace_id }
+
+  - changeSet:
+      id: 2110
+      author: produs
+      changes:
+        - createTable:
+            tableName: audit_events
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: actor_id, type: UUID }
+              - column: { name: action, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: entity_type, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: entity_id, type: UUID }
+              - column: { name: risk_level, type: VARCHAR(50), defaultValue: LOW, constraints: { nullable: false } }
+              - column: { name: details, type: TEXT }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: audit_events
+            baseColumnNames: actor_id
+            constraintName: fk_audit_events_actor
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: audit_events
+            indexName: idx_audit_events_entity
+            columns:
+              - column: { name: entity_type }
+              - column: { name: entity_id }
+        - createIndex:
+            tableName: audit_events
+            indexName: idx_audit_events_risk_level
+            columns:
+              - column: { name: risk_level }

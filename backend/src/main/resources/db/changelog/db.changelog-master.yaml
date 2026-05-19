@@ -39,3 +39,5 @@ databaseChangeLog:
       file: db/changelog/V019__scanner_schedules_and_artifact_deletion.yaml
   - include:
       file: db/changelog/V020__scanner_connectors_and_storage_governance.yaml
+  - include:
+      file: db/changelog/V021__productization_engine_governance.yaml
