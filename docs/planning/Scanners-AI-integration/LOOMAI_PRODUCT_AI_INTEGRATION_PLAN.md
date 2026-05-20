@@ -582,6 +582,8 @@ Rules:
 
 ProdUS safe knowledge is shared/catalog knowledge, not customer-owned private records.
 
+Status: pending live proof. Chat/query/suggestions, private runtime auth, canonical assistant payloads, context enrichment, and read MCP actions are ready. Safe knowledge sync still needs ProdUS code alignment to LoomAI's canonical data-sync schema and a live smoke against `dep-7706fafb`.
+
 Current safe record shape:
 
 ```json
@@ -603,7 +605,7 @@ Current safe record shape:
 }
 ```
 
-Current ProdUS sync request:
+Required LoomAI runtime sync request:
 
 ```http
 POST <LOOMAI_DATA_SYNC_BATCH_PATH>
@@ -611,17 +613,51 @@ POST <LOOMAI_DATA_SYNC_BATCH_PATH>
 
 ```json
 {
-  "environment": "staging",
-  "source": "ProdUS",
-  "records": [
+  "trace": {
+    "requestId": "produs-safe-knowledge-sync-uuid",
+    "metadata": {
+      "source": "ProdUS",
+      "environment": "staging",
+      "recordCount": 1
+    },
+    "authContext": {
+      "subjectId": "produs-admin-id",
+      "subjectType": "END_USER",
+      "authMode": "PRIVATE_RUNTIME_BACKEND_MEDIATED",
+      "callerType": "TRUSTED_BACKEND",
+      "deploymentId": "dep-7706fafb",
+      "customerId": "produs-staging",
+      "issuer": "produs-staging-backend",
+      "grantedScopes": ["data-sync:upsert"]
+    }
+  },
+  "operations": [
     {
+      "type": "UPSERT",
+      "vectorSpace": "support-policy",
       "id": "service-module:security-hardening",
-      "type": "SERVICE_MODULE",
-      "title": "Security Hardening",
-      "body": "Safe text.",
-      "metadata": {}
+      "content": "Security Hardening\n\nSafe text.",
+      "metadata": {
+        "sourceType": "SERVICE_MODULE",
+        "title": "Security Hardening",
+        "slug": "security-hardening"
+      },
+      "identity": {
+        "sourceRecordId": "service-module:security-hardening",
+        "sourceRecordVersion": "stable hash or updated timestamp"
+      }
     }
   ]
+}
+```
+
+ProdUS must not send the older runtime-incompatible shape:
+
+```json
+{
+  "environment": "staging",
+  "source": "ProdUS",
+  "records": []
 }
 ```
 
@@ -663,7 +699,7 @@ Expected LoomAI data-sync response:
 }
 ```
 
-ProdUS currently only needs `providerRequestId` for sync success. The richer counters should be added to the adapter after LoomAI confirms the final schema.
+ProdUS must normalize success and failure counts from the live response when available. The admin UI should expose sanitized `status`, `providerRequestId`, `total`, `succeeded`, `failed`, `errorCode`, and `message`.
 
 ## 9. MCP And Action Contract
 
@@ -980,7 +1016,11 @@ Required:
 
 Required:
 
-- confirm LoomAI final data-sync schema
+- replace old `environment/source/records` request with canonical `trace + operations`
+- grant data-sync scope in private-runtime assertions or data-sync-specific auth path
+- map safe knowledge records to `UPSERT` operations with `vectorSpace`, `content`, `metadata`, and `identity`
+- normalize live runtime response into status/providerRequestId/total/succeeded/failed/error
+- live-smoke `GET /api/ai/loomai/knowledge-preview` and `POST /api/ai/loomai/knowledge-sync` against `dep-7706fafb`
 - add counters and partial-failure handling to ProdUS sync response
 - add delete/tombstone sync
 - add admin UI sync health and stale record status
