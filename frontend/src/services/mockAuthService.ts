@@ -1,6 +1,7 @@
 'use client';
 
 import { MOCK_USERS, MOCK_CREDENTIALS, MockUser } from '@/data/mockUsers';
+import { authConfig } from '@/config/authConfig';
 
 export interface MockAuthResponse {
   user: MockUser;
@@ -28,7 +29,7 @@ export class MockAuthService {
   async signIn(email: string, password: string): Promise<MockAuthResponse> {
     try {
       // Call the backend mock login endpoint
-      const response = await fetch('http://localhost:8080/api/mock/auth/login', {
+      const response = await fetch(`${authConfig.getMockAuthUrl()}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

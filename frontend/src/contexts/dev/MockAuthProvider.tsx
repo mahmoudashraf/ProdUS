@@ -7,9 +7,9 @@ import axios from 'axios';
 import { SupabaseAuthContext } from '@/contexts/SupabaseAuthContext';
 
 /**
- * Dev-only Mock Authentication Provider
+ * Explicitly gated Mock Authentication Provider
  * This component intercepts the SupabaseAuthContext and provides mock authentication
- * ONLY used in development mode when NEXT_PUBLIC_MOCK_AUTH_ENABLED=true
+ * for local development or temporary staging validation when explicitly enabled.
  */
 
 interface MockAuthProviderProps {

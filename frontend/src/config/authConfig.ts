@@ -11,6 +11,7 @@ export interface AuthConfig {
   mockAuthEndpoint: string;
   supabaseUrl?: string;
   supabaseAnonKey?: string;
+  allowStagingMockAuth: boolean;
   enableMockUserTester: boolean;
   debugMode: boolean;
 }
@@ -29,6 +30,7 @@ class AuthConfigService {
       environment: process.env.NEXT_PUBLIC_ENVIRONMENT || 'development',
       mockUsersEndpoint: process.env.NEXT_PUBLIC_MOCK_USERS_ENDPOINT || '/mock/users',
       mockAuthEndpoint: process.env.NEXT_PUBLIC_MOCK_AUTH_ENDPOINT || '/mock/auth',
+      allowStagingMockAuth: process.env.NEXT_PUBLIC_ALLOW_STAGING_MOCK_AUTH === 'true',
       enableMockUserTester: process.env.NEXT_PUBLIC_ENABLE_MOCK_USER_TESTER === 'true',
       debugMode: process.env.NEXT_PUBLIC_DEBUG_MODE === 'true',
     };
@@ -49,7 +51,13 @@ class AuthConfigService {
   }
 
   public isMockAuthEnabled(): boolean {
-    return this.config.mockAuthEnabled && this.config.environment === 'development';
+    if (!this.config.mockAuthEnabled) {
+      return false;
+    }
+    if (this.config.environment === 'development') {
+      return true;
+    }
+    return this.config.environment === 'staging' && this.config.allowStagingMockAuth;
   }
 
   public isDevelopment(): boolean {
@@ -73,7 +81,7 @@ class AuthConfigService {
   }
 
   public shouldUseMockAuth(): boolean {
-    return this.isMockAuthEnabled() && this.isDevelopment();
+    return this.isMockAuthEnabled();
   }
 
   public log(message: string, ...args: any[]): void {

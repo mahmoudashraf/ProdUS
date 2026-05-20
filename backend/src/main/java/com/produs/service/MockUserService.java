@@ -2,9 +2,13 @@ package com.produs.service;
 
 import com.produs.dto.UserDto;
 import com.produs.entity.User;
+import com.produs.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
-import org.springframework.context.annotation.Profile;
 
 import jakarta.annotation.PostConstruct;
 
@@ -14,11 +18,18 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
-@Profile("dev")
+@RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "app.mock-auth", name = "enabled", havingValue = "true", matchIfMissing = false)
 public class MockUserService {
 
-    // Remove database dependency for mock service
-    // private final UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final Environment environment;
+
+    @Value("${app.mock-auth.allowed-profiles:dev,staging}")
+    private String allowedProfiles;
+
+    @Value("${app.mock-auth.allow-production-profile:false}")
+    private boolean allowProductionProfile;
     
     // In-memory storage for mock users and sessions
     private final Map<String, User> mockUsers = new ConcurrentHashMap<>();
@@ -38,7 +49,7 @@ public class MockUserService {
 
     @PostConstruct
     public void initializeMockUsers() {
-        log.info("Initializing mock users");
+        log.warn("Mock authentication is enabled. This must only be used for local development or temporary staging validation.");
         
         // Create mock users - same as UsersFeedService for consistency
         createMockUser("mock-admin-001", "admin@produs.com", "Admin", "User", User.UserRole.ADMIN);
@@ -103,6 +114,7 @@ public class MockUserService {
     }
 
     public Map<String, Object> mockLogin(String email, String password) {
+        assertRuntimeAllowed();
         MockCredentials credentials = mockCredentials.get(email);
         
         if (credentials == null || !credentials.password.equals(password)) {
@@ -117,6 +129,7 @@ public class MockUserService {
 
         // Generate mock token
         String token = generateMockToken(user);
+        ensureDatabaseUser(user);
         
         // Store session
         mockSessions.put(token, user.getId().toString());
@@ -132,6 +145,7 @@ public class MockUserService {
     }
 
     public Map<String, Object> quickLogin(User.UserRole role) {
+        assertRuntimeAllowed();
         User user = mockUsers.values().stream()
                 .filter(u -> u.getRole() == role)
                 .findFirst()
@@ -172,6 +186,12 @@ public class MockUserService {
 
         return convertToDto(user);
     }
+
+    public User getAuthenticatedUser(String token) {
+        UserDto userDto = getCurrentMockUser(token);
+        return userRepository.findByEmail(userDto.getEmail())
+                .orElseGet(() -> ensureDatabaseUser(getMockUserById(userDto.getId().toString())));
+    }
     
     public User getMockUserById(String userId) {
         User user = mockUsers.get(userId);
@@ -185,7 +205,30 @@ public class MockUserService {
         return currentMockUserId != null && mockUsers.containsKey(currentMockUserId);
     }
 
+    public boolean isRuntimeAllowed() {
+        Set<String> activeProfiles = new HashSet<>(Arrays.asList(environment.getActiveProfiles()));
+        if (activeProfiles.isEmpty()) {
+            activeProfiles.add("default");
+        }
+        if (activeProfiles.contains("prod") && !allowProductionProfile) {
+            return false;
+        }
+
+        Set<String> allowed = Arrays.stream(allowedProfiles.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(java.util.stream.Collectors.toSet());
+        return allowed.contains("*") || activeProfiles.stream().anyMatch(allowed::contains);
+    }
+
+    public void assertRuntimeAllowed() {
+        if (!isRuntimeAllowed()) {
+            throw new IllegalStateException("Mock authentication is not allowed for the active runtime profile");
+        }
+    }
+
     public UserDto createMockUser(com.produs.controller.MockUserController.CreateMockUserRequest request) {
+        assertRuntimeAllowed();
         // Validate role
         User.UserRole role;
         try {
@@ -229,6 +272,7 @@ public class MockUserService {
     }
 
     public void deleteMockUser(String id) {
+        assertRuntimeAllowed();
         User user = mockUsers.remove(id);
         if (user == null) {
             throw new IllegalArgumentException("Mock user not found: " + id);
@@ -264,6 +308,39 @@ public class MockUserService {
     private String generateMockToken(User user) {
         // Simple mock token generation
         return "mock-token-" + user.getId().toString().replace("-", "") + "-" + System.currentTimeMillis();
+    }
+
+    private User ensureDatabaseUser(User mockUser) {
+        return userRepository.findByEmail(mockUser.getEmail())
+                .map(existing -> {
+                    boolean changed = false;
+                    if (existing.getRole() != mockUser.getRole()) {
+                        existing.setRole(mockUser.getRole());
+                        changed = true;
+                    }
+                    if (existing.getSupabaseId() == null || existing.getSupabaseId().isBlank()) {
+                        existing.setSupabaseId(mockUser.getSupabaseId());
+                        changed = true;
+                    }
+                    if (existing.getFirstName() == null || existing.getFirstName().isBlank()) {
+                        existing.setFirstName(mockUser.getFirstName());
+                        changed = true;
+                    }
+                    if (existing.getLastName() == null || existing.getLastName().isBlank()) {
+                        existing.setLastName(mockUser.getLastName());
+                        changed = true;
+                    }
+                    return changed ? userRepository.save(existing) : existing;
+                })
+                .orElseGet(() -> userRepository.save(User.builder()
+                        .email(mockUser.getEmail())
+                        .firstName(mockUser.getFirstName())
+                        .lastName(mockUser.getLastName())
+                        .role(mockUser.getRole())
+                        .supabaseId(mockUser.getSupabaseId())
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .build()));
     }
 
     // Helper class for credentials

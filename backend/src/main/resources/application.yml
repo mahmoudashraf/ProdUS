@@ -43,7 +43,10 @@ supabase:
 
 app:
   mock-auth:
-    enabled: false
+    enabled: ${APP_MOCK_AUTH_ENABLED:false}
+    allowed-profiles: ${APP_MOCK_AUTH_ALLOWED_PROFILES:dev,staging}
+    allow-production-profile: ${APP_MOCK_AUTH_ALLOW_PRODUCTION_PROFILE:false}
+    expose-credentials: ${APP_MOCK_AUTH_EXPOSE_CREDENTIALS:false}
   attachments:
     max-file-size-bytes: ${APP_ATTACHMENTS_MAX_FILE_SIZE_BYTES:10485760}
   notifications:

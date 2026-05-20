@@ -216,7 +216,7 @@ const AuthSupabaseLogin = () => {
           >
             <Typography sx={{ fontWeight: 800, mb: 0.5 }}>Test accounts</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              Local dev credentials for role-specific UI review.
+              Temporary test credentials for role-specific UI review.
             </Typography>
             <Stack spacing={1}>
               {demoCredentialOptions.map((credential) => (

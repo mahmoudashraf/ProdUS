@@ -29,7 +29,10 @@ supabase:
 
 app:
   mock-auth:
-    enabled: false
+    enabled: ${APP_MOCK_AUTH_ENABLED:false}
+    allowed-profiles: ${APP_MOCK_AUTH_ALLOWED_PROFILES:dev,staging}
+    allow-production-profile: ${APP_MOCK_AUTH_ALLOW_PRODUCTION_PROFILE:false}
+    expose-credentials: ${APP_MOCK_AUTH_EXPOSE_CREDENTIALS:false}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://${RAILWAY_PUBLIC_DOMAIN:localhost}}
   security:

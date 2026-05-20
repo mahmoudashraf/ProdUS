@@ -16,7 +16,7 @@ const MockAuthProviderComponent = React.lazy(() =>
 
 /**
  * Conditional Auth Provider Wrapper
- * Uses MockAuthProvider in development mode with mock auth enabled
+ * Uses MockAuthProvider in development or explicitly opted-in staging mode with mock auth enabled
  * Uses SupabaseAuthProvider in production or when mock auth is disabled
  */
 export const AuthProviderWrapper: React.FC<AuthProviderWrapperProps> = ({ children }) => {
@@ -32,7 +32,7 @@ export const AuthProviderWrapper: React.FC<AuthProviderWrapperProps> = ({ childr
     }
   }, [shouldUseMockAuth]);
 
-  // In development mode with mock auth enabled, use MockAuthProvider
+  // In development or explicit staging validation mode with mock auth enabled, use MockAuthProvider
   if (shouldUseMockAuth) {
     return (
       <React.Suspense fallback={null}>
