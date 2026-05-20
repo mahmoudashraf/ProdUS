@@ -194,7 +194,7 @@ class LoomAIStagingIntegrationTest {
             String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             if (!requestBody.contains("\"query\"") || !requestBody.contains("\"conversationId\"")
                     || !requestBody.contains("\"mode\"") || !requestBody.contains("\"position\"")
-                    || requestBody.contains("\"message\"")) {
+                    || requestBody.contains("\"message\"") || requestBody.contains("\"allowedActions\"")) {
                 respond(exchange, 400, "{\"error\":\"query and conversationId are required\"}");
                 return;
             }

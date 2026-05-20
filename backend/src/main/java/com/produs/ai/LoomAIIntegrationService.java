@@ -414,7 +414,6 @@ public class LoomAIIntegrationService {
         payload.put("mode", blank(properties.getDefaultMode()) ? "support_assistant" : properties.getDefaultMode());
         payload.put("position", blank(properties.getDefaultPosition()) ? "productization" : properties.getDefaultPosition());
         payload.put("context", context);
-        payload.put("allowedActions", ALLOWED_ACTIONS);
         return payload;
     }
 
