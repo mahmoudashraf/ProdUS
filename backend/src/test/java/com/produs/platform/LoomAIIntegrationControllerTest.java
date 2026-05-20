@@ -65,7 +65,10 @@ class LoomAIIntegrationControllerTest {
                 .andExpect(jsonPath("$.enabled").value(false))
                 .andExpect(jsonPath("$.configured").value(false))
                 .andExpect(jsonPath("$.allowedActions[?(@ == 'produs.scan.status')]").exists())
-                .andExpect(jsonPath("$.allowedActions[?(@ == 'produs.team.profile.update')]").doesNotExist());
+                .andExpect(jsonPath("$.allowedActions[?(@ == 'produs.team.profile.update')]").doesNotExist())
+                .andExpect(jsonPath("$.activeReadActions[?(@ == 'produs.scan.status')]").exists())
+                .andExpect(jsonPath("$.activeReadActions[?(@ == 'produs.scan.start')]").doesNotExist())
+                .andExpect(jsonPath("$.confirmedActionCandidates[?(@ == 'produs.scan.start')]").exists());
 
         mockMvc.perform(get("/api/ai/loomai/knowledge-preview").with(auth(admin)))
                 .andExpect(status().isOk())

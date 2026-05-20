@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,6 +44,9 @@ class LoomAIRuntimeAssertionServiceTest {
         assertThat(payload.path("subjectType").asText()).isEqualTo("ANONYMOUS_SESSION");
         assertThat(payload.path("deploymentId").asText()).isEqualTo("dep-7706fafb");
         assertThat(payload.path("customerId").asText()).isEqualTo("produs-staging");
+        assertThat(payload.path("iat").isTextual()).isTrue();
+        assertThat(payload.path("exp").isTextual()).isTrue();
+        assertThat(Instant.parse(payload.path("exp").asText())).isAfter(Instant.parse(payload.path("iat").asText()));
         assertThat(payload.path("scopes").toString()).contains("chat:query", "chat:suggestions", "chat:conversations");
     }
 

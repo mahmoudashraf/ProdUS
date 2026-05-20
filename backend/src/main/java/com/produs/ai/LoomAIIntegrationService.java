@@ -18,10 +18,18 @@ import com.produs.entity.User;
 import com.produs.exception.ResourceNotFoundException;
 import com.produs.packages.PackageInstance;
 import com.produs.packages.PackageInstanceRepository;
+import com.produs.packages.PackageModule;
+import com.produs.packages.PackageModuleRepository;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
 import com.produs.scanner.NormalizedFinding;
 import com.produs.scanner.NormalizedFindingRepository;
+import com.produs.scanner.ScanRun;
+import com.produs.scanner.ScanRunRepository;
+import com.produs.scanner.ScannerEvidenceItem;
+import com.produs.scanner.ScannerEvidenceItemRepository;
+import com.produs.workspace.Deliverable;
+import com.produs.workspace.DeliverableRepository;
 import com.produs.workspace.Milestone;
 import com.produs.workspace.MilestoneRepository;
 import com.produs.workspace.ProjectWorkspace;
@@ -40,10 +48,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -51,16 +62,48 @@ import java.util.UUID;
 public class LoomAIIntegrationService {
 
     private static final List<String> ALLOWED_ACTIONS = LoomAIToolAllowlist.toolNames();
+    private static final List<String> ACTIVE_READ_ACTIONS = LoomAIToolAllowlist.tools().stream()
+            .filter(tool -> !tool.confirmationRequired())
+            .map(LoomAIToolAllowlist.ToolDefinition::name)
+            .toList();
+    private static final List<String> CONFIRMED_ACTION_CANDIDATES = LoomAIToolAllowlist.tools().stream()
+            .filter(LoomAIToolAllowlist.ToolDefinition::confirmationRequired)
+            .map(LoomAIToolAllowlist.ToolDefinition::name)
+            .toList();
+    private static final List<String> ACTION_GROUP_HINTS = List.of(
+            "catalog",
+            "product",
+            "package",
+            "workspace",
+            "scanner",
+            "finding",
+            "evidence",
+            "milestone"
+    );
+    private static final int SUMMARY_LIMIT = 480;
+    private static final int FIELD_LIMIT = 220;
+    private static final int LIST_LIMIT = 6;
+    private static final Pattern SECRET_PATTERN = Pattern.compile(
+            "(?is)(api[_-]?key|secret|token|password|authorization|bearer|private[_-]?key)\\s*[:=]\\s*[^\\s,;]+"
+                    + "|gh[pousr]_[A-Za-z0-9_]+"
+                    + "|sk-[A-Za-z0-9_-]+"
+                    + "|-----BEGIN [^-]+ PRIVATE KEY-----.*?-----END [^-]+ PRIVATE KEY-----"
+    );
+    private static final Pattern URL_PATTERN = Pattern.compile("(?i)https?://\\S+");
 
     private final LoomAIProperties properties;
     private final LoomAIRuntimeAssertionService runtimeAssertionService;
     private final ObjectMapper objectMapper;
     private final ProductProfileRepository productRepository;
     private final PackageInstanceRepository packageRepository;
+    private final PackageModuleRepository packageModuleRepository;
     private final ProjectWorkspaceRepository workspaceRepository;
     private final WorkspaceParticipantRepository participantRepository;
     private final MilestoneRepository milestoneRepository;
+    private final DeliverableRepository deliverableRepository;
     private final NormalizedFindingRepository findingRepository;
+    private final ScanRunRepository scanRunRepository;
+    private final ScannerEvidenceItemRepository evidenceItemRepository;
     private final ServiceCategoryRepository categoryRepository;
     private final ServiceModuleRepository moduleRepository;
     private final ServiceDependencyRepository dependencyRepository;
@@ -83,7 +126,9 @@ public class LoomAIIntegrationService {
                 configuredPath(properties.getAssistantSuggestionsPath()),
                 configuredPath(properties.getAuthContextPath()),
                 configuredPath(properties.getDataSyncBatchPath()),
-                ALLOWED_ACTIONS
+                ALLOWED_ACTIONS,
+                ACTIVE_READ_ACTIONS,
+                CONFIRMED_ACTION_CANDIDATES
         );
     }
 
@@ -337,48 +382,284 @@ public class LoomAIIntegrationService {
 
     private Map<String, Object> safeContext(User user, AssistantContextRequest context) {
         Map<String, Object> safe = new LinkedHashMap<>();
+        safe.put("contextVersion", "produs-safe-summary-v1");
+        safe.put("contextBoundary", "authorized-redacted-summaries-only");
+        safe.put("actionProfile", "loomai-productization-read");
+        safe.put("availableActionGroups", ACTION_GROUP_HINTS);
         safe.put("actorRole", user.getRole().name());
         safe.put("pageType", context == null || context.pageType() == null ? "unknown" : context.pageType());
         if (context == null) {
             return safe;
         }
+        ProductProfile scopedProduct = null;
+        PackageInstance scopedPackage = null;
+        ProjectWorkspace scopedWorkspace = null;
+        Milestone scopedMilestone = null;
+        NormalizedFinding scopedFinding = null;
         if (context.productId() != null) {
-            ProductProfile product = productRepository.findById(context.productId())
+            scopedProduct = productRepository.findById(context.productId())
                     .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
-            requireProductRead(user, product);
-            safe.put("productId", product.getId().toString());
-            safe.put("productStage", product.getBusinessStage() == null ? "" : product.getBusinessStage().name());
+            requireProductRead(user, scopedProduct);
+            safe.put("productId", scopedProduct.getId().toString());
+            safe.put("productStage", scopedProduct.getBusinessStage() == null ? "" : scopedProduct.getBusinessStage().name());
+            safe.put("productName", safeText(scopedProduct.getName(), FIELD_LIMIT));
+            safe.put("productSummary", productSummary(scopedProduct));
         }
         if (context.packageId() != null) {
-            PackageInstance packageInstance = packageRepository.findById(context.packageId())
+            scopedPackage = packageRepository.findById(context.packageId())
                     .orElseThrow(() -> new ResourceNotFoundException("Package not found"));
-            requirePackageRead(user, packageInstance);
-            safe.put("packageId", packageInstance.getId().toString());
-            safe.put("packageStatus", packageInstance.getStatus().name());
+            requirePackageRead(user, scopedPackage);
+            safe.put("packageId", scopedPackage.getId().toString());
+            safe.put("packageStatus", scopedPackage.getStatus().name());
+            safe.put("packageSummary", packageSummary(scopedPackage));
+            scopedProduct = scopedProduct == null ? scopedPackage.getProductProfile() : scopedProduct;
         }
         if (context.workspaceId() != null) {
-            ProjectWorkspace workspace = workspaceRepository.findById(context.workspaceId())
+            scopedWorkspace = workspaceRepository.findById(context.workspaceId())
                     .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
-            requireWorkspaceRead(user, workspace);
-            safe.put("workspaceId", workspace.getId().toString());
-            safe.put("workspaceStatus", workspace.getStatus().name());
+            requireWorkspaceRead(user, scopedWorkspace);
+            safe.put("workspaceId", scopedWorkspace.getId().toString());
+            safe.put("workspaceStatus", scopedWorkspace.getStatus().name());
+            safe.put("workspaceSummary", workspaceSummary(scopedWorkspace));
+            scopedPackage = scopedPackage == null ? scopedWorkspace.getPackageInstance() : scopedPackage;
+            scopedProduct = scopedProduct == null && scopedWorkspace.getPackageInstance() != null ? scopedWorkspace.getPackageInstance().getProductProfile() : scopedProduct;
         }
         if (context.milestoneId() != null) {
-            Milestone milestone = milestoneRepository.findById(context.milestoneId())
+            scopedMilestone = milestoneRepository.findById(context.milestoneId())
                     .orElseThrow(() -> new ResourceNotFoundException("Milestone not found"));
-            requireWorkspaceRead(user, milestone.getWorkspace());
-            safe.put("milestoneId", milestone.getId().toString());
-            safe.put("milestoneStatus", milestone.getStatus().name());
+            requireWorkspaceRead(user, scopedMilestone.getWorkspace());
+            safe.put("milestoneId", scopedMilestone.getId().toString());
+            safe.put("milestoneStatus", scopedMilestone.getStatus().name());
+            safe.put("milestoneSummary", milestoneSummary(scopedMilestone));
+            scopedWorkspace = scopedWorkspace == null ? scopedMilestone.getWorkspace() : scopedWorkspace;
+            scopedPackage = scopedPackage == null && scopedWorkspace != null ? scopedWorkspace.getPackageInstance() : scopedPackage;
+            scopedProduct = scopedProduct == null && scopedPackage != null ? scopedPackage.getProductProfile() : scopedProduct;
         }
         if (context.findingId() != null) {
-            NormalizedFinding finding = findingRepository.findById(context.findingId())
+            scopedFinding = findingRepository.findById(context.findingId())
                     .orElseThrow(() -> new ResourceNotFoundException("Finding not found"));
-            requireProductOrWorkspaceRead(user, finding.getProductProfile(), finding.getWorkspace());
-            safe.put("findingId", finding.getId().toString());
-            safe.put("findingSeverity", finding.getSeverity().name());
-            safe.put("findingStatus", finding.getStatus().name());
+            requireProductOrWorkspaceRead(user, scopedFinding.getProductProfile(), scopedFinding.getWorkspace());
+            safe.put("findingId", scopedFinding.getId().toString());
+            safe.put("findingSeverity", scopedFinding.getSeverity().name());
+            safe.put("findingStatus", scopedFinding.getStatus().name());
+            safe.put("findingSummary", findingSummary(scopedFinding));
+            scopedProduct = scopedProduct == null ? scopedFinding.getProductProfile() : scopedProduct;
+            scopedWorkspace = scopedWorkspace == null ? scopedFinding.getWorkspace() : scopedWorkspace;
+        }
+        if (scopedProduct != null && !safe.containsKey("productSummary")) {
+            safe.put("productId", scopedProduct.getId().toString());
+            safe.put("productStage", scopedProduct.getBusinessStage() == null ? "" : scopedProduct.getBusinessStage().name());
+            safe.put("productName", safeText(scopedProduct.getName(), FIELD_LIMIT));
+            safe.put("productSummary", productSummary(scopedProduct));
+        }
+        if (scopedPackage != null && !safe.containsKey("packageSummary")) {
+            safe.put("packageId", scopedPackage.getId().toString());
+            safe.put("packageStatus", scopedPackage.getStatus().name());
+            safe.put("packageSummary", packageSummary(scopedPackage));
+        }
+        if (scopedWorkspace != null && !safe.containsKey("workspaceSummary")) {
+            safe.put("workspaceId", scopedWorkspace.getId().toString());
+            safe.put("workspaceStatus", scopedWorkspace.getStatus().name());
+            safe.put("workspaceSummary", workspaceSummary(scopedWorkspace));
+        }
+        if (scopedProduct != null) {
+            safe.put("scannerSummary", scannerSummary(scopedProduct, scopedWorkspace));
         }
         return safe;
+    }
+
+    private Map<String, Object> productSummary(ProductProfile product) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("name", safeText(product.getName(), FIELD_LIMIT));
+        value.put("summary", safeText(product.getSummary(), SUMMARY_LIMIT));
+        value.put("businessStage", product.getBusinessStage() == null ? "" : product.getBusinessStage().name());
+        value.put("techStack", safeText(product.getTechStack(), SUMMARY_LIMIT));
+        value.put("riskProfile", safeText(product.getRiskProfile(), SUMMARY_LIMIT));
+        value.put("productUrlAvailable", !blank(product.getProductUrl()));
+        value.put("repositoryUrlAvailable", !blank(product.getRepositoryUrl()));
+        value.put("ownerPresent", product.getOwner() != null);
+        return value;
+    }
+
+    private Map<String, Object> packageSummary(PackageInstance packageInstance) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("name", safeText(packageInstance.getName(), FIELD_LIMIT));
+        value.put("summary", safeText(packageInstance.getSummary(), SUMMARY_LIMIT));
+        value.put("status", packageInstance.getStatus().name());
+        value.put("productId", packageInstance.getProductProfile() == null ? "" : packageInstance.getProductProfile().getId().toString());
+        value.put("productName", packageInstance.getProductProfile() == null ? "" : safeText(packageInstance.getProductProfile().getName(), FIELD_LIMIT));
+        List<PackageModule> modules = packageModuleRepository.findByPackageInstanceIdOrderBySequenceOrderAsc(packageInstance.getId());
+        value.put("serviceCount", modules.size());
+        value.put("serviceStatusCounts", countBy(modules, module -> module.getStatus().name()));
+        value.put("services", modules.stream()
+                .limit(LIST_LIMIT)
+                .map(this::packageModuleSummary)
+                .toList());
+        return value;
+    }
+
+    private Map<String, Object> packageModuleSummary(PackageModule module) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        ServiceModule service = module.getServiceModule();
+        value.put("serviceSlug", service == null ? "" : service.getSlug());
+        value.put("serviceName", service == null ? "" : safeText(service.getName(), FIELD_LIMIT));
+        value.put("categorySlug", service == null || service.getCategory() == null ? "" : service.getCategory().getSlug());
+        value.put("required", module.isRequired());
+        value.put("status", module.getStatus().name());
+        value.put("rationale", safeText(module.getRationale(), SUMMARY_LIMIT));
+        value.put("deliverables", safeText(module.getDeliverables(), SUMMARY_LIMIT));
+        value.put("acceptanceCriteria", safeText(module.getAcceptanceCriteria(), SUMMARY_LIMIT));
+        return value;
+    }
+
+    private Map<String, Object> workspaceSummary(ProjectWorkspace workspace) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("name", safeText(workspace.getName(), FIELD_LIMIT));
+        value.put("status", workspace.getStatus().name());
+        value.put("packageId", workspace.getPackageInstance() == null ? "" : workspace.getPackageInstance().getId().toString());
+        value.put("packageName", workspace.getPackageInstance() == null ? "" : safeText(workspace.getPackageInstance().getName(), FIELD_LIMIT));
+        value.put("participantCount", participantRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspace.getId()).size());
+        List<Milestone> milestones = milestoneRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspace.getId());
+        value.put("milestoneCount", milestones.size());
+        value.put("milestoneStatusCounts", countBy(milestones, milestone -> milestone.getStatus().name()));
+        value.put("milestones", milestones.stream()
+                .limit(LIST_LIMIT)
+                .map(this::milestoneBrief)
+                .toList());
+        return value;
+    }
+
+    private Map<String, Object> milestoneSummary(Milestone milestone) {
+        Map<String, Object> value = milestoneBrief(milestone);
+        List<Deliverable> deliverables = deliverableRepository.findByMilestoneIdOrderByCreatedAtAsc(milestone.getId());
+        List<ScannerEvidenceItem> evidence = evidenceItemRepository.findByMilestoneIdOrderByCreatedAtDesc(milestone.getId());
+        value.put("deliverableCount", deliverables.size());
+        value.put("deliverableStatusCounts", countBy(deliverables, deliverable -> deliverable.getStatus().name()));
+        value.put("deliverables", deliverables.stream()
+                .limit(LIST_LIMIT)
+                .map(this::deliverableSummary)
+                .toList());
+        value.put("evidenceCount", evidence.size());
+        value.put("evidence", evidence.stream()
+                .limit(LIST_LIMIT)
+                .map(this::evidenceSummary)
+                .toList());
+        return value;
+    }
+
+    private Map<String, Object> milestoneBrief(Milestone milestone) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("id", milestone.getId().toString());
+        value.put("title", safeText(milestone.getTitle(), FIELD_LIMIT));
+        value.put("description", safeText(milestone.getDescription(), SUMMARY_LIMIT));
+        value.put("dueDate", milestone.getDueDate() == null ? "" : milestone.getDueDate().toString());
+        value.put("status", milestone.getStatus().name());
+        return value;
+    }
+
+    private Map<String, Object> deliverableSummary(Deliverable deliverable) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("title", safeText(deliverable.getTitle(), FIELD_LIMIT));
+        value.put("status", deliverable.getStatus().name());
+        value.put("evidenceSummary", safeText(deliverable.getEvidence(), SUMMARY_LIMIT));
+        return value;
+    }
+
+    private Map<String, Object> findingSummary(NormalizedFinding finding) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("title", safeText(finding.getTitle(), FIELD_LIMIT));
+        value.put("description", safeText(finding.getDescription(), SUMMARY_LIMIT));
+        value.put("severity", finding.getSeverity().name());
+        value.put("status", finding.getStatus().name());
+        value.put("sourceTool", safeText(finding.getSourceTool(), FIELD_LIMIT));
+        value.put("sourceRuleId", safeText(finding.getSourceRuleId(), FIELD_LIMIT));
+        value.put("affectedComponent", safeText(finding.getAffectedComponent(), FIELD_LIMIT));
+        value.put("confidenceBasis", safeText(finding.getConfidenceBasis(), SUMMARY_LIMIT));
+        value.put("riskReviewDueOn", finding.getRiskReviewDueOn() == null ? "" : finding.getRiskReviewDueOn().toString());
+        ServiceModule recommended = finding.getRecommendedModule();
+        value.put("recommendedService", recommended == null ? Map.of() : Map.of(
+                "slug", recommended.getSlug(),
+                "name", safeText(recommended.getName(), FIELD_LIMIT),
+                "categorySlug", recommended.getCategory() == null ? "" : recommended.getCategory().getSlug()
+        ));
+        List<ScannerEvidenceItem> evidence = evidenceItemRepository.findByFindingIdOrderByCreatedAtDesc(finding.getId());
+        value.put("evidenceCount", evidence.size());
+        value.put("evidence", evidence.stream()
+                .limit(LIST_LIMIT)
+                .map(this::evidenceSummary)
+                .toList());
+        if (finding.getScanRun() != null) {
+            value.put("scanRun", scanRunSummary(finding.getScanRun()));
+        }
+        return value;
+    }
+
+    private Map<String, Object> scannerSummary(ProductProfile product, ProjectWorkspace workspace) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        List<ScanRun> scanRuns = workspace == null
+                ? scanRunRepository.findByProductProfileIdOrderByCreatedAtDesc(product.getId())
+                : scanRunRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId());
+        List<NormalizedFinding> findings = findingRepository.findByProductProfileIdOrderBySeverityDescCreatedAtDesc(product.getId()).stream()
+                .filter(finding -> workspace == null || (finding.getWorkspace() != null && workspace.getId().equals(finding.getWorkspace().getId())))
+                .toList();
+        List<ScannerEvidenceItem> evidence = workspace == null
+                ? evidenceItemRepository.findByProductProfileIdOrderByCreatedAtDesc(product.getId())
+                : evidenceItemRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId());
+        value.put("scanRunCount", scanRuns.size());
+        value.put("scanRunStatusCounts", countBy(scanRuns, scanRun -> scanRun.getStatus().name()));
+        value.put("latestScanRuns", scanRuns.stream()
+                .limit(3)
+                .map(this::scanRunSummary)
+                .toList());
+        value.put("findingCount", findings.size());
+        value.put("findingSeverityCounts", countBy(findings, finding -> finding.getSeverity().name()));
+        value.put("findingStatusCounts", countBy(findings, finding -> finding.getStatus().name()));
+        value.put("topFindings", findings.stream()
+                .limit(LIST_LIMIT)
+                .map(finding -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", finding.getId().toString());
+                    item.put("title", safeText(finding.getTitle(), FIELD_LIMIT));
+                    item.put("severity", finding.getSeverity().name());
+                    item.put("status", finding.getStatus().name());
+                    item.put("sourceTool", safeText(finding.getSourceTool(), FIELD_LIMIT));
+                    ServiceModule recommended = finding.getRecommendedModule();
+                    item.put("recommendedServiceSlug", recommended == null ? "" : recommended.getSlug());
+                    return item;
+                })
+                .toList());
+        value.put("evidenceCount", evidence.size());
+        value.put("latestEvidence", evidence.stream()
+                .limit(LIST_LIMIT)
+                .map(this::evidenceSummary)
+                .toList());
+        return value;
+    }
+
+    private Map<String, Object> scanRunSummary(ScanRun scanRun) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("id", scanRun.getId().toString());
+        value.put("status", scanRun.getStatus().name());
+        value.put("depth", scanRun.getDepth().name());
+        value.put("triggerType", scanRun.getTriggerType().name());
+        value.put("startedAt", scanRun.getStartedAt() == null ? "" : scanRun.getStartedAt().toString());
+        value.put("completedAt", scanRun.getCompletedAt() == null ? "" : scanRun.getCompletedAt().toString());
+        value.put("failureSummary", safeText(scanRun.getFailureSummary(), SUMMARY_LIMIT));
+        value.put("cancelRequested", scanRun.isCancelRequested());
+        return value;
+    }
+
+    private Map<String, Object> evidenceSummary(ScannerEvidenceItem evidence) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("id", evidence.getId().toString());
+        value.put("type", evidence.getEvidenceType().name());
+        value.put("source", safeText(evidence.getSource(), FIELD_LIMIT));
+        value.put("title", safeText(evidence.getTitle(), FIELD_LIMIT));
+        value.put("summary", safeText(evidence.getSummary(), SUMMARY_LIMIT));
+        value.put("redactionStatus", evidence.getRedactionStatus().name());
+        value.put("confidenceLevel", evidence.getConfidenceLevel().name());
+        value.put("artifactAvailable", !blank(evidence.getArtifactRef()) || !blank(evidence.getStorageKey()));
+        return value;
     }
 
     private Map<String, Object> assistantQueryPayload(AssistantQueryRequest request, Map<String, Object> context) {
@@ -836,6 +1117,31 @@ public class LoomAIIntegrationService {
         return value == null ? "" : value;
     }
 
+    private String safeText(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String redacted = SECRET_PATTERN.matcher(value).replaceAll("[redacted-secret]");
+        redacted = URL_PATTERN.matcher(redacted).replaceAll("[redacted-url]");
+        redacted = redacted.replaceAll("\\s+", " ").trim();
+        if (redacted.length() <= maxLength) {
+            return redacted;
+        }
+        return redacted.substring(0, Math.max(0, maxLength - 1)).trim() + "...";
+    }
+
+    private <T> Map<String, Long> countBy(Collection<T> values, Function<T, String> keyExtractor) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        for (T value : values) {
+            String key = keyExtractor.apply(value);
+            if (key == null || key.isBlank()) {
+                key = "UNKNOWN";
+            }
+            counts.put(key, counts.getOrDefault(key, 0L) + 1);
+        }
+        return counts;
+    }
+
     private boolean blank(String value) {
         return value == null || value.isBlank();
     }
@@ -916,7 +1222,9 @@ public class LoomAIIntegrationService {
             boolean assistantSuggestionsConfigured,
             boolean authContextConfigured,
             boolean knowledgeSyncConfigured,
-            List<String> allowedActions
+            List<String> allowedActions,
+            List<String> activeReadActions,
+            List<String> confirmedActionCandidates
     ) {}
 
     public record LoomAIAuthContextResponse(

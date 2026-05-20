@@ -198,6 +198,12 @@ class LoomAIStagingIntegrationTest {
                 respond(exchange, 400, "{\"error\":\"query and conversationId are required\"}");
                 return;
             }
+            if (!requestBody.contains("\"productSummary\"") || !requestBody.contains("\"scannerSummary\"")
+                    || !requestBody.contains("\"actionProfile\":\"loomai-productization-read\"")
+                    || requestBody.contains("sk-test-secret") || requestBody.contains("api.example.test")) {
+                respond(exchange, 400, "{\"error\":\"safe context enrichment is required\"}");
+                return;
+            }
             if (requestBody.contains("force fallback")) {
                 respond(exchange, 503, "{\"error\":\"temporarily unavailable\"}");
                 return;
@@ -304,8 +310,9 @@ class LoomAIStagingIntegrationTest {
         ProductProfile product = new ProductProfile();
         product.setOwner(owner);
         product.setName("LoomAI Scanner Product");
-        product.setSummary("Product used for LoomAI staging integration tests");
+        product.setSummary("Product used for LoomAI staging integration tests. API_KEY=sk-test-secret should be redacted.");
         product.setBusinessStage(ProductProfile.BusinessStage.PROTOTYPE);
+        product.setProductUrl("https://api.example.test/private");
         return productRepository.save(product);
     }
 

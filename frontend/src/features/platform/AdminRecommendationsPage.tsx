@@ -67,8 +67,8 @@ export default function AdminRecommendationsPage() {
             <Typography variant="h4">{loomAIStatus.data?.configured ? 'Configured' : 'Fallback'}</Typography>
           </Box>
           <Box sx={{ p: 1.5, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, background: 'rgba(248, 250, 252, 0.72)' }}>
-            <Typography variant="body2" color="text.secondary">Allowed actions</Typography>
-            <Typography variant="h4">{loomAIStatus.data?.allowedActions.length || 0}</Typography>
+            <Typography variant="body2" color="text.secondary">Live read actions</Typography>
+            <Typography variant="h4">{loomAIStatus.data?.activeReadActions?.length || 0}</Typography>
           </Box>
           <Box sx={{ p: 1.5, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, background: 'rgba(248, 250, 252, 0.72)' }}>
             <Typography variant="body2" color="text.secondary">Knowledge sync</Typography>

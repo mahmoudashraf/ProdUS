@@ -888,6 +888,8 @@ export interface LoomAIStatus {
   authContextConfigured?: boolean;
   knowledgeSyncConfigured: boolean;
   allowedActions: string[];
+  activeReadActions?: string[];
+  confirmedActionCandidates?: string[];
 }
 
 export interface LoomAIKnowledgeSync {

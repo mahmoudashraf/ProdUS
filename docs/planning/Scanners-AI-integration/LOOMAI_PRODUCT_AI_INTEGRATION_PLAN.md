@@ -35,6 +35,10 @@ Current staging direct-runtime behavior is verified:
 - `POST /api/chat/me/query` works with canonical `query`, `conversationId`, `mode`, `position`, and `context`.
 - `POST /api/chat/me/suggestions` works with `content` and `maxSuggestions`.
 - ProdUS staging broker endpoints return live LoomAI query and suggestions responses.
+- ProdUS MCP authentication is enforced in staging: unauthenticated `/mcp tools/list` returns `401`; authenticated discovery returns the ProdUS tool catalog.
+- LoomAI staging deployment `dep-7706fafb` has installed the read-only Marketplace plugin `mkp-action-produs-productization-read-mcp@0.1.0`.
+- Runtime action discovery currently loads these 8 ProdUS read actions only: `produs_catalog_search`, `produs_product_list`, `produs_package_inspect`, `produs_workspace_inspect`, `produs_scan_status`, `produs_finding_inspect`, `produs_evidence_list`, and `produs_milestone_review_evidence`.
+- Mutation MCP tools are intentionally not imported into LoomAI runtime yet. They require ProdUS confirmation UX, audit enforcement, and a separate reviewed confirmed-action Marketplace manifest.
 - Suggestions endpoint must not receive `conversationId` or `context` in the runtime request body unless LoomAI changes its OpenAPI contract.
 - Query endpoint must not receive legacy or unsupported top-level fields such as `message`, `sessionId`, `allowedActions`, or `storefrontContext`.
 
@@ -321,19 +325,67 @@ POST /api/chat/me/query
   "mode": "support_assistant",
   "position": "productization",
   "context": {
+    "contextVersion": "produs-safe-summary-v1",
+    "contextBoundary": "authorized-redacted-summaries-only",
+    "actionProfile": "loomai-productization-read",
+    "availableActionGroups": ["catalog", "product", "package", "workspace", "scanner", "finding", "evidence", "milestone"],
     "actorRole": "PRODUCT_OWNER",
     "pageType": "owner-product-workspace",
     "productId": "uuid",
     "productStage": "PROTOTYPE",
+    "productName": "Payments Hub",
+    "productSummary": {
+      "name": "Payments Hub",
+      "summary": "Payment orchestration platform summary.",
+      "businessStage": "PROTOTYPE",
+      "techStack": "Next.js, Spring Boot, PostgreSQL",
+      "riskProfile": "Missing CI evidence and deployment hardening.",
+      "productUrlAvailable": true,
+      "repositoryUrlAvailable": true
+    },
     "packageId": "uuid",
     "packageStatus": "DRAFT",
+    "packageSummary": {
+      "name": "Payments Hub production package",
+      "status": "DRAFT",
+      "serviceCount": 4,
+      "serviceStatusCounts": {"PLANNED": 3, "BLOCKED": 1},
+      "services": []
+    },
     "workspaceId": "uuid",
     "workspaceStatus": "ACTIVE",
+    "workspaceSummary": {
+      "name": "Payments Hub delivery",
+      "status": "ACTIVE_DELIVERY",
+      "participantCount": 3,
+      "milestoneCount": 6,
+      "milestoneStatusCounts": {"ACCEPTED": 3, "IN_PROGRESS": 2, "BLOCKED": 1}
+    },
     "milestoneId": "uuid",
     "milestoneStatus": "IN_PROGRESS",
+    "milestoneSummary": {
+      "title": "Launch readiness",
+      "status": "IN_PROGRESS",
+      "deliverableCount": 5,
+      "evidenceCount": 4
+    },
     "findingId": "uuid",
     "findingSeverity": "HIGH",
-    "findingStatus": "OPEN"
+    "findingStatus": "OPEN",
+    "findingSummary": {
+      "title": "Dependency vulnerability",
+      "severity": "HIGH",
+      "status": "OPEN",
+      "sourceTool": "dependency-scan",
+      "recommendedService": {"slug": "dependency-security-review"}
+    },
+    "scannerSummary": {
+      "scanRunCount": 3,
+      "scanRunStatusCounts": {"COMPLETED": 2, "FAILED": 1},
+      "findingSeverityCounts": {"CRITICAL": 1, "HIGH": 3, "MEDIUM": 7},
+      "findingStatusCounts": {"OPEN": 8, "RESOLVED": 3},
+      "evidenceCount": 12
+    }
   }
 }
 ```
@@ -459,7 +511,7 @@ ProdUS uses this endpoint for admin/operator smoke tests, not normal user render
 
 ## 7. Context Enrichment Plan
 
-Current implementation sends a safe but lean context. The next integration quality step is a backend context enrichment service that builds role-authorized summaries before the LoomAI call.
+Current implementation builds backend-owned safe context before the LoomAI call. It authorizes each requested product/package/workspace/milestone/finding ID, fetches compact summaries, redacts obvious secrets and URLs, and sends bounded context only.
 
 The service should be deterministic, redacted, and bounded by page type.
 
@@ -478,7 +530,7 @@ The service should be deterministic, redacted, and bounded by page type.
 
 ### 7.2 Enriched Context Shape
 
-Future enriched context should remain compact:
+The enriched context must remain compact:
 
 ```json
 {
@@ -523,6 +575,8 @@ Rules:
 - Keep context size bounded; send summaries and IDs, not raw records.
 - Include source IDs so LoomAI can cite them, but not private object URLs.
 - Use MCP/live lookup for details when LoomAI needs more context.
+- Do not add top-level `allowedActions` to the direct runtime query payload.
+- Do not send the full mutation tool list in `context` unless LoomAI explicitly adds a documented field for it. Use the lightweight `actionProfile` and `availableActionGroups` hints instead.
 
 ## 8. Safe Knowledge Sync Contract
 
@@ -615,6 +669,8 @@ ProdUS currently only needs `providerRequestId` for sync success. The richer cou
 
 LoomAI may propose or prepare actions. ProdUS executes actions through backend/MCP only after authorization and confirmation.
 
+Current staging deployment imports only read actions into LoomAI runtime. ProdUS exposes confirmed mutation candidates in its own MCP catalog for future review, but LoomAI must not call them until a separate confirmed-action Marketplace manifest is reviewed, installed, and verified.
+
 Allowed read tools:
 
 - `produs.catalog.search`
@@ -626,7 +682,7 @@ Allowed read tools:
 - `produs.evidence.list`
 - `produs.milestone.review_evidence`
 
-Allowed mutation tools with confirmation:
+Future mutation tools with confirmation:
 
 - `produs.requirement.submit`
 - `produs.package.build_from_requirement`

@@ -118,7 +118,7 @@ LOOMAI_ASSERTION_CUSTOMER_ID=produs-staging
 LOOMAI_ASSERTION_SIGNING_ALGORITHM=HS256
 LOOMAI_ASSERTION_SIGNING_SECRET=<secure-secret>
 LOOMAI_ASSERTION_SCOPES=chat:query,chat:suggestions,chat:conversations
-LOOMAI_TIMEOUT_MS=8000
+LOOMAI_TIMEOUT_MS=30000
 LOOMAI_ASSISTANT_QUERY_PATH=/api/chat/me/query
 LOOMAI_ASSISTANT_SUGGESTIONS_PATH=/api/chat/me/suggestions
 LOOMAI_AUTH_CONTEXT_PATH=/api/chat/me/auth-context
@@ -126,9 +126,9 @@ LOOMAI_AUTH_CONTEXT_PATH=/api/chat/me/auth-context
 
 Do not require or rely on `LOOMAI_ASSERTION_PRIVATE_KEY_PATH` for this staging setup unless LoomAI adds asymmetric public-key verification first.
 
-## Private Runtime Assertion Confirmation Needed
+## Private Runtime Assertion Contract
 
-ProdUS will implement:
+ProdUS implements:
 
 ```http
 X-AIFABRIC-RUNTIME-API-KEY: <deployment-scoped-runtime-api-key>
@@ -149,22 +149,23 @@ Expected payload:
   "tenantId": "optional-tenant-or-org-id",
   "iss": "produs-staging-backend",
   "aud": "dep-7706fafb",
+  "iat": "2026-05-20T11:55:00Z",
   "exp": "2026-05-20T12:00:00Z",
+  "jti": "uuid",
   "scopes": ["chat:query", "chat:suggestions", "chat:conversations"]
 }
 ```
 
-Please confirm:
+Confirmed staging details:
 
-1. Is the base64url encoding unpadded?
-2. Is the HMAC input exactly the base64url payload segment, as currently documented?
-3. Is the signature algorithm always HMAC-SHA256 for `HS256`?
-4. Should `exp` be ISO-8601 UTC string, numeric epoch seconds, or are both accepted?
-5. What clock skew does runtime allow for `exp`?
-6. Are all fields above required for both query and suggestions?
-7. For anonymous users, confirm `subjectType=ANONYMOUS_SESSION` and `sub == sessionId`.
-8. Confirm missing `chat:query` rejects query and missing `chat:suggestions` rejects suggestions.
-9. Confirm runtime rejects a normal `Authorization` bearer token in this mode.
+1. Base64url encoding is unpadded.
+2. The HMAC input is exactly the base64url payload segment.
+3. `HS256` uses HMAC-SHA256.
+4. `iat` and `exp` must be ISO-8601 UTC strings for ProdUS staging.
+5. ProdUS backend generates assertions with a short TTL and uses a 30 second minimum runtime timeout for query calls.
+6. ProdUS sends `chat:query`, `chat:suggestions`, and `chat:conversations` scopes for current staging broker calls.
+7. For anonymous sessions, ProdUS can use `subjectType=ANONYMOUS_SESSION` and `sub == sessionId`.
+8. Private-runtime mode requires `X-AIFABRIC-RUNTIME-API-KEY` and `X-AIFABRIC-RUNTIME-AUTHORIZATION`; normal browser `Authorization` tokens are not sent to LoomAI runtime.
 
 ## Chat API Contract Confirmation Needed
 
@@ -280,9 +281,9 @@ Expected response fields:
 }
 ```
 
-Please confirm this endpoint is live on `dep-7706fafb` and whether it returns `issuer` or `iss`, `subjectId` or `sub`, and `grantedScopes` or `scopes`.
+This endpoint is live on `dep-7706fafb` for ProdUS staging. ProdUS response normalization accepts canonical and nested provider fields where needed.
 
-## MCP Discovery And Tool Import Request
+## MCP Discovery And Tool Import Status
 
 ProdUS staging MCP endpoints expected:
 
@@ -316,13 +317,15 @@ Expected discovery auth:
 }
 ```
 
-Please confirm:
+Confirmed staging status:
 
-1. Should `GET /loomai/tool-allowlist` require `X-MCP-API-KEY`, or only `POST /mcp`?
-2. Does the MCP gateway support `STREAMABLE_HTTP` for this endpoint?
-3. Should `allowedTools` be empty during discovery, or pre-populated with the ProdUS allowlist?
-4. What exact `ready=true` response should ProdUS expect from Platform discovery?
-5. Should LoomAI import tools only after ProdUS confirms the allowlist, or is discovery output enough?
+1. Unauthenticated `/mcp tools/list` returns `401`.
+2. Authenticated `/mcp tools/list` returns 17 ProdUS tool definitions.
+3. Platform Marketplace discovery for `produs-staging` reports `ready=true`.
+4. LoomAI published and installed read-only Marketplace plugin `mkp-action-produs-productization-read-mcp@0.1.0`.
+5. Deployment `dep-7706fafb` version `v3`, release `rel-dcd6fd36`, is `APPLIED_VERIFIED`.
+6. Runtime currently loads 8 read actions only: catalog search, product list, package inspect, workspace inspect, scan status, finding inspect, evidence list, and milestone evidence review.
+7. Mutation tools are intentionally not imported until ProdUS ships confirmation UX, action audit enforcement, and a reviewed confirmed-action Marketplace manifest.
 
 ProdUS AI tool scope is intentionally limited to productization value:
 
