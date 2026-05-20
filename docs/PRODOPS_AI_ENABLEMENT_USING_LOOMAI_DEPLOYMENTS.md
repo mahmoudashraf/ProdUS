@@ -196,19 +196,25 @@ GET  /api/admin/production-readiness
 Expected LoomAI runtime configuration:
 
 ```text
-LOOMAI_BASE_URL
 LOOMAI_ENABLED
 LOOMAI_ENVIRONMENT
 LOOMAI_INTEGRATION_MODE
 LOOMAI_AUTH_MODE
+LOOMAI_BASE_URL
 LOOMAI_RUNTIME_API_KEY
+LOOMAI_RUNTIME_API_KEY_HEADER_NAME
+LOOMAI_ASSERTION_AUTHORIZATION_HEADER
 LOOMAI_ASSERTION_ISSUER
 LOOMAI_ASSERTION_AUDIENCE
+LOOMAI_ASSERTION_CUSTOMER_ID
+LOOMAI_ASSERTION_TENANT_ID
 LOOMAI_ASSERTION_SIGNING_ALGORITHM
-LOOMAI_ASSERTION_SIGNING_SECRET or LOOMAI_ASSERTION_PRIVATE_KEY_PATH
+LOOMAI_ASSERTION_SIGNING_SECRET
+LOOMAI_ASSERTION_SCOPES
 LOOMAI_TIMEOUT_MS
 LOOMAI_ASSISTANT_QUERY_PATH
 LOOMAI_ASSISTANT_SUGGESTIONS_PATH
+LOOMAI_AUTH_CONTEXT_PATH
 LOOMAI_DATA_SYNC_BATCH_PATH
 LOOMAI_DATA_SYNC_DELETE_PATH
 ```
@@ -223,12 +229,23 @@ LOOMAI_ENVIRONMENT=staging
 LOOMAI_INTEGRATION_MODE=BACKEND_MEDIATED_PRIVATE_RUNTIME
 LOOMAI_AUTH_MODE=PRIVATE_RUNTIME_ASSERTION
 LOOMAI_BASE_URL=http://dep-7706fafb.46.224.145.148.sslip.io
+LOOMAI_RUNTIME_API_KEY=<backend-only runtime API key>
+LOOMAI_RUNTIME_API_KEY_HEADER_NAME=X-AIFABRIC-RUNTIME-API-KEY
+LOOMAI_ASSERTION_AUTHORIZATION_HEADER=X-AIFABRIC-RUNTIME-AUTHORIZATION
+LOOMAI_ASSERTION_ISSUER=produs-staging-backend
 LOOMAI_ASSERTION_AUDIENCE=dep-7706fafb
+LOOMAI_ASSERTION_CUSTOMER_ID=produs-staging
+LOOMAI_ASSERTION_SIGNING_ALGORITHM=HS256
+LOOMAI_ASSERTION_SIGNING_SECRET=<backend-only HMAC key>
+LOOMAI_ASSERTION_SCOPES=chat:query,chat:suggestions,chat:conversations
 LOOMAI_ASSISTANT_QUERY_PATH=/api/chat/me/query
 LOOMAI_ASSISTANT_SUGGESTIONS_PATH=/api/chat/me/suggestions
+LOOMAI_AUTH_CONTEXT_PATH=/api/chat/me/auth-context
 ```
 
-`LOOMAI_RUNTIME_API_KEY` and assertion signing material must be held only in backend/server-side secrets. The browser must never receive runtime keys, signing material, Platform API keys, or private-runtime assertions.
+ProdUS generates `X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer rpa1.<payload>.<signature>` in the backend. The HMAC input is the base64url payload segment, and the HMAC key is `LOOMAI_ASSERTION_SIGNING_SECRET`. `LOOMAI_RUNTIME_API_KEY` and assertion signing material must be held only in backend/server-side secrets. The browser must never receive runtime keys, signing material, Platform API keys, or private-runtime assertions.
+
+Runtime suggestions use the live LoomAI OpenAPI `SuggestionsRequest` schema. ProdUS frontend may send `conversationId` and `context` to the backend, but the backend forwards only `content` and `maxSuggestions` to `/api/chat/me/suggestions` until LoomAI updates the runtime schema to accept additional context fields.
 
 ## MCP Integration Model
 
@@ -236,6 +253,8 @@ ProdUS MCP must expose a LoomAI-safe profile only.
 
 ```text
 PRODUS_MCP_TOOL_PROFILE=loomai-productization
+PRODUS_MCP_REQUIRE_AUTH=true
+PRODUS_MCP_API_KEY=<produs-owned mcp discovery key>
 ```
 
 Expected MCP endpoints:
@@ -340,7 +359,7 @@ LoomAI integration team must provide:
 - LoomAI private runtime API key
 - accepted ProdUS staging assertion issuer, for example `produs-staging-backend`
 - assertion audience, currently `dep-7706fafb`
-- signing strategy, either a ProdUS-owned HMAC secret or a ProdUS-owned private key registered with LoomAI runtime security
+- ProdUS-owned HMAC assertion signing secret accepted by the runtime
 - confirmed private-runtime auth header format
 - confirmed request/response schemas
 - provider request ID field or header
@@ -356,11 +375,17 @@ ProdUS team must then configure staging:
 - set `LOOMAI_INTEGRATION_MODE=BACKEND_MEDIATED_PRIVATE_RUNTIME`
 - set `LOOMAI_AUTH_MODE=PRIVATE_RUNTIME_ASSERTION`
 - set `LOOMAI_RUNTIME_API_KEY`
+- set `LOOMAI_RUNTIME_API_KEY_HEADER_NAME=X-AIFABRIC-RUNTIME-API-KEY`
+- set `LOOMAI_ASSERTION_AUTHORIZATION_HEADER=X-AIFABRIC-RUNTIME-AUTHORIZATION`
 - set `LOOMAI_ASSERTION_ISSUER`
 - set `LOOMAI_ASSERTION_AUDIENCE`
-- set exactly one signing source: `LOOMAI_ASSERTION_SIGNING_SECRET` or `LOOMAI_ASSERTION_PRIVATE_KEY_PATH`
+- set `LOOMAI_ASSERTION_CUSTOMER_ID=produs-staging`
+- set `LOOMAI_ASSERTION_SIGNING_ALGORITHM=HS256`
+- set `LOOMAI_ASSERTION_SIGNING_SECRET`
+- set `LOOMAI_ASSERTION_SCOPES=chat:query,chat:suggestions,chat:conversations`
 - set `LOOMAI_ENABLED=true`
-- confirm query/suggestion endpoint paths
+- confirm query/suggestion/auth-context endpoint paths
+- set `PRODUS_MCP_REQUIRE_AUTH=true` and `PRODUS_MCP_API_KEY` before LoomAI MCP discovery
 - keep assistant session creation local to ProdUS unless LoomAI provides a formal session endpoint
 - run knowledge preview
 - run safe knowledge sync

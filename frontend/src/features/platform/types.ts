@@ -878,9 +878,14 @@ export interface LoomAIStatus {
   enabled: boolean;
   configured: boolean;
   environment: string;
+  integrationMode?: string;
+  authMode?: string;
+  privateRuntimeMode?: boolean;
+  privateRuntimeAuthConfigured?: boolean;
   assistantSessionConfigured: boolean;
   assistantQueryConfigured: boolean;
   assistantSuggestionsConfigured: boolean;
+  authContextConfigured?: boolean;
   knowledgeSyncConfigured: boolean;
   allowedActions: string[];
 }
@@ -904,6 +909,7 @@ export interface AssistantContext {
 export interface AssistantSuggestionsResponse {
   provider: string;
   mode: 'LIVE' | 'FALLBACK';
+  success?: boolean;
   suggestions: string[];
   fallbackReason?: string;
   providerRequestId?: string;

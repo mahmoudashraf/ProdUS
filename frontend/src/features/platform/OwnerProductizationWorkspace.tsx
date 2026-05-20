@@ -600,7 +600,10 @@ export default function OwnerProductizationWorkspace({
     queryKey: ['assistant-suggestions', selectedProduct?.id, selectedPackage?.id, selectedWorkspace?.id, selectedFindingId],
     enabled: !!selectedProduct?.id,
     queryFn: () =>
-      postJson<AssistantSuggestionsResponse, { context: Record<string, string | undefined> }>('/ai/assistant/suggestions', {
+      postJson<AssistantSuggestionsResponse, { content: string; conversationId: string; maxSuggestions: number; context: Record<string, string | undefined> }>('/ai/assistant/suggestions', {
+        content: `Suggest the next useful productization actions for ${selectedProduct?.name || 'this product'}.`,
+        conversationId: `owner-productization-${selectedProduct?.id || 'product'}`,
+        maxSuggestions: 4,
         context: {
           pageType: 'owner-product-workspace',
           productId: selectedProduct?.id,

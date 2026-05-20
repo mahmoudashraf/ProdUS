@@ -7,6 +7,7 @@ import com.produs.ai.LoomAIIntegrationService.AssistantSessionResponse;
 import com.produs.ai.LoomAIIntegrationService.AssistantSuggestionsRequest;
 import com.produs.ai.LoomAIIntegrationService.AssistantSuggestionsResponse;
 import com.produs.ai.LoomAIIntegrationService.KnowledgeSyncResponse;
+import com.produs.ai.LoomAIIntegrationService.LoomAIAuthContextResponse;
 import com.produs.ai.LoomAIIntegrationService.LoomAIStatusResponse;
 import com.produs.ai.LoomAIIntegrationService.SafeKnowledgeRecord;
 import com.produs.entity.User;
@@ -35,6 +36,11 @@ public class LoomAIIntegrationController {
     @GetMapping("/loomai/knowledge-preview")
     public List<SafeKnowledgeRecord> previewKnowledge(@AuthenticationPrincipal User user) {
         return integrationService.previewSafeKnowledge(user);
+    }
+
+    @GetMapping("/loomai/auth-context")
+    public LoomAIAuthContextResponse authContext(@AuthenticationPrincipal User user) {
+        return integrationService.authContext(user);
     }
 
     @PostMapping("/loomai/knowledge-sync")

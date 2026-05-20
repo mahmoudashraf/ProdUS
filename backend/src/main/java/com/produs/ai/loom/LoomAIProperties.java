@@ -22,17 +22,20 @@ public class LoomAIProperties {
     private String runtimeAuthorizationHeaderName = "X-AIFABRIC-RUNTIME-AUTHORIZATION";
     private String assertionIssuer = "";
     private String assertionAudience = "";
+    private String assertionCustomerId = "produs-staging";
+    private String assertionTenantId = "";
     private String assertionSigningAlgorithm = "HS256";
     private String assertionSigningSecret = "";
     private String assertionPrivateKeyPath = "";
     private int assertionTtlSeconds = 300;
-    private String assertionScopes = "chat:read";
+    private String assertionScopes = "chat:query,chat:suggestions,chat:conversations";
     private String defaultMode = "support_assistant";
     private String defaultPosition = "productization";
     private int timeoutMs = 2500;
     private String assistantSessionPath = "/api/public/chat/session";
     private String assistantQueryPath = "/api/chat/me/query";
     private String assistantSuggestionsPath = "/api/chat/me/suggestions";
+    private String authContextPath = "/api/chat/me/auth-context";
     private String dataSyncBatchPath = "/api/ai/data-sync/batch";
     private String dataSyncDeletePath = "/api/ai/data-sync/delete";
 

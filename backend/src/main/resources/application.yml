@@ -118,6 +118,12 @@ app:
         webhook-secret: ${APP_SCANNER_GITLAB_WEBHOOK_SECRET:}
         base-url: ${APP_SCANNER_GITLAB_BASE_URL:https://gitlab.com}
 
+produs:
+  mcp:
+    tool-profile: ${PRODUS_MCP_TOOL_PROFILE:loomai-productization}
+    require-auth: ${PRODUS_MCP_REQUIRE_AUTH:false}
+    api-key: ${PRODUS_MCP_API_KEY:}
+
 aws:
   s3:
     endpoint: ${AWS_S3_ENDPOINT:http://localhost:9000}
@@ -137,14 +143,16 @@ loomai:
   api-key-header-name: ${LOOMAI_API_KEY_HEADER_NAME:X-PLATFORM-API-KEY}
   runtime-api-key: ${LOOMAI_RUNTIME_API_KEY:}
   runtime-api-key-header-name: ${LOOMAI_RUNTIME_API_KEY_HEADER_NAME:X-AIFABRIC-RUNTIME-API-KEY}
-  runtime-authorization-header-name: ${LOOMAI_RUNTIME_AUTHORIZATION_HEADER_NAME:X-AIFABRIC-RUNTIME-AUTHORIZATION}
+  runtime-authorization-header-name: ${LOOMAI_RUNTIME_AUTHORIZATION_HEADER_NAME:${LOOMAI_ASSERTION_AUTHORIZATION_HEADER:X-AIFABRIC-RUNTIME-AUTHORIZATION}}
   assertion-issuer: ${LOOMAI_ASSERTION_ISSUER:}
   assertion-audience: ${LOOMAI_ASSERTION_AUDIENCE:}
+  assertion-customer-id: ${LOOMAI_ASSERTION_CUSTOMER_ID:produs-staging}
+  assertion-tenant-id: ${LOOMAI_ASSERTION_TENANT_ID:}
   assertion-signing-algorithm: ${LOOMAI_ASSERTION_SIGNING_ALGORITHM:HS256}
   assertion-signing-secret: ${LOOMAI_ASSERTION_SIGNING_SECRET:}
   assertion-private-key-path: ${LOOMAI_ASSERTION_PRIVATE_KEY_PATH:}
   assertion-ttl-seconds: ${LOOMAI_ASSERTION_TTL_SECONDS:300}
-  assertion-scopes: "${LOOMAI_ASSERTION_SCOPES:chat:read}"
+  assertion-scopes: "${LOOMAI_ASSERTION_SCOPES:chat:query,chat:suggestions,chat:conversations}"
   default-mode: ${LOOMAI_DEFAULT_MODE:support_assistant}
   default-position: ${LOOMAI_DEFAULT_POSITION:productization}
   enabled: ${LOOMAI_ENABLED:false}
@@ -153,6 +161,7 @@ loomai:
   assistant-session-path: ${LOOMAI_ASSISTANT_SESSION_PATH:/api/public/chat/session}
   assistant-query-path: ${LOOMAI_ASSISTANT_QUERY_PATH:/api/chat/me/query}
   assistant-suggestions-path: ${LOOMAI_ASSISTANT_SUGGESTIONS_PATH:/api/chat/me/suggestions}
+  auth-context-path: ${LOOMAI_AUTH_CONTEXT_PATH:/api/chat/me/auth-context}
   data-sync-batch-path: ${LOOMAI_DATA_SYNC_BATCH_PATH:/api/ai/data-sync/batch}
   data-sync-delete-path: ${LOOMAI_DATA_SYNC_DELETE_PATH:/api/ai/data-sync/delete}
 

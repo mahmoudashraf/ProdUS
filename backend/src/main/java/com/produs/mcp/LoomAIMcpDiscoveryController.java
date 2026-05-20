@@ -2,12 +2,17 @@ package com.produs.mcp;
 
 import com.produs.ai.LoomAIToolAllowlist;
 import com.produs.ai.LoomAIToolAllowlist.ToolDefinition;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,11 +20,24 @@ import java.util.Map;
 @RestController
 public class LoomAIMcpDiscoveryController {
 
+    @Value("${produs.mcp.require-auth:${PRODUS_MCP_REQUIRE_AUTH:false}}")
+    private boolean requireAuth;
+
+    @Value("${produs.mcp.api-key:${PRODUS_MCP_API_KEY:}}")
+    private String apiKey;
+
+    @Value("${produs.mcp.tool-profile:${PRODUS_MCP_TOOL_PROFILE:loomai-productization}}")
+    private String toolProfile;
+
     @GetMapping("/loomai/tool-allowlist")
-    public ResponseEntity<Map<String, Object>> allowlist() {
+    public ResponseEntity<Map<String, Object>> allowlist(@RequestHeader(value = "X-MCP-API-KEY", required = false) String providedApiKey) {
+        ResponseEntity<Map<String, Object>> unauthorized = unauthorizedIfRequired(providedApiKey);
+        if (unauthorized != null) {
+            return unauthorized;
+        }
         return ResponseEntity.ok(Map.of(
                 "ready", true,
-                "profile", "loomai-productization",
+                "profile", toolProfile,
                 "tools", toolMetadata(),
                 "excludedGroups", List.of(
                         "team creation",
@@ -34,7 +52,14 @@ public class LoomAIMcpDiscoveryController {
     }
 
     @PostMapping("/mcp")
-    public ResponseEntity<Map<String, Object>> mcp(@RequestBody(required = false) Map<String, Object> request) {
+    public ResponseEntity<Map<String, Object>> mcp(
+            @RequestHeader(value = "X-MCP-API-KEY", required = false) String providedApiKey,
+            @RequestBody(required = false) Map<String, Object> request
+    ) {
+        ResponseEntity<Map<String, Object>> unauthorized = unauthorizedIfRequired(providedApiKey);
+        if (unauthorized != null) {
+            return unauthorized;
+        }
         Object id = request == null ? null : request.get("id");
         String method = request == null ? "" : String.valueOf(request.getOrDefault("method", ""));
         if ("initialize".equals(method)) {
@@ -59,6 +84,27 @@ public class LoomAIMcpDiscoveryController {
         response.put("id", id);
         response.put("error", error);
         return ResponseEntity.ok(response);
+    }
+
+    private ResponseEntity<Map<String, Object>> unauthorizedIfRequired(String providedApiKey) {
+        if (!requireAuth) {
+            return null;
+        }
+        if (apiKey == null || apiKey.isBlank() || providedApiKey == null || providedApiKey.isBlank()
+                || !constantTimeEquals(apiKey.trim(), providedApiKey.trim())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "ready", false,
+                    "errorCode", "PRODUS_MCP_AUTH_REQUIRED"
+            ));
+        }
+        return null;
+    }
+
+    private boolean constantTimeEquals(String expected, String actual) {
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                actual.getBytes(StandardCharsets.UTF_8)
+        );
     }
 
     private Map<String, Object> jsonRpc(Object id, Map<String, Object> result) {

@@ -81,6 +81,7 @@ public class LoomAIIntegrationService {
                 configuredPath(properties.getAssistantSessionPath()),
                 configuredPath(properties.getAssistantQueryPath()),
                 configuredPath(properties.getAssistantSuggestionsPath()),
+                configuredPath(properties.getAuthContextPath()),
                 configuredPath(properties.getDataSyncBatchPath()),
                 ALLOWED_ACTIONS
         );
@@ -136,14 +137,20 @@ public class LoomAIIntegrationService {
                     conversationId(request.conversationId(), context)
             );
             JsonNode body = response.body();
+            String conversationId = conversationId(request.conversationId(), context);
             return new AssistantQueryResponse(
                     "LOOMAI",
                     "LIVE",
+                    boolOr(body, "success", true),
+                    textOr(body, "type", "INFORMATION_PROVIDED"),
                     normalizedAnswer(body),
+                    normalizedSafeSummary(body),
+                    conversationId(body, conversationId),
                     normalizedConfidence(body),
                     jsonList(firstArray(body, "sources")),
                     jsonList(firstArray(body, "actions")),
-                    null,
+                    suggestionList(body),
+                    firstText(body.path("fallbackReason"), body.path("errorCode"), body.path("result").path("fallbackReason")),
                     response.providerRequestId()
             );
         } catch (RuntimeException exception) {
@@ -161,17 +168,39 @@ public class LoomAIIntegrationService {
         try {
             ProviderJsonResponse response = postJson(
                     properties.getAssistantSuggestionsPath(),
-                    assistantSuggestionsPayload(context),
+                    assistantSuggestionsPayload(request, context),
                     user,
-                    conversationId(null, context)
+                    conversationId(request == null ? null : request.conversationId(), context)
             );
             JsonNode body = response.body();
             List<String> parsedSuggestions = suggestionList(body);
             List<String> suggestions = parsedSuggestions.isEmpty() ? defaultSuggestionText(context) : parsedSuggestions;
-            return new AssistantSuggestionsResponse("LOOMAI", "LIVE", suggestions, null, response.providerRequestId());
+            return new AssistantSuggestionsResponse(
+                    "LOOMAI",
+                    "LIVE",
+                    boolOr(body, "success", true),
+                    suggestions,
+                    firstText(body.path("fallbackReason"), body.path("errorCode"), body.path("result").path("fallbackReason")),
+                    response.providerRequestId()
+            );
         } catch (RuntimeException exception) {
             log.warn("loomai_assistant_suggestions_fallback reason={}", exception.getClass().getSimpleName());
             return fallbackSuggestions("LOOMAI_UNAVAILABLE", context);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public LoomAIAuthContextResponse authContext(User user) {
+        requireAdmin(user);
+        if (!isConfigured() || !configuredPath(properties.getAuthContextPath())) {
+            return new LoomAIAuthContextResponse("PRODUS_FALLBACK", "FALLBACK", false, Map.of(), "LOOMAI_DISABLED", null);
+        }
+        try {
+            ProviderJsonResponse response = getJson(properties.getAuthContextPath(), user, "produs-admin-auth-context-smoke");
+            return new LoomAIAuthContextResponse("LOOMAI", "LIVE", true, objectMapper.convertValue(response.body(), Map.class), null, response.providerRequestId());
+        } catch (RuntimeException exception) {
+            log.warn("loomai_auth_context_fallback reason={}", exception.getClass().getSimpleName());
+            return new LoomAIAuthContextResponse("PRODUS_FALLBACK", "FALLBACK", false, Map.of(), "LOOMAI_UNAVAILABLE", null);
         }
     }
 
@@ -348,21 +377,28 @@ public class LoomAIIntegrationService {
         if (properties.isPrivateRuntimeMode() || properties.isPlatformBridgeMode()) {
             Map<String, Object> payload = runtimeChatPayload(context, conversationId(request.conversationId(), context));
             payload.put("query", request.query());
+            payload.put("mode", mode(request.mode()));
+            payload.put("position", position(request.position()));
             return payload;
         }
         return Map.of(
                 "environment", properties.getEnvironment(),
                 "conversationId", request.conversationId() == null ? "" : request.conversationId(),
                 "query", request.query(),
+                "mode", mode(request.mode()),
+                "position", position(request.position()),
                 "context", context,
                 "allowedActions", ALLOWED_ACTIONS
         );
     }
 
-    private Map<String, Object> assistantSuggestionsPayload(Map<String, Object> context) {
+    private Map<String, Object> assistantSuggestionsPayload(AssistantSuggestionsRequest request, Map<String, Object> context) {
         if (properties.isPrivateRuntimeMode() || properties.isPlatformBridgeMode()) {
-            Map<String, Object> payload = runtimeChatPayload(context, conversationId(null, context));
-            payload.put("query", "Suggest the most useful next productization questions or actions for this page.");
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("content", blank(request == null ? null : request.content())
+                    ? suggestionsContent(context)
+                    : request.content());
+            payload.put("maxSuggestions", request == null || request.maxSuggestions() == null ? 4 : Math.max(1, Math.min(8, request.maxSuggestions())));
             return payload;
         }
         return Map.of(
@@ -380,6 +416,35 @@ public class LoomAIIntegrationService {
         payload.put("context", context);
         payload.put("allowedActions", ALLOWED_ACTIONS);
         return payload;
+    }
+
+    private String suggestionsContent(Map<String, Object> context) {
+        String pageType = String.valueOf(context.getOrDefault("pageType", "productization"));
+        String productName = String.valueOf(context.getOrDefault("productName", ""));
+        String workspaceStatus = String.valueOf(context.getOrDefault("workspaceStatus", ""));
+        StringBuilder content = new StringBuilder("Current ProdUS productization context for ").append(pageType).append('.');
+        if (!blank(productName)) {
+            content.append(" Product: ").append(productName).append('.');
+        }
+        if (!blank(workspaceStatus)) {
+            content.append(" Workspace status: ").append(workspaceStatus).append('.');
+        }
+        content.append(" Suggest useful next questions or actions for product readiness, scanner evidence, package planning, and milestone blockers.");
+        return content.toString();
+    }
+
+    private String mode(String requestedMode) {
+        if (!blank(requestedMode)) {
+            return requestedMode;
+        }
+        return blank(properties.getDefaultMode()) ? "support_assistant" : properties.getDefaultMode();
+    }
+
+    private String position(String requestedPosition) {
+        if (!blank(requestedPosition)) {
+            return requestedPosition;
+        }
+        return blank(properties.getDefaultPosition()) ? "productization" : properties.getDefaultPosition();
     }
 
     private String conversationId(String requestedConversationId, Map<String, Object> context) {
@@ -402,6 +467,40 @@ public class LoomAIIntegrationService {
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)));
+            applyProviderAuth(builder, user, conversationId);
+            String requestId = MDC.get("requestId");
+            if (requestId != null && !requestId.isBlank()) {
+                builder.header("X-Request-ID", requestId);
+            }
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofMillis(properties.getTimeoutMs()))
+                    .build();
+            HttpResponse<String> response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() > 299) {
+                throw new IllegalStateException("LoomAI HTTP " + response.statusCode());
+            }
+            JsonNode body = response.body() == null || response.body().isBlank()
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.readTree(response.body());
+            return new ProviderJsonResponse(body, providerRequestId(response, body));
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("LoomAI request interrupted", interruptedException);
+        } catch (Exception exception) {
+            throw new IllegalStateException("LoomAI request failed", exception);
+        }
+    }
+
+    private ProviderJsonResponse getJson(String path, User user, String conversationId) {
+        if (!isConfigured()) {
+            throw new IllegalStateException("LoomAI is not configured");
+        }
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(URI.create(normalizedBaseUrl() + normalizedPath(path)))
+                    .timeout(java.time.Duration.ofMillis(properties.getTimeoutMs()))
+                    .header("Accept", "application/json")
+                    .GET();
             applyProviderAuth(builder, user, conversationId);
             String requestId = MDC.get("requestId");
             if (requestId != null && !requestId.isBlank()) {
@@ -462,6 +561,7 @@ public class LoomAIIntegrationService {
         JsonNode resultMetadata = body.path("result").path("metadata");
         return firstText(
                 body.path("requestId"),
+                body.path("providerRequestId"),
                 metadata.path("requestId"),
                 metadata.path("providerRequestId"),
                 resultMetadata.path("requestId"),
@@ -477,6 +577,16 @@ public class LoomAIIntegrationService {
                 body.path("result").path("safeSummary")
         );
         return blank(answer) ? "LoomAI returned an empty answer." : answer;
+    }
+
+    private String normalizedSafeSummary(JsonNode body) {
+        String safeSummary = firstText(
+                body.path("safeSummary"),
+                body.path("answer"),
+                body.path("result").path("safeSummary"),
+                body.path("result").path("answer")
+        );
+        return blank(safeSummary) ? "LoomAI returned an empty answer." : safeSummary;
     }
 
     private double normalizedConfidence(JsonNode body) {
@@ -512,6 +622,20 @@ public class LoomAIIntegrationService {
             }
         });
         return suggestions;
+    }
+
+    private boolean boolOr(JsonNode node, String field, boolean fallback) {
+        JsonNode value = node.path(field);
+        if (value.isBoolean()) {
+            return value.asBoolean();
+        }
+        JsonNode resultValue = node.path("result").path(field);
+        return resultValue.isBoolean() ? resultValue.asBoolean() : fallback;
+    }
+
+    private String conversationId(JsonNode body, String fallback) {
+        String value = firstText(body.path("conversationId"), body.path("result").path("conversationId"));
+        return blank(value) ? fallback : value;
     }
 
     private String firstText(JsonNode... nodes) {
@@ -562,11 +686,26 @@ public class LoomAIIntegrationService {
         String pageType = String.valueOf(context.getOrDefault("pageType", "productization"));
         String answer = "LoomAI is not connected for this environment. ProdUS can still use deterministic product, package, workspace, scanner, and evidence records for this "
                 + pageType + " view.";
-        return new AssistantQueryResponse("PRODUS_FALLBACK", "FALLBACK", answer, 0.0, List.of(), List.of(), reason, null);
+        String conversationId = conversationId(null, context);
+        return new AssistantQueryResponse(
+                "PRODUS_FALLBACK",
+                "FALLBACK",
+                false,
+                "FALLBACK",
+                answer,
+                answer,
+                conversationId,
+                0.0,
+                List.of(),
+                List.of(),
+                defaultSuggestionText(context),
+                reason,
+                null
+        );
     }
 
     private AssistantSuggestionsResponse fallbackSuggestions(String reason, Map<String, Object> context) {
-        return new AssistantSuggestionsResponse("PRODUS_FALLBACK", "FALLBACK", defaultSuggestionText(context), reason, null);
+        return new AssistantSuggestionsResponse("PRODUS_FALLBACK", "FALLBACK", false, defaultSuggestionText(context), reason, null);
     }
 
     private List<String> defaultSuggestionText(Map<String, Object> context) {
@@ -695,9 +834,9 @@ public class LoomAIIntegrationService {
 
     public record AssistantSessionRequest(AssistantContextRequest context) {}
 
-    public record AssistantQueryRequest(String conversationId, String query, AssistantContextRequest context) {}
+    public record AssistantQueryRequest(String conversationId, String query, String mode, String position, AssistantContextRequest context) {}
 
-    public record AssistantSuggestionsRequest(AssistantContextRequest context) {}
+    public record AssistantSuggestionsRequest(String content, String conversationId, Integer maxSuggestions, AssistantContextRequest context) {}
 
     public record AssistantSessionResponse(
             String provider,
@@ -713,10 +852,15 @@ public class LoomAIIntegrationService {
     public record AssistantQueryResponse(
             String provider,
             String mode,
+            boolean success,
+            String type,
             String answer,
+            String safeSummary,
+            String conversationId,
             double confidence,
             List<Map<String, Object>> sources,
             List<Map<String, Object>> actions,
+            List<String> suggestions,
             String fallbackReason,
             String providerRequestId
     ) {}
@@ -724,6 +868,7 @@ public class LoomAIIntegrationService {
     public record AssistantSuggestionsResponse(
             String provider,
             String mode,
+            boolean success,
             List<String> suggestions,
             String fallbackReason,
             String providerRequestId
@@ -740,8 +885,18 @@ public class LoomAIIntegrationService {
             boolean assistantSessionConfigured,
             boolean assistantQueryConfigured,
             boolean assistantSuggestionsConfigured,
+            boolean authContextConfigured,
             boolean knowledgeSyncConfigured,
             List<String> allowedActions
+    ) {}
+
+    public record LoomAIAuthContextResponse(
+            String provider,
+            String mode,
+            boolean success,
+            Map<String, Object> authContext,
+            String fallbackReason,
+            String providerRequestId
     ) {}
 
     public record KnowledgeSyncResponse(

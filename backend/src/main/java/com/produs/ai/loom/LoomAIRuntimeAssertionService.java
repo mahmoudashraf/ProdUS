@@ -1,33 +1,27 @@
 package com.produs.ai.loom;
 
-import com.nimbusds.jose.JOSEObjectType;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.crypto.MACSigner;
-import com.nimbusds.jose.crypto.RSASSASigner;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.KeyFactory;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class LoomAIRuntimeAssertionService {
 
     private final LoomAIProperties properties;
+    private final ObjectMapper objectMapper;
 
     public boolean isConfigured() {
         if (!properties.isPrivateRuntimeAssertionAuth()) {
@@ -36,10 +30,11 @@ public class LoomAIRuntimeAssertionService {
         return !blank(properties.getRuntimeApiKey())
                 && !blank(properties.getAssertionIssuer())
                 && !blank(properties.getAssertionAudience())
+                && !blank(properties.getAssertionCustomerId())
                 && signingMaterialConfigured();
     }
 
-    public String createAssertion(User user, String sessionId) {
+    public String createAssertion(User user, String conversationId) {
         if (!properties.isPrivateRuntimeAssertionAuth()) {
             throw new IllegalStateException("Private runtime assertion auth is not enabled");
         }
@@ -48,69 +43,46 @@ public class LoomAIRuntimeAssertionService {
         }
         try {
             Instant now = Instant.now();
-            String subject = stableSubject(user);
-            JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                    .issuer(properties.getAssertionIssuer())
-                    .audience(properties.getAssertionAudience())
-                    .subject(subject)
-                    .jwtID(java.util.UUID.randomUUID().toString())
-                    .issueTime(Date.from(now.minusSeconds(5)))
-                    .expirationTime(Date.from(now.plusSeconds(Math.max(30, properties.getAssertionTtlSeconds()))))
-                    .claim("sid", safeSessionId(sessionId, subject))
-                    .claim("sessionId", safeSessionId(sessionId, subject))
-                    .claim("scopes", scopes())
-                    .claim("actorRole", user.getRole().name())
-                    .claim("environment", properties.getEnvironment())
-                    .build();
-
-            SignedJWT jwt = new SignedJWT(
-                    new JWSHeader.Builder(algorithm()).type(JOSEObjectType.JWT).build(),
-                    claims
-            );
-            if (algorithm().getName().startsWith("HS")) {
-                jwt.sign(new MACSigner(properties.getAssertionSigningSecret().getBytes(StandardCharsets.UTF_8)));
-            } else {
-                jwt.sign(new RSASSASigner(readPrivateKey(properties.getAssertionPrivateKeyPath())));
+            String sessionId = user == null
+                    ? safeSessionId(conversationId, "anonymous-" + UUID.randomUUID())
+                    : safeSessionId(conversationId, stableSubject(user));
+            String subject = user == null ? sessionId : stableSubject(user);
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("sub", subject);
+            payload.put("subjectType", user == null ? "ANONYMOUS_SESSION" : "END_USER");
+            payload.put("authMode", "PRIVATE_RUNTIME_BACKEND_MEDIATED");
+            payload.put("callerType", "TRUSTED_BACKEND");
+            payload.put("sessionId", sessionId);
+            payload.put("deploymentId", properties.getAssertionAudience().trim());
+            payload.put("customerId", properties.getAssertionCustomerId().trim());
+            if (!blank(properties.getAssertionTenantId())) {
+                payload.put("tenantId", properties.getAssertionTenantId().trim());
             }
-            return jwt.serialize();
+            payload.put("iss", properties.getAssertionIssuer().trim());
+            payload.put("aud", properties.getAssertionAudience().trim());
+            payload.put("iat", now.toString());
+            payload.put("exp", now.plusSeconds(Math.max(30, properties.getAssertionTtlSeconds())).toString());
+            payload.put("jti", UUID.randomUUID().toString());
+            payload.put("scopes", scopes());
+
+            String payloadSegment = base64Url(objectMapper.writeValueAsBytes(payload));
+            String signatureSegment = base64Url(hmacSha256(payloadSegment));
+            return "rpa1." + payloadSegment + "." + signatureSegment;
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to create LoomAI private runtime assertion", exception);
         }
     }
 
     private boolean signingMaterialConfigured() {
-        if (algorithm().getName().startsWith("HS")) {
-            return !blank(properties.getAssertionSigningSecret())
-                    && properties.getAssertionSigningSecret().getBytes(StandardCharsets.UTF_8).length >= 32;
-        }
-        return !blank(properties.getAssertionPrivateKeyPath())
-                && Files.isRegularFile(Path.of(properties.getAssertionPrivateKeyPath()));
+        return "HS256".equals(signingAlgorithm())
+                && !blank(properties.getAssertionSigningSecret())
+                && properties.getAssertionSigningSecret().getBytes(StandardCharsets.UTF_8).length >= 32;
     }
 
-    private JWSAlgorithm algorithm() {
-        String value = blank(properties.getAssertionSigningAlgorithm())
+    private String signingAlgorithm() {
+        return blank(properties.getAssertionSigningAlgorithm())
                 ? "HS256"
                 : properties.getAssertionSigningAlgorithm().trim().toUpperCase();
-        return switch (value) {
-            case "RS256" -> JWSAlgorithm.RS256;
-            case "RS384" -> JWSAlgorithm.RS384;
-            case "RS512" -> JWSAlgorithm.RS512;
-            case "HS384" -> JWSAlgorithm.HS384;
-            case "HS512" -> JWSAlgorithm.HS512;
-            default -> JWSAlgorithm.HS256;
-        };
-    }
-
-    private RSAPrivateKey readPrivateKey(String path) throws Exception {
-        String pem = Files.readString(Path.of(path), StandardCharsets.UTF_8)
-                .replace("-----BEGIN PRIVATE KEY-----", "")
-                .replace("-----END PRIVATE KEY-----", "")
-                .replace("-----BEGIN RSA PRIVATE KEY-----", "")
-                .replace("-----END RSA PRIVATE KEY-----", "")
-                .replaceAll("\\s", "");
-        byte[] decoded = Base64.getDecoder().decode(pem);
-        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(decoded);
-        return (RSAPrivateKey) KeyFactory.getInstance("RSA").generatePrivate(spec);
     }
 
     private String stableSubject(User user) {
@@ -122,20 +94,30 @@ public class LoomAIRuntimeAssertionService {
 
     private String safeSessionId(String sessionId, String subject) {
         if (!blank(sessionId)) {
-            return sessionId;
+            return sessionId.trim();
         }
         return "produs-" + subject;
     }
 
     private List<String> scopes() {
         if (blank(properties.getAssertionScopes())) {
-            return List.of("chat:read");
+            return List.of("chat:query", "chat:suggestions", "chat:conversations");
         }
         return Arrays.stream(properties.getAssertionScopes().split("[,\\s]+"))
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .distinct()
                 .toList();
+    }
+
+    private byte[] hmacSha256(String payloadSegment) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(properties.getAssertionSigningSecret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return mac.doFinal(payloadSegment.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String base64Url(byte[] bytes) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private boolean blank(String value) {
