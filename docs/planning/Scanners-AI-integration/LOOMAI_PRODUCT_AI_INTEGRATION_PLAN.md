@@ -584,6 +584,29 @@ ProdUS safe knowledge is shared/catalog knowledge, not customer-owned private re
 
 Status: pending live proof. Chat/query/suggestions, private runtime auth, canonical assistant payloads, context enrichment, and read MCP actions are ready. Safe knowledge sync still needs ProdUS code alignment to LoomAI's canonical data-sync schema and a live smoke against `dep-7706fafb`.
 
+LoomAI should publish and install a ProdUS DATA Marketplace plugin before the live sync is treated as stable. Without registered vector spaces/entity types, the runtime can reject valid operations with `VECTOR_SPACE_NOT_FOUND`.
+
+Required DATA Marketplace plugin:
+
+```text
+mkp-data-produs-safe-knowledge
+```
+
+Required vector spaces:
+
+| Vector Space | Record Types |
+| --- | --- |
+| `service-category` | `SERVICE_CATEGORY` |
+| `service-module` | `SERVICE_MODULE` |
+| `service-dependency` | `SERVICE_DEPENDENCY` |
+| `package-template` | `PACKAGE_TEMPLATE` |
+| `ai-capability-contract` | `AI_CAPABILITY_CONTRACT` |
+| `milestone-template` | `MILESTONE_TEMPLATE` |
+| `acceptance-criteria-template` | `ACCEPTANCE_CRITERIA_TEMPLATE` |
+| `evidence-template` | `EVIDENCE_TEMPLATE` |
+| `scanner-tool-description` | `SCANNER_TOOL_DESCRIPTION` |
+| `case-pattern` | approved anonymized `CASE_PATTERN` records only |
+
 Current safe record shape:
 
 ```json
@@ -618,13 +641,14 @@ POST <LOOMAI_DATA_SYNC_BATCH_PATH>
     "metadata": {
       "source": "ProdUS",
       "environment": "staging",
+      "datasetId": "produs-safe-knowledge",
       "recordCount": 1
     },
     "authContext": {
-      "subjectId": "produs-admin-id",
-      "subjectType": "END_USER",
+      "subjectId": "system:produs-safe-knowledge-sync",
+      "subjectType": "SYSTEM_PROCESS",
       "authMode": "PRIVATE_RUNTIME_BACKEND_MEDIATED",
-      "callerType": "TRUSTED_BACKEND",
+      "callerType": "SYSTEM_PROCESS",
       "deploymentId": "dep-7706fafb",
       "customerId": "produs-staging",
       "issuer": "produs-staging-backend",
@@ -634,11 +658,11 @@ POST <LOOMAI_DATA_SYNC_BATCH_PATH>
   "operations": [
     {
       "type": "UPSERT",
-      "vectorSpace": "support-policy",
+      "vectorSpace": "service-module",
       "id": "service-module:security-hardening",
       "content": "Security Hardening\n\nSafe text.",
       "metadata": {
-        "sourceType": "SERVICE_MODULE",
+        "recordType": "SERVICE_MODULE",
         "title": "Security Hardening",
         "slug": "security-hardening"
       },
@@ -700,6 +724,13 @@ Expected LoomAI data-sync response:
 ```
 
 ProdUS must normalize success and failure counts from the live response when available. The admin UI should expose sanitized `status`, `providerRequestId`, `total`, `succeeded`, `failed`, `errorCode`, and `message`.
+
+Indexing rules:
+
+- Safe shared catalog/platform knowledge uses DATA Marketplace vector spaces and runtime data-sync batches.
+- Live user-owned product/workspace/package/scanner state is not bulk-indexed.
+- Private current state is supplied through authorized context enrichment and read-only ProdUS MCP actions.
+- Do not index specific product workspaces, private scanner findings, raw scanner logs, raw evidence files, private package state, team/private messages, object storage URLs, tokens, or secrets.
 
 ## 9. MCP And Action Contract
 

@@ -19,11 +19,50 @@ Ready:
 
 Not ready yet:
 
+- LoomAI should publish/install a ProdUS DATA Marketplace plugin before live knowledge sync is considered stable, otherwise canonical sync can fail with `VECTOR_SPACE_NOT_FOUND`.
 - Safe knowledge ingestion has not been proven against live LoomAI runtime.
 - ProdUS backend still needs to replace the old `environment/source/records` data-sync request with LoomAI's canonical `trace + operations` request.
 - Mutation MCP tools remain intentionally deferred until confirmed-action UX and audit enforcement are complete.
 
 ## 2. ProdUS Immediate Actions
+
+### 2.0 Confirm DATA Marketplace Plugin
+
+Owner: ProdUS + LoomAI
+
+Priority: blocking for reliable safe knowledge ingestion
+
+Decision:
+
+- Use a hybrid indexing model.
+- Index only ProdUS shared safe knowledge into LoomAI.
+- Do not bulk-index user-owned product/workspace/package/scanner state.
+- Provide live private state at query time through authorized context enrichment and ProdUS MCP read tools.
+
+Required LoomAI plugin:
+
+```text
+mkp-data-produs-safe-knowledge
+```
+
+Required vector spaces:
+
+- `service-category`
+- `service-module`
+- `service-dependency`
+- `package-template`
+- `ai-capability-contract`
+- `milestone-template`
+- `acceptance-criteria-template`
+- `evidence-template`
+- `scanner-tool-description`
+- `case-pattern`
+
+Acceptance:
+
+- LoomAI confirms the DATA Marketplace plugin is published, installed on `dep-7706fafb`, and applied.
+- Runtime data sync accepts one test operation for each active ProdUS vector space.
+- ProdUS does not send records to a generic fallback vector space such as `support-policy` unless LoomAI explicitly maps it.
 
 ### 2.1 Align Safe Knowledge Sync Payload
 
@@ -37,20 +76,20 @@ Actions:
 - Create a deterministic request ID such as `produs-safe-knowledge-sync-<uuid>`.
 - Add `trace.metadata` with `source=ProdUS`, `environment`, record count, and sync version.
 - Add `trace.authContext` with:
-  - `subjectId`
-  - `subjectType`
+  - `subjectId=system:produs-safe-knowledge-sync`
+  - `subjectType=SYSTEM_PROCESS`
   - `authMode=PRIVATE_RUNTIME_BACKEND_MEDIATED`
-  - `callerType=TRUSTED_BACKEND`
+  - `callerType=SYSTEM_PROCESS`
   - `deploymentId=dep-7706fafb`
   - `customerId=produs-staging`
   - `issuer=produs-staging-backend`
   - `grantedScopes=["data-sync:upsert"]`
 - Map every safe record into one operation:
   - `type=UPSERT`
-  - `vectorSpace=support-policy` unless LoomAI provides a more specific ProdUS vector space
+  - `vectorSpace=<record-specific vector space>`
   - `id=<safe record id>`
   - `content=<title + body>`
-  - `metadata=<safe metadata plus source type/title>`
+  - `metadata=<safe metadata plus recordType/title/slug>`
   - `identity.sourceRecordId=<safe record id>`
   - `identity.sourceRecordVersion=<stable hash or updated timestamp>`
 - Remove the old live request shape:
@@ -58,10 +97,26 @@ Actions:
   - `source`
   - `records`
 
+Record-to-vector-space mapping:
+
+| Safe Record Type | Vector Space |
+| --- | --- |
+| `SERVICE_CATEGORY` | `service-category` |
+| `SERVICE_MODULE` | `service-module` |
+| `SERVICE_DEPENDENCY` | `service-dependency` |
+| `PACKAGE_TEMPLATE` | `package-template` |
+| `AI_CAPABILITY_CONTRACT` | `ai-capability-contract` |
+| `MILESTONE_TEMPLATE` | `milestone-template` |
+| `ACCEPTANCE_CRITERIA_TEMPLATE` | `acceptance-criteria-template` |
+| `EVIDENCE_TEMPLATE` | `evidence-template` |
+| `SCANNER_TOOL_DESCRIPTION` | `scanner-tool-description` |
+| `CASE_PATTERN` | `case-pattern` |
+
 Acceptance:
 
 - Backend test fails if sync request includes top-level `records`.
 - Backend test passes only when request includes `trace` and `operations`.
+- Backend test verifies vector spaces are specific to record type.
 - Live sync against `dep-7706fafb` returns a provider request ID or a structured provider error.
 
 ### 2.2 Add Data-Sync Runtime Scope
@@ -75,10 +130,12 @@ Actions:
 - Add `data-sync:upsert` to the assertion scope used for knowledge sync, or create a data-sync-specific assertion scope path.
 - Keep chat requests scoped to current chat scopes if LoomAI prefers least privilege.
 - Confirm runtime rejects sync if `data-sync:upsert` is missing.
+- Use `SYSTEM_PROCESS` trace auth context for scheduled safe knowledge sync.
 
 Acceptance:
 
 - Knowledge sync request includes an auth context with `grantedScopes=["data-sync:upsert"]`.
+- Knowledge sync trace identifies `system:produs-safe-knowledge-sync`.
 - Chat requests remain working.
 
 ### 2.3 Normalize Knowledge Sync Response
@@ -216,7 +273,8 @@ Owner: LoomAI
 
 Actions:
 
-- Confirm expected `vectorSpace` for ProdUS safe catalog knowledge.
+- Publish and install `mkp-data-produs-safe-knowledge`.
+- Confirm vector spaces are registered exactly as listed in this plan.
 - Confirm whether `data-sync:upsert` must be in the `rpa1` assertion scopes.
 - Confirm required response fields for successful, partial, and failed sync.
 - Confirm max operations per batch and max content length.
@@ -230,6 +288,7 @@ Actions:
 
 - Inspect live runtime logs for ProdUS sync request by provider request ID.
 - Confirm operations are accepted and indexed.
+- Confirm no operation fails with `VECTOR_SPACE_NOT_FOUND`.
 - Confirm no old `environment/source/records` payload is accepted as the target path.
 
 ### 4.3 Retrieval Verification
@@ -290,4 +349,3 @@ Mark safe knowledge ingestion ready only when all are true:
 - Counts are normalized in ProdUS response.
 - Knowledge retrieval checks produce grounded service/package answers.
 - No sensitive data appears in preview, sync payload, logs, or UI.
-
