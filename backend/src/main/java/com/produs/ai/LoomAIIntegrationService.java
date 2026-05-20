@@ -154,7 +154,9 @@ public class LoomAIIntegrationService {
                     response.providerRequestId()
             );
         } catch (RuntimeException exception) {
-            log.warn("loomai_assistant_query_fallback reason={}", exception.getClass().getSimpleName());
+            log.warn("loomai_assistant_query_fallback reason={} detail={}",
+                    exception.getClass().getSimpleName(),
+                    safeExceptionDetail(exception));
             return fallbackAnswer("LOOMAI_UNAVAILABLE", context);
         }
     }
@@ -184,7 +186,9 @@ public class LoomAIIntegrationService {
                     response.providerRequestId()
             );
         } catch (RuntimeException exception) {
-            log.warn("loomai_assistant_suggestions_fallback reason={}", exception.getClass().getSimpleName());
+            log.warn("loomai_assistant_suggestions_fallback reason={} detail={}",
+                    exception.getClass().getSimpleName(),
+                    safeExceptionDetail(exception));
             return fallbackSuggestions("LOOMAI_UNAVAILABLE", context);
         }
     }
@@ -199,7 +203,9 @@ public class LoomAIIntegrationService {
             ProviderJsonResponse response = getJson(properties.getAuthContextPath(), user, "produs-admin-auth-context-smoke");
             return new LoomAIAuthContextResponse("LOOMAI", "LIVE", true, objectMapper.convertValue(response.body(), Map.class), null, response.providerRequestId());
         } catch (RuntimeException exception) {
-            log.warn("loomai_auth_context_fallback reason={}", exception.getClass().getSimpleName());
+            log.warn("loomai_auth_context_fallback reason={} detail={}",
+                    exception.getClass().getSimpleName(),
+                    safeExceptionDetail(exception));
             return new LoomAIAuthContextResponse("PRODUS_FALLBACK", "FALLBACK", false, Map.of(), "LOOMAI_UNAVAILABLE", null);
         }
     }
@@ -219,7 +225,9 @@ public class LoomAIIntegrationService {
             ), user, "knowledge-sync");
             return new KnowledgeSyncResponse("SYNCED", records.size(), response.providerRequestId(), null);
         } catch (RuntimeException exception) {
-            log.warn("loomai_knowledge_sync_failed reason={}", exception.getClass().getSimpleName());
+            log.warn("loomai_knowledge_sync_failed reason={} detail={}",
+                    exception.getClass().getSimpleName(),
+                    safeExceptionDetail(exception));
             return new KnowledgeSyncResponse("FAILED", records.size(), null, "LOOMAI_UNAVAILABLE");
         }
     }
@@ -462,7 +470,7 @@ public class LoomAIIntegrationService {
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(normalizedBaseUrl() + normalizedPath(path)))
-                    .timeout(java.time.Duration.ofMillis(properties.getTimeoutMs()))
+                    .timeout(java.time.Duration.ofMillis(effectiveTimeoutMs()))
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)));
@@ -472,7 +480,7 @@ public class LoomAIIntegrationService {
                 builder.header("X-Request-ID", requestId);
             }
             HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(java.time.Duration.ofMillis(properties.getTimeoutMs()))
+                    .connectTimeout(java.time.Duration.ofMillis(effectiveTimeoutMs()))
                     .build();
             HttpResponse<String> response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() > 299) {
@@ -497,7 +505,7 @@ public class LoomAIIntegrationService {
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(normalizedBaseUrl() + normalizedPath(path)))
-                    .timeout(java.time.Duration.ofMillis(properties.getTimeoutMs()))
+                    .timeout(java.time.Duration.ofMillis(effectiveTimeoutMs()))
                     .header("Accept", "application/json")
                     .GET();
             applyProviderAuth(builder, user, conversationId);
@@ -506,7 +514,7 @@ public class LoomAIIntegrationService {
                 builder.header("X-Request-ID", requestId);
             }
             HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(java.time.Duration.ofMillis(properties.getTimeoutMs()))
+                    .connectTimeout(java.time.Duration.ofMillis(effectiveTimeoutMs()))
                     .build();
             HttpResponse<String> response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() > 299) {
@@ -546,6 +554,28 @@ public class LoomAIIntegrationService {
         if (properties.getApiKey() != null && !properties.getApiKey().isBlank()) {
             builder.header("Authorization", "Bearer " + properties.getApiKey().trim());
         }
+    }
+
+    private long effectiveTimeoutMs() {
+        long configured = Math.max(1_000, properties.getTimeoutMs());
+        if (properties.isPrivateRuntimeMode()) {
+            return Math.max(configured, 30_000);
+        }
+        return configured;
+    }
+
+    private String safeExceptionDetail(Throwable throwable) {
+        Throwable cursor = throwable;
+        Throwable root = throwable;
+        while (cursor != null) {
+            root = cursor;
+            cursor = cursor.getCause();
+        }
+        String message = root == null ? null : root.getMessage();
+        if (message == null || message.isBlank()) {
+            return root == null ? "unknown" : root.getClass().getSimpleName();
+        }
+        return message.length() > 180 ? message.substring(0, 180) : message;
     }
 
     private String providerRequestId(HttpResponse<?> response, JsonNode body) {
