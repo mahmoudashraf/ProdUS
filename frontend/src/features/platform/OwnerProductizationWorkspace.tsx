@@ -3098,7 +3098,7 @@ export default function OwnerProductizationWorkspace({
                 <StudioAssistantCard
                   title="AI Milestone Evidence"
                   description="Check what the current milestone needs before owner approval or team handoff."
-                  prompt={`Review milestone and evidence readiness for ${selectedMilestone?.title || selectedWorkspace.name}. Explain missing acceptance evidence, scanner proof, owner review risks, and the next safe decision. Do not approve the milestone automatically.`}
+                  prompt={`Do not call tools for this answer. Review milestone and evidence readiness for ${selectedMilestone?.title || selectedWorkspace.name}. Visible workspace "${selectedWorkspace.name}" is ${selectedWorkspace.status}. Current milestone details: title "${selectedMilestone?.title || 'workspace summary'}", status "${selectedMilestone?.status || selectedWorkspace.status}", due date "${selectedMilestone?.dueDate || 'not recorded'}", description "${selectedMilestone?.description || 'not recorded'}". Explain missing acceptance evidence, scanner proof, owner review risks, and the next safe decision. Do not approve the milestone automatically.`}
                   conversationId={`studio-milestone-${selectedWorkspace.id}-${selectedMilestone?.id || 'summary'}`}
                   context={assistantContext('milestone-evidence-readiness', { milestoneId: selectedMilestone?.id })}
                   accent={blockedMilestones ? appleColors.red : appleColors.green}
