@@ -583,7 +583,7 @@ Rules:
 
 ProdUS safe knowledge is shared/catalog knowledge, not customer-owned private records.
 
-Status: LoomAI-side DATA plugin and live data-sync smoke are complete for staging as of 2026-05-21. Chat/query/suggestions, private runtime auth, canonical assistant payloads, context enrichment, read MCP actions, canonical safe knowledge sync payloads, and the ProdUS managed-vectorization export endpoint are implemented. The remaining staging proof is LoomAI-managed export ingestion and retrieval quality over real ProdUS records.
+Status: LoomAI-side DATA plugin, live data-sync smoke, managed vectorization ingestion, and retrieval quality checks are complete for staging as of 2026-05-21. Chat/query/suggestions, private runtime auth, canonical assistant payloads, context enrichment, read MCP actions, canonical safe knowledge sync payloads, the ProdUS managed-vectorization export endpoint, and LoomAI-managed indexing are implemented and live-verified.
 
 LoomAI published and installed the ProdUS DATA Marketplace plugin before treating live sync as stable. This registers the vector spaces/entity types so valid record-specific operations do not fail with `VECTOR_SPACE_NOT_FOUND`.
 
@@ -840,6 +840,16 @@ entityScope:
   - team-profile
   - solo-expert-profile
 ```
+
+Live LoomAI-managed vectorization state:
+
+- Source connection: configured for the ProdUS export endpoint.
+- Token storage: Platform managed secret, not in docs or manifests.
+- Runner service: `vectorization-runner-dep-7706fafb`.
+- Full reindex run: `vrn-9f98d115`, `157` processed, `157` succeeded, `0` failed.
+- Runtime release/version: `rel-579d7fce` / `ver-0b3324cd`, applied and verified.
+- RAG tuning: threshold `0.2`, max docs `8`, max context chars `7000`.
+- Retrieval checks: grounded ProdUS service, package, team, and solo-expert answers.
 
 Managed vectorization acceptance:
 
@@ -1172,11 +1182,11 @@ Required:
 - send direct runtime sync in bounded batches through `LOOMAI_SAFE_KNOWLEDGE_SYNC_BATCH_SIZE`; implemented in ProdUS backend on 2026-05-21
 - live-index newly created safe records through optional scheduled replay; implemented with `LOOMAI_SAFE_KNOWLEDGE_AUTO_SYNC_ENABLED`
 - normalize live runtime response into status/providerRequestId/totalOperations/succeededOperations/failedOperations/errors; implemented in ProdUS backend and admin UI on 2026-05-21
-- live-smoke `GET /api/ai/loomai/knowledge-preview` and `POST /api/ai/loomai/knowledge-sync` against `dep-7706fafb`
+- live-smoke `GET /api/ai/loomai/knowledge-preview` and `POST /api/ai/loomai/knowledge-sync` against `dep-7706fafb`; completed on 2026-05-21
 - add counters and partial-failure handling to ProdUS sync response
 - add delete/tombstone sync
 - add admin UI sync health and stale record status
-- add evaluation fixtures for catalog/package/scanner guidance retrieval
+- add evaluation fixtures for catalog/package/scanner guidance retrieval; LoomAI-managed retrieval smoke completed on 2026-05-21, durable regression fixtures remain recommended
 
 ### Phase 6: UI Completion
 

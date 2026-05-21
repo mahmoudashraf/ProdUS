@@ -2,11 +2,11 @@
 
 Date: 2026-05-21
 
-Status: ready for LoomAI platform configuration
+Status: configured and live-verified on LoomAI staging
 
 ## Purpose
 
-ProdUS now supports LoomAI-managed vectorization through a backend-only paged export endpoint. ProdUS remains responsible for filtering safe exportable records. LoomAI should own the vectorization runner, checkpoints, retries, run history, runtime data-sync writes, and retrieval verification.
+ProdUS supports LoomAI-managed vectorization through a backend-only paged export endpoint. ProdUS remains responsible for filtering safe exportable records. LoomAI owns the vectorization runner, checkpoints, retries, run history, runtime data-sync writes, RAG tuning, and retrieval verification.
 
 ## Staging Deployment
 
@@ -149,7 +149,24 @@ Completed on 2026-05-21:
   - failed operations: 0
   - provider request IDs: 4 batched runtime requests
 
-## LoomAI Actions Requested
+## LoomAI Managed Setup Verification
+
+Completed by LoomAI on 2026-05-21:
+
+- Managed source configured for the ProdUS export endpoint.
+- ProdUS export token stored as a Platform managed secret, not in docs or manifests.
+- Vectorization runner service is live: `vectorization-runner-dep-7706fafb`.
+- Full managed reindex completed: `vrn-9f98d115`.
+- Reindex result: `157` processed, `157` succeeded, `0` failed.
+- Runtime release applied and verified: `rel-579d7fce` / `ver-0b3324cd`.
+- ProdUS retrieval tuning applied:
+  - similarity threshold: `0.2`
+  - max documents: `8`
+  - max context chars: `7000`
+- Retrieval checks now return grounded ProdUS service, package, team, and solo-expert answers.
+- Runtime health is `UP`.
+
+## LoomAI Actions Completed
 
 1. Configure a managed REST vectorization source for the ProdUS export endpoint.
 2. Store the ProdUS export token as a LoomAI backend secret.
@@ -164,20 +181,20 @@ Completed on 2026-05-21:
 
 ## Retrieval Quality Checks
 
-After managed vectorization is configured, run these staging questions through the live runtime:
+Managed vectorization is configured. LoomAI ran these staging questions through the live runtime:
 
 - "Which ProdUS service handles API security review and what outcome should it produce?"
 - "Which services help a prototype with CI/CD and dependency risk?"
 - "Which package template is appropriate for launch readiness?"
 - "Which public teams or solo experts are relevant for security and launch-readiness work?"
 
-Expected behavior:
+Verified behavior:
 
 - Answers should use ProdUS lifecycle-service names such as `API security review`, `CI/CD setup`, `Dependency security review`, and `Launch risk review`.
-- Answers should not invent non-catalog services.
-- Answers should not expose private workspace, scanner artifact, token, or message data.
-- Provider responses should include a provider request ID for traceability.
+- Answers returned grounded ProdUS service/package/team/solo-expert records.
+- Answers did not expose private workspace, scanner artifact, token, or message data.
+- Provider responses included provider request IDs for traceability.
 
-## Current Caveat
+## Current Caveat And Follow-Up
 
-ProdUS direct sync is live-compatible and successful. A chat smoke through ProdUS backend returned a live LoomAI response with provider request ID, but did not yet retrieve the real synced catalog record. Treat retrieval quality as pending LoomAI managed-source/retrieval configuration, not a ProdUS export blocker.
+The managed vectorization setup is no longer blocked. Keep retrieval checks as regression coverage after catalog/profile changes, source-token rotation, DATA plugin changes, or LoomAI retrieval tuning changes.
