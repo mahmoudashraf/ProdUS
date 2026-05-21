@@ -58,7 +58,7 @@ Response shape:
   ],
   "nextCursor": "opaque-next-cursor",
   "hasMore": true,
-  "totalEstimate": 121,
+  "totalEstimate": 157,
   "exportVersion": "produs-safe-knowledge-v1"
 }
 ```
@@ -122,14 +122,20 @@ Completed on 2026-05-21:
 - Unauthenticated export call returned `401`.
 - Wrong-token export call returned `401`.
 - Valid-token export call returned `200`.
-- Full export completed in 3 pages:
+- Full export completed in 4 pages:
   - page 1: 50 records
   - page 2: 50 records
-  - page 3: 21 records
-  - total: 121 records
+  - page 3: 50 records
+  - page 4: 7 records
+  - total: 157 records
 - Exported vector spaces observed:
+  - `acceptance-criteria-template`
   - `ai-capability-contract`
+  - `case-pattern`
+  - `evidence-template`
+  - `milestone-template`
   - `package-template`
+  - `scanner-tool-description`
   - `service-category`
   - `service-dependency`
   - `service-module`
@@ -137,11 +143,11 @@ Completed on 2026-05-21:
   - `team-profile`
 - Direct ProdUS admin sync to LoomAI runtime succeeded:
   - status: `SYNCED`
-  - record count: 121
-  - total operations: 121
-  - succeeded operations: 121
+  - record count: 157
+  - total operations: 157
+  - succeeded operations: 157
   - failed operations: 0
-  - provider request IDs: 3 batched runtime requests
+  - provider request IDs: 4 batched runtime requests
 
 ## LoomAI Actions Requested
 

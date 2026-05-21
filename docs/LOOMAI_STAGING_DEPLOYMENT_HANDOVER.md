@@ -559,7 +559,7 @@ ProdUS sync requests must use the canonical `trace + operations` payload. Use `S
 }
 ```
 
-Live LoomAI smoke accepted ProdUS-shaped upsert/delete operations, including `team-profile` and `solo-expert-profile`. ProdUS direct replay also synced real staging safe records successfully on 2026-05-21: `121` total operations, `121` succeeded, `0` failed, with provider request IDs returned across three runtime batches. The remaining gate is LoomAI-managed source configuration and retrieval quality checks over the real ProdUS records.
+Live LoomAI smoke accepted ProdUS-shaped upsert/delete operations, including `team-profile` and `solo-expert-profile`. ProdUS direct replay also synced real staging safe records successfully on 2026-05-21: `157` total operations, `157` succeeded, `0` failed, with provider request IDs returned across four runtime batches. The remaining gate is LoomAI-managed source configuration and retrieval quality checks over the real ProdUS records.
 
 #### Managed Vectorization Proposal
 
@@ -592,8 +592,8 @@ Live export verification:
 - Unauthenticated export call returned `401`.
 - Wrong-token export call returned `401`.
 - Valid-token export call returned `200`.
-- Full export completed in three pages: `50 + 50 + 21 = 121` records.
-- Exported vector spaces observed: `service-category`, `service-module`, `service-dependency`, `package-template`, `ai-capability-contract`, `team-profile`, `solo-expert-profile`.
+- Full export completed in four pages: `50 + 50 + 50 + 7 = 157` records.
+- Exported vector spaces observed: `service-category`, `service-module`, `service-dependency`, `package-template`, `ai-capability-contract`, `milestone-template`, `acceptance-criteria-template`, `evidence-template`, `scanner-tool-description`, `case-pattern`, `team-profile`, `solo-expert-profile`.
 - `TEAM_PROFILE` records use `team-profile`; `SOLO_EXPERT_PROFILE` records use `solo-expert-profile`.
 
 Recommended response shape:
@@ -617,7 +617,7 @@ Recommended response shape:
   ],
   "nextCursor": "opaque-next-cursor",
   "hasMore": true,
-  "totalEstimate": 121,
+  "totalEstimate": 157,
   "exportVersion": "produs-safe-knowledge-v1"
 }
 ```

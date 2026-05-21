@@ -801,7 +801,7 @@ Response:
   ],
   "nextCursor": "opaque-next-cursor",
   "hasMore": true,
-  "totalEstimate": 121,
+  "totalEstimate": 157,
   "exportVersion": "produs-safe-knowledge-v1"
 }
 ```
