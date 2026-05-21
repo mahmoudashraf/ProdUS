@@ -165,6 +165,12 @@ public class LoomAIMcpToolService {
                 "dependencies", dependencies.size(),
                 "packageTemplates", templates.size()
         ));
+        response.put("summary", catalogSummary(categories, modules, templates));
+        response.put("highlights", Map.of(
+                "categories", names(categories),
+                "modules", names(modules),
+                "packageTemplates", names(templates)
+        ));
         response.put("categories", categories);
         response.put("modules", modules);
         response.put("dependencies", dependencies);
@@ -618,6 +624,33 @@ public class LoomAIMcpToolService {
                         "about"
                 ).contains(token))
                 .distinct()
+                .toList();
+    }
+
+    private String catalogSummary(List<Map<String, Object>> categories,
+                                  List<Map<String, Object>> modules,
+                                  List<Map<String, Object>> templates) {
+        List<String> parts = new ArrayList<>();
+        if (!categories.isEmpty()) {
+            parts.add("categories: " + String.join(", ", names(categories)));
+        }
+        if (!modules.isEmpty()) {
+            parts.add("service modules: " + String.join(", ", names(modules)));
+        }
+        if (!templates.isEmpty()) {
+            parts.add("package templates: " + String.join(", ", names(templates)));
+        }
+        if (parts.isEmpty()) {
+            return "No catalog records matched the query.";
+        }
+        return "Matched " + String.join("; ", parts) + ".";
+    }
+
+    private List<String> names(List<Map<String, Object>> records) {
+        return records.stream()
+                .map(record -> String.valueOf(record.getOrDefault("name", "")))
+                .filter(this::hasText)
+                .limit(6)
                 .toList();
     }
 
