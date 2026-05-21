@@ -148,6 +148,19 @@ Completed on 2026-05-21:
   - succeeded operations: 157
   - failed operations: 0
   - provider request IDs: 4 batched runtime requests
+- Observed source discovery counts:
+  - `service-category`: 8
+  - `service-module`: 75
+  - `service-dependency`: 18
+  - `package-template`: 12
+  - `milestone-template`: 12
+  - `case-pattern`: 12
+  - `acceptance-criteria-template`: 1
+  - `evidence-template`: 1
+  - `ai-capability-contract`: 6
+  - `scanner-tool-description`: 10
+  - `team-profile`: 1
+  - `solo-expert-profile`: 1
 
 ## LoomAI Managed Setup Verification
 
@@ -156,6 +169,10 @@ Completed by LoomAI on 2026-05-21:
 - Managed source configured for the ProdUS export endpoint.
 - ProdUS export token stored as a Platform managed secret, not in docs or manifests.
 - Vectorization runner service is live: `vectorization-runner-dep-7706fafb`.
+- Source connection: `vcn-a9bb577d`.
+- Plan: `vpl-33b42e24`.
+- Active revision: `vpr-d9e4b704`, revision `2`.
+- Runner registration: `vrr-cb21c848`, `ACTIVE`, `CURRENT`.
 - Full managed reindex completed: `vrn-9f98d115`.
 - Reindex result: `157` processed, `157` succeeded, `0` failed.
 - Runtime release applied and verified: `rel-579d7fce` / `ver-0b3324cd`.

@@ -24,6 +24,10 @@ Latest LoomAI-side status, verified 2026-05-21:
 - ProdUS DATA plugin `mkp-data-produs-safe-knowledge@0.1.1` is published, installed on `dep-7706fafb`, live, and applied through release `rel-f17c4793`.
 - Runtime `/api/ai/data-sync/vector-spaces` lists all 12 ProdUS safe knowledge vector spaces with no missing spaces.
 - Runtime `/api/ai/data-sync/batch` accepted platform-smoke and ProdUS-shaped `SYSTEM_PROCESS` upsert/delete operations with `providerRequestId` and success/failure counts. A temporary service-module retrieval smoke returned a grounded answer and was deleted.
+- Managed vectorization is configured live for the ProdUS export endpoint through source connection `vcn-a9bb577d`, plan `vpl-33b42e24`, active revision `vpr-d9e4b704`, and runner `vectorization-runner-dep-7706fafb`.
+- Managed reindex run `vrn-9f98d115` completed with `157` processed, `157` succeeded, `0` failed, and two cursor checkpoints.
+- Runtime release `rel-579d7fce` / version `ver-0b3324cd` is `APPLIED_VERIFIED` and includes deployment RAG tuning for ProdUS retrieval: threshold `0.2`, context documents `8`, context chars `7000`.
+- Live retrieval checks now return grounded ProdUS service, package, team, and solo-expert answers. Runtime search diagnostics show nonzero results from the ProdUS DATA plugin sources.
 
 Current contract alignment:
 
@@ -39,7 +43,7 @@ Current contract alignment:
 | Platform deployment id | `dep-7706fafb` |
 | Platform deployment name | `ProdUS AI Enablement Staging` |
 | Environment | `staging` |
-| Latest applied release | `rel-f17c4793` |
+| Latest applied release | `rel-579d7fce` |
 | Runtime template | `dev-openai-qdrant` |
 | Template plugin | `mkp-template-support-desk-shell` |
 | Installed data plugins | `mkp-data-help-center`, `mkp-data-policy-folder`, `mkp-data-produs-safe-knowledge@0.1.1` |
@@ -559,23 +563,22 @@ ProdUS sync requests must use the canonical `trace + operations` payload. Use `S
 }
 ```
 
-Live LoomAI smoke accepted ProdUS-shaped upsert/delete operations, including `team-profile` and `solo-expert-profile`. ProdUS direct replay also synced real staging safe records successfully on 2026-05-21: `157` total operations, `157` succeeded, `0` failed, with provider request IDs returned across four runtime batches. The remaining gate is LoomAI-managed source configuration and retrieval quality checks over the real ProdUS records.
+Live LoomAI smoke accepted ProdUS-shaped upsert/delete operations, including `team-profile` and `solo-expert-profile`. ProdUS direct replay also synced real staging safe records successfully on 2026-05-21: `157` total operations, `157` succeeded, `0` failed, with provider request IDs returned across four runtime batches.
 
-#### Managed Vectorization Proposal
+#### Managed Vectorization Live Configuration
 
-The current staging path lets ProdUS own the sync job and push approved safe records directly into LoomAI runtime data-sync. That is valid for early staging.
+The current staging deployment now uses LoomAI-managed vectorization for ProdUS safe knowledge. ProdUS still owns the safe export decision; LoomAI owns the source connection, run lifecycle, checkpoints, retries, target data-sync writes, and retrieval verification.
 
-For production-grade managed indexing, LoomAI should own the vectorization run lifecycle:
+Live flow:
 
 ```text
-LoomAI Platform vectorization run
-  -> LoomAI vectorization runner pulls safe ProdUS pages
-  -> runner maps records to DATA plugin vector spaces
-  -> runner writes batches to LoomAI runtime /api/ai/data-sync/batch
-  -> Platform tracks checkpoints, retries, failures, run history, and verification
+ProdUS safe export endpoint
+  -> LoomAI Platform source connection vcn-a9bb577d
+  -> managed vectorization runner vectorization-runner-dep-7706fafb
+  -> runtime /api/ai/data-sync/batch
+  -> Qdrant vector index
+  -> runtime retrieval over DATA-plugin source handles
 ```
-
-This keeps ProdUS responsible for deciding what is safe to export, while LoomAI manages indexing jobs, retries, checkpoints, and vector backend writes.
 
 ProdUS now provides a backend-only paged export endpoint for LoomAI-managed vectorization:
 
@@ -595,6 +598,113 @@ Live export verification:
 - Full export completed in four pages: `50 + 50 + 50 + 7 = 157` records.
 - Exported vector spaces observed: `service-category`, `service-module`, `service-dependency`, `package-template`, `ai-capability-contract`, `milestone-template`, `acceptance-criteria-template`, `evidence-template`, `scanner-tool-description`, `case-pattern`, `team-profile`, `solo-expert-profile`.
 - `TEAM_PROFILE` records use `team-profile`; `SOLO_EXPERT_PROFILE` records use `solo-expert-profile`.
+
+LoomAI live configuration:
+
+| Field | Value |
+| --- | --- |
+| Source connection | `vcn-a9bb577d` |
+| Source adapter | `REST_API` |
+| Source status | `READY` |
+| Source base URL | `https://produs-api-staging.46.224.145.148.sslip.io` |
+| Source path | `/api/ai/loomai/knowledge-export` |
+| Auth mode | `BEARER` |
+| Token secret ref | `MANAGED_PRODUS_SAFE_KNOWLEDGE_EXPORT_TOKEN_DEP_DEP_7706FAFB` |
+| Pagination | cursor, `cursor`, `limit`, page size `100` |
+| Items path | `records` |
+| Vector space field | `vectorSpace` |
+| Plan | `vpl-33b42e24` |
+| Active revision | `vpr-d9e4b704`, revision `2` |
+| Runner mode | `PLATFORM_MANAGED_AUTO` |
+| Runner registration | `vrr-cb21c848`, `ACTIVE`, `CURRENT` |
+| Latest successful run | `vrn-9f98d115` |
+
+Plan mapping:
+
+```json
+{
+  "entityMappings": {
+    "produs-safe-knowledge": {
+      "recordIdField": "id",
+      "recordVersionField": "metadata.sourceRecordVersion",
+      "targetEntityTypeField": "vectorSpace",
+      "metadataStaticValues": {
+        "datasetId": "produs-safe-knowledge",
+        "exportVersion": "produs-safe-knowledge-v1"
+      },
+      "metadataStaticValuesByTargetEntityType": {
+        "<vectorSpace>": {
+          "knowledgeSourceHandleRef": "<deployment DATA plugin handle ref>",
+          "knowledgeSourceId": "<deployment DATA source id>",
+          "knowledgeSourceDatasetRef": "<deployment DATA dataset ref>"
+        }
+      }
+    }
+  }
+}
+```
+
+The per-vector-space static metadata is required because the runtime shared-index retriever filters records by the installed DATA plugin source handle.
+
+Latest managed reindex evidence:
+
+```text
+run: vrn-9f98d115
+status: COMPLETED
+processed: 157
+succeeded: 157
+failed: 0
+checkpoints: 2 pages
+failureBuckets: []
+```
+
+Checkpoint details:
+
+- page 1: `100` records, `hasMore=true`
+- page 2: `57` records, `hasMore=false`
+
+Observed source discovery counts:
+
+```text
+service-category: 8
+service-module: 75
+service-dependency: 18
+package-template: 12
+milestone-template: 12
+case-pattern: 12
+acceptance-criteria-template: 1
+evidence-template: 1
+ai-capability-contract: 6
+scanner-tool-description: 10
+team-profile: 1
+solo-expert-profile: 1
+```
+
+Runtime prompt/retrieval tuning now applied in release `rel-579d7fce` / version `ver-0b3324cd`:
+
+```json
+{
+  "ragSimilarityThreshold": 0.2,
+  "ragMaxDocumentsUsedForContext": 8,
+  "ragMaxContextChars": 7000
+}
+```
+
+Live retrieval checks completed through `POST /api/chat/me/query`:
+
+- `Which ProdUS service handles API security review and what outcome should it produce?`
+- `Which services help a prototype with CI/CD and dependency risk?`
+- `Which package template is appropriate for launch readiness?`
+- `Which public teams or solo experts are relevant for security and launch-readiness work?`
+
+Observed behavior:
+
+- Answers referenced real ProdUS service/package/team/solo-expert records.
+- Answers did not expose private workspace, scanner artifact, token, or message data.
+- Each response included a `providerRequestId`.
+- Runtime search diagnostics showed nonzero successful retrieval from ProdUS DATA sources, including `service-module`, `package-template`, `team-profile`, and `solo-expert-profile`.
+
+Known hygiene follow-up: ProdUS staging Coolify currently has duplicate `LOOMAI_SAFE_KNOWLEDGE_EXPORT_TOKEN` env rows. LoomAI stored only one non-empty value in the managed Platform secret, but the duplicate rows should be cleaned on the ProdUS app before the next token rotation.
 
 Recommended response shape:
 
@@ -649,7 +759,7 @@ audience: produs-staging-safe-knowledge-export
 scope: knowledge-export:read
 ```
 
-LoomAI-side configuration to create now that ProdUS exposes the endpoint:
+LoomAI-side configuration shape for recreation:
 
 ```text
 source connection:
@@ -663,20 +773,13 @@ source connection:
 vectorization plan:
   runnerMode: PLATFORM_MANAGED_AUTO
   entityScope:
-    - service-category
-    - service-module
-    - service-dependency
-    - package-template
-    - ai-capability-contract
-    - milestone-template
-    - acceptance-criteria-template
-    - evidence-template
-    - scanner-tool-description
-    - case-pattern
-    - team-profile
-    - solo-expert-profile
+    - produs-safe-knowledge
   pagination: CURSOR
   pageSize: 100
+  mapping:
+    recordIdField: id
+    recordVersionField: metadata.sourceRecordVersion
+    targetEntityTypeField: vectorSpace
 ```
 
 Acceptance for enabling LoomAI-managed vectorization:

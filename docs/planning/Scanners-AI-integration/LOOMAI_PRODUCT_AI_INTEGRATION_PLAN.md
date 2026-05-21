@@ -851,6 +851,23 @@ Live LoomAI-managed vectorization state:
 - RAG tuning: threshold `0.2`, max docs `8`, max context chars `7000`.
 - Retrieval checks: grounded ProdUS service, package, team, and solo-expert answers.
 
+Observed source discovery counts:
+
+```text
+service-category: 8
+service-module: 75
+service-dependency: 18
+package-template: 12
+milestone-template: 12
+case-pattern: 12
+acceptance-criteria-template: 1
+evidence-template: 1
+ai-capability-contract: 6
+scanner-tool-description: 10
+team-profile: 1
+solo-expert-profile: 1
+```
+
 Managed vectorization acceptance:
 
 - `GET /api/ai/loomai/knowledge-export?limit=1` returns one safe record with no private fields.
