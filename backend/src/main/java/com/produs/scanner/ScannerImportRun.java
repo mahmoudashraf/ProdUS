@@ -8,6 +8,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -24,19 +25,19 @@ import java.time.LocalDateTime;
 @Table(name = "scanner_import_runs")
 public class ScannerImportRun extends BaseEntity {
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_profile_id", nullable = false)
     private ProductProfile productProfile;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workspace_id")
     private ProjectWorkspace workspace;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "scan_source_id", nullable = false)
     private ScanSource scanSource;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "scan_run_id")
     private ScanRun scanRun;
 
@@ -79,7 +80,7 @@ public class ScannerImportRun extends BaseEntity {
     @Column(name = "error_summary", columnDefinition = "TEXT")
     private String errorSummary;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "requested_by", nullable = false)
     private User requestedBy;
 

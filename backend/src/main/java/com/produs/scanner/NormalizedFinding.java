@@ -9,6 +9,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -26,19 +27,19 @@ import java.time.LocalDateTime;
 @Table(name = "normalized_findings")
 public class NormalizedFinding extends BaseEntity {
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_profile_id", nullable = false)
     private ProductProfile productProfile;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workspace_id")
     private ProjectWorkspace workspace;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "scan_run_id", nullable = false)
     private ScanRun scanRun;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "tool_run_id", nullable = false)
     private ToolRun toolRun;
 
@@ -68,11 +69,11 @@ public class NormalizedFinding extends BaseEntity {
     @Column(name = "affected_component", length = 1000)
     private String affectedComponent;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "evidence_item_id")
     private ScannerEvidenceItem evidenceItem;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "recommended_module_id")
     private ServiceModule recommendedModule;
 
@@ -85,7 +86,7 @@ public class NormalizedFinding extends BaseEntity {
     @Column(name = "risk_review_due_on")
     private LocalDate riskReviewDueOn;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by")
     private User reviewedBy;
 

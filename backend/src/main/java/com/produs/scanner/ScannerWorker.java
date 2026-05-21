@@ -28,6 +28,7 @@ public class ScannerWorker {
 
     private final ScannerProperties properties;
     private final ScannerJobRepository jobRepository;
+    private final ScanSourceRepository sourceRepository;
     private final ScanRunRepository scanRunRepository;
     private final ToolRunRepository toolRunRepository;
     private final ScannerService scannerService;
@@ -164,7 +165,9 @@ public class ScannerWorker {
         if (run.getDepth() == ScanRun.ScanDepth.DEPENDENCY_CONTAINER) {
             return jobRoot;
         }
-        String source = sourceCredentialService.cloneReferenceFor(run.getScanSource());
+        ScanSource scanSource = sourceRepository.findById(run.getScanSource().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Scanner source not found"));
+        String source = sourceCredentialService.cloneReferenceFor(scanSource);
         if (source == null || source.isBlank()) {
             throw new IllegalArgumentException("Hosted repository scan requires an authorized repository source");
         }
