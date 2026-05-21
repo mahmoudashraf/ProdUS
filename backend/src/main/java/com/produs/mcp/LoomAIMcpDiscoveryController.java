@@ -2,6 +2,7 @@ package com.produs.mcp;
 
 import com.produs.ai.LoomAIToolAllowlist;
 import com.produs.ai.LoomAIToolAllowlist.ToolDefinition;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +19,10 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
+@RequiredArgsConstructor
 public class LoomAIMcpDiscoveryController {
+
+    private final LoomAIMcpToolService toolService;
 
     @Value("${produs.mcp.require-auth:${PRODUS_MCP_REQUIRE_AUTH:false}}")
     private boolean requireAuth;
@@ -72,6 +76,9 @@ public class LoomAIMcpDiscoveryController {
         if ("tools/list".equals(method)) {
             return ResponseEntity.ok(jsonRpc(id, Map.of("tools", mcpTools())));
         }
+        if ("tools/call".equals(method)) {
+            return ResponseEntity.ok(jsonRpc(id, toolService.toMcpResult(toolService.call(toolName(request), toolArguments(request)))));
+        }
         if ("ping".equals(method)) {
             return ResponseEntity.ok(jsonRpc(id, Map.of()));
         }
@@ -84,6 +91,38 @@ public class LoomAIMcpDiscoveryController {
         response.put("id", id);
         response.put("error", error);
         return ResponseEntity.ok(response);
+    }
+
+    @SuppressWarnings("unchecked")
+    private String toolName(Map<String, Object> request) {
+        Object paramsRaw = request == null ? null : request.get("params");
+        if (!(paramsRaw instanceof Map<?, ?> params)) {
+            return "";
+        }
+        Object name = params.get("name");
+        if (name == null) {
+            name = params.get("toolName");
+        }
+        return name == null ? "" : String.valueOf(name);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> toolArguments(Map<String, Object> request) {
+        Object paramsRaw = request == null ? null : request.get("params");
+        if (!(paramsRaw instanceof Map<?, ?> params)) {
+            return Map.of();
+        }
+        Object arguments = params.get("arguments");
+        if (!(arguments instanceof Map<?, ?> argumentMap)) {
+            return Map.of();
+        }
+        Map<String, Object> typed = new LinkedHashMap<>();
+        argumentMap.forEach((key, value) -> {
+            if (key != null) {
+                typed.put(String.valueOf(key), value);
+            }
+        });
+        return typed;
     }
 
     private ResponseEntity<Map<String, Object>> unauthorizedIfRequired(String providedApiKey) {

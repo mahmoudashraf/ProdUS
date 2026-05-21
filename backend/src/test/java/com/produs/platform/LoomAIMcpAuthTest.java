@@ -54,5 +54,30 @@ class LoomAIMcpAuthTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.catalog.search')]").exists());
+
+        mockMvc.perform(post("/mcp")
+                        .header("X-MCP-API-KEY", "test-mcp-secret")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": "call-1",
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "produs.catalog.search",
+                                    "arguments": {
+                                      "query": "security",
+                                      "limit": 3
+                                    }
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.jsonrpc").value("2.0"))
+                .andExpect(jsonPath("$.id").value("call-1"))
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.status").value("OK"))
+                .andExpect(jsonPath("$.result.structuredContent.tool").value("produs.catalog.search"))
+                .andExpect(jsonPath("$.result.content[0].type").value("text"));
     }
 }
