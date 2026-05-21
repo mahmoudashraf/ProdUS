@@ -4,28 +4,52 @@ Date: 2026-05-19
 
 Audience: ProdUS backend, frontend, platform operations, MCP, scanner, and LoomAI integration owners.
 
-Status: staging LoomAI deployment is live and verified. ProdUS backend now targets direct private-runtime integration as the preferred path. The Platform consumer bridge remains available for operator smoke tests and fallback validation, but it should not be the primary application path.
+Status: staging LoomAI deployment is live and verified. ProdUS should integrate through the standardized backend-mediated private runtime contract. The Platform consumer bridge remains useful for operator smoke tests and fallback comparison, but it is not the target application path.
 
-## 1. What Exists Now
+Latest LoomAI-side status, verified 2026-05-21:
 
-The current ProdUS staging LoomAI deployment is:
+- Runtime `dep-7706fafb` accepts issuer `produs-staging-backend`.
+- Runtime `dep-7706fafb` accepts audience `dep-7706fafb`.
+- Runtime trusted backend key and HMAC private assertion signing key are configured in Coolify. Values are not stored in this document.
+- Raw runtime and MCP secret material is captured in the LoomAI private handoff under `2026-05-20 ProdUS Direct Runtime Auth Material (Private)`. Transfer those values only through the agreed secure operations channel.
+- Direct private runtime `GET /api/chat/me/auth-context` passed with a ProdUS-shaped `rpa1` assertion.
+- Direct private runtime `POST /api/chat/me/query` passed with `mode=support_assistant`, `position=productization`, and canonical `context`.
+- Direct private runtime `POST /api/chat/me/suggestions` passed with `content` and `maxSuggestions`.
+- Negative auth smoke passed for missing runtime API key and wrong issuer.
+- ProdUS backend `/health` and `/loomai/tool-allowlist` are reachable and tool allowlist reports `ready=true`.
+- ProdUS MCP API-key auth is enabled on staging: unauthenticated `POST /mcp tools/list` returns `401 PRODUS_MCP_AUTH_REQUIRED`; authenticated `POST /mcp tools/list` returns `200` with 17 tools.
+- LoomAI Marketplace discovery for `produs-staging` returns `ready=true` through the managed MCP Gateway.
+- Read-only ProdUS MCP action bundle `mkp-action-produs-productization-read-mcp@0.1.0` is published, installed on `dep-7706fafb`, and applied in version `v3`.
+- Live runtime `/api/admin/actions/overview` shows 8 ProdUS read actions: `produs_catalog_search`, `produs_product_list`, `produs_package_inspect`, `produs_workspace_inspect`, `produs_scan_status`, `produs_finding_inspect`, `produs_evidence_list`, and `produs_milestone_review_evidence`.
+- ProdUS DATA plugin `mkp-data-produs-safe-knowledge@0.1.1` is published, installed on `dep-7706fafb`, live, and applied through release `rel-f17c4793`.
+- Runtime `/api/ai/data-sync/vector-spaces` lists all 12 ProdUS safe knowledge vector spaces with no missing spaces.
+- Runtime `/api/ai/data-sync/batch` accepted platform-smoke and ProdUS-shaped `SYSTEM_PROCESS` upsert/delete operations with `providerRequestId` and success/failure counts. A temporary service-module retrieval smoke returned a grounded answer and was deleted.
+
+Current contract alignment:
+
+- LoomAI runtime/bridge now returns the flat canonical chat response for supported chat calls.
+- Machine-safe action failures are preserved as `actions[].errorCode` and `actions[].actionResult.errorCode`.
+- ProdUS must not parse shopper/user-facing answer text to detect auth, access, action, or provider failures.
+- ProdUS must not expose runtime, bridge, provider, MCP, vector, or Coolify internals to the browser.
+
+## 1. Live Staging Deployment
 
 | Field | Value |
 | --- | --- |
 | Platform deployment id | `dep-7706fafb` |
 | Platform deployment name | `ProdUS AI Enablement Staging` |
 | Environment | `staging` |
-| Active version | `v2` |
+| Latest applied release | `rel-f17c4793` |
 | Runtime template | `dev-openai-qdrant` |
 | Template plugin | `mkp-template-support-desk-shell` |
-| Installed data plugins | `mkp-data-help-center`, `mkp-data-policy-folder` |
+| Installed data plugins | `mkp-data-help-center`, `mkp-data-policy-folder`, `mkp-data-produs-safe-knowledge@0.1.1` |
 | Stable consumer id | `produs-staging` |
 | Runtime base URL | `http://dep-7706fafb.46.224.145.148.sslip.io` |
-| Integration mode | `BACKEND_MEDIATED_PRIVATE_RUNTIME` |
-| Release status | `APPLIED_VERIFIED` |
-| Health | `HEALTHY`, `25 passed, 0 failed, 4 skipped` |
+| Preferred integration mode | `BACKEND_MEDIATED_PRIVATE_RUNTIME` |
+| Auth mode | `PRIVATE_RUNTIME_ASSERTION` |
+| Last known health | `UP` |
 
-The deployment is intentionally generic. It does not contain Shopify-specific plugins, Shopify actions, ProdUS-owned data, raw scanner artifacts, repository content, secrets, or tenant-private workspace data.
+The deployment is generic. It does not contain Shopify-specific plugins, Shopify actions, ProdUS-owned private data, raw scanner artifacts, repository content, secrets, or tenant-private workspace data.
 
 ## 2. Ownership Boundary
 
@@ -36,9 +60,10 @@ ProdUS owns:
 - Supabase user sessions and role checks.
 - Product, package, workspace, scanner, evidence, milestone, and marketplace data.
 - Authorization and tenant isolation.
-- All mutations and audit records.
+- Mutations and audit records.
 - UI/UX and product workflow decisions.
 - Safe knowledge export decisions.
+- Backend-to-runtime private assertion signing.
 
 LoomAI owns:
 
@@ -47,23 +72,136 @@ LoomAI owns:
 - Grounded answers and suggestions.
 - Governed action preparation once ProdUS MCP is importable.
 - Runtime trace and execution evidence.
+- Runtime auth verification using deployment-scoped trusted backend credentials.
 
 LoomAI must not connect directly to ProdUS Postgres, MinIO, Supabase, repositories, scanner execution runtime, or user sessions.
 
-## 3. Greenfield Contract Decision
+## 3. Required Work From LoomAI/Coolify Before Enabling Live ProdUS Staging
 
-ProdUS and LoomAI should use the platform canonical chat contract from the start. The source-of-truth implementation plan is:
+ProdUS correctly identified the LoomAI/Coolify-side prerequisites. These are now configured for runtime `dep-7706fafb`; the values below remain the required source-of-truth shape for future recreation or rotation.
 
-`/Users/mahmoudashraf/Downloads/Projects/TheBaseRepo/doc/Productization/future-work/MarketPlace/Products/Strategy/RoadMaps/Implementation/010_5_LOOMAI_CANONICAL_RUNTIME_BRIDGE_CONTRACT_STANDARDIZATION_PLAN.md`
+### Runtime Env On `dep-7706fafb`
 
-Do not preserve `message` / `sessionId` as the long-term LoomAI contract and do not make the Platform bridge a payload compatibility layer.
+Set or confirm these on the managed runtime service for `dep-7706fafb`:
 
-The canonical chat request is:
+```bash
+AI_FABRIC_RUNTIME_AUTH_INGRESS_MODE=VERIFIED_CONTEXT_REQUIRED
+AI_FABRIC_RUNTIME_TRUSTED_BACKEND_API_KEY_HEADER=X-AIFABRIC-RUNTIME-API-KEY
+AI_FABRIC_RUNTIME_TRUSTED_BACKEND_API_KEY=<deployment-scoped-runtime-api-key>
+AI_FABRIC_RUNTIME_PRIVATE_AUTHORIZATION_HEADER=X-AIFABRIC-RUNTIME-AUTHORIZATION
+AI_FABRIC_RUNTIME_PRIVATE_TOKEN_SCHEME=Bearer
+AI_FABRIC_RUNTIME_PRIVATE_ASSERTION_SIGNING_KEY=<deployment-scoped-hmac-signing-secret>
+AI_FABRIC_RUNTIME_AUTH_ACCEPTED_ISSUERS=<existing-issuers>,produs-staging-backend
+AI_FABRIC_RUNTIME_AUTH_ACCEPTED_AUDIENCES=<existing-audiences>,dep-7706fafb
+```
+
+Rules:
+
+- Preserve any existing accepted issuers/audiences used by Platform operator smoke tests.
+- Do not print or commit the API key or signing secret.
+- The runtime currently supports one HMAC signing key via `AI_FABRIC_RUNTIME_PRIVATE_ASSERTION_SIGNING_KEY`.
+- A per-issuer public key registry is not live-supported yet. `LOOMAI_ASSERTION_PRIVATE_KEY_PATH` is therefore not enough by itself unless LoomAI first implements asymmetric assertion verification.
+
+### ProdUS-Owned Secret Decision
+
+For staging, use one of these postures:
+
+| Posture | Status | Notes |
+| --- | --- | --- |
+| Deployment-scoped HMAC shared secret | Supported now | ProdUS backend and runtime both know the same signing secret. Backend-only. |
+| ProdUS-owned asymmetric private key + LoomAI public key | Future | Requires runtime key registry/public-key verification support before use. |
+| Platform bridge only | Supported fallback | ProdUS backend calls Platform, Platform signs runtime assertions. Not the preferred app path. |
+
+The practical staging choice is deployment-scoped HMAC.
+
+## 4. ProdUS Backend Env To Enable Direct Runtime
+
+After LoomAI/Coolify runtime env is configured, set backend-only ProdUS Coolify env vars:
+
+```bash
+LOOMAI_ENABLED=true
+LOOMAI_ENVIRONMENT=staging
+LOOMAI_INTEGRATION_MODE=BACKEND_MEDIATED_PRIVATE_RUNTIME
+LOOMAI_AUTH_MODE=PRIVATE_RUNTIME_ASSERTION
+LOOMAI_BASE_URL=http://dep-7706fafb.46.224.145.148.sslip.io
+LOOMAI_RUNTIME_API_KEY=<same value accepted by X-AIFABRIC-RUNTIME-API-KEY>
+LOOMAI_ASSERTION_ISSUER=produs-staging-backend
+LOOMAI_ASSERTION_AUDIENCE=dep-7706fafb
+LOOMAI_ASSERTION_SIGNING_ALGORITHM=HS256
+LOOMAI_ASSERTION_SIGNING_SECRET=<same HMAC signing secret configured on runtime>
+LOOMAI_TIMEOUT_MS=8000
+LOOMAI_ASSISTANT_QUERY_PATH=/api/chat/me/query
+LOOMAI_ASSISTANT_SUGGESTIONS_PATH=/api/chat/me/suggestions
+LOOMAI_AUTH_CONTEXT_PATH=/api/chat/me/auth-context
+```
+
+Do not set these in frontend env. They are backend-only.
+
+If direct runtime is not configured yet, keep:
+
+```bash
+LOOMAI_ENABLED=false
+LOOMAI_ENVIRONMENT=staging
+```
+
+This keeps deterministic fallback active.
+
+## 5. Private Runtime Assertion Contract
+
+This is not OAuth and not a standard JWT. The runtime expects:
+
+```http
+X-AIFABRIC-RUNTIME-API-KEY: <deployment-scoped-runtime-api-key>
+X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer rpa1.<base64url-json-payload>.<base64url-hmac-sha256-signature>
+```
+
+The HMAC input is the base64url payload segment. The HMAC key is `LOOMAI_ASSERTION_SIGNING_SECRET`, which must match runtime `AI_FABRIC_RUNTIME_PRIVATE_ASSERTION_SIGNING_KEY`.
+
+Required assertion payload:
+
+```json
+{
+  "sub": "produs-user-or-session-id",
+  "subjectType": "END_USER",
+  "authMode": "PRIVATE_RUNTIME_BACKEND_MEDIATED",
+  "callerType": "TRUSTED_BACKEND",
+  "sessionId": "produs-assistant-session-id",
+  "deploymentId": "dep-7706fafb",
+  "customerId": "produs-staging",
+  "tenantId": "optional-tenant-or-org-id",
+  "iss": "produs-staging-backend",
+  "aud": "dep-7706fafb",
+  "exp": "2026-05-19T21:30:00Z",
+  "scopes": ["chat:query", "chat:suggestions", "chat:conversations"]
+}
+```
+
+Rules:
+
+- `iss` must be in runtime `AI_FABRIC_RUNTIME_AUTH_ACCEPTED_ISSUERS`.
+- `aud` must include `dep-7706fafb` and match runtime `AI_FABRIC_RUNTIME_AUTH_ACCEPTED_AUDIENCES`.
+- `authMode` must be `PRIVATE_RUNTIME_BACKEND_MEDIATED`.
+- `callerType` must be `TRUSTED_BACKEND`.
+- Use short expiry, recommended 5 to 15 minutes.
+- For anonymous users, use `subjectType=ANONYMOUS_SESSION` and set `sub == sessionId`.
+- For logged-in ProdUS users, use `subjectType=END_USER`.
+- Do not send a normal `Authorization` bearer token to runtime in this mode.
+
+## 6. Canonical Chat Request
+
+ProdUS frontend calls ProdUS backend only. ProdUS backend calls LoomAI.
+
+Frontend to ProdUS backend:
+
+```http
+POST /api/ai/assistant/query
+Content-Type: application/json
+```
 
 ```json
 {
   "query": "What is blocking this product from launch?",
-  "conversationId": "produs-session-123",
+  "conversationId": "produs-ui-session-123",
   "mode": "support_assistant",
   "position": "productization",
   "context": {
@@ -77,477 +215,16 @@ The canonical chat request is:
 }
 ```
 
-The canonical chat response is:
+ProdUS backend must validate that the current user can read every referenced ID before sending context to LoomAI.
 
-```json
-{
-  "success": true,
-  "type": "INFORMATION_PROVIDED",
-  "answer": "Safe user-facing answer",
-  "safeSummary": "Safe user-facing answer",
-  "conversationId": "produs-session-123",
-  "providerRequestId": "rag-...",
-  "sources": [],
-  "actions": []
-}
-```
+Backend to LoomAI direct runtime:
 
-This is the ProdUS-facing response contract. If a current LoomAI endpoint returns a nested runtime envelope such as `result.sanitizedPayload`, that nesting is an adapter input only. ProdUS backend must flatten it before returning data to the browser. Do not expose runtime, bridge, or provider envelopes as the public ProdUS assistant API.
-
-This payload shape should be the same for:
-
-- ProdUS frontend to ProdUS backend.
-- ProdUS backend to Platform consumer bridge.
-- ProdUS backend to direct LoomAI runtime.
-
-The bridge and direct runtime may differ in URL, deployment lookup, and authentication, but not in the business payload semantics.
-
-| Concern | Canonical decision |
-| --- | --- |
-| User text | `query` |
-| Conversation/thread id | `conversationId` |
-| Page/business context | `context` |
-| Shopify/storefront-specific context | Not used for ProdUS. Use generic `context`. |
-| User-facing answer | `answer` and `safeSummary` |
-| Provider trace | `providerRequestId` |
-| Fallback | ProdUS backend maps runtime/bridge failure to deterministic fallback |
-| Bridge role | Deployment resolution and signed-runtime auth, not DTO translation |
-
-If current ProdUS code still exposes `message` / `sessionId`, update it as part of the integration work. Because this is greenfield, do not add permanent backward-compatible aliases unless a temporary migration window is explicitly documented.
-
-## 4. Current Working Surfaces
-
-### Platform-Managed Runtime
-
-The runtime is reachable and healthy:
-
-```bash
-curl -fsS http://dep-7706fafb.46.224.145.148.sslip.io/actuator/health
-```
-
-Expected:
-
-```json
-{"status":"UP"}
-```
-
-### Platform Private Widget Proxy
-
-This is useful for operator smoke tests. It uses the Platform backend to mint the private runtime assertion.
-
-```bash
-PLATFORM_BASE_URL="https://loomai-platform-backend.46.224.145.148.sslip.io"
-PLATFORM_API_KEY="$(cat /private/tmp/platform_staging_admin_api_key.secret)"
-
-curl -fsS \
-  -H "X-PLATFORM-API-KEY: ${PLATFORM_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -X POST \
-  "${PLATFORM_BASE_URL}/api/deployments/dep-7706fafb/poc-widget/chat/me/query?authPath=PLATFORM_PRIVATE" \
-  --data '{"query":"What can you help me with?","conversationId":"produs-platform-smoke"}'
-```
-
-Current internal answer shape from this smoke-test endpoint:
-
-```json
-{
-  "success": true,
-  "result": {
-    "type": "INFORMATION_PROVIDED",
-    "success": true,
-    "message": "I can assist you with troubleshooting workflows, help-center guidance, and support actions."
-  }
-}
-```
-
-This verifies the runtime is alive. It is not the target ProdUS frontend contract; ProdUS should expose the flat canonical response defined above.
-
-### Stable Consumer Bridge
-
-This is the stable operator bridge while the deployment is managed by Platform. It is useful for smoke tests and fallback comparison, but ProdUS prefers direct private-runtime calls from its backend.
-
-```bash
-PLATFORM_BASE_URL="https://loomai-platform-backend.46.224.145.148.sslip.io"
-PLATFORM_API_KEY="$(cat /private/tmp/platform_staging_admin_api_key.secret)"
-
-curl -fsS \
-  -H "X-PLATFORM-API-KEY: ${PLATFORM_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -X POST \
-  "${PLATFORM_BASE_URL}/api/public/consumers/produs-staging/bridge/chat/query" \
-  --data '{"query":"What can you help me with?","conversationId":"produs-consumer-smoke"}'
-```
-
-Current internal answer shape is the same as the private widget proxy. ProdUS backend should normalize it to the flat canonical response before returning it to the frontend.
-
-Important: the Platform API key is an operator credential. Do not expose it in the browser. If ProdUS uses this bridge, it must be called only from the ProdUS backend or a trusted server-side adapter.
-
-## 5. Current Blocked Surfaces
-
-### Current ProdUS Backend DTO Is Not The Target Contract
-
-The existing ProdUS backend integration currently sends requests as:
-
-```json
-{
-  "environment": "staging",
-  "sessionId": "...",
-  "message": "...",
-  "context": {},
-  "allowedActions": []
-}
-```
-
-This is not the target greenfield contract. It must be changed to the canonical LoomAI shape:
-
-```json
-{
-  "query": "...",
-  "conversationId": "...",
-  "mode": "optional",
-  "position": "optional",
-  "context": {}
-}
-```
-
-The current direct ProdUS-style payload fails with:
-
-```text
-query is required
-```
-
-The existing ProdUS backend also sends:
-
-```text
-Authorization: Bearer <LOOMAI_API_KEY>
-```
-
-The current runtime is configured for private-runtime signed assertions:
-
-```text
-X-AIFABRIC-RUNTIME-API-KEY
-X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer <signed-private-runtime-assertion>
-```
-
-Therefore, do not turn on direct runtime integration by only setting `LOOMAI_BASE_URL` and `LOOMAI_API_KEY`. It will either fail closed or encourage the wrong auth model.
-
-### ProdUS MCP Import Is Not Ready
-
-The deployment did not import ProdUS MCP tools because the current ProdUS MCP endpoints fail during discovery.
-
-Observed:
-
-```text
-POST https://produs-api-staging.46.224.145.148.sslip.io/mcp
-GET  https://produs-api-staging.46.224.145.148.sslip.io/loomai/tool-allowlist
-```
-
-Platform discovery result:
-
-```json
-{
-  "ready": false,
-  "message": "MCP server returned HTTP 500.",
-  "errorCode": "MCP_DISCOVERY_FAILED",
-  "serverRef": "produs-staging",
-  "tools": 0
-}
-```
-
-ProdUS must fix MCP runtime health and discovery before LoomAI can use ProdUS tools for live reads/actions.
-
-## 6. Recommended Integration Path
-
-Use this order.
-
-### Phase 1: Direct Backend-Mediated Private Runtime
-
-This is the preferred ProdUS application integration path.
-
-ProdUS backend should call the runtime directly:
-
-```text
+```http
 POST http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/query
-POST http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/suggestions
+Content-Type: application/json
+X-AIFABRIC-RUNTIME-API-KEY: <deployment-scoped-runtime-api-key>
+X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer <rpa1-token>
 ```
-
-Required headers:
-
-```text
-X-AIFABRIC-RUNTIME-API-KEY: <ProdUS backend runtime key>
-X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer <ProdUS signed private-runtime assertion>
-```
-
-Backend request contract:
-
-ProdUS backend should send the canonical chat request directly. No permanent `message` to `query` or `sessionId` to `conversationId` translation should survive the greenfield integration.
-
-Required request fields:
-
-| Field | Requirement |
-| --- | --- |
-| `query` | Required user request text |
-| `conversationId` | Required stable ProdUS assistant conversation id |
-| `mode` | Optional LoomAI conversation mode, for example `support_assistant` |
-| `position` | Optional product UI position, for example `productization` |
-| `context` | Safe ProdUS page/user/domain context after backend authorization |
-
-Backend response normalization:
-
-The ProdUS backend adapter must return the flat canonical response. Current LoomAI runtime/bridge responses are expected to be canonical already, so ProdUS should pass through only the approved fields: `success`, `type`, `answer`, `safeSummary`, `conversationId`, `mode`, `position`, `sources`, `actions`, `suggestions`, `fallbackReason`, `providerRequestId`, and safe metadata. Non-2xx provider responses should become deterministic fallback responses. Do not expose runtime/provider envelopes to the browser.
-
-This is not a compatibility promise for old ProdUS request DTOs. The ProdUS public assistant contract remains `query`, `conversationId`, `context`, and the flat canonical response.
-
-ProdUS can keep the same frontend-facing endpoint paths:
-
-```text
-POST /api/ai/assistant/query
-POST /api/ai/assistant/suggestions
-POST /api/ai/assistant/session
-```
-
-But the request/response payloads behind those endpoints should use the canonical `query` / `conversationId` / `context` contract.
-
-The browser should never call LoomAI or Platform directly.
-
-The signed assertion must include:
-
-| Claim | Staging value/rule |
-| --- | --- |
-| issuer | ProdUS-specific issuer configured in deployment security |
-| audience | `dep-7706fafb` |
-| subject | stable ProdUS user/session subject |
-| session id | ProdUS assistant session id |
-| scopes | low-privilege chat/read scopes only |
-| expiry | short-lived |
-
-Do not put either runtime key or signing material in frontend code.
-
-### Phase 2: Platform Consumer Bridge Fallback
-
-Use the Platform bridge only if direct private runtime integration is temporarily unavailable or for operator smoke tests.
-
-ProdUS backend can call:
-
-```text
-POST https://loomai-platform-backend.46.224.145.148.sslip.io/api/public/consumers/produs-staging/bridge/chat/query
-POST https://loomai-platform-backend.46.224.145.148.sslip.io/api/public/consumers/produs-staging/bridge/chat/suggestions
-```
-
-Important: the Platform API key is an operator credential. Do not expose it in the browser.
-
-### Phase 3: MCP Tool Import
-
-After ProdUS MCP returns healthy `tools/list`, import only:
-
-```text
-PRODUS_MCP_TOOL_PROFILE=loomai-productization
-```
-
-Do not import the full internal MCP surface.
-
-Initial allowed groups:
-
-- catalog/service search
-- product/package inspection
-- workspace inspection
-- scanner status/findings
-- evidence listing
-- milestone evidence review
-- confirmed requirement/package/workspace actions
-
-Excluded groups:
-
-- team creation
-- team invitations
-- solo expert join requests
-- profile/account settings
-- community messages
-- payments/commercial actions
-- broad admin operations
-
-## 7. ProdUS Environment Configuration
-
-### Current Safe Default
-
-Until the ProdUS issuer, runtime key, and signing material are configured in Coolify and accepted by LoomAI deployment security, keep:
-
-```bash
-LOOMAI_ENABLED=false
-LOOMAI_ENVIRONMENT=staging
-```
-
-This keeps deterministic fallback active.
-
-### Phase 1 Direct Private Runtime Config
-
-Recommended once the ProdUS issuer and signing material are registered with the LoomAI deployment security policy:
-
-```bash
-LOOMAI_ENABLED=true
-LOOMAI_ENVIRONMENT=staging
-LOOMAI_INTEGRATION_MODE=BACKEND_MEDIATED_PRIVATE_RUNTIME
-LOOMAI_AUTH_MODE=PRIVATE_RUNTIME_ASSERTION
-LOOMAI_BASE_URL=http://dep-7706fafb.46.224.145.148.sslip.io
-LOOMAI_RUNTIME_API_KEY=<produs-staging-runtime-api-key>
-LOOMAI_ASSERTION_ISSUER=produs-staging-backend
-LOOMAI_ASSERTION_AUDIENCE=dep-7706fafb
-LOOMAI_ASSERTION_SIGNING_ALGORITHM=HS256
-LOOMAI_ASSERTION_SIGNING_SECRET=<produs-owned-staging-signing-secret>
-LOOMAI_TIMEOUT_MS=8000
-LOOMAI_ASSISTANT_QUERY_PATH=/api/chat/me/query
-LOOMAI_ASSISTANT_SUGGESTIONS_PATH=/api/chat/me/suggestions
-```
-
-For RSA signing, replace `LOOMAI_ASSERTION_SIGNING_SECRET` with `LOOMAI_ASSERTION_PRIVATE_KEY_PATH` and register the corresponding public key/issuer with LoomAI deployment security.
-
-ProdUS generates local assistant sessions for this path and calls LoomAI only for query/suggestions turns.
-
-### Phase 2 Bridge Fallback Config
-
-Use only for fallback/operator validation:
-
-```bash
-LOOMAI_ENABLED=true
-LOOMAI_ENVIRONMENT=staging
-LOOMAI_INTEGRATION_MODE=PLATFORM_BRIDGE
-LOOMAI_AUTH_MODE=PLATFORM_API_KEY
-LOOMAI_BASE_URL=https://loomai-platform-backend.46.224.145.148.sslip.io
-LOOMAI_API_KEY=<platform-operator-api-key>
-LOOMAI_TIMEOUT_MS=8000
-LOOMAI_ASSISTANT_QUERY_PATH=/api/public/consumers/produs-staging/bridge/chat/query
-LOOMAI_ASSISTANT_SUGGESTIONS_PATH=/api/public/consumers/produs-staging/bridge/chat/suggestions
-```
-
-Never store runtime keys, signing material, Platform API keys, or assertions in frontend env vars.
-
-## 8. Indexing And Retrieval
-
-There are three different data classes. Treat them differently.
-
-### A. Deployment-Managed Generic Data
-
-Already live.
-
-Installed data plugins:
-
-- `mkp-data-help-center`
-- `mkp-data-policy-folder`
-
-Compiled entity types:
-
-- `faq-article`
-- `support-policy`
-
-Compiled knowledge sources:
-
-- `help-center`
-- `policy-folder`
-
-These were synced by Platform during release verification. They are generic support/policy sources, not ProdUS product data.
-
-### B. ProdUS Safe Knowledge
-
-ProdUS safe knowledge is generated by:
-
-```text
-GET  /api/ai/loomai/knowledge-preview
-POST /api/ai/loomai/knowledge-sync
-```
-
-Only admins can use these endpoints.
-
-Current safe record shape:
-
-```json
-{
-  "id": "service-module:example",
-  "type": "SERVICE_MODULE",
-  "title": "Example Service",
-  "body": "Approved productization text",
-  "metadata": {
-    "slug": "example",
-    "releaseStage": "LIVE"
-  }
-}
-```
-
-Current safe record sources:
-
-- service categories
-- service modules
-- service dependencies
-- package templates
-- AI capability contracts
-
-Do not index:
-
-- raw repositories
-- raw scanner logs
-- raw evidence files
-- object storage URLs
-- access tokens
-- Supabase JWTs
-- credentials
-- customer secrets
-- personal messages
-
-Current blocker: the live generic LoomAI runtime does not yet expose a confirmed ProdUS-compatible data-sync contract for these records through the existing ProdUS `Authorization: Bearer` client. Connect this through one of:
-
-- a ProdUS backend adapter that calls the Platform/Runtime indexing surface with the correct private auth, or
-- a ProdUS-specific Marketplace DATA plugin once the safe knowledge source is formalized, or
-- a governed runtime import endpoint that accepts the safe record schema above.
-
-### C. User-Owned Live Context
-
-Do not bulk-index user-owned workspace/product evidence.
-
-Use live, authorized reads through ProdUS backend/MCP for:
-
-- current product state
-- current package state
-- workspace status
-- scanner findings
-- milestone evidence
-- private owner/team context
-
-The user must already be authorized in ProdUS. LoomAI should receive only a safe summary or the MCP result, never raw source credentials.
-
-## 9. Chat Contract
-
-### Frontend To ProdUS Backend
-
-Keep the frontend route paths stable:
-
-```text
-POST /api/ai/assistant/session
-POST /api/ai/assistant/query
-POST /api/ai/assistant/suggestions
-```
-
-Example query from UI:
-
-```json
-{
-  "conversationId": "produs-ui-session-123",
-  "query": "What is blocking this product from launch?",
-  "mode": "support_assistant",
-  "position": "productization",
-  "context": {
-    "pageType": "owner-product-workspace",
-    "productId": "<uuid>",
-    "packageId": "<uuid>",
-    "workspaceId": "<uuid>",
-    "findingId": "<uuid>"
-  }
-}
-```
-
-ProdUS backend must validate the current user can read every referenced ID before sending any AI context.
-
-### ProdUS Backend To LoomAI
-
-The same request body should work for both the Platform consumer bridge and direct runtime:
 
 ```json
 {
@@ -568,11 +245,18 @@ The same request body should work for both the Platform consumer bridge and dire
 }
 ```
 
-Unknown fields must remain safe because they can enter prompts or logs.
+Do not send:
 
-### ProdUS Backend To Frontend Response
+- `message` instead of `query`
+- `sessionId` instead of `conversationId`
+- top-level `userId`, `ownerId`, `tenantId`, or `storefrontContext`
+- raw scanner logs, secrets, repository files, object storage URLs, Supabase JWTs, or admin keys
 
-Target response:
+Legacy top-level identity/context fields should fail closed in greenfield integrations.
+
+## 7. Canonical Chat Response
+
+ProdUS backend should return this flat shape to the browser:
 
 ```json
 {
@@ -582,58 +266,521 @@ Target response:
   "type": "INFORMATION_PROVIDED",
   "answer": "Safe answer",
   "safeSummary": "Safe answer",
-  "confidence": 0.0,
+  "conversationId": "produs-ui-session-123",
   "sources": [],
   "actions": [],
+  "suggestions": [],
   "fallbackReason": null,
   "providerRequestId": "rag-..."
 }
 ```
 
-The frontend should code against this flat shape only.
-
-### Runtime Adapter Input
-
-Current LoomAI runtime or Platform bridge endpoints may return this internal envelope:
+Runtime direct response already uses the standardized flat response:
 
 ```json
 {
   "success": true,
-  "result": {
-    "type": "INFORMATION_PROVIDED",
-    "success": true,
-    "message": "Safe answer",
-    "sanitizedPayload": {
-      "safeSummary": "Safe answer"
-    },
-    "metadata": {
-      "requestId": "rag-..."
+  "type": "INFORMATION_PROVIDED",
+  "answer": "Safe answer",
+  "safeSummary": "Safe answer",
+  "conversationId": "produs-ui-session-123",
+  "providerRequestId": "rag-...",
+  "sources": [],
+  "actions": [],
+  "suggestions": []
+}
+```
+
+ProdUS can add product-local wrapper fields such as `provider` and `mode`, but should not expose nested `result`, `sanitizedPayload`, runtime auth context, provider raw payloads, or bridge internals to the frontend.
+
+## 8. Structured Error And Action Evidence Contract
+
+New runtime contract requirement:
+
+- Use `errorCode` and structured action evidence for deterministic UX.
+- Do not inspect English answer text for auth, access, tool, or action status.
+
+Action evidence can appear as:
+
+```json
+{
+  "actions": [
+    {
+      "action": "produs_get_workspace_status",
+      "errorCode": "PRODUS_WORKSPACE_ACCESS_DENIED",
+      "actionResult": {
+        "success": false,
+        "errorCode": "PRODUS_WORKSPACE_ACCESS_DENIED",
+        "message": "Safe technical summary for backend logs only."
+      }
     }
+  ],
+  "fallbackReason": "PRODUS_WORKSPACE_ACCESS_DENIED"
+}
+```
+
+ProdUS frontend/backend behavior:
+
+| Condition | Use |
+| --- | --- |
+| User-facing copy | `answer` or `safeSummary` |
+| Deterministic UI branch | `actions[].errorCode`, `actions[].actionResult.errorCode`, or `fallbackReason` |
+| Trace correlation | `providerRequestId` |
+| Source display | sanitized `sources[]` only |
+| Confirmable action | `type=CONFIRMATION_REQUIRED` plus `actions[]` |
+
+Recommended ProdUS error codes for future MCP/read actions:
+
+```text
+PRODUS_AUTH_REQUIRED
+PRODUS_ACCESS_DENIED
+PRODUS_RESOURCE_NOT_FOUND
+PRODUS_WORKSPACE_ACCESS_DENIED
+PRODUS_PRODUCT_NOT_FOUND
+PRODUS_SCANNER_RESULT_UNAVAILABLE
+PRODUS_ACTION_CONFIRMATION_REQUIRED
+PRODUS_ACTION_NOT_ENABLED
+PRODUS_UPSTREAM_UNAVAILABLE
+```
+
+These should be emitted by ProdUS MCP/tool adapters or LoomAI governed action adapters as machine codes, not inferred from user text.
+
+## 9. Suggestions Contract
+
+Frontend to ProdUS backend:
+
+```http
+POST /api/ai/assistant/suggestions
+```
+
+```json
+{
+  "content": "Current page or current draft answer",
+  "conversationId": "produs-ui-session-123",
+  "maxSuggestions": 4,
+  "context": {
+    "pageType": "owner-product-workspace",
+    "productId": "<uuid>",
+    "workspaceId": "<uuid>"
   }
 }
 ```
 
-Normalize it to the target response:
+Backend to runtime:
+
+```http
+POST /api/chat/me/suggestions
+```
+
+Use the same private runtime headers as chat query.
+
+Response to frontend:
 
 ```json
 {
   "provider": "LOOMAI",
   "mode": "LIVE",
   "success": true,
-  "type": "INFORMATION_PROVIDED",
-  "answer": "Safe answer",
-  "safeSummary": "Safe answer",
-  "confidence": 0.0,
-  "sources": [],
-  "actions": [],
-  "fallbackReason": null,
-  "providerRequestId": "rag-..."
+  "suggestions": [
+    "Summarize launch blockers",
+    "Show scanner risks",
+    "Explain package readiness"
+  ],
+  "fallbackReason": null
 }
 ```
 
-On non-2xx, `success=false`, timeout, malformed response, or forbidden action request, return deterministic fallback.
+## 10. Smoke Verification
 
-## 10. Widget Install And Frontend Usage
+### Runtime Health
+
+```bash
+curl -fsS http://dep-7706fafb.46.224.145.148.sslip.io/actuator/health
+```
+
+Expected:
+
+```json
+{"status":"UP"}
+```
+
+### Auth Context Smoke
+
+After ProdUS generates a private assertion:
+
+```bash
+curl -fsS \
+  -H "X-AIFABRIC-RUNTIME-API-KEY: ${LOOMAI_RUNTIME_API_KEY}" \
+  -H "X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer ${LOOMAI_PRIVATE_ASSERTION}" \
+  http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/auth-context
+```
+
+Expected fields:
+
+```json
+{
+  "subjectId": "produs-user-or-session-id",
+  "subjectType": "END_USER",
+  "authMode": "PRIVATE_RUNTIME_BACKEND_MEDIATED",
+  "callerType": "TRUSTED_BACKEND",
+  "sessionId": "produs-assistant-session-id",
+  "deploymentId": "dep-7706fafb",
+  "issuer": "produs-staging-backend",
+  "grantedScopes": ["chat:query", "chat:suggestions", "chat:conversations"]
+}
+```
+
+### Query Smoke
+
+```bash
+curl -fsS \
+  -H "Content-Type: application/json" \
+  -H "X-AIFABRIC-RUNTIME-API-KEY: ${LOOMAI_RUNTIME_API_KEY}" \
+  -H "X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer ${LOOMAI_PRIVATE_ASSERTION}" \
+  -X POST \
+  http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/query \
+  --data '{
+    "query": "What can you help me with?",
+    "conversationId": "produs-runtime-smoke",
+    "mode": "support_assistant",
+    "position": "productization",
+    "context": {"pageType": "owner-product-workspace"}
+  }'
+```
+
+Expected:
+
+- HTTP 200
+- `success=true`
+- non-empty `answer` or safe fallback with `success=false`
+- no nested provider secrets
+- no internal runtime terminology in user-facing answer
+
+### Negative Auth Smoke
+
+These must fail:
+
+- missing `X-AIFABRIC-RUNTIME-API-KEY`
+- wrong runtime API key
+- missing private assertion
+- expired assertion
+- `iss` not in accepted issuers
+- `aud` not in accepted audiences
+- missing `chat:query` scope for query
+- both public `Authorization` and private `X-AIFABRIC-RUNTIME-AUTHORIZATION` supplied
+
+## 11. Platform Bridge Fallback
+
+Use only for operator validation or temporary fallback if direct runtime integration is not enabled.
+
+```bash
+PLATFORM_BASE_URL="https://loomai-platform-backend.46.224.145.148.sslip.io"
+PLATFORM_API_KEY="<platform-operator-api-key>"
+
+curl -fsS \
+  -H "X-PLATFORM-API-KEY: ${PLATFORM_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -X POST \
+  "${PLATFORM_BASE_URL}/api/public/consumers/produs-staging/bridge/chat/query" \
+  --data '{"query":"What can you help me with?","conversationId":"produs-consumer-smoke"}'
+```
+
+The Platform API key is an operator credential. Do not expose it in the browser.
+
+If the bridge returns a nested internal envelope, ProdUS backend must normalize it to the flat response in Section 7 before returning to the frontend.
+
+## 12. Indexing And Retrieval
+
+There are three data classes. Treat them differently.
+
+### A. Deployment-Managed Generic Data
+
+Already live:
+
+- `mkp-data-help-center`
+- `mkp-data-policy-folder`
+
+Compiled entity types:
+
+- `faq-article`
+- `support-policy`
+
+This is generic support/policy data, not ProdUS productization data.
+
+### B. ProdUS Safe Knowledge
+
+LoomAI-side setup is complete for staging:
+
+- Marketplace DATA plugin: `mkp-data-produs-safe-knowledge@0.1.1`
+- Deployment install: enabled, ready, entitled, and live on `dep-7706fafb`
+- Applied release: `rel-f17c4793`, `APPLIED_VERIFIED`, verification `PASSED`
+- Runtime data-sync endpoint: `POST /api/ai/data-sync/batch`
+
+Registered ProdUS vector spaces:
+
+```text
+service-category
+service-module
+service-dependency
+package-template
+ai-capability-contract
+milestone-template
+acceptance-criteria-template
+evidence-template
+scanner-tool-description
+case-pattern
+team-profile
+solo-expert-profile
+```
+
+ProdUS must map public active `TEAM_PROFILE` records to `team-profile` and public active `SOLO_EXPERT_PROFILE` records to `solo-expert-profile`. Do not reuse `case-pattern` for profile records now that dedicated spaces exist.
+
+ProdUS safe knowledge should be generated by backend-approved export endpoints:
+
+```text
+GET  /api/ai/loomai/knowledge-preview
+POST /api/ai/loomai/knowledge-sync
+```
+
+Only admins can use these endpoints.
+
+ProdUS sync requests must use the canonical `trace + operations` payload. Use `SYSTEM_PROCESS` auth context:
+
+```json
+{
+  "subjectId": "system:produs-safe-knowledge-sync",
+  "subjectType": "SYSTEM_PROCESS",
+  "authMode": "PRIVATE_RUNTIME_BACKEND_MEDIATED",
+  "callerType": "SYSTEM_PROCESS",
+  "deploymentId": "dep-7706fafb",
+  "customerId": "produs-staging",
+  "issuer": "produs-staging-backend",
+  "grantedScopes": ["data-sync:upsert"]
+}
+```
+
+Live LoomAI smoke accepted one ProdUS-shaped `service-module` upsert and delete. The batch response included `providerRequestId`, `totalOperations`, `succeededOperations`, and `failedOperations`. The remaining ProdUS-side gate is syncing real safe records and running product/service retrieval checks over those records.
+
+#### Managed Vectorization Proposal
+
+The current staging path lets ProdUS own the sync job and push approved safe records directly into LoomAI runtime data-sync. That is valid for early staging.
+
+For production-grade managed indexing, LoomAI should own the vectorization run lifecycle:
+
+```text
+LoomAI Platform vectorization run
+  -> LoomAI vectorization runner pulls safe ProdUS pages
+  -> runner maps records to DATA plugin vector spaces
+  -> runner writes batches to LoomAI runtime /api/ai/data-sync/batch
+  -> Platform tracks checkpoints, retries, failures, run history, and verification
+```
+
+This keeps ProdUS responsible for deciding what is safe to export, while LoomAI manages indexing jobs, retries, checkpoints, and vector backend writes.
+
+ProdUS needs to provide a backend-only paged export endpoint for LoomAI:
+
+```text
+GET /api/ai/loomai/knowledge-export?cursor=<opaque-cursor>&limit=<page-size>
+Authorization: Bearer <produs-owned-loomai-vectorization-export-token>
+```
+
+ProdUS implementation status: supported in backend code as of 2026-05-21. Enable on staging with backend-only `LOOMAI_SAFE_KNOWLEDGE_EXPORT_TOKEN`.
+
+Recommended response shape:
+
+```json
+{
+  "records": [
+    {
+      "id": "service-module:example",
+      "type": "SERVICE_MODULE",
+      "vectorSpace": "service-module",
+      "title": "Example Service",
+      "body": "Approved public productization text",
+      "metadata": {
+        "slug": "example",
+        "releaseStage": "LIVE",
+        "sourceUpdatedAt": "2026-05-21T10:00:00Z"
+      },
+      "deleted": false
+    }
+  ],
+  "nextCursor": "opaque-next-cursor",
+  "hasMore": true,
+  "totalEstimate": 120,
+  "exportVersion": "produs-safe-knowledge-v1"
+}
+```
+
+Required ProdUS behavior:
+
+- Return only approved safe shared knowledge. Never return workspace-private state, raw scanner logs, raw evidence files, object storage URLs, credentials, secrets, private messages, or team-private records.
+- Use stable record IDs. Re-running the export must produce the same `id` for the same logical record.
+- Include the exact LoomAI vector space per record in `vectorSpace`.
+- Support paging until `hasMore=false`; `cursor` must be opaque and safe to log.
+- Support deterministic full export for bootstrap/reindex runs.
+- Support tombstones for deletions with `deleted=true`, or expose a separate delete feed if ProdUS prefers.
+- Include `sourceUpdatedAt` or another source revision marker so LoomAI can reason about drift and reindex freshness.
+- Keep payloads bounded. Prefer compact summaries over large raw objects.
+- Use HTTPS only and backend-only auth. The export endpoint must not be callable from the browser.
+- Rate limit and audit the export endpoint. Calls should be attributable to the LoomAI vectorization runner or Platform staging issuer.
+
+Recommended auth:
+
+```text
+Authorization: Bearer <produs-owned-loomai-vectorization-export-token>
+```
+
+or the same private-runtime assertion pattern if ProdUS wants issuer/audience-bound requests:
+
+```text
+issuer: loomai-vectorization-runner-staging
+audience: produs-staging-safe-knowledge-export
+scope: knowledge-export:read
+```
+
+LoomAI-side configuration after ProdUS exposes the endpoint:
+
+```text
+source connection:
+  adapterType: REST_API
+  authMode: API_KEY or PRIVATE_ASSERTION
+  baseUrl: https://produs-api-staging.46.224.145.148.sslip.io
+
+vectorization plan:
+  runnerMode: PLATFORM_MANAGED_AUTO
+  entityScope:
+    - service-category
+    - service-module
+    - service-dependency
+    - package-template
+    - ai-capability-contract
+    - milestone-template
+    - acceptance-criteria-template
+    - evidence-template
+    - scanner-tool-description
+    - case-pattern
+    - team-profile
+    - solo-expert-profile
+  pagination: CURSOR
+  pageSize: 100
+```
+
+Acceptance for enabling LoomAI-managed vectorization:
+
+- `GET /api/ai/loomai/knowledge-export?limit=1` returns one safe record and no private fields.
+- A full paged export completes until `hasMore=false`.
+- Missing or wrong bearer token returns `401`; missing server-side export token config returns `503`.
+- Exported `TEAM_PROFILE` and `SOLO_EXPERT_PROFILE` records use `team-profile` and `solo-expert-profile`.
+- LoomAI Platform shows a vectorization source connection, plan, runner, and run history for `dep-7706fafb`.
+- A bootstrap run writes records through `/api/ai/data-sync/batch` with zero `VECTOR_SPACE_NOT_FOUND` errors.
+- A retry run resumes from checkpoint rather than duplicating or losing records.
+- A retrieval smoke returns grounded answers from exported ProdUS safe knowledge.
+
+Safe record shape:
+
+```json
+{
+  "id": "service-module:example",
+  "type": "SERVICE_MODULE",
+  "title": "Example Service",
+  "body": "Approved productization text",
+  "metadata": {
+    "slug": "example",
+    "releaseStage": "LIVE"
+  }
+}
+```
+
+Do not index:
+
+- raw repositories
+- raw scanner logs
+- raw evidence files
+- object storage URLs
+- access tokens
+- Supabase JWTs
+- credentials
+- customer secrets
+- personal messages
+
+### C. User-Owned Live Context
+
+Do not bulk-index user-owned workspace/product evidence.
+
+Use live, authorized reads through ProdUS backend/MCP for:
+
+- current product state
+- current package state
+- workspace status
+- scanner findings
+- milestone evidence
+- private owner/team context
+
+LoomAI should receive only safe summaries or governed MCP results, never raw source credentials.
+
+## 13. MCP Setup Checklist
+
+ProdUS MCP must be healthy before LoomAI imports read/action tools.
+
+Required staging env:
+
+```bash
+PRODUS_MCP_TOOL_PROFILE=loomai-productization
+PRODUS_MCP_REQUIRE_AUTH=true
+PRODUS_MCP_API_KEY=<produs-owned-mcp-api-key>
+```
+
+LoomAI Platform stores the matching MCP key as a Platform secret before discovery:
+
+```text
+MCP_SECRET_PRODUS_STAGING_MCP_API_KEY
+```
+
+Do not place the raw MCP key in a Marketplace manifest, discovery request, browser bundle, or deployment handoff. Platform discovery resolves `MCP_SECRET_*` references server-side and forwards only the resolved value to the managed MCP Gateway.
+
+Required healthy endpoints:
+
+```text
+GET  https://produs-api-staging.46.224.145.148.sslip.io/health
+GET  https://produs-api-staging.46.224.145.148.sslip.io/loomai/tool-allowlist
+POST https://produs-api-staging.46.224.145.148.sslip.io/mcp
+```
+
+Discovery command:
+
+```bash
+PLATFORM_BASE_URL="https://loomai-platform-backend.46.224.145.148.sslip.io"
+PLATFORM_API_KEY="<platform-operator-api-key>"
+
+curl -fsS \
+  -H "X-PLATFORM-API-KEY: ${PLATFORM_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -X POST \
+  "${PLATFORM_BASE_URL}/api/marketplace/mcp/discover" \
+  --data '{
+    "serverRef": "produs-staging",
+    "server": {
+      "transport": "STREAMABLE_HTTP",
+      "endpointUrl": "https://produs-api-staging.46.224.145.148.sslip.io/mcp",
+      "auth": {
+        "mode": "API_KEY_HEADER_SECRET",
+        "headerName": "X-MCP-API-KEY",
+        "secretRef": "MCP_SECRET_PRODUS_STAGING_MCP_API_KEY"
+      }
+    },
+    "trace": {
+      "environment": "staging",
+      "source": "produs-ai-enablement"
+    },
+    "allowedTools": [],
+    "gatewayServiceRef": "mcp-execution-gateway"
+  }'
+```
+
+Do not compile MCP action plugins into the deployment until discovery returns `ready=true` and the tools match the `loomai-productization` allowlist.
+
+## 14. ProdUS Widget And Frontend Usage
 
 The ProdUS widget should be a productization assistant, not a generic platform chatbot.
 
@@ -651,16 +798,8 @@ Frontend rules:
 - The widget never calls LoomAI runtime, Platform backend, MCP, Coolify, Supabase admin, object storage, or scanner internals directly.
 - The widget sends only safe page context IDs and page type.
 - The widget displays provider state: `LoomAI live` or `ProdUS fallback`.
-- The widget displays fallback reason only in admin/operator contexts, not as noisy end-user copy.
+- The widget displays fallback reason only in admin/operator contexts.
 - The widget does not show MCP, runtime, vector, or indexing terminology to owners/teams.
-
-Suggested UI behavior:
-
-- Collapsed assistant pill on supported productization pages.
-- Expanded panel with message history, current page context label, and suggestions.
-- Suggestions come from `/api/ai/assistant/suggestions` using the canonical `context` payload.
-- Chat turns go to `/api/ai/assistant/query` using the canonical `query` / `conversationId` / `context` payload.
-- Admin page keeps `knowledge-preview`, `knowledge-sync`, and readiness controls separate from end-user chat.
 
 Current frontend references:
 
@@ -678,106 +817,11 @@ backend/src/main/java/com/produs/ai/LoomAIIntegrationService.java
 backend/src/main/java/com/produs/ai/loom/LoomAIProperties.java
 ```
 
-## 11. MCP Setup Checklist
-
-ProdUS MCP must be healthy before action/read tools are imported.
-
-Required staging env:
-
-```bash
-PRODUS_MCP_TOOL_PROFILE=loomai-productization
-PRODUS_MCP_REQUIRE_AUTH=true
-```
-
-Required healthy endpoints:
-
-```text
-GET  https://produs-api-staging.46.224.145.148.sslip.io/health
-GET  https://produs-api-staging.46.224.145.148.sslip.io/loomai/tool-allowlist
-POST https://produs-api-staging.46.224.145.148.sslip.io/mcp
-```
-
-Discovery command:
-
-```bash
-PLATFORM_BASE_URL="https://loomai-platform-backend.46.224.145.148.sslip.io"
-PLATFORM_API_KEY="$(cat /private/tmp/platform_staging_admin_api_key.secret)"
-
-curl -fsS \
-  -H "X-PLATFORM-API-KEY: ${PLATFORM_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -X POST \
-  "${PLATFORM_BASE_URL}/api/marketplace/mcp/discover" \
-  --data '{
-    "serverRef": "produs-staging",
-    "server": {
-      "transport": "STREAMABLE_HTTP",
-      "endpointUrl": "https://produs-api-staging.46.224.145.148.sslip.io/mcp",
-      "auth": {"mode": "NONE"}
-    },
-    "trace": {
-      "environment": "staging",
-      "source": "produs-ai-enablement"
-    },
-    "allowedTools": [],
-    "gatewayServiceRef": "mcp-execution-gateway"
-  }'
-```
-
-Do not compile MCP action plugins into the deployment until discovery returns `ready: true` and the tools match the `loomai-productization` allowlist.
-
-## 12. Operations Commands
-
-### Deployment Overview
-
-```bash
-PLATFORM_BASE_URL="https://loomai-platform-backend.46.224.145.148.sslip.io"
-PLATFORM_API_KEY="$(cat /private/tmp/platform_staging_admin_api_key.secret)"
-
-curl -fsS \
-  -H "X-PLATFORM-API-KEY: ${PLATFORM_API_KEY}" \
-  "${PLATFORM_BASE_URL}/api/deployments/overview?includeArchived=false" \
-  | jq '.[] | select(.id=="dep-7706fafb")'
-```
-
-### Consumer Credentials
-
-```bash
-curl -fsS \
-  -H "X-PLATFORM-API-KEY: ${PLATFORM_API_KEY}" \
-  "${PLATFORM_BASE_URL}/api/public/consumers/produs-staging/credentials"
-```
-
-### Runtime Shell Config
-
-```bash
-curl -fsS \
-  -H "X-PLATFORM-API-KEY: ${PLATFORM_API_KEY}" \
-  "${PLATFORM_BASE_URL}/api/deployments/dep-7706fafb/poc-widget/chat/me/shell-config?authPath=PLATFORM_PRIVATE"
-```
-
-### Chat Smoke
-
-```bash
-curl -fsS \
-  -H "X-PLATFORM-API-KEY: ${PLATFORM_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -X POST \
-  "${PLATFORM_BASE_URL}/api/public/consumers/produs-staging/bridge/chat/query" \
-  --data '{"query":"What can you help me with?","conversationId":"produs-smoke"}'
-```
-
-### ProdUS Backend Health
-
-```bash
-curl -fsS https://produs-api-staging.46.224.145.148.sslip.io/actuator/health
-curl -fsS https://produs-api-staging.46.224.145.148.sslip.io/api/health
-```
-
-## 13. Release Gates For Calling This Complete
+## 15. Release Gates For Calling This Complete
 
 Do not mark ProdUS LoomAI integration complete until these pass:
 
+- ProdUS backend can call `/api/chat/me/auth-context` with private-runtime assertion and receives expected verified context.
 - ProdUS backend can query LoomAI through the direct private runtime adapter.
 - ProdUS frontend and backend use `query`, `conversationId`, and `context` as the canonical assistant payload.
 - `POST /api/ai/assistant/query` returns `provider=LOOMAI`, `mode=LIVE` for an authorized owner.
@@ -790,24 +834,31 @@ Do not mark ProdUS LoomAI integration complete until these pass:
 - Unauthorized users cannot use AI to read another owner's product/package/workspace/finding.
 - ProdUS fallback works when LoomAI is disabled or unreachable.
 - Browser never receives Platform API keys, runtime trusted backend keys, private assertion signing keys, MCP credentials, Supabase admin credentials, or object storage credentials.
+- No UI branch relies on matching English text in `answer`; use machine `errorCode`.
 
-## 14. Known Gaps
+## 16. Known Gaps
 
 Current gaps are expected and should be tracked:
 
-1. ProdUS staging still needs issuer/signing material registered and configured before `LOOMAI_ENABLED=true`.
-2. ProdUS backend DTOs have been aligned to the canonical `query` / `conversationId` / `context` payload and the Platform bridge path was live-verified on 2026-05-19. Owner-browser smoke through `/api/ai/assistant/*` still depends on the ProdUS UI surface being enabled with an authenticated owner.
-3. ProdUS safe knowledge sync is designed but not connected to a confirmed runtime ingestion endpoint.
-4. ProdUS MCP tools are not installed in the LoomAI deployment until discovery is rerun and approved.
-5. Current indexed data is generic help/policy marketplace data, not ProdUS productization knowledge.
+1. ProdUS still needs the deployment-scoped runtime API key and HMAC assertion signing secret transferred from the LoomAI private handoff through a secure secret channel before enabling `LOOMAI_ENABLED=true`.
+2. Current live runtime supports HMAC private assertions only. Asymmetric `LOOMAI_ASSERTION_PRIVATE_KEY_PATH` requires LoomAI runtime key-registry work before use.
+3. ProdUS owner-browser smoke through `/api/ai/assistant/*` still depends on the ProdUS UI surface being enabled with an authenticated owner.
+4. ProdUS safe knowledge sync is designed but not connected to a confirmed runtime ingestion endpoint.
+5. Mutation MCP tools are intentionally not installed yet. They need a reviewed confirmed-action Marketplace manifest because the generic importer treats imported tools as read-only.
+6. Current indexed data is generic help/policy marketplace data, not ProdUS productization knowledge.
+7. Platform apply currently requires preserving the ProdUS private-auth issuer in runtime env after rollout. LoomAI patched staging manually; Platform env rendering should be hardened before relying on repeated automatic applies.
 
-## 15. Recommended Next Work
+## 17. Recommended Next Work
 
-1. Register the ProdUS staging issuer and signing material with LoomAI deployment security.
-2. Configure Coolify backend env vars for direct private runtime mode.
-3. Keep frontend route paths unchanged through `/api/ai/assistant/*`, but use the canonical payload.
-4. Keep session creation local in ProdUS until a runtime session endpoint is formalized.
-5. Rerun MCP discovery against ProdUS `/mcp` and `/loomai/tool-allowlist`.
-6. Decide safe knowledge ingestion path: runtime import endpoint or ProdUS-specific Marketplace DATA plugin.
+1. Securely hand off the runtime API key, HMAC signing secret, and MCP key material from the LoomAI private handoff to ProdUS backend operations.
+2. Configure ProdUS backend env for direct private runtime mode.
+3. Implement or finish ProdUS backend `rpa1` assertion issuer.
+4. Run `/api/chat/me/auth-context` smoke with ProdUS-generated assertion.
+5. Implement ProdUS backend context enrichment for product/package/workspace/scanner/finding/evidence pages.
+6. Connect ProdUS safe knowledge preview/sync to a confirmed LoomAI ingestion path or a ProdUS `DATA` Marketplace plugin.
+7. Add a reviewed confirmed-action manifest for ProdUS mutation tools only after ProdUS has confirmation UX and audit enforcement wired.
+5. Run `/api/ai/assistant/query` and `/api/ai/assistant/suggestions` from an authenticated ProdUS owner session.
+6. Rerun Marketplace discovery against ProdUS `/mcp` and `/loomai/tool-allowlist` using `MCP_SECRET_PRODUS_STAGING_MCP_API_KEY`.
+7. Decide safe knowledge ingestion path: runtime import endpoint or ProdUS-specific Marketplace DATA plugin.
 8. Run end-to-end role tests: admin, owner, team manager, specialist, advisor.
 9. Only after staging passes, design production deployment with separate runtime, credentials, vector namespace, rate limits, and rollback plan.

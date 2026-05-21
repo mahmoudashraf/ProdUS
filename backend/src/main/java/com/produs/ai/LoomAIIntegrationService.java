@@ -44,9 +44,11 @@ import com.produs.workspace.WorkspaceParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -57,6 +59,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -93,8 +96,11 @@ public class LoomAIIntegrationService {
     private static final int FIELD_LIMIT = 220;
     private static final int LIST_LIMIT = 6;
     private static final int KNOWLEDGE_CONTENT_LIMIT = 4_000;
+    private static final int DEFAULT_KNOWLEDGE_EXPORT_LIMIT = 100;
+    private static final int MAX_KNOWLEDGE_EXPORT_LIMIT = 250;
     private static final String DATA_SYNC_SCOPE = "data-sync:upsert";
     private static final String SAFE_KNOWLEDGE_SYSTEM_SUBJECT = "system:produs-safe-knowledge-sync";
+    private static final String SAFE_KNOWLEDGE_EXPORT_VERSION = "produs-safe-knowledge-v1";
     private static final Pattern SECRET_PATTERN = Pattern.compile(
             "(?is)(api[_-]?key|secret|token|password|authorization|bearer|private[_-]?key)\\s*[:=]\\s*[^\\s,;]+"
                     + "|gh[pousr]_[A-Za-z0-9_]+"
@@ -321,6 +327,40 @@ public class LoomAIIntegrationService {
         return safeKnowledgeRecords();
     }
 
+    @Transactional(readOnly = true)
+    public KnowledgeExportResponse exportSafeKnowledge(String authorizationHeader, String cursor, Integer limit) {
+        requireSafeKnowledgeExportToken(authorizationHeader);
+        List<SafeKnowledgeRecord> records = safeKnowledgeRecords();
+        int pageSize = normalizeKnowledgeExportLimit(limit);
+        int offset = decodeKnowledgeExportCursor(cursor);
+        if (offset > records.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "knowledge export cursor is out of range");
+        }
+
+        int endExclusive = Math.min(records.size(), offset + pageSize);
+        List<KnowledgeExportRecord> page = records.subList(offset, endExclusive).stream()
+                .map(this::knowledgeExportRecord)
+                .toList();
+        boolean hasMore = endExclusive < records.size();
+        String nextCursor = hasMore ? encodeKnowledgeExportCursor(endExclusive) : null;
+
+        log.info("loomai_safe_knowledge_export requestId={} offset={} limit={} returned={} total={} hasMore={}",
+                nullToEmpty(MDC.get("requestId")),
+                offset,
+                pageSize,
+                page.size(),
+                records.size(),
+                hasMore);
+
+        return new KnowledgeExportResponse(
+                page,
+                nextCursor,
+                hasMore,
+                records.size(),
+                SAFE_KNOWLEDGE_EXPORT_VERSION
+        );
+    }
+
     private List<SafeKnowledgeRecord> safeKnowledgeRecords() {
         List<SafeKnowledgeRecord> records = new ArrayList<>();
         for (ServiceCategory category : categoryRepository.findAll()) {
@@ -535,6 +575,7 @@ public class LoomAIIntegrationService {
         metadata.put("recordType", record.type());
         metadata.put("title", safeText(record.title(), FIELD_LIMIT));
         metadata.put("datasetId", safeKnowledgeDatasetId());
+        metadata.put("sourceRecordVersion", sourceRecordVersion(record));
         if (record.metadata() != null) {
             record.metadata().forEach((key, value) -> metadata.put(key, safeMetadataValue(value)));
         }
@@ -564,9 +605,79 @@ public class LoomAIIntegrationService {
             case "ACCEPTANCE_CRITERIA_TEMPLATE" -> "acceptance-criteria-template";
             case "EVIDENCE_TEMPLATE" -> "evidence-template";
             case "SCANNER_TOOL_DESCRIPTION" -> "scanner-tool-description";
-            case "CASE_PATTERN", "TEAM_PROFILE", "SOLO_EXPERT_PROFILE" -> "case-pattern";
+            case "CASE_PATTERN" -> "case-pattern";
+            case "TEAM_PROFILE" -> "team-profile";
+            case "SOLO_EXPERT_PROFILE" -> "solo-expert-profile";
             default -> throw new IllegalArgumentException("Unsupported safe knowledge record type: " + recordType);
         };
+    }
+
+    private KnowledgeExportRecord knowledgeExportRecord(SafeKnowledgeRecord record) {
+        return new KnowledgeExportRecord(
+                record.id(),
+                record.type(),
+                vectorSpace(record.type()),
+                safeText(record.title(), FIELD_LIMIT),
+                safeText(record.body(), KNOWLEDGE_CONTENT_LIMIT),
+                safeKnowledgeMetadata(record),
+                false
+        );
+    }
+
+    private void requireSafeKnowledgeExportToken(String authorizationHeader) {
+        String configuredToken = nullToEmpty(properties.getSafeKnowledgeExportToken()).trim();
+        if (configuredToken.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "safe knowledge export token is not configured");
+        }
+        if (blank(authorizationHeader) || !authorizationHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "safe knowledge export token is required");
+        }
+        String submittedToken = authorizationHeader.substring("Bearer ".length()).trim();
+        if (!constantTimeEquals(configuredToken, submittedToken)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "safe knowledge export token is invalid");
+        }
+    }
+
+    private int normalizeKnowledgeExportLimit(Integer limit) {
+        if (limit == null) {
+            return DEFAULT_KNOWLEDGE_EXPORT_LIMIT;
+        }
+        if (limit < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "knowledge export limit must be at least 1");
+        }
+        return Math.min(limit, MAX_KNOWLEDGE_EXPORT_LIMIT);
+    }
+
+    private int decodeKnowledgeExportCursor(String cursor) {
+        if (blank(cursor)) {
+            return 0;
+        }
+        try {
+            String decoded = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
+            String prefix = SAFE_KNOWLEDGE_EXPORT_VERSION + ":";
+            if (!decoded.startsWith(prefix)) {
+                throw new IllegalArgumentException("unexpected cursor version");
+            }
+            int offset = Integer.parseInt(decoded.substring(prefix.length()));
+            if (offset < 0) {
+                throw new IllegalArgumentException("negative cursor offset");
+            }
+            return offset;
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "knowledge export cursor is invalid");
+        }
+    }
+
+    private String encodeKnowledgeExportCursor(int offset) {
+        String rawCursor = SAFE_KNOWLEDGE_EXPORT_VERSION + ":" + offset;
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(rawCursor.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private boolean constantTimeEquals(String expected, String actual) {
+        byte[] expectedBytes = expected.getBytes(StandardCharsets.UTF_8);
+        byte[] actualBytes = nullToEmpty(actual).getBytes(StandardCharsets.UTF_8);
+        return MessageDigest.isEqual(expectedBytes, actualBytes);
     }
 
     private String sourceRecordVersion(SafeKnowledgeRecord record) {
@@ -1506,6 +1617,24 @@ public class LoomAIIntegrationService {
             Integer failedOperations,
             List<Map<String, Object>> errors,
             String fallbackReason
+    ) {}
+
+    public record KnowledgeExportResponse(
+            List<KnowledgeExportRecord> records,
+            String nextCursor,
+            boolean hasMore,
+            int totalEstimate,
+            String exportVersion
+    ) {}
+
+    public record KnowledgeExportRecord(
+            String id,
+            String type,
+            String vectorSpace,
+            String title,
+            String body,
+            Map<String, Object> metadata,
+            boolean deleted
     ) {}
 
     public record SafeKnowledgeRecord(

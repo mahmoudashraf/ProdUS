@@ -5,9 +5,14 @@ import com.produs.catalog.ServiceCategory;
 import com.produs.catalog.ServiceCategoryRepository;
 import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
+import com.produs.experts.ExpertProfile;
+import com.produs.experts.ExpertProfileRepository;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
 import com.produs.repository.UserRepository;
+import com.produs.teams.Team;
+import com.produs.teams.TeamRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterAll;
@@ -24,6 +29,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -36,6 +42,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -54,6 +61,9 @@ class LoomAIStagingIntegrationTest {
     private MockMvc mockMvc;
 
     @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -64,6 +74,12 @@ class LoomAIStagingIntegrationTest {
 
     @Autowired
     private ServiceModuleRepository moduleRepository;
+
+    @Autowired
+    private TeamRepository teamRepository;
+
+    @Autowired
+    private ExpertProfileRepository expertProfileRepository;
 
     @DynamicPropertySource
     static void loomAIProperties(DynamicPropertyRegistry registry) throws IOException {
@@ -76,6 +92,7 @@ class LoomAIStagingIntegrationTest {
         registry.add("loomai.assertion-issuer", () -> "produs-staging-backend");
         registry.add("loomai.assertion-audience", () -> "dep-7706fafb");
         registry.add("loomai.assertion-signing-secret", () -> "test-loomai-private-runtime-secret-32");
+        registry.add("loomai.safe-knowledge-export-token", () -> "test-safe-knowledge-export-token");
         registry.add("loomai.timeout-ms", () -> "1000");
         registry.add("loomai.base-url", () -> "http://127.0.0.1:" + server.getAddress().getPort());
     }
@@ -174,6 +191,40 @@ class LoomAIStagingIntegrationTest {
                 .andExpect(jsonPath("$.totalOperations").value(2))
                 .andExpect(jsonPath("$.succeededOperations").value(2))
                 .andExpect(jsonPath("$.failedOperations").value(0));
+
+        saveTeamAndSoloExpertProfiles();
+
+        mockMvc.perform(get("/api/ai/loomai/knowledge-export").param("limit", "1"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/ai/loomai/knowledge-export")
+                        .param("limit", "1")
+                        .header("Authorization", "Bearer wrong-token"))
+                .andExpect(status().isUnauthorized());
+
+        MvcResult firstExport = mockMvc.perform(get("/api/ai/loomai/knowledge-export")
+                        .param("limit", "1")
+                        .header("Authorization", "Bearer test-safe-knowledge-export-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.records[0].id").value(containsString("service-category:")))
+                .andExpect(jsonPath("$.records[0].vectorSpace").value("service-category"))
+                .andExpect(jsonPath("$.records[0].deleted").value(false))
+                .andExpect(jsonPath("$.records[0].metadata.sourceRecordVersion").exists())
+                .andExpect(jsonPath("$.hasMore").value(true))
+                .andExpect(jsonPath("$.totalEstimate").value(4))
+                .andExpect(jsonPath("$.exportVersion").value("produs-safe-knowledge-v1"))
+                .andReturn();
+
+        String nextCursor = objectMapper.readTree(firstExport.getResponse().getContentAsString())
+                .path("nextCursor")
+                .asText();
+        mockMvc.perform(get("/api/ai/loomai/knowledge-export")
+                        .param("cursor", nextCursor)
+                        .param("limit", "250")
+                        .header("Authorization", "Bearer test-safe-knowledge-export-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasMore").value(false))
+                .andExpect(jsonPath("$.records[*].vectorSpace", hasItems("service-module", "team-profile", "solo-expert-profile")));
     }
 
     private static void ensureServer() throws IOException {
@@ -395,6 +446,29 @@ class LoomAIStagingIntegrationTest {
         module.setDescription("Review API auth, authorization, rate limits, and secrets handling.");
         module.setOwnerOutcome("Owners understand and reduce API launch risk.");
         moduleRepository.save(module);
+    }
+
+    private void saveTeamAndSoloExpertProfiles() {
+        User manager = saveUser("loom-staging-team-manager@produs.test", User.UserRole.TEAM_MANAGER);
+        Team team = new Team();
+        team.setManager(manager);
+        team.setName("Northstar LoomAI Team");
+        team.setHeadline("Backend and production readiness team");
+        team.setDescription("Public team profile for service delivery and productization support.");
+        team.setBio("Helps owners move cloud, security, and backend services into governed delivery.");
+        team.setVerificationStatus(Team.VerificationStatus.VERIFIED);
+        teamRepository.save(team);
+
+        User specialist = saveUser("loom-staging-solo-specialist@produs.test", User.UserRole.SPECIALIST);
+        ExpertProfile profile = new ExpertProfile();
+        profile.setUser(specialist);
+        profile.setDisplayName("Priya LoomAI");
+        profile.setHeadline("Solo expert for readiness reviews");
+        profile.setBio("Supports launch readiness, evidence review, and secure API delivery.");
+        profile.setSkills("security,launch-readiness,evidence-review");
+        profile.setAvailability(ExpertProfile.Availability.AVAILABLE);
+        profile.setSoloMode(true);
+        expertProfileRepository.save(profile);
     }
 
     private RequestPostProcessor auth(User user) {

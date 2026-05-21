@@ -47,12 +47,12 @@ mkp-data-produs-safe-knowledge
 
 Installed/applied state:
 
-- Published plugin: `mkp-data-produs-safe-knowledge@0.1.0`
+- Published plugin: `mkp-data-produs-safe-knowledge@0.1.1`
 - Deployment: `dep-7706fafb`
 - Install state: enabled, `READY`, live, free entitlement active
-- Applied release: `rel-2cf55a81`, `APPLIED_VERIFIED`, verification `PASSED`
+- Applied release: `rel-f17c4793`, `APPLIED_VERIFIED`, verification `PASSED`
 - Runtime vector-space check: all required spaces present, no `VECTOR_SPACE_NOT_FOUND`
-- Live data-sync smoke: platform-internal 10-space upsert/delete passed; ProdUS-shaped `SYSTEM_PROCESS` `service-module` upsert/delete passed with `providerRequestId` and success/failure counts
+- Live data-sync smoke: dedicated `team-profile` and `solo-expert-profile` ProdUS-shaped upsert/delete passed with `providerRequestId` and success/failure counts
 - Temporary retrieval smoke: synthetic `service-module` record was answered through runtime chat and deleted
 
 Required vector spaces:
@@ -67,17 +67,15 @@ Required vector spaces:
 - `evidence-template`
 - `scanner-tool-description`
 - `case-pattern`
+- `team-profile`
+- `solo-expert-profile`
 
 Current ProdUS talent indexing:
 
-- Public active team profiles are indexed as `TEAM_PROFILE` records in the existing `case-pattern` vector space.
-- Public active solo expert profiles are indexed as `SOLO_EXPERT_PROFILE` records in the existing `case-pattern` vector space.
+- Public active team profiles must be indexed as `TEAM_PROFILE` records in `team-profile`.
+- Public active solo expert profiles must be indexed as `SOLO_EXPERT_PROFILE` records in `solo-expert-profile`.
+- Do not map these profile records into `case-pattern`.
 - Private invitations, join requests, messages, team membership internals, commercial terms, and workspace-specific delivery records are not indexed.
-
-Recommended LoomAI DATA plugin extension after the first live proof:
-
-- `team-profile`
-- `solo-expert-profile`
 
 Acceptance:
 
@@ -134,8 +132,8 @@ Record-to-vector-space mapping:
 | `EVIDENCE_TEMPLATE` | `evidence-template` |
 | `SCANNER_TOOL_DESCRIPTION` | `scanner-tool-description` |
 | `CASE_PATTERN` | `case-pattern` |
-| `TEAM_PROFILE` | `case-pattern` in plugin v0.1; prefer `team-profile` after plugin extension |
-| `SOLO_EXPERT_PROFILE` | `case-pattern` in plugin v0.1; prefer `solo-expert-profile` after plugin extension |
+| `TEAM_PROFILE` | `team-profile` |
+| `SOLO_EXPERT_PROFILE` | `solo-expert-profile` |
 
 Acceptance:
 
@@ -224,7 +222,7 @@ Acceptance:
 
 Owner: ProdUS backend / staging operator
 
-Status: implemented in ProdUS code on 2026-05-21; disabled by default until staging env enables it.
+Status: implemented in ProdUS code on 2026-05-21; direct replay remains available, but LoomAI-managed vectorization is the preferred production-grade run lifecycle.
 
 Mechanism:
 
@@ -264,6 +262,94 @@ Acceptance:
 - Scheduler can be enabled on staging to replay new safe records without adding a separate worker.
 - Team and solo expert public profiles appear in `knowledge-preview` as `TEAM_PROFILE` and `SOLO_EXPERT_PROFILE`.
 - The sync payload remains canonical `trace + operations`; it never sends top-level `environment/source/records`.
+
+### 2.4b LoomAI-Managed Vectorization Export
+
+Owner: ProdUS backend / LoomAI platform
+
+Status: implemented in ProdUS code on 2026-05-21; requires staging env token plus LoomAI source-connection configuration.
+
+Purpose:
+
+- ProdUS remains the authority for deciding what records are safe to export.
+- LoomAI owns vectorization run lifecycle, checkpoints, retries, failures, run history, verification, and runtime data-sync writes.
+- This replaces ad hoc operational sync jobs as the preferred managed indexing path while keeping `POST /api/ai/loomai/knowledge-sync` available for direct staging/admin replay.
+
+ProdUS endpoint:
+
+```text
+GET /api/ai/loomai/knowledge-export?cursor=<opaque-cursor>&limit=<page-size>
+Authorization: Bearer <produs-owned-loomai-vectorization-export-token>
+```
+
+ProdUS env:
+
+```text
+LOOMAI_SAFE_KNOWLEDGE_EXPORT_TOKEN=<produs-owned-loomai-vectorization-export-token>
+```
+
+Response shape:
+
+```json
+{
+  "records": [
+    {
+      "id": "service-module:security-hardening",
+      "type": "SERVICE_MODULE",
+      "vectorSpace": "service-module",
+      "title": "Security hardening",
+      "body": "Approved public productization text.",
+      "metadata": {
+        "recordType": "SERVICE_MODULE",
+        "datasetId": "produs-safe-knowledge",
+        "sourceRecordVersion": "stable-content-hash"
+      },
+      "deleted": false
+    }
+  ],
+  "nextCursor": "opaque-next-cursor",
+  "hasMore": true,
+  "totalEstimate": 121,
+  "exportVersion": "produs-safe-knowledge-v1"
+}
+```
+
+Implementation details:
+
+- Missing or wrong bearer token returns `401`.
+- Missing `LOOMAI_SAFE_KNOWLEDGE_EXPORT_TOKEN` returns `503`.
+- `limit` defaults to `100` and is capped at `250`.
+- `cursor` is opaque, versioned, safe to log, and resumes by offset for deterministic full export.
+- Each record includes the record-specific LoomAI vector space.
+- Each record includes `metadata.sourceRecordVersion` so LoomAI can detect drift.
+- The endpoint is permitted through Spring Security only so the controller can perform machine-token authentication; it is still protected by the API rate limiter and security audit logging.
+- Supabase JWT parsing is skipped for this endpoint so the LoomAI runner bearer token is not treated as a user JWT.
+
+Safe records included:
+
+- service categories
+- service modules
+- service dependencies
+- package templates
+- AI capability contracts
+- active public team profiles as `TEAM_PROFILE` -> `team-profile`
+- active public solo expert profiles as `SOLO_EXPERT_PROFILE` -> `solo-expert-profile`
+
+Records intentionally excluded:
+
+- product workspaces and user-owned private state
+- raw scanner findings, logs, SARIF, and evidence files
+- object storage URLs
+- credentials, secrets, JWTs, and provider tokens
+- private messages, invitations, join requests, membership internals, and commercial/payment records
+
+Acceptance:
+
+- `GET /api/ai/loomai/knowledge-export?limit=1` with the configured token returns one safe record.
+- Unauthenticated and wrong-token calls return `401`.
+- A full paged export completes until `hasMore=false`.
+- Export records use `team-profile` and `solo-expert-profile`, not `case-pattern`, for talent profile records.
+- LoomAI configures a REST source connection with cursor pagination, page size `100`, and the 12 ProdUS vector spaces.
 
 ### 2.5 Retrieval Quality Check
 
@@ -362,6 +448,33 @@ Actions:
 - Confirm operations are accepted and indexed.
 - Confirm no operation fails with `VECTOR_SPACE_NOT_FOUND`.
 - Confirm no old `environment/source/records` payload is accepted as the target path.
+
+### 4.2a Configure Managed Vectorization Source
+
+Owner: LoomAI
+
+Actions:
+
+- Create a Platform-managed REST source connection for ProdUS safe knowledge:
+  - base URL: `https://produs-api-staging.46.224.145.148.sslip.io`
+  - path: `/api/ai/loomai/knowledge-export`
+  - auth: `Authorization: Bearer <ProdUS export token>`
+  - pagination: cursor
+  - page size: `100`
+- Use vector spaces from `mkp-data-produs-safe-knowledge@0.1.1`.
+- Track run history, checkpoints, retries, failed records, and verification status on deployment `dep-7706fafb`.
+- Share only sanitized run results with ProdUS:
+  - run ID
+  - records read
+  - operations upserted/deleted
+  - failures and error codes
+  - provider request IDs
+
+Acceptance:
+
+- Bootstrap run completes without `VECTOR_SPACE_NOT_FOUND`.
+- Retry run resumes from checkpoint.
+- Retrieval smoke answers from exported real ProdUS catalog/package/service/team/solo-expert records.
 
 ### 4.3 Retrieval Verification
 

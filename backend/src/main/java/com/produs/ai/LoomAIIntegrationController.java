@@ -7,14 +7,18 @@ import com.produs.ai.LoomAIIntegrationService.AssistantSessionResponse;
 import com.produs.ai.LoomAIIntegrationService.AssistantSuggestionsRequest;
 import com.produs.ai.LoomAIIntegrationService.AssistantSuggestionsResponse;
 import com.produs.ai.LoomAIIntegrationService.KnowledgeSyncResponse;
+import com.produs.ai.LoomAIIntegrationService.KnowledgeExportResponse;
 import com.produs.ai.LoomAIIntegrationService.LoomAIAuthContextResponse;
 import com.produs.ai.LoomAIIntegrationService.LoomAIStatusResponse;
 import com.produs.ai.LoomAIIntegrationService.SafeKnowledgeRecord;
 import com.produs.entity.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,6 +40,15 @@ public class LoomAIIntegrationController {
     @GetMapping("/loomai/knowledge-preview")
     public List<SafeKnowledgeRecord> previewKnowledge(@AuthenticationPrincipal User user) {
         return integrationService.previewSafeKnowledge(user);
+    }
+
+    @GetMapping("/loomai/knowledge-export")
+    public KnowledgeExportResponse exportKnowledge(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) Integer limit
+    ) {
+        return integrationService.exportSafeKnowledge(authorization, cursor, limit);
     }
 
     @GetMapping("/loomai/auth-context")

@@ -26,6 +26,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SupabaseJwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final String LOOMAI_KNOWLEDGE_EXPORT_PATH = "/api/ai/loomai/knowledge-export";
+
     private final UserRepository userRepository;
     
     @Value("${supabase.url}")
@@ -34,6 +36,10 @@ public class SupabaseJwtAuthenticationFilter extends OncePerRequestFilter {
     @Value("${supabase.api-key}")
     private String supabaseApiKey;
     
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return LOOMAI_KNOWLEDGE_EXPORT_PATH.equals(request.getRequestURI());
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
