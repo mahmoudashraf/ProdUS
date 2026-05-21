@@ -293,24 +293,47 @@ public class LoomAIIntegrationService {
             return new KnowledgeSyncResponse("SKIPPED", records.size(), null, null, null, null, List.of(), "LOOMAI_DISABLED");
         }
         try {
-            ProviderJsonResponse response = postJson(
-                    properties.getDataSyncBatchPath(),
-                    safeKnowledgeDataSyncPayload(records, trigger),
-                    ProviderAuthSubject.system(
-                            SAFE_KNOWLEDGE_SYSTEM_SUBJECT,
-                            "produs-safe-knowledge-sync",
-                            List.of(DATA_SYNC_SCOPE)
-                    )
-            );
-            JsonNode body = response.body();
+            List<Map<String, Object>> errors = new ArrayList<>();
+            List<String> providerRequestIds = new ArrayList<>();
+            int totalOperations = 0;
+            int succeededOperations = 0;
+            int failedOperations = 0;
+            int batchSize = normalizeSafeKnowledgeSyncBatchSize();
+            int batchNumber = 0;
+
+            for (int offset = 0; offset < records.size(); offset += batchSize) {
+                batchNumber++;
+                List<SafeKnowledgeRecord> batch = records.subList(offset, Math.min(records.size(), offset + batchSize));
+                ProviderJsonResponse response = postJson(
+                        properties.getDataSyncBatchPath(),
+                        safeKnowledgeDataSyncPayload(batch, trigger, offset, batchNumber, records.size()),
+                        ProviderAuthSubject.system(
+                                SAFE_KNOWLEDGE_SYSTEM_SUBJECT,
+                                "produs-safe-knowledge-sync",
+                                List.of(DATA_SYNC_SCOPE)
+                        )
+                );
+                JsonNode body = response.body();
+                providerRequestIds.add(firstText(
+                        body.path("providerRequestId"),
+                        body.path("metadata").path("providerRequestId"),
+                        body.path("requestId"),
+                        body.path("metadata").path("requestId"),
+                        textNode(response.providerRequestId())
+                ));
+                totalOperations += intOrDefault(body, "totalOperations", batch.size());
+                succeededOperations += intOrDefault(body, "succeededOperations", batch.size());
+                failedOperations += intOrDefault(body, "failedOperations", 0);
+                errors.addAll(providerErrors(body));
+            }
             return new KnowledgeSyncResponse(
-                    "SYNCED",
+                    failedOperations > 0 || !errors.isEmpty() ? "PARTIAL" : "SYNCED",
                     records.size(),
-                    firstText(body.path("providerRequestId"), body.path("metadata").path("providerRequestId"), body.path("requestId"), body.path("metadata").path("requestId"), textNode(response.providerRequestId())),
-                    intOrNull(body, "totalOperations"),
-                    intOrNull(body, "succeededOperations"),
-                    intOrNull(body, "failedOperations"),
-                    providerErrors(body),
+                    String.join(",", providerRequestIds.stream().filter(id -> !blank(id)).toList()),
+                    totalOperations,
+                    succeededOperations,
+                    failedOperations,
+                    errors,
                     null
             );
         } catch (RuntimeException exception) {
@@ -524,7 +547,13 @@ public class LoomAIIntegrationService {
         return new SafeKnowledgeRecord(id, type, title, nullToEmpty(body), metadata);
     }
 
-    private Map<String, Object> safeKnowledgeDataSyncPayload(List<SafeKnowledgeRecord> records, String trigger) {
+    private Map<String, Object> safeKnowledgeDataSyncPayload(
+            List<SafeKnowledgeRecord> records,
+            String trigger,
+            int batchOffset,
+            int batchNumber,
+            int totalRecordCount
+    ) {
         String requestId = "produs-safe-knowledge-sync-" + UUID.randomUUID();
         Map<String, Object> authContext = new LinkedHashMap<>();
         authContext.put("subjectId", SAFE_KNOWLEDGE_SYSTEM_SUBJECT);
@@ -542,6 +571,9 @@ public class LoomAIIntegrationService {
         metadata.put("datasetId", safeKnowledgeDatasetId());
         metadata.put("trigger", trigger);
         metadata.put("recordCount", records.size());
+        metadata.put("totalRecordCount", totalRecordCount);
+        metadata.put("batchOffset", batchOffset);
+        metadata.put("batchNumber", batchNumber);
 
         Map<String, Object> trace = new LinkedHashMap<>();
         trace.put("requestId", requestId);
@@ -592,6 +624,14 @@ public class LoomAIIntegrationService {
                     .toList();
         }
         return value;
+    }
+
+    private int normalizeSafeKnowledgeSyncBatchSize() {
+        int configured = properties.getSafeKnowledgeSyncBatchSize();
+        if (configured < 1) {
+            return 50;
+        }
+        return Math.min(configured, MAX_KNOWLEDGE_EXPORT_LIMIT);
     }
 
     private String vectorSpace(String recordType) {
@@ -1309,6 +1349,11 @@ public class LoomAIIntegrationService {
         }
         JsonNode resultValue = body.path("result").path(field);
         return resultValue.isNumber() ? resultValue.asInt() : null;
+    }
+
+    private int intOrDefault(JsonNode body, String field, int defaultValue) {
+        Integer value = intOrNull(body, field);
+        return value == null ? defaultValue : value;
     }
 
     private List<Map<String, Object>> providerErrors(JsonNode body) {

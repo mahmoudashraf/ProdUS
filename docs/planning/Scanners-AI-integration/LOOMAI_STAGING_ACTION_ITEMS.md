@@ -229,9 +229,11 @@ Mechanism:
 - `POST /api/ai/loomai/knowledge-sync` performs a full safe-knowledge replay and migrates the current safe dataset into LoomAI.
 - Optional scheduler replays the same export for newly created or updated safe records.
 - Enable with:
+  - `LOOMAI_SAFE_KNOWLEDGE_SYNC_BATCH_SIZE=50`
   - `LOOMAI_SAFE_KNOWLEDGE_AUTO_SYNC_ENABLED=true`
   - `LOOMAI_SAFE_KNOWLEDGE_AUTO_SYNC_DELAY_MS=300000`
   - `LOOMAI_SAFE_KNOWLEDGE_AUTO_SYNC_INITIAL_DELAY_MS=60000`
+- Direct runtime replay sends canonical data-sync operations in bounded batches. Keep the batch size at or below `250`; staging defaults to `50`.
 - The replay is idempotent because each operation uses stable `id` and `identity.sourceRecordId`; content changes produce a new `identity.sourceRecordVersion`.
 
 Safe records included:

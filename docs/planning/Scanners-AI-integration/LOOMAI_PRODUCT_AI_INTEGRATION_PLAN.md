@@ -1164,6 +1164,7 @@ Required:
 - map safe knowledge records to `UPSERT` operations with `vectorSpace`, `content`, `metadata`, and `identity`; implemented in ProdUS backend on 2026-05-21
 - include public active team and solo expert profiles in safe knowledge; implemented in ProdUS backend on 2026-05-21
 - migrate current data through `POST /api/ai/loomai/knowledge-sync`; implemented as admin endpoint
+- send direct runtime sync in bounded batches through `LOOMAI_SAFE_KNOWLEDGE_SYNC_BATCH_SIZE`; implemented in ProdUS backend on 2026-05-21
 - live-index newly created safe records through optional scheduled replay; implemented with `LOOMAI_SAFE_KNOWLEDGE_AUTO_SYNC_ENABLED`
 - normalize live runtime response into status/providerRequestId/totalOperations/succeededOperations/failedOperations/errors; implemented in ProdUS backend and admin UI on 2026-05-21
 - live-smoke `GET /api/ai/loomai/knowledge-preview` and `POST /api/ai/loomai/knowledge-sync` against `dep-7706fafb`

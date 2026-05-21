@@ -40,6 +40,7 @@ public class LoomAIProperties {
     private String dataSyncDeletePath = "/api/ai/data-sync/delete";
     private String safeKnowledgeDatasetId = "produs-safe-knowledge";
     private String safeKnowledgeExportToken = "";
+    private int safeKnowledgeSyncBatchSize = 50;
     private boolean safeKnowledgeAutoSyncEnabled = false;
     private long safeKnowledgeAutoSyncDelayMs = 300000;
     private long safeKnowledgeAutoSyncInitialDelayMs = 60000;
