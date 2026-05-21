@@ -578,12 +578,47 @@ public class LoomAIMcpToolService {
         if (!hasText(needle)) {
             return true;
         }
+        List<String> tokens = searchTokens(needle);
         for (String value : values) {
-            if (normalize(value).contains(needle)) {
+            String normalized = normalize(value);
+            if (normalized.contains(needle)) {
+                return true;
+            }
+            if (!tokens.isEmpty() && tokens.stream().anyMatch(normalized::contains)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private List<String> searchTokens(String query) {
+        if (!hasText(query)) {
+            return List.of();
+        }
+        return Stream.of(query.split("[^a-zA-Z0-9]+"))
+                .map(this::normalize)
+                .filter(token -> token.length() >= 4)
+                .filter(token -> !List.of(
+                        "search",
+                        "produs",
+                        "service",
+                        "services",
+                        "catalog",
+                        "summarize",
+                        "summary",
+                        "module",
+                        "modules",
+                        "package",
+                        "packages",
+                        "template",
+                        "templates",
+                        "find",
+                        "what",
+                        "does",
+                        "about"
+                ).contains(token))
+                .distinct()
+                .toList();
     }
 
     private <T> Optional<T> findByIdOrName(Stream<T> stream,
