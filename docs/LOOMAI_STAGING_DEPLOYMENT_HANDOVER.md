@@ -25,7 +25,7 @@ Latest LoomAI-side status, verified 2026-05-21:
 - Runtime `/api/ai/data-sync/vector-spaces` lists all 12 ProdUS safe knowledge vector spaces with no missing spaces.
 - Runtime `/api/ai/data-sync/batch` accepted platform-smoke and ProdUS-shaped `SYSTEM_PROCESS` upsert/delete operations with `providerRequestId` and success/failure counts. A temporary service-module retrieval smoke returned a grounded answer and was deleted.
 - Managed vectorization is configured live for the ProdUS export endpoint through source connection `vcn-a9bb577d`, plan `vpl-33b42e24`, active revision `vpr-d9e4b704`, and runner `vectorization-runner-dep-7706fafb`.
-- Managed reindex run `vrn-9f98d115` completed with `157` processed, `157` succeeded, `0` failed, and two cursor checkpoints.
+- Managed reindex run `vrn-39e54227` completed with `157` processed, `157` succeeded, `0` failed, and two cursor checkpoints after a governed runtime vector reset.
 - Runtime release `rel-579d7fce` / version `ver-0b3324cd` is `APPLIED_VERIFIED` and includes deployment RAG tuning for ProdUS retrieval: threshold `0.2`, context documents `8`, context chars `7000`.
 - Live retrieval checks now return grounded ProdUS service, package, team, and solo-expert answers. Runtime search diagnostics show nonzero results from the ProdUS DATA plugin sources.
 
@@ -617,7 +617,7 @@ LoomAI live configuration:
 | Active revision | `vpr-d9e4b704`, revision `2` |
 | Runner mode | `PLATFORM_MANAGED_AUTO` |
 | Runner registration | `vrr-cb21c848`, `ACTIVE`, `CURRENT` |
-| Latest successful run | `vrn-9f98d115` |
+| Latest successful run | `vrn-39e54227` |
 
 Plan mapping:
 
@@ -649,7 +649,7 @@ The per-vector-space static metadata is required because the runtime shared-inde
 Latest managed reindex evidence:
 
 ```text
-run: vrn-9f98d115
+run: vrn-39e54227
 status: COMPLETED
 processed: 157
 succeeded: 157
@@ -662,6 +662,15 @@ Checkpoint details:
 
 - page 1: `100` records, `hasMore=true`
 - page 2: `57` records, `hasMore=false`
+
+Reset/reindex verification on 2026-05-21:
+
+- Governed Platform runtime vector reset removed `164` vectors from the Qdrant runtime index.
+- Runtime indexing overview immediately after reset reported `totalVectors=0`.
+- Managed vectorization run `vrn-39e54227` reindexed the ProdUS export successfully with `157` processed, `157` succeeded, and `0` failed.
+- Runtime indexing overview after reindex reported `totalVectors=157`, including `service-module=75`, `package-template=12`, `team-profile=1`, and `solo-expert-profile=1`.
+- Runtime vector metadata still includes `datasetId=produs-safe-knowledge`, `exportVersion=produs-safe-knowledge-v1`, and DATA plugin source handle metadata.
+- Live retrieval checks after reindex still returned grounded answers, and runtime diagnostics showed nonzero successful results for all ProdUS DATA sources.
 
 Observed source discovery counts:
 

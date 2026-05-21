@@ -921,6 +921,22 @@ export interface AssistantSuggestionsResponse {
   providerRequestId?: string;
 }
 
+export interface AssistantQueryResponse {
+  provider: string;
+  mode: 'LIVE' | 'FALLBACK';
+  success: boolean;
+  type?: string;
+  answer?: string;
+  safeSummary?: string;
+  conversationId?: string;
+  confidence?: number;
+  sources?: Array<Record<string, unknown>>;
+  actions?: Array<Record<string, unknown>>;
+  suggestions?: string[];
+  fallbackReason?: string;
+  providerRequestId?: string;
+}
+
 export interface AdminReadinessGate {
   key: string;
   area: string;

@@ -80,6 +80,7 @@ import {
   ConnectorInstallUrlResponse,
   EvidenceExportBundle,
   ExternalImportProvider,
+  AssistantQueryResponse,
   AssistantSuggestionsResponse,
   ScannerConnectorInstallation,
   ScannerEvidenceItem,
@@ -233,6 +234,27 @@ interface FindingStatusPayload {
   status: NormalizedFinding['status'];
   reason?: string;
   reviewDueOn?: string;
+}
+
+interface StudioAssistantContext {
+  pageType: string;
+  productId?: string | undefined;
+  packageId?: string | undefined;
+  workspaceId?: string | undefined;
+  milestoneId?: string | undefined;
+  findingId?: string | undefined;
+}
+
+interface StudioAssistantCardProps {
+  title: string;
+  description: string;
+  prompt: string;
+  conversationId: string;
+  context: StudioAssistantContext;
+  disabled?: boolean;
+  accent?: string;
+  compact?: boolean;
+  cta?: string;
 }
 
 const productInitialValues: ProductProfilePayload = {
@@ -422,6 +444,137 @@ const confidenceDots = (level?: string) => {
   if (level === 'MEDIUM') return '●●○';
   return '●○○';
 };
+
+const assistantAnswerText = (response?: AssistantQueryResponse) =>
+  response?.safeSummary || response?.answer || 'No assistant response has been generated yet.';
+
+function StudioAssistantCard({
+  title,
+  description,
+  prompt,
+  conversationId,
+  context,
+  disabled,
+  accent = appleColors.purple,
+  compact = false,
+  cta = 'Ask AI',
+}: StudioAssistantCardProps) {
+  const assistantQuery = useMutation({
+    mutationFn: () =>
+      postJson<AssistantQueryResponse, {
+        conversationId: string;
+        query: string;
+        mode: string;
+        position: string;
+        context: StudioAssistantContext;
+      }>('/ai/assistant/query', {
+        conversationId,
+        query: prompt,
+        mode: 'support_assistant',
+        position: 'productization',
+        context,
+      }),
+  });
+
+  const result = assistantQuery.data;
+  const isLive = result?.mode === 'LIVE';
+
+  return (
+    <Box
+      sx={{
+        p: compact ? 1.25 : 1.5,
+        borderRadius: 1,
+        border: '1px solid',
+        borderColor: assistantQuery.isError ? '#fecdd3' : `${accent}30`,
+        bgcolor: assistantQuery.isError ? '#fff7f8' : '#ffffff',
+        boxShadow: compact ? 'none' : '0 12px 32px rgba(15, 23, 42, 0.045)',
+      }}
+    >
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} justifyContent="space-between" alignItems={{ sm: 'flex-start' }}>
+        <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ minWidth: 0 }}>
+          <Box
+            sx={{
+              width: compact ? 34 : 40,
+              height: compact ? 34 : 40,
+              borderRadius: 1,
+              bgcolor: `${accent}12`,
+              color: accent,
+              display: 'grid',
+              placeItems: 'center',
+              flex: '0 0 auto',
+            }}
+          >
+            <AutoAwesomeOutlined fontSize="small" />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap alignItems="center">
+              <Typography variant={compact ? 'body2' : 'h4'} sx={{ fontWeight: 900 }}>
+                {title}
+              </Typography>
+              {result && (
+                <PastelChip
+                  label={isLive ? 'LoomAI live' : 'ProdUS fallback'}
+                  accent={isLive ? appleColors.purple : appleColors.blue}
+                  bg={isLive ? '#f1efff' : '#eaf3ff'}
+                />
+              )}
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>
+              {description}
+            </Typography>
+          </Box>
+        </Stack>
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<AutoAwesomeOutlined />}
+          disabled={disabled || assistantQuery.isPending}
+          onClick={() => assistantQuery.mutate()}
+          sx={{
+            minHeight: 36,
+            minWidth: 118,
+            borderRadius: 1,
+            bgcolor: accent,
+            boxShadow: `0 10px 22px ${accent}2e`,
+            '&:hover': { bgcolor: accent, boxShadow: `0 14px 28px ${accent}38` },
+          }}
+        >
+          {assistantQuery.isPending ? 'Thinking...' : cta}
+        </Button>
+      </Stack>
+
+      {assistantQuery.isPending && <LinearProgress sx={{ borderRadius: 999, mt: 1.25 }} />}
+
+      {assistantQuery.isError && (
+        <Alert severity="warning" sx={{ mt: 1.25, borderRadius: 1 }}>
+          The assistant could not answer this request. Try again after checking the backend AI status.
+        </Alert>
+      )}
+
+      {result && (
+        <Box sx={{ mt: 1.25, p: 1.25, borderRadius: 1, bgcolor: '#fbfdff', border: '1px solid', borderColor: appleColors.line }}>
+          <Typography variant="body2" sx={{ whiteSpace: 'pre-line', lineHeight: 1.65, color: appleColors.ink }}>
+            {assistantAnswerText(result)}
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+            {typeof result.confidence === 'number' && (
+              <PastelChip label={`${Math.round(result.confidence * 100)}% confidence`} accent={accent} />
+            )}
+            {result.providerRequestId && (
+              <PastelChip label={`trace ${result.providerRequestId.slice(0, 8)}`} accent={appleColors.cyan} bg="#e4f9fd" />
+            )}
+            {result.sources?.length ? (
+              <PastelChip label={`${result.sources.length} sources`} accent={appleColors.green} bg="#e7f8ee" />
+            ) : null}
+            {result.fallbackReason && (
+              <PastelChip label={formatLabel(result.fallbackReason)} accent={appleColors.amber} bg="#fff4dc" />
+            )}
+          </Stack>
+        </Box>
+      )}
+    </Box>
+  );
+}
 
 export default function OwnerProductizationWorkspace({
   productId,
@@ -1022,6 +1175,16 @@ export default function OwnerProductizationWorkspace({
     { label: 'Evidence', complete: !!scannerSummary.data?.evidence.length, active: !!selectedWorkspace && !scannerSummary.data?.evidence.length },
     { label: 'Handoff', complete: selectedWorkspace?.status === 'SUPPORT_HANDOFF' || selectedWorkspace?.status === 'DELIVERED' || selectedWorkspace?.status === 'CLOSED', active: selectedWorkspace?.status === 'SUPPORT_HANDOFF' },
   ];
+  const selectedMilestone = (milestones.data || []).find((milestone) => milestone.status === 'BLOCKED')
+    || (milestones.data || []).find((milestone) => milestone.status === 'SUBMITTED' || milestone.status === 'IN_PROGRESS')
+    || (milestones.data || [])[0];
+  const assistantContext = (pageType: string, overrides: Partial<StudioAssistantContext> = {}): StudioAssistantContext => ({
+    pageType,
+    productId: selectedProduct?.id,
+    packageId: selectedPackage?.id,
+    workspaceId: selectedWorkspace?.id,
+    ...overrides,
+  });
 
   useEffect(() => {
     if (!scannerUploadForm.sourceId && scannerSummary.data?.sources[0]?.id) {
@@ -1328,6 +1491,17 @@ export default function OwnerProductizationWorkspace({
                   )}
                 </Stack>
               </Box>
+              <Box sx={{ mt: 2 }}>
+                <StudioAssistantCard
+                  title="AI Diagnosis Explainer"
+                  description="Explain the current diagnosis, likely blockers, and which owner decision should happen next."
+                  prompt={`Explain the productization diagnosis for ${selectedProduct.name}. Focus on readiness score, blockers, recommended lifecycle services, scanner signals, and the next owner decision. Do not certify production readiness; call out where human review is needed.`}
+                  conversationId={`studio-diagnosis-${selectedProduct.id}`}
+                  context={assistantContext('product-diagnosis')}
+                  accent={appleColors.purple}
+                  cta="Explain Diagnosis"
+                />
+              </Box>
             </Surface>
           )}
 
@@ -1371,6 +1545,18 @@ export default function OwnerProductizationWorkspace({
                     </Box>
                   );
                 })}
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <StudioAssistantCard
+                  title="AI Scanner Summary"
+                  description="Summarize scanner readiness, explain the highest-risk findings, and translate evidence into productization actions."
+                  prompt={`Summarize scanner readiness for ${selectedProduct.name}. Prioritize critical and high findings, explain the business risk, identify missing evidence, and recommend lifecycle services or milestone actions. Use only authorized scanner summaries and avoid raw artifact details.`}
+                  conversationId={`studio-scanner-${selectedProduct.id}-${selectedFinding?.id || 'summary'}`}
+                  context={assistantContext('scanner-readiness', { findingId: selectedFinding?.id })}
+                  accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green}
+                  cta="Summarize Readiness"
+                />
               </Box>
 
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: 2 }}>
@@ -2271,6 +2457,18 @@ export default function OwnerProductizationWorkspace({
                           <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFindingEvidence.length}</Typography>
                         </Box>
                       </Box>
+                      <Box sx={{ mt: 1.25 }}>
+                        <StudioAssistantCard
+                          title="AI Finding Review"
+                          description="Turn this finding into an owner-readable decision with evidence needs and remediation direction."
+                          prompt={`Review the scanner finding "${selectedFinding.title}" for ${selectedProduct.name}. Explain likely impact, what evidence is needed to resolve or accept risk, and which productization service or milestone should own follow-up. Do not include raw artifact contents.`}
+                          conversationId={`studio-finding-${selectedProduct.id}-${selectedFinding.id}`}
+                          context={assistantContext('scanner-finding-review', { findingId: selectedFinding.id })}
+                          accent={findingStatusAccent(selectedFinding.status)}
+                          compact
+                          cta="Review Finding"
+                        />
+                      </Box>
                       {selectedFindingEvidence.length ? (
                         <Stack spacing={0.75} sx={{ mt: 1.25 }}>
                           {selectedFindingEvidence.slice(0, 3).map((item) => (
@@ -2337,6 +2535,18 @@ export default function OwnerProductizationWorkspace({
 
           <Surface>
             <SectionTitle title="Lifecycle Services" action={<PastelChip label={`${categories.data?.length || 0} service families`} accent={appleColors.purple} />} />
+            <Box sx={{ mb: 1.5 }}>
+              <StudioAssistantCard
+                title="AI Service Selector"
+                description="Use catalog knowledge and current product context to narrow the services that belong in the draft cart."
+                prompt={`Recommend the most relevant lifecycle services for ${selectedProduct?.name || 'the selected product'}. Consider current diagnosis, scanner findings, product stage, cart services, dependencies, and launch readiness. Explain why each service should or should not be selected.`}
+                conversationId={`studio-services-${selectedProduct?.id || 'none'}`}
+                context={assistantContext('service-selection')}
+                disabled={!selectedProduct}
+                accent={appleColors.cyan}
+                cta="Recommend Services"
+              />
+            </Box>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 1.5 }}>
               {(categories.data || []).map((category, index) => {
                 const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
@@ -2552,6 +2762,15 @@ export default function OwnerProductizationWorkspace({
                   </Box>
                   <ProgressRing value={packageScore(selectedPackage, packageModules.data)} color={statusAccent(selectedPackage.status)} label="confidence" />
                 </Stack>
+                <StudioAssistantCard
+                  title="AI Package Recommendation"
+                  description="Validate this service plan against product goals, dependencies, delivery evidence, and team-readiness."
+                  prompt={`Evaluate the service plan "${selectedPackage.name}" for ${selectedProduct?.name || 'this product'}. Explain whether the package sequence is appropriate, which dependencies or evidence gates matter, what a team should prove, and what the owner should decide next.`}
+                  conversationId={`studio-package-${selectedPackage.id}`}
+                  context={assistantContext('package-recommendation')}
+                  accent={appleColors.purple}
+                  cta="Review Package"
+                />
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: `repeat(${Math.max(1, packageModules.data?.length || 1)}, 1fr)` }, gap: 1.25 }}>
                   {(packageModules.data || []).map((module, index) => {
                     const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
@@ -2876,6 +3095,16 @@ export default function OwnerProductizationWorkspace({
                     <StatusChip label={milestone.status} />
                   </Stack>
                 ))}
+                <StudioAssistantCard
+                  title="AI Milestone Evidence"
+                  description="Check what the current milestone needs before owner approval or team handoff."
+                  prompt={`Review milestone and evidence readiness for ${selectedMilestone?.title || selectedWorkspace.name}. Explain missing acceptance evidence, scanner proof, owner review risks, and the next safe decision. Do not approve the milestone automatically.`}
+                  conversationId={`studio-milestone-${selectedWorkspace.id}-${selectedMilestone?.id || 'summary'}`}
+                  context={assistantContext('milestone-evidence-readiness', { milestoneId: selectedMilestone?.id })}
+                  accent={blockedMilestones ? appleColors.red : appleColors.green}
+                  compact
+                  cta="Check Evidence"
+                />
                 <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>
                   Manage workspace
                 </Button>
