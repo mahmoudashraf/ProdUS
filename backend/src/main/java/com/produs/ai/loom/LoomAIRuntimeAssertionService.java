@@ -35,6 +35,10 @@ public class LoomAIRuntimeAssertionService {
     }
 
     public String createAssertion(User user, String conversationId) {
+        return createAssertion(user, conversationId, null);
+    }
+
+    public String createAssertion(User user, String conversationId, List<String> requestedScopes) {
         if (!properties.isPrivateRuntimeAssertionAuth()) {
             throw new IllegalStateException("Private runtime assertion auth is not enabled");
         }
@@ -47,23 +51,14 @@ public class LoomAIRuntimeAssertionService {
                     ? safeSessionId(conversationId, "anonymous-" + UUID.randomUUID())
                     : safeSessionId(conversationId, stableSubject(user));
             String subject = user == null ? sessionId : stableSubject(user);
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("sub", subject);
-            payload.put("subjectType", user == null ? "ANONYMOUS_SESSION" : "END_USER");
-            payload.put("authMode", "PRIVATE_RUNTIME_BACKEND_MEDIATED");
-            payload.put("callerType", "TRUSTED_BACKEND");
-            payload.put("sessionId", sessionId);
-            payload.put("deploymentId", properties.getAssertionAudience().trim());
-            payload.put("customerId", properties.getAssertionCustomerId().trim());
-            if (!blank(properties.getAssertionTenantId())) {
-                payload.put("tenantId", properties.getAssertionTenantId().trim());
-            }
-            payload.put("iss", properties.getAssertionIssuer().trim());
-            payload.put("aud", properties.getAssertionAudience().trim());
-            payload.put("iat", now.toString());
-            payload.put("exp", now.plusSeconds(Math.max(30, properties.getAssertionTtlSeconds())).toString());
-            payload.put("jti", UUID.randomUUID().toString());
-            payload.put("scopes", scopes());
+            Map<String, Object> payload = assertionPayload(
+                    subject,
+                    user == null ? "ANONYMOUS_SESSION" : "END_USER",
+                    "TRUSTED_BACKEND",
+                    sessionId,
+                    scopes(requestedScopes),
+                    now
+            );
 
             String payloadSegment = base64Url(objectMapper.writeValueAsBytes(payload));
             String signatureSegment = base64Url(hmacSha256(payloadSegment));
@@ -71,6 +66,55 @@ public class LoomAIRuntimeAssertionService {
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to create LoomAI private runtime assertion", exception);
         }
+    }
+
+    public String createSystemAssertion(String subjectId, String sessionId, List<String> requestedScopes) {
+        if (!properties.isPrivateRuntimeAssertionAuth()) {
+            throw new IllegalStateException("Private runtime assertion auth is not enabled");
+        }
+        if (!isConfigured()) {
+            throw new IllegalStateException("Private runtime assertion signing is not configured");
+        }
+        if (blank(subjectId)) {
+            throw new IllegalArgumentException("System assertion subject is required");
+        }
+        try {
+            Instant now = Instant.now();
+            Map<String, Object> payload = assertionPayload(
+                    subjectId.trim(),
+                    "SYSTEM_PROCESS",
+                    "SYSTEM_PROCESS",
+                    safeSessionId(sessionId, subjectId.trim()),
+                    scopes(requestedScopes),
+                    now
+            );
+            String payloadSegment = base64Url(objectMapper.writeValueAsBytes(payload));
+            String signatureSegment = base64Url(hmacSha256(payloadSegment));
+            return "rpa1." + payloadSegment + "." + signatureSegment;
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to create LoomAI private runtime system assertion", exception);
+        }
+    }
+
+    private Map<String, Object> assertionPayload(String subject, String subjectType, String callerType, String sessionId, List<String> scopes, Instant now) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("sub", subject);
+        payload.put("subjectType", subjectType);
+        payload.put("authMode", "PRIVATE_RUNTIME_BACKEND_MEDIATED");
+        payload.put("callerType", callerType);
+        payload.put("sessionId", sessionId);
+        payload.put("deploymentId", properties.getAssertionAudience().trim());
+        payload.put("customerId", properties.getAssertionCustomerId().trim());
+        if (!blank(properties.getAssertionTenantId())) {
+            payload.put("tenantId", properties.getAssertionTenantId().trim());
+        }
+        payload.put("iss", properties.getAssertionIssuer().trim());
+        payload.put("aud", properties.getAssertionAudience().trim());
+        payload.put("iat", now.toString());
+        payload.put("exp", now.plusSeconds(Math.max(30, properties.getAssertionTtlSeconds())).toString());
+        payload.put("jti", UUID.randomUUID().toString());
+        payload.put("scopes", scopes);
+        return payload;
     }
 
     private boolean signingMaterialConfigured() {
@@ -99,7 +143,17 @@ public class LoomAIRuntimeAssertionService {
         return "produs-" + subject;
     }
 
-    private List<String> scopes() {
+    private List<String> scopes(List<String> requestedScopes) {
+        if (requestedScopes != null && !requestedScopes.isEmpty()) {
+            List<String> scopes = requestedScopes.stream()
+                    .map(value -> value == null ? "" : value.trim())
+                    .filter(value -> !value.isBlank())
+                    .distinct()
+                    .toList();
+            if (!scopes.isEmpty()) {
+                return scopes;
+            }
+        }
         if (blank(properties.getAssertionScopes())) {
             return List.of("chat:query", "chat:suggestions", "chat:conversations");
         }

@@ -896,6 +896,10 @@ export interface LoomAIKnowledgeSync {
   status: 'SYNCED' | 'SKIPPED' | 'FAILED';
   recordCount: number;
   providerRequestId?: string;
+  totalOperations?: number;
+  succeededOperations?: number;
+  failedOperations?: number;
+  errors?: Array<Record<string, unknown>>;
   fallbackReason?: string;
 }
 

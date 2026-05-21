@@ -19,9 +19,7 @@ Ready:
 
 Not ready yet:
 
-- LoomAI should publish/install a ProdUS DATA Marketplace plugin before live knowledge sync is considered stable, otherwise canonical sync can fail with `VECTOR_SPACE_NOT_FOUND`.
-- Safe knowledge ingestion has not been proven against live LoomAI runtime.
-- ProdUS backend still needs to replace the old `environment/source/records` data-sync request with LoomAI's canonical `trace + operations` request.
+- ProdUS must run live safe knowledge sync against staging real records before retrieval quality can be judged on real catalog, package, service, team, and solo expert content.
 - Mutation MCP tools remain intentionally deferred until confirmed-action UX and audit enforcement are complete.
 
 ## 2. ProdUS Immediate Actions
@@ -30,7 +28,9 @@ Not ready yet:
 
 Owner: ProdUS + LoomAI
 
-Priority: blocking for reliable safe knowledge ingestion
+Status: LoomAI side complete for staging on 2026-05-21.
+
+Priority: ProdUS payload alignment remains blocking for real safe knowledge ingestion.
 
 Decision:
 
@@ -45,6 +45,16 @@ Required LoomAI plugin:
 mkp-data-produs-safe-knowledge
 ```
 
+Installed/applied state:
+
+- Published plugin: `mkp-data-produs-safe-knowledge@0.1.0`
+- Deployment: `dep-7706fafb`
+- Install state: enabled, `READY`, live, free entitlement active
+- Applied release: `rel-2cf55a81`, `APPLIED_VERIFIED`, verification `PASSED`
+- Runtime vector-space check: all required spaces present, no `VECTOR_SPACE_NOT_FOUND`
+- Live data-sync smoke: platform-internal 10-space upsert/delete passed; ProdUS-shaped `SYSTEM_PROCESS` `service-module` upsert/delete passed with `providerRequestId` and success/failure counts
+- Temporary retrieval smoke: synthetic `service-module` record was answered through runtime chat and deleted
+
 Required vector spaces:
 
 - `service-category`
@@ -58,15 +68,28 @@ Required vector spaces:
 - `scanner-tool-description`
 - `case-pattern`
 
+Current ProdUS talent indexing:
+
+- Public active team profiles are indexed as `TEAM_PROFILE` records in the existing `case-pattern` vector space.
+- Public active solo expert profiles are indexed as `SOLO_EXPERT_PROFILE` records in the existing `case-pattern` vector space.
+- Private invitations, join requests, messages, team membership internals, commercial terms, and workspace-specific delivery records are not indexed.
+
+Recommended LoomAI DATA plugin extension after the first live proof:
+
+- `team-profile`
+- `solo-expert-profile`
+
 Acceptance:
 
-- LoomAI confirms the DATA Marketplace plugin is published, installed on `dep-7706fafb`, and applied.
-- Runtime data sync accepts one test operation for each active ProdUS vector space.
+- LoomAI confirms the DATA Marketplace plugin is published, installed on `dep-7706fafb`, and applied. Done on 2026-05-21.
+- Runtime data sync accepts one test operation for each active ProdUS vector space. Done on 2026-05-21.
 - ProdUS does not send records to a generic fallback vector space such as `support-policy` unless LoomAI explicitly maps it.
 
 ### 2.1 Align Safe Knowledge Sync Payload
 
 Owner: ProdUS backend
+
+Status: implemented in ProdUS code on 2026-05-21; live staging smoke remains required.
 
 Priority: blocking for knowledge ingestion proof
 
@@ -111,6 +134,8 @@ Record-to-vector-space mapping:
 | `EVIDENCE_TEMPLATE` | `evidence-template` |
 | `SCANNER_TOOL_DESCRIPTION` | `scanner-tool-description` |
 | `CASE_PATTERN` | `case-pattern` |
+| `TEAM_PROFILE` | `case-pattern` in plugin v0.1; prefer `team-profile` after plugin extension |
+| `SOLO_EXPERT_PROFILE` | `case-pattern` in plugin v0.1; prefer `solo-expert-profile` after plugin extension |
 
 Acceptance:
 
@@ -122,6 +147,8 @@ Acceptance:
 ### 2.2 Add Data-Sync Runtime Scope
 
 Owner: ProdUS backend / staging configuration
+
+Status: implemented in ProdUS code on 2026-05-21.
 
 Priority: blocking if LoomAI requires scope validation
 
@@ -142,6 +169,8 @@ Acceptance:
 
 Owner: ProdUS backend
 
+Status: implemented in ProdUS code on 2026-05-21.
+
 Priority: high
 
 Actions:
@@ -149,13 +178,11 @@ Actions:
 - Extend `KnowledgeSyncResponse` to include:
   - `status`
   - `recordCount`
-  - `total`
-  - `succeeded`
-  - `failed`
-  - `skipped`
+  - `totalOperations`
+  - `succeededOperations`
+  - `failedOperations`
+  - `errors`
   - `providerRequestId`
-  - `errorCode`
-  - `message`
   - `fallbackReason`
 - Normalize provider request ID from response header or body.
 - Preserve safe fallback behavior when LoomAI is disabled or unavailable.
@@ -192,6 +219,51 @@ Acceptance:
 - `knowledge-preview` returns only safe shared/catalog records.
 - `knowledge-sync` reaches live LoomAI runtime and returns a traceable result.
 - No raw secret, private URL, raw scanner artifact, JWT, or token is present in preview or sync payload.
+
+### 2.4a Current Data Migration And Live Reindex Mechanism
+
+Owner: ProdUS backend / staging operator
+
+Status: implemented in ProdUS code on 2026-05-21; disabled by default until staging env enables it.
+
+Mechanism:
+
+- `POST /api/ai/loomai/knowledge-sync` performs a full safe-knowledge replay and migrates the current safe dataset into LoomAI.
+- Optional scheduler replays the same export for newly created or updated safe records.
+- Enable with:
+  - `LOOMAI_SAFE_KNOWLEDGE_AUTO_SYNC_ENABLED=true`
+  - `LOOMAI_SAFE_KNOWLEDGE_AUTO_SYNC_DELAY_MS=300000`
+  - `LOOMAI_SAFE_KNOWLEDGE_AUTO_SYNC_INITIAL_DELAY_MS=60000`
+- The replay is idempotent because each operation uses stable `id` and `identity.sourceRecordId`; content changes produce a new `identity.sourceRecordVersion`.
+
+Safe records included:
+
+- service categories
+- service modules
+- service dependencies
+- package templates
+- AI capability contracts
+- active public team profiles
+- active public solo expert profiles
+
+Records intentionally excluded:
+
+- product workspaces
+- package instance private state
+- scanner findings and evidence artifacts
+- raw scanner logs
+- private team/community messages
+- invitations and join requests
+- object storage URLs
+- payment records
+- secrets, tokens, and JWTs
+
+Acceptance:
+
+- One manual sync migrates current data.
+- Scheduler can be enabled on staging to replay new safe records without adding a separate worker.
+- Team and solo expert public profiles appear in `knowledge-preview` as `TEAM_PROFILE` and `SOLO_EXPERT_PROFILE`.
+- The sync payload remains canonical `trace + operations`; it never sends top-level `environment/source/records`.
 
 ### 2.5 Retrieval Quality Check
 

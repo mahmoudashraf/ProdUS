@@ -5,9 +5,13 @@ import com.produs.catalog.ServiceCategoryRepository;
 import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
 import com.produs.entity.User;
+import com.produs.experts.ExpertProfile;
+import com.produs.experts.ExpertProfileRepository;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
 import com.produs.repository.UserRepository;
+import com.produs.teams.Team;
+import com.produs.teams.TeamRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -51,11 +55,20 @@ class LoomAIIntegrationControllerTest {
     @Autowired
     private ServiceModuleRepository moduleRepository;
 
+    @Autowired
+    private TeamRepository teamRepository;
+
+    @Autowired
+    private ExpertProfileRepository expertProfileRepository;
+
     @Test
     void adminCanInspectLoomAIStatusAndSafeKnowledgePreview() throws Exception {
         User admin = saveUser("admin-ai@produs.test", User.UserRole.ADMIN);
         User owner = saveUser("owner-ai@produs.test", User.UserRole.PRODUCT_OWNER);
+        User expert = saveUser("expert-ai@produs.test", User.UserRole.SPECIALIST);
         saveCatalogRecord();
+        saveTeam(owner);
+        saveSoloExpert(expert);
 
         mockMvc.perform(get("/api/ai/loomai/status").with(auth(owner)))
                 .andExpect(status().isForbidden());
@@ -73,7 +86,9 @@ class LoomAIIntegrationControllerTest {
         mockMvc.perform(get("/api/ai/loomai/knowledge-preview").with(auth(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(greaterThanOrEqualTo(2))))
-                .andExpect(jsonPath("$[0].type").exists());
+                .andExpect(jsonPath("$[0].type").exists())
+                .andExpect(jsonPath("$[?(@.type == 'TEAM_PROFILE')]").exists())
+                .andExpect(jsonPath("$[?(@.type == 'SOLO_EXPERT_PROFILE')]").exists());
 
         mockMvc.perform(post("/api/ai/loomai/knowledge-sync").with(auth(admin)))
                 .andExpect(status().isOk())
@@ -211,6 +226,31 @@ class LoomAIIntegrationControllerTest {
         module.setOwnerOutcome("Owners understand and reduce API launch risk.");
         module.setExpectedDeliverables("Threat notes, remediation backlog, evidence requirements.");
         moduleRepository.save(module);
+    }
+
+    private void saveTeam(User manager) {
+        Team team = new Team();
+        team.setManager(manager);
+        team.setName("Northstar Engineers");
+        team.setHeadline("Production-ready backend, cloud, and compliance specialists");
+        team.setDescription("Public team profile used by owner matching and service delivery planning.");
+        team.setCapabilitiesSummary("Backend, Cloud / DevOps, Security, Compliance");
+        team.setTypicalProjectSize("$80K-$180K");
+        team.setTimezone("America/Chicago");
+        team.setVerificationStatus(Team.VerificationStatus.VERIFIED);
+        teamRepository.save(team);
+    }
+
+    private void saveSoloExpert(User user) {
+        ExpertProfile profile = new ExpertProfile();
+        profile.setUser(user);
+        profile.setDisplayName("Priya Shah");
+        profile.setHeadline("Productization advisor and reviewer");
+        profile.setBio("Supports evidence review, launch risk, and owner decision quality.");
+        profile.setSkills("Advisory, Quality Review, Scope Governance, Launch Risk");
+        profile.setLocation("Austin, TX");
+        profile.setSoloMode(true);
+        expertProfileRepository.save(profile);
     }
 
     private RequestPostProcessor auth(User user) {

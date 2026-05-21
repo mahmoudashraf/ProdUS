@@ -38,6 +38,10 @@ public class LoomAIProperties {
     private String authContextPath = "/api/chat/me/auth-context";
     private String dataSyncBatchPath = "/api/ai/data-sync/batch";
     private String dataSyncDeletePath = "/api/ai/data-sync/delete";
+    private String safeKnowledgeDatasetId = "produs-safe-knowledge";
+    private boolean safeKnowledgeAutoSyncEnabled = false;
+    private long safeKnowledgeAutoSyncDelayMs = 300000;
+    private long safeKnowledgeAutoSyncInitialDelayMs = 60000;
 
     public boolean isPlatformBridgeMode() {
         return "PLATFORM_BRIDGE".equalsIgnoreCase(integrationMode)

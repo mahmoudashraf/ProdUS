@@ -1,6 +1,10 @@
 package com.produs.platform;
 
 import com.produs.entity.User;
+import com.produs.catalog.ServiceCategory;
+import com.produs.catalog.ServiceCategoryRepository;
+import com.produs.catalog.ServiceModule;
+import com.produs.catalog.ServiceModuleRepository;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
 import com.produs.repository.UserRepository;
@@ -55,6 +59,12 @@ class LoomAIStagingIntegrationTest {
     @Autowired
     private ProductProfileRepository productRepository;
 
+    @Autowired
+    private ServiceCategoryRepository categoryRepository;
+
+    @Autowired
+    private ServiceModuleRepository moduleRepository;
+
     @DynamicPropertySource
     static void loomAIProperties(DynamicPropertyRegistry registry) throws IOException {
         ensureServer();
@@ -82,6 +92,7 @@ class LoomAIStagingIntegrationTest {
         User owner = saveUser("loom-staging-owner@produs.test", User.UserRole.PRODUCT_OWNER);
         User admin = saveUser("loom-staging-admin@produs.test", User.UserRole.ADMIN);
         ProductProfile product = saveProduct(owner);
+        saveCatalogRecord();
 
         mockMvc.perform(get("/api/ai/loomai/status").with(auth(admin)))
                 .andExpect(status().isOk())
@@ -159,7 +170,10 @@ class LoomAIStagingIntegrationTest {
         mockMvc.perform(post("/api/ai/loomai/knowledge-sync").with(auth(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SYNCED"))
-                .andExpect(jsonPath("$.providerRequestId").value("loom-staging-request"));
+                .andExpect(jsonPath("$.providerRequestId").value("loom-data-sync-request"))
+                .andExpect(jsonPath("$.totalOperations").value(2))
+                .andExpect(jsonPath("$.succeededOperations").value(2))
+                .andExpect(jsonPath("$.failedOperations").value(0));
     }
 
     private static void ensureServer() throws IOException {
@@ -246,7 +260,37 @@ class LoomAIStagingIntegrationTest {
                 respond(exchange, 401, "{\"error\":\"unauthorized\"}");
                 return;
             }
-            respond(exchange, 200, "{\"status\":\"accepted\"}");
+            String assertionPayload = assertionPayload(exchange);
+            String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            if (!assertionPayload.contains("\"subjectType\":\"SYSTEM_PROCESS\"")
+                    || !assertionPayload.contains("\"callerType\":\"SYSTEM_PROCESS\"")
+                    || !assertionPayload.contains("\"data-sync:upsert\"")) {
+                respond(exchange, 401, "{\"error\":\"system data-sync assertion is required\"}");
+                return;
+            }
+            if (requestBody.contains("\"records\"")
+                    || !requestBody.contains("\"trace\"") || !requestBody.contains("\"operations\"")
+                    || !requestBody.contains("\"authContext\"")
+                    || !requestBody.contains("\"subjectId\":\"system:produs-safe-knowledge-sync\"")
+                    || !requestBody.contains("\"grantedScopes\":[\"data-sync:upsert\"]")
+                    || !requestBody.contains("\"type\":\"UPSERT\"")
+                    || !requestBody.contains("\"vectorSpace\":\"service-category\"")
+                    || !requestBody.contains("\"vectorSpace\":\"service-module\"")
+                    || !requestBody.contains("\"identity\"")
+                    || !requestBody.contains("\"sourceRecordVersion\"")) {
+                respond(exchange, 400, "{\"error\":\"canonical trace and operations are required\"}");
+                return;
+            }
+            respond(exchange, 200, """
+                    {
+                      "status": "accepted",
+                      "providerRequestId": "loom-data-sync-request",
+                      "totalOperations": 2,
+                      "succeededOperations": 2,
+                      "failedOperations": 0,
+                      "errors": []
+                    }
+                    """);
         });
         server.start();
     }
@@ -272,13 +316,33 @@ class LoomAIStagingIntegrationTest {
                     && payload.contains("\"deploymentId\":\"dep-7706fafb\"")
                     && payload.contains("\"customerId\":\"produs-staging\"")
                     && payload.contains("\"authMode\":\"PRIVATE_RUNTIME_BACKEND_MEDIATED\"")
-                    && payload.contains("\"callerType\":\"TRUSTED_BACKEND\"")
-                    && payload.contains("\"chat:query\"")
-                    && payload.contains("\"chat:suggestions\"")
-                    && payload.contains("\"chat:conversations\"");
+                    && (
+                        (
+                            payload.contains("\"callerType\":\"TRUSTED_BACKEND\"")
+                                    && payload.contains("\"chat:query\"")
+                                    && payload.contains("\"chat:suggestions\"")
+                                    && payload.contains("\"chat:conversations\"")
+                        )
+                        || (
+                            payload.contains("\"callerType\":\"SYSTEM_PROCESS\"")
+                                    && payload.contains("\"data-sync:upsert\"")
+                        )
+                    );
         } catch (Exception exception) {
             return false;
         }
+    }
+
+    private static String assertionPayload(HttpExchange exchange) {
+        String authorization = exchange.getRequestHeaders().getFirst("X-AIFABRIC-RUNTIME-AUTHORIZATION");
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return "";
+        }
+        String[] segments = authorization.substring("Bearer ".length()).split("\\.");
+        if (segments.length != 3) {
+            return "";
+        }
+        return new String(Base64.getUrlDecoder().decode(segments[1]), StandardCharsets.UTF_8);
     }
 
     private static byte[] hmacSha256(String payloadSegment) throws Exception {
@@ -314,6 +378,23 @@ class LoomAIStagingIntegrationTest {
         product.setBusinessStage(ProductProfile.BusinessStage.PROTOTYPE);
         product.setProductUrl("https://api.example.test/private");
         return productRepository.save(product);
+    }
+
+    private void saveCatalogRecord() {
+        ServiceCategory category = new ServiceCategory();
+        category.setName("Security");
+        category.setSlug("security");
+        category.setDescription("Security review and production hardening.");
+        category = categoryRepository.save(category);
+
+        ServiceModule module = new ServiceModule();
+        module.setCategory(category);
+        module.setName("API Security Review");
+        module.setSlug("api-security-review");
+        module.setStableCode("security.api_review");
+        module.setDescription("Review API auth, authorization, rate limits, and secrets handling.");
+        module.setOwnerOutcome("Owners understand and reduce API launch risk.");
+        moduleRepository.save(module);
     }
 
     private RequestPostProcessor auth(User user) {

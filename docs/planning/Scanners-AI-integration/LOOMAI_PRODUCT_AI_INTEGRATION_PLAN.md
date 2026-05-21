@@ -582,15 +582,24 @@ Rules:
 
 ProdUS safe knowledge is shared/catalog knowledge, not customer-owned private records.
 
-Status: pending live proof. Chat/query/suggestions, private runtime auth, canonical assistant payloads, context enrichment, and read MCP actions are ready. Safe knowledge sync still needs ProdUS code alignment to LoomAI's canonical data-sync schema and a live smoke against `dep-7706fafb`.
+Status: LoomAI-side DATA plugin and live data-sync smoke are complete for staging as of 2026-05-21. Chat/query/suggestions, private runtime auth, canonical assistant payloads, context enrichment, and read MCP actions are ready. Safe knowledge sync still needs ProdUS code alignment to LoomAI's canonical data-sync schema and a live sync of real safe records against `dep-7706fafb`.
 
-LoomAI should publish and install a ProdUS DATA Marketplace plugin before the live sync is treated as stable. Without registered vector spaces/entity types, the runtime can reject valid operations with `VECTOR_SPACE_NOT_FOUND`.
+LoomAI published and installed the ProdUS DATA Marketplace plugin before treating live sync as stable. This registers the vector spaces/entity types so valid record-specific operations do not fail with `VECTOR_SPACE_NOT_FOUND`.
 
 Required DATA Marketplace plugin:
 
 ```text
 mkp-data-produs-safe-knowledge
 ```
+
+Staging install:
+
+- Version: `0.1.0`
+- Deployment: `dep-7706fafb`
+- Release: `rel-2cf55a81`
+- Status: `APPLIED_VERIFIED`, verification `PASSED`
+- Runtime vector-space check: all required spaces present
+- Live data-sync smoke: platform-internal 10-space upsert/delete passed; ProdUS-shaped `SYSTEM_PROCESS` `service-module` upsert/delete passed with `providerRequestId` and success/failure counts
 
 Required vector spaces:
 
@@ -692,11 +701,31 @@ Safe record types:
 - `SERVICE_DEPENDENCY`
 - `PACKAGE_TEMPLATE`
 - `AI_CAPABILITY_CONTRACT`
+- `TEAM_PROFILE` for active public team discovery profiles
+- `SOLO_EXPERT_PROFILE` for active public solo expert discovery profiles
 - future `MILESTONE_TEMPLATE`
 - future `ACCEPTANCE_CRITERIA_TEMPLATE`
 - future `EVIDENCE_TEMPLATE`
 - future `SCANNER_TOOL_DESCRIPTION`
 - future approved anonymized `CASE_PATTERN`
+
+Current staging vector-space mapping:
+
+| Safe Record Type | Vector Space |
+| --- | --- |
+| `SERVICE_CATEGORY` | `service-category` |
+| `SERVICE_MODULE` | `service-module` |
+| `SERVICE_DEPENDENCY` | `service-dependency` |
+| `PACKAGE_TEMPLATE` | `package-template` |
+| `AI_CAPABILITY_CONTRACT` | `ai-capability-contract` |
+| `TEAM_PROFILE` | `case-pattern` in plugin v0.1 |
+| `SOLO_EXPERT_PROFILE` | `case-pattern` in plugin v0.1 |
+
+Recommended LoomAI DATA plugin extension after first live proof:
+
+- add `team-profile`
+- add `solo-expert-profile`
+- migrate `TEAM_PROFILE` and `SOLO_EXPERT_PROFILE` records from `case-pattern` to those dedicated vector spaces
 
 Not safe to index:
 
@@ -708,6 +737,8 @@ Not safe to index:
 - Supabase JWTs
 - webhook payloads
 - private community/team messages
+- private invitations and join requests
+- team membership internals
 - payment/commercial records
 
 Expected LoomAI data-sync response:
@@ -1047,10 +1078,13 @@ Required:
 
 Required:
 
-- replace old `environment/source/records` request with canonical `trace + operations`
-- grant data-sync scope in private-runtime assertions or data-sync-specific auth path
-- map safe knowledge records to `UPSERT` operations with `vectorSpace`, `content`, `metadata`, and `identity`
-- normalize live runtime response into status/providerRequestId/total/succeeded/failed/error
+- replace old `environment/source/records` request with canonical `trace + operations`; implemented in ProdUS backend on 2026-05-21
+- grant data-sync scope in private-runtime system assertions; implemented in ProdUS backend on 2026-05-21
+- map safe knowledge records to `UPSERT` operations with `vectorSpace`, `content`, `metadata`, and `identity`; implemented in ProdUS backend on 2026-05-21
+- include public active team and solo expert profiles in safe knowledge; implemented in ProdUS backend on 2026-05-21
+- migrate current data through `POST /api/ai/loomai/knowledge-sync`; implemented as admin endpoint
+- live-index newly created safe records through optional scheduled replay; implemented with `LOOMAI_SAFE_KNOWLEDGE_AUTO_SYNC_ENABLED`
+- normalize live runtime response into status/providerRequestId/totalOperations/succeededOperations/failedOperations/errors; implemented in ProdUS backend and admin UI on 2026-05-21
 - live-smoke `GET /api/ai/loomai/knowledge-preview` and `POST /api/ai/loomai/knowledge-sync` against `dep-7706fafb`
 - add counters and partial-failure handling to ProdUS sync response
 - add delete/tombstone sync

@@ -54,6 +54,9 @@ export default function AdminRecommendationsPage() {
         {knowledgeSync.data && (
           <Alert severity={knowledgeSync.data.status === 'SYNCED' ? 'success' : knowledgeSync.data.status === 'FAILED' ? 'error' : 'info'} sx={{ mt: 2 }}>
             {formatLabel(knowledgeSync.data.status)} {knowledgeSync.data.recordCount} safe records
+            {typeof knowledgeSync.data.succeededOperations === 'number' ? ` - ${knowledgeSync.data.succeededOperations}/${knowledgeSync.data.totalOperations ?? knowledgeSync.data.recordCount} operations accepted` : ''}
+            {knowledgeSync.data.providerRequestId ? ` - request ${knowledgeSync.data.providerRequestId}` : ''}
+            {typeof knowledgeSync.data.failedOperations === 'number' && knowledgeSync.data.failedOperations > 0 ? ` - ${knowledgeSync.data.failedOperations} failed` : ''}
             {knowledgeSync.data.fallbackReason ? ` - ${formatLabel(knowledgeSync.data.fallbackReason)}` : ''}
           </Alert>
         )}

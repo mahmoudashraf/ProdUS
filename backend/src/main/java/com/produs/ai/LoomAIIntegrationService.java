@@ -16,6 +16,8 @@ import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
 import com.produs.entity.User;
 import com.produs.exception.ResourceNotFoundException;
+import com.produs.experts.ExpertProfile;
+import com.produs.experts.ExpertProfileRepository;
 import com.produs.packages.PackageInstance;
 import com.produs.packages.PackageInstanceRepository;
 import com.produs.packages.PackageModule;
@@ -28,6 +30,10 @@ import com.produs.scanner.ScanRun;
 import com.produs.scanner.ScanRunRepository;
 import com.produs.scanner.ScannerEvidenceItem;
 import com.produs.scanner.ScannerEvidenceItemRepository;
+import com.produs.teams.Team;
+import com.produs.teams.TeamCapability;
+import com.produs.teams.TeamCapabilityRepository;
+import com.produs.teams.TeamRepository;
 import com.produs.workspace.Deliverable;
 import com.produs.workspace.DeliverableRepository;
 import com.produs.workspace.Milestone;
@@ -46,6 +52,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -83,6 +92,9 @@ public class LoomAIIntegrationService {
     private static final int SUMMARY_LIMIT = 480;
     private static final int FIELD_LIMIT = 220;
     private static final int LIST_LIMIT = 6;
+    private static final int KNOWLEDGE_CONTENT_LIMIT = 4_000;
+    private static final String DATA_SYNC_SCOPE = "data-sync:upsert";
+    private static final String SAFE_KNOWLEDGE_SYSTEM_SUBJECT = "system:produs-safe-knowledge-sync";
     private static final Pattern SECRET_PATTERN = Pattern.compile(
             "(?is)(api[_-]?key|secret|token|password|authorization|bearer|private[_-]?key)\\s*[:=]\\s*[^\\s,;]+"
                     + "|gh[pousr]_[A-Za-z0-9_]+"
@@ -109,6 +121,9 @@ public class LoomAIIntegrationService {
     private final ServiceDependencyRepository dependencyRepository;
     private final PackageTemplateRepository packageTemplateRepository;
     private final AICapabilityConfigRepository capabilityConfigRepository;
+    private final TeamRepository teamRepository;
+    private final TeamCapabilityRepository teamCapabilityRepository;
+    private final ExpertProfileRepository expertProfileRepository;
 
     @Transactional(readOnly = true)
     public LoomAIStatusResponse status(User user) {
@@ -258,22 +273,45 @@ public class LoomAIIntegrationService {
     @Transactional(readOnly = true)
     public KnowledgeSyncResponse syncSafeKnowledge(User user) {
         requireAdmin(user);
+        return syncSafeKnowledgeInternal("manual-admin");
+    }
+
+    @Transactional(readOnly = true)
+    public KnowledgeSyncResponse syncSafeKnowledgeSystem() {
+        return syncSafeKnowledgeInternal("scheduled-system");
+    }
+
+    private KnowledgeSyncResponse syncSafeKnowledgeInternal(String trigger) {
         List<SafeKnowledgeRecord> records = safeKnowledgeRecords();
         if (!isConfigured()) {
-            return new KnowledgeSyncResponse("SKIPPED", records.size(), null, "LOOMAI_DISABLED");
+            return new KnowledgeSyncResponse("SKIPPED", records.size(), null, null, null, null, List.of(), "LOOMAI_DISABLED");
         }
         try {
-            ProviderJsonResponse response = postJson(properties.getDataSyncBatchPath(), Map.of(
-                    "environment", properties.getEnvironment(),
-                    "source", "ProdUS",
-                    "records", records
-            ), user, "knowledge-sync");
-            return new KnowledgeSyncResponse("SYNCED", records.size(), response.providerRequestId(), null);
+            ProviderJsonResponse response = postJson(
+                    properties.getDataSyncBatchPath(),
+                    safeKnowledgeDataSyncPayload(records, trigger),
+                    ProviderAuthSubject.system(
+                            SAFE_KNOWLEDGE_SYSTEM_SUBJECT,
+                            "produs-safe-knowledge-sync",
+                            List.of(DATA_SYNC_SCOPE)
+                    )
+            );
+            JsonNode body = response.body();
+            return new KnowledgeSyncResponse(
+                    "SYNCED",
+                    records.size(),
+                    firstText(body.path("providerRequestId"), body.path("metadata").path("providerRequestId"), body.path("requestId"), body.path("metadata").path("requestId"), textNode(response.providerRequestId())),
+                    intOrNull(body, "totalOperations"),
+                    intOrNull(body, "succeededOperations"),
+                    intOrNull(body, "failedOperations"),
+                    providerErrors(body),
+                    null
+            );
         } catch (RuntimeException exception) {
             log.warn("loomai_knowledge_sync_failed reason={} detail={}",
                     exception.getClass().getSimpleName(),
                     safeExceptionDetail(exception));
-            return new KnowledgeSyncResponse("FAILED", records.size(), null, "LOOMAI_UNAVAILABLE");
+            return new KnowledgeSyncResponse("FAILED", records.size(), null, null, null, null, List.of(), "LOOMAI_UNAVAILABLE");
         }
     }
 
@@ -373,11 +411,196 @@ public class LoomAIIntegrationService {
                     )
             ));
         }
+        for (Team team : teamRepository.findByActiveTrueOrderByCreatedAtDesc()) {
+            if (team.getVerificationStatus() == Team.VerificationStatus.SUSPENDED) {
+                continue;
+            }
+            List<TeamCapability> capabilities = teamCapabilityRepository.findByTeamId(team.getId());
+            List<String> capabilityCategories = capabilities.stream()
+                    .map(capability -> capability.getServiceCategory() == null ? "" : capability.getServiceCategory().getSlug())
+                    .filter(value -> !value.isBlank())
+                    .distinct()
+                    .toList();
+            List<String> serviceModules = capabilities.stream()
+                    .map(capability -> capability.getServiceModule() == null ? "" : capability.getServiceModule().getSlug())
+                    .filter(value -> !value.isBlank())
+                    .distinct()
+                    .toList();
+            records.add(record(
+                    "team-profile:" + team.getId(),
+                    "TEAM_PROFILE",
+                    team.getName(),
+                    joinText(
+                            team.getHeadline(),
+                            team.getDescription(),
+                            team.getBio(),
+                            team.getCapabilitiesSummary(),
+                            safeCapabilityText(capabilities)
+                    ),
+                    Map.of(
+                            "teamId", team.getId().toString(),
+                            "verificationStatus", team.getVerificationStatus().name(),
+                            "timezone", nullToEmpty(team.getTimezone()),
+                            "typicalProjectSize", nullToEmpty(team.getTypicalProjectSize()),
+                            "capabilityCategories", capabilityCategories,
+                            "serviceModules", serviceModules,
+                            "profilePhotoAvailable", !blank(team.getProfilePhotoUrl()),
+                            "coverPhotoAvailable", !blank(team.getCoverPhotoUrl()),
+                            "websiteAvailable", !blank(team.getWebsiteUrl())
+                    )
+            ));
+        }
+        for (ExpertProfile profile : expertProfileRepository.findByActiveTrueOrderByUpdatedAtDesc()) {
+            if (!profile.isSoloMode()) {
+                continue;
+            }
+            records.add(record(
+                    "solo-expert-profile:" + profile.getId(),
+                    "SOLO_EXPERT_PROFILE",
+                    profile.getDisplayName(),
+                    joinText(
+                            profile.getHeadline(),
+                            profile.getBio(),
+                            profile.getSkills()
+                    ),
+                    Map.of(
+                            "expertProfileId", profile.getId().toString(),
+                            "availability", profile.getAvailability().name(),
+                            "location", nullToEmpty(profile.getLocation()),
+                            "timezone", nullToEmpty(profile.getTimezone()),
+                            "preferredProjectSize", nullToEmpty(profile.getPreferredProjectSize()),
+                            "skills", nullToEmpty(profile.getSkills()),
+                            "profilePhotoAvailable", !blank(profile.getProfilePhotoUrl()),
+                            "coverPhotoAvailable", !blank(profile.getCoverPhotoUrl()),
+                            "websiteAvailable", !blank(profile.getWebsiteUrl()),
+                            "portfolioAvailable", !blank(profile.getPortfolioUrl())
+                    )
+            ));
+        }
         return records;
     }
 
     private SafeKnowledgeRecord record(String id, String type, String title, String body, Map<String, Object> metadata) {
         return new SafeKnowledgeRecord(id, type, title, nullToEmpty(body), metadata);
+    }
+
+    private Map<String, Object> safeKnowledgeDataSyncPayload(List<SafeKnowledgeRecord> records, String trigger) {
+        String requestId = "produs-safe-knowledge-sync-" + UUID.randomUUID();
+        Map<String, Object> authContext = new LinkedHashMap<>();
+        authContext.put("subjectId", SAFE_KNOWLEDGE_SYSTEM_SUBJECT);
+        authContext.put("subjectType", "SYSTEM_PROCESS");
+        authContext.put("authMode", "PRIVATE_RUNTIME_BACKEND_MEDIATED");
+        authContext.put("callerType", "SYSTEM_PROCESS");
+        authContext.put("deploymentId", properties.getAssertionAudience());
+        authContext.put("customerId", properties.getAssertionCustomerId());
+        authContext.put("issuer", properties.getAssertionIssuer());
+        authContext.put("grantedScopes", List.of(DATA_SYNC_SCOPE));
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("source", "ProdUS");
+        metadata.put("environment", properties.getEnvironment());
+        metadata.put("datasetId", safeKnowledgeDatasetId());
+        metadata.put("trigger", trigger);
+        metadata.put("recordCount", records.size());
+
+        Map<String, Object> trace = new LinkedHashMap<>();
+        trace.put("requestId", requestId);
+        trace.put("metadata", metadata);
+        trace.put("authContext", authContext);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("trace", trace);
+        payload.put("operations", records.stream().map(this::safeKnowledgeOperation).toList());
+        return payload;
+    }
+
+    private Map<String, Object> safeKnowledgeOperation(SafeKnowledgeRecord record) {
+        Map<String, Object> metadata = safeKnowledgeMetadata(record);
+        Map<String, Object> identity = new LinkedHashMap<>();
+        identity.put("sourceRecordId", record.id());
+        identity.put("sourceRecordVersion", sourceRecordVersion(record));
+
+        Map<String, Object> operation = new LinkedHashMap<>();
+        operation.put("type", "UPSERT");
+        operation.put("vectorSpace", vectorSpace(record.type()));
+        operation.put("id", record.id());
+        operation.put("content", safeText(joinText(record.title(), record.body()), KNOWLEDGE_CONTENT_LIMIT));
+        operation.put("metadata", metadata);
+        operation.put("identity", identity);
+        return operation;
+    }
+
+    private Map<String, Object> safeKnowledgeMetadata(SafeKnowledgeRecord record) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("recordType", record.type());
+        metadata.put("title", safeText(record.title(), FIELD_LIMIT));
+        metadata.put("datasetId", safeKnowledgeDatasetId());
+        if (record.metadata() != null) {
+            record.metadata().forEach((key, value) -> metadata.put(key, safeMetadataValue(value)));
+        }
+        return metadata;
+    }
+
+    private Object safeMetadataValue(Object value) {
+        if (value instanceof String text) {
+            return safeText(text, SUMMARY_LIMIT);
+        }
+        if (value instanceof Collection<?> collection) {
+            return collection.stream()
+                    .map(item -> item instanceof String text ? safeText(text, FIELD_LIMIT) : item)
+                    .toList();
+        }
+        return value;
+    }
+
+    private String vectorSpace(String recordType) {
+        return switch (recordType) {
+            case "SERVICE_CATEGORY" -> "service-category";
+            case "SERVICE_MODULE" -> "service-module";
+            case "SERVICE_DEPENDENCY" -> "service-dependency";
+            case "PACKAGE_TEMPLATE" -> "package-template";
+            case "AI_CAPABILITY_CONTRACT" -> "ai-capability-contract";
+            case "MILESTONE_TEMPLATE" -> "milestone-template";
+            case "ACCEPTANCE_CRITERIA_TEMPLATE" -> "acceptance-criteria-template";
+            case "EVIDENCE_TEMPLATE" -> "evidence-template";
+            case "SCANNER_TOOL_DESCRIPTION" -> "scanner-tool-description";
+            case "CASE_PATTERN", "TEAM_PROFILE", "SOLO_EXPERT_PROFILE" -> "case-pattern";
+            default -> throw new IllegalArgumentException("Unsupported safe knowledge record type: " + recordType);
+        };
+    }
+
+    private String sourceRecordVersion(SafeKnowledgeRecord record) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest((record.id() + "\n" + record.type() + "\n" + record.title() + "\n" + record.body() + "\n" + record.metadata())
+                    .getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder();
+            for (byte value : hash) {
+                builder.append(String.format("%02x", value));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is not available", exception);
+        }
+    }
+
+    private String safeKnowledgeDatasetId() {
+        return blank(properties.getSafeKnowledgeDatasetId()) ? "produs-safe-knowledge" : properties.getSafeKnowledgeDatasetId().trim();
+    }
+
+    private String safeCapabilityText(List<TeamCapability> capabilities) {
+        if (capabilities == null || capabilities.isEmpty()) {
+            return "";
+        }
+        List<String> values = capabilities.stream()
+                .map(capability -> {
+                    String category = capability.getServiceCategory() == null ? "" : capability.getServiceCategory().getName();
+                    String module = capability.getServiceModule() == null ? "" : capability.getServiceModule().getName();
+                    return joinText(category, module, capability.getNotes());
+                })
+                .filter(value -> !value.isBlank())
+                .toList();
+        return values.isEmpty() ? "" : "Verified public capabilities: " + String.join("; ", values);
     }
 
     private Map<String, Object> safeContext(User user, AssistantContextRequest context) {
@@ -745,6 +968,10 @@ public class LoomAIIntegrationService {
     }
 
     private ProviderJsonResponse postJson(String path, Object payload, User user, String conversationId) {
+        return postJson(path, payload, ProviderAuthSubject.user(user, conversationId));
+    }
+
+    private ProviderJsonResponse postJson(String path, Object payload, ProviderAuthSubject authSubject) {
         if (!isConfigured()) {
             throw new IllegalStateException("LoomAI is not configured");
         }
@@ -755,7 +982,7 @@ public class LoomAIIntegrationService {
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)));
-            applyProviderAuth(builder, user, conversationId);
+            applyProviderAuth(builder, authSubject);
             String requestId = MDC.get("requestId");
             if (requestId != null && !requestId.isBlank()) {
                 builder.header("X-Request-ID", requestId);
@@ -789,7 +1016,7 @@ public class LoomAIIntegrationService {
                     .timeout(java.time.Duration.ofMillis(effectiveTimeoutMs()))
                     .header("Accept", "application/json")
                     .GET();
-            applyProviderAuth(builder, user, conversationId);
+            applyProviderAuth(builder, ProviderAuthSubject.user(user, conversationId));
             String requestId = MDC.get("requestId");
             if (requestId != null && !requestId.isBlank()) {
                 builder.header("X-Request-ID", requestId);
@@ -813,15 +1040,18 @@ public class LoomAIIntegrationService {
         }
     }
 
-    private void applyProviderAuth(HttpRequest.Builder builder, User user, String conversationId) {
+    private void applyProviderAuth(HttpRequest.Builder builder, ProviderAuthSubject authSubject) {
         if (properties.isPrivateRuntimeAssertionAuth()) {
             builder.header(
                     blank(properties.getRuntimeApiKeyHeaderName()) ? "X-AIFABRIC-RUNTIME-API-KEY" : properties.getRuntimeApiKeyHeaderName(),
                     properties.getRuntimeApiKey().trim()
             );
+            String assertion = authSubject.system()
+                    ? runtimeAssertionService.createSystemAssertion(authSubject.subjectId(), authSubject.conversationId(), authSubject.scopes())
+                    : runtimeAssertionService.createAssertion(authSubject.user(), authSubject.conversationId(), authSubject.scopes());
             builder.header(
                     blank(properties.getRuntimeAuthorizationHeaderName()) ? "X-AIFABRIC-RUNTIME-AUTHORIZATION" : properties.getRuntimeAuthorizationHeaderName(),
-                    "Bearer " + runtimeAssertionService.createAssertion(user, conversationId)
+                    "Bearer " + assertion
             );
             return;
         }
@@ -955,6 +1185,27 @@ public class LoomAIIntegrationService {
             }
         }
         return null;
+    }
+
+    private JsonNode textNode(String value) {
+        return blank(value) ? objectMapper.nullNode() : objectMapper.getNodeFactory().textNode(value);
+    }
+
+    private Integer intOrNull(JsonNode body, String field) {
+        JsonNode value = body.path(field);
+        if (value.isNumber()) {
+            return value.asInt();
+        }
+        JsonNode resultValue = body.path("result").path(field);
+        return resultValue.isNumber() ? resultValue.asInt() : null;
+    }
+
+    private List<Map<String, Object>> providerErrors(JsonNode body) {
+        JsonNode values = firstArray(body, "errors");
+        if (!values.isArray() || values.isEmpty()) {
+            values = firstArray(body, "failures");
+        }
+        return jsonList(values);
     }
 
     private JsonNode firstNumber(JsonNode... nodes) {
@@ -1158,6 +1409,16 @@ public class LoomAIIntegrationService {
 
     private record ProviderJsonResponse(JsonNode body, String providerRequestId) {}
 
+    private record ProviderAuthSubject(User user, String conversationId, String subjectId, List<String> scopes, boolean system) {
+        private static ProviderAuthSubject user(User user, String conversationId) {
+            return new ProviderAuthSubject(user, conversationId, null, null, false);
+        }
+
+        private static ProviderAuthSubject system(String subjectId, String sessionId, List<String> scopes) {
+            return new ProviderAuthSubject(null, sessionId, subjectId, scopes, true);
+        }
+    }
+
     public record AssistantContextRequest(
             String pageType,
             UUID productId,
@@ -1240,6 +1501,10 @@ public class LoomAIIntegrationService {
             String status,
             int recordCount,
             String providerRequestId,
+            Integer totalOperations,
+            Integer succeededOperations,
+            Integer failedOperations,
+            List<Map<String, Object>> errors,
             String fallbackReason
     ) {}
 
