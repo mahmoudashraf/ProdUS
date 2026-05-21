@@ -6,7 +6,11 @@ import com.produs.ai.loom.LoomAIProperties;
 import com.produs.ai.loom.LoomAIRuntimeAssertionService;
 import com.produs.catalog.AICapabilityConfig;
 import com.produs.catalog.AICapabilityConfigRepository;
+import com.produs.catalog.CatalogTemplateDefinition;
+import com.produs.catalog.CatalogTemplateDefinitionRepository;
 import com.produs.catalog.PackageTemplate;
+import com.produs.catalog.PackageTemplateModule;
+import com.produs.catalog.PackageTemplateModuleRepository;
 import com.produs.catalog.PackageTemplateRepository;
 import com.produs.catalog.ServiceCategory;
 import com.produs.catalog.ServiceCategoryRepository;
@@ -30,6 +34,7 @@ import com.produs.scanner.ScanRun;
 import com.produs.scanner.ScanRunRepository;
 import com.produs.scanner.ScannerEvidenceItem;
 import com.produs.scanner.ScannerEvidenceItemRepository;
+import com.produs.scanner.ScannerProperties;
 import com.produs.teams.Team;
 import com.produs.teams.TeamCapability;
 import com.produs.teams.TeamCapabilityRepository;
@@ -126,7 +131,10 @@ public class LoomAIIntegrationService {
     private final ServiceModuleRepository moduleRepository;
     private final ServiceDependencyRepository dependencyRepository;
     private final PackageTemplateRepository packageTemplateRepository;
+    private final PackageTemplateModuleRepository packageTemplateModuleRepository;
+    private final CatalogTemplateDefinitionRepository templateDefinitionRepository;
     private final AICapabilityConfigRepository capabilityConfigRepository;
+    private final ScannerProperties scannerProperties;
     private final TeamRepository teamRepository;
     private final TeamCapabilityRepository teamCapabilityRepository;
     private final ExpertProfileRepository expertProfileRepository;
@@ -460,6 +468,62 @@ public class LoomAIIntegrationService {
                     )
             ));
         }
+        for (PackageTemplate template : packageTemplateRepository.findAll()) {
+            List<PackageTemplateModule> modules = packageTemplateModuleRepository.findByTemplateIdOrderBySequenceOrderAsc(template.getId());
+            records.add(record(
+                    "milestone-template:package-template:" + template.getSlug(),
+                    "MILESTONE_TEMPLATE",
+                    template.getName() + " milestone template",
+                    milestoneTemplateBody(template, modules),
+                    Map.of(
+                            "sourceTemplateSlug", template.getSlug(),
+                            "sourceTemplateId", template.getId().toString(),
+                            "targetProductStage", nullToEmpty(template.getTargetProductStage()),
+                            "timelineRange", nullToEmpty(template.getTimelineRange()),
+                            "moduleCount", modules.size(),
+                            "source", "PACKAGE_TEMPLATE"
+                    )
+            ));
+            records.add(record(
+                    "case-pattern:package-template:" + template.getSlug(),
+                    "CASE_PATTERN",
+                    template.getName() + " productization pattern",
+                    casePatternBody(template, modules),
+                    Map.of(
+                            "sourceTemplateSlug", template.getSlug(),
+                            "sourceTemplateId", template.getId().toString(),
+                            "targetProductStage", nullToEmpty(template.getTargetProductStage()),
+                            "budgetRange", nullToEmpty(template.getBudgetRange()),
+                            "moduleCount", modules.size(),
+                            "anonymized", true,
+                            "source", "PACKAGE_TEMPLATE"
+                    )
+            ));
+        }
+        for (CatalogTemplateDefinition definition : templateDefinitionRepository.findByActiveTrueOrderBySortOrderAscNameAsc()) {
+            String recordType = templateRecordType(definition.getTemplateType());
+            if (recordType == null) {
+                continue;
+            }
+            records.add(record(
+                    templateRecordId(recordType, definition.getSlug()),
+                    recordType,
+                    definition.getName(),
+                    joinText(
+                            definition.getDescription(),
+                            "Required inputs: " + nullToEmpty(definition.getRequiredInputs()),
+                            "Template guidance: " + nullToEmpty(definition.getContent()),
+                            "Output contract: " + nullToEmpty(definition.getOutputContract())
+                    ),
+                    Map.of(
+                            "slug", definition.getSlug(),
+                            "templateType", definition.getTemplateType().name(),
+                            "sortOrder", definition.getSortOrder() == null ? 0 : definition.getSortOrder(),
+                            "active", definition.isActive(),
+                            "source", "CATALOG_TEMPLATE_DEFINITION"
+                    )
+            ));
+        }
         for (AICapabilityConfig config : capabilityConfigRepository.findAll()) {
             records.add(record(
                     "ai-capability:" + config.getSlug(),
@@ -474,6 +538,21 @@ public class LoomAIIntegrationService {
                     )
             ));
         }
+        scannerProperties.getTools().forEach((key, tool) -> records.add(record(
+                "scanner-tool:" + key,
+                "SCANNER_TOOL_DESCRIPTION",
+                nullToEmpty(tool.getDisplayName()).isBlank() ? key : tool.getDisplayName(),
+                scannerToolBody(key, tool),
+                Map.of(
+                        "toolKey", key,
+                        "enabled", tool.isEnabled(),
+                        "targetType", nullToEmpty(tool.getTargetType()),
+                        "outputFormat", nullToEmpty(tool.getOutputFormat()),
+                        "requiresIac", tool.isRequiresIac(),
+                        "timeoutSeconds", tool.getTimeoutSeconds(),
+                        "source", "SCANNER_CONFIGURATION"
+                )
+        )));
         for (Team team : teamRepository.findByActiveTrueOrderByCreatedAtDesc()) {
             if (team.getVerificationStatus() == Team.VerificationStatus.SUSPENDED) {
                 continue;
@@ -739,6 +818,99 @@ public class LoomAIIntegrationService {
         return blank(properties.getSafeKnowledgeDatasetId()) ? "produs-safe-knowledge" : properties.getSafeKnowledgeDatasetId().trim();
     }
 
+    private String milestoneTemplateBody(PackageTemplate template, List<PackageTemplateModule> modules) {
+        return joinText(
+                "Reusable milestone sequence derived from approved package template " + template.getName() + ".",
+                template.getDescription(),
+                template.getOutcomeSummary(),
+                "Target product stage: " + nullToEmpty(template.getTargetProductStage()),
+                "Timeline: " + nullToEmpty(template.getTimelineRange()),
+                "Service sequence: " + packageModuleSequenceText(modules)
+        );
+    }
+
+    private String casePatternBody(PackageTemplate template, List<PackageTemplateModule> modules) {
+        return joinText(
+                "Anonymized productization case pattern derived from the approved package template " + template.getName() + ".",
+                "Customer fit: " + nullToEmpty(template.getCustomerFit()),
+                "Expected outcome: " + nullToEmpty(template.getOutcomeSummary()),
+                "Budget range: " + nullToEmpty(template.getBudgetRange()),
+                "Timeline: " + nullToEmpty(template.getTimelineRange()),
+                "Recommended delivery pattern: " + packageModuleSequenceText(modules)
+        );
+    }
+
+    private String packageModuleSequenceText(List<PackageTemplateModule> modules) {
+        if (modules == null || modules.isEmpty()) {
+            return "No service modules are attached to this package template yet.";
+        }
+        return String.join("; ", modules.stream()
+                .map(module -> {
+                    ServiceModule service = module.getServiceModule();
+                    String serviceName = service == null ? "Unknown service" : service.getName();
+                    String serviceSlug = service == null ? "" : service.getSlug();
+                    String phase = nullToEmpty(module.getPhaseName());
+                    String rationale = nullToEmpty(module.getRationale());
+                    return joinInline(
+                            "Step " + module.getSequenceOrder(),
+                            phase.isBlank() ? null : "phase " + phase,
+                            serviceSlug.isBlank() ? serviceName : serviceName + " (" + serviceSlug + ")",
+                            module.isRequired() ? "required" : "optional",
+                            rationale
+                    );
+                })
+                .toList());
+    }
+
+    private String templateRecordType(CatalogTemplateDefinition.TemplateType type) {
+        if (type == null) {
+            return null;
+        }
+        return switch (type) {
+            case MILESTONE -> "MILESTONE_TEMPLATE";
+            case ACCEPTANCE_CRITERION -> "ACCEPTANCE_CRITERIA_TEMPLATE";
+            case EVIDENCE -> "EVIDENCE_TEMPLATE";
+            default -> null;
+        };
+    }
+
+    private String templateRecordId(String recordType, String slug) {
+        String prefix = switch (recordType) {
+            case "MILESTONE_TEMPLATE" -> "milestone-template:";
+            case "ACCEPTANCE_CRITERIA_TEMPLATE" -> "acceptance-criteria-template:";
+            case "EVIDENCE_TEMPLATE" -> "evidence-template:";
+            default -> throw new IllegalArgumentException("Unsupported template record type: " + recordType);
+        };
+        return prefix + slug;
+    }
+
+    private String scannerToolBody(String key, ScannerProperties.ToolProperties tool) {
+        return joinText(
+                scannerToolDescription(key, tool),
+                "Target type: " + nullToEmpty(tool.getTargetType()),
+                "Output format: " + nullToEmpty(tool.getOutputFormat()),
+                "Infrastructure-as-code required: " + tool.isRequiresIac(),
+                "Timeout seconds: " + tool.getTimeoutSeconds()
+        );
+    }
+
+    private String scannerToolDescription(String key, ScannerProperties.ToolProperties tool) {
+        String displayName = nullToEmpty(tool.getDisplayName()).isBlank() ? key : tool.getDisplayName();
+        return switch (key) {
+            case "gitleaks" -> "Gitleaks identifies exposed credentials and sensitive tokens in source repositories before production access is granted.";
+            case "osv-scanner" -> "OSV-Scanner identifies vulnerable open-source dependencies and package ecosystem risks.";
+            case "semgrep" -> "Semgrep performs static code analysis for insecure patterns, framework misuse, and code quality risks.";
+            case "trivy-fs" -> "Trivy filesystem scanning reviews application dependencies, operating-system packages, and configuration risk in a repository.";
+            case "checkov" -> "Checkov reviews infrastructure-as-code for cloud, Kubernetes, and policy misconfigurations.";
+            case "syft" -> "Syft generates software bills of materials for container images and application artifacts.";
+            case "grype" -> "Grype analyzes software bills of materials and container images for known vulnerabilities.";
+            case "trivy-image" -> "Trivy image scanning reviews container images for vulnerable packages and misconfiguration signals.";
+            case "lighthouse" -> "Lighthouse measures runtime web performance, accessibility, best-practice, and SEO readiness signals.";
+            case "zap-baseline" -> "OWASP ZAP Baseline performs passive web application security checks against a runtime URL.";
+            default -> displayName + " is a configured ProdUS scanner tool used to produce normalized productization evidence.";
+        };
+    }
+
     private String safeCapabilityText(List<TeamCapability> capabilities) {
         if (capabilities == null || capabilities.isEmpty()) {
             return "";
@@ -752,6 +924,16 @@ public class LoomAIIntegrationService {
                 .filter(value -> !value.isBlank())
                 .toList();
         return values.isEmpty() ? "" : "Verified public capabilities: " + String.join("; ", values);
+    }
+
+    private String joinInline(String... parts) {
+        List<String> values = new ArrayList<>();
+        for (String part : parts) {
+            if (part != null && !part.isBlank()) {
+                values.add(part.trim());
+            }
+        }
+        return String.join(" - ", values);
     }
 
     private Map<String, Object> safeContext(User user, AssistantContextRequest context) {

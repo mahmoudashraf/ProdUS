@@ -1,6 +1,12 @@
 package com.produs.platform;
 
 import com.produs.entity.User;
+import com.produs.catalog.CatalogTemplateDefinition;
+import com.produs.catalog.CatalogTemplateDefinitionRepository;
+import com.produs.catalog.PackageTemplate;
+import com.produs.catalog.PackageTemplateModule;
+import com.produs.catalog.PackageTemplateModuleRepository;
+import com.produs.catalog.PackageTemplateRepository;
 import com.produs.catalog.ServiceCategory;
 import com.produs.catalog.ServiceCategoryRepository;
 import com.produs.catalog.ServiceModule;
@@ -76,6 +82,15 @@ class LoomAIStagingIntegrationTest {
     private ServiceModuleRepository moduleRepository;
 
     @Autowired
+    private PackageTemplateRepository packageTemplateRepository;
+
+    @Autowired
+    private PackageTemplateModuleRepository packageTemplateModuleRepository;
+
+    @Autowired
+    private CatalogTemplateDefinitionRepository templateDefinitionRepository;
+
+    @Autowired
     private TeamRepository teamRepository;
 
     @Autowired
@@ -109,7 +124,8 @@ class LoomAIStagingIntegrationTest {
         User owner = saveUser("loom-staging-owner@produs.test", User.UserRole.PRODUCT_OWNER);
         User admin = saveUser("loom-staging-admin@produs.test", User.UserRole.ADMIN);
         ProductProfile product = saveProduct(owner);
-        saveCatalogRecord();
+        ServiceModule serviceModule = saveCatalogRecord();
+        saveSafeKnowledgeTemplateRecords(serviceModule);
 
         mockMvc.perform(get("/api/ai/loomai/status").with(auth(admin)))
                 .andExpect(status().isOk())
@@ -211,7 +227,7 @@ class LoomAIStagingIntegrationTest {
                 .andExpect(jsonPath("$.records[0].deleted").value(false))
                 .andExpect(jsonPath("$.records[0].metadata.sourceRecordVersion").exists())
                 .andExpect(jsonPath("$.hasMore").value(true))
-                .andExpect(jsonPath("$.totalEstimate").value(4))
+                .andExpect(jsonPath("$.totalEstimate").value(20))
                 .andExpect(jsonPath("$.exportVersion").value("produs-safe-knowledge-v1"))
                 .andReturn();
 
@@ -223,8 +239,25 @@ class LoomAIStagingIntegrationTest {
                         .param("limit", "250")
                         .header("Authorization", "Bearer test-safe-knowledge-export-token"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasMore").value(false));
+
+        mockMvc.perform(get("/api/ai/loomai/knowledge-export")
+                        .param("limit", "250")
+                        .header("Authorization", "Bearer test-safe-knowledge-export-token"))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hasMore").value(false))
-                .andExpect(jsonPath("$.records[*].vectorSpace", hasItems("service-module", "team-profile", "solo-expert-profile")));
+                .andExpect(jsonPath("$.records[*].vectorSpace", hasItems(
+                        "service-category",
+                        "service-module",
+                        "package-template",
+                        "milestone-template",
+                        "acceptance-criteria-template",
+                        "evidence-template",
+                        "scanner-tool-description",
+                        "case-pattern",
+                        "team-profile",
+                        "solo-expert-profile"
+                )));
     }
 
     private static void ensureServer() throws IOException {
@@ -327,6 +360,12 @@ class LoomAIStagingIntegrationTest {
                     || !requestBody.contains("\"type\":\"UPSERT\"")
                     || !requestBody.contains("\"vectorSpace\":\"service-category\"")
                     || !requestBody.contains("\"vectorSpace\":\"service-module\"")
+                    || !requestBody.contains("\"vectorSpace\":\"package-template\"")
+                    || !requestBody.contains("\"vectorSpace\":\"milestone-template\"")
+                    || !requestBody.contains("\"vectorSpace\":\"acceptance-criteria-template\"")
+                    || !requestBody.contains("\"vectorSpace\":\"evidence-template\"")
+                    || !requestBody.contains("\"vectorSpace\":\"scanner-tool-description\"")
+                    || !requestBody.contains("\"vectorSpace\":\"case-pattern\"")
                     || !requestBody.contains("\"identity\"")
                     || !requestBody.contains("\"sourceRecordVersion\"")) {
                 respond(exchange, 400, "{\"error\":\"canonical trace and operations are required\"}");
@@ -431,7 +470,7 @@ class LoomAIStagingIntegrationTest {
         return productRepository.save(product);
     }
 
-    private void saveCatalogRecord() {
+    private ServiceModule saveCatalogRecord() {
         ServiceCategory category = new ServiceCategory();
         category.setName("Security");
         category.setSlug("security");
@@ -445,7 +484,82 @@ class LoomAIStagingIntegrationTest {
         module.setStableCode("security.api_review");
         module.setDescription("Review API auth, authorization, rate limits, and secrets handling.");
         module.setOwnerOutcome("Owners understand and reduce API launch risk.");
-        moduleRepository.save(module);
+        return moduleRepository.save(module);
+    }
+
+    private void saveSafeKnowledgeTemplateRecords(ServiceModule serviceModule) {
+        PackageTemplate packageTemplate = new PackageTemplate();
+        packageTemplate.setName("Security Launch Package");
+        packageTemplate.setSlug("security-launch-package");
+        packageTemplate.setDescription("Package template for API and launch security readiness.");
+        packageTemplate.setCustomerFit("Prototype or beta product preparing for external API users.");
+        packageTemplate.setOutcomeSummary("Security risks are scoped, reviewed, and ready for governed remediation.");
+        packageTemplate.setTargetProductStage("BETA");
+        packageTemplate.setTimelineRange("2-3 weeks");
+        packageTemplate.setBudgetRange("$20K-$60K");
+        packageTemplate = packageTemplateRepository.save(packageTemplate);
+
+        PackageTemplateModule packageModule = new PackageTemplateModule();
+        packageModule.setTemplate(packageTemplate);
+        packageModule.setServiceModule(serviceModule);
+        packageModule.setSequenceOrder(1);
+        packageModule.setRequired(true);
+        packageModule.setPhaseName("Review");
+        packageModule.setRationale("API security review should happen before launch-readiness decisions.");
+        packageTemplateModuleRepository.save(packageModule);
+
+        saveTemplateDefinition(
+                "milestone-security-review",
+                CatalogTemplateDefinition.TemplateType.MILESTONE,
+                "Security review milestone",
+                "Milestone template for reviewing API security readiness.",
+                "Service plan, API inventory, owner risk tolerance.",
+                "Review API controls, document blockers, and produce an owner decision.",
+                "{\"milestone\":\"object\",\"decision\":\"enum\"}",
+                1
+        );
+        saveTemplateDefinition(
+                "acceptance-security-review",
+                CatalogTemplateDefinition.TemplateType.ACCEPTANCE_CRITERION,
+                "Security acceptance criteria",
+                "Acceptance criteria template for API security work.",
+                "Milestone, service module, evidence links.",
+                "Define passed, failed, and change-request conditions for security review.",
+                "{\"criteria\":\"array\",\"status\":\"enum\"}",
+                2
+        );
+        saveTemplateDefinition(
+                "evidence-security-review",
+                CatalogTemplateDefinition.TemplateType.EVIDENCE,
+                "Security evidence template",
+                "Evidence template for API security review.",
+                "Scanner summary, owner notes, remediation evidence.",
+                "Collect reviewed findings, remediation notes, and sign-off material.",
+                "{\"evidence\":\"array\",\"reviewStatus\":\"enum\"}",
+                3
+        );
+    }
+
+    private void saveTemplateDefinition(
+            String slug,
+            CatalogTemplateDefinition.TemplateType type,
+            String name,
+            String description,
+            String requiredInputs,
+            String content,
+            String outputContract,
+            int sortOrder
+    ) {
+        CatalogTemplateDefinition definition = new CatalogTemplateDefinition();
+        definition.setSlug(slug);
+        definition.setTemplateType(type);
+        definition.setName(name);
+        definition.setDescription(description);
+        definition.setRequiredInputs(requiredInputs);
+        definition.setContent(content);
+        definition.setOutputContract(outputContract);
+        definition.setSortOrder(sortOrder);
+        templateDefinitionRepository.save(definition);
     }
 
     private void saveTeamAndSoloExpertProfiles() {

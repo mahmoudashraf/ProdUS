@@ -74,11 +74,11 @@ The LoomAI DATA plugin must keep these vector spaces active for this deployment:
 | `service-dependency` | `SERVICE_DEPENDENCY` |
 | `package-template` | `PACKAGE_TEMPLATE` |
 | `ai-capability-contract` | `AI_CAPABILITY_CONTRACT` |
-| `milestone-template` | future `MILESTONE_TEMPLATE` |
-| `acceptance-criteria-template` | future `ACCEPTANCE_CRITERIA_TEMPLATE` |
-| `evidence-template` | future `EVIDENCE_TEMPLATE` |
-| `scanner-tool-description` | future `SCANNER_TOOL_DESCRIPTION` |
-| `case-pattern` | future `CASE_PATTERN` |
+| `milestone-template` | `MILESTONE_TEMPLATE` |
+| `acceptance-criteria-template` | `ACCEPTANCE_CRITERIA_TEMPLATE` |
+| `evidence-template` | `EVIDENCE_TEMPLATE` |
+| `scanner-tool-description` | `SCANNER_TOOL_DESCRIPTION` |
+| `case-pattern` | `CASE_PATTERN` |
 | `team-profile` | `TEAM_PROFILE` |
 | `solo-expert-profile` | `SOLO_EXPERT_PROFILE` |
 
@@ -97,6 +97,11 @@ ProdUS export includes:
 - service dependencies
 - package templates
 - AI capability contracts
+- milestone templates derived from approved package/template sequencing
+- acceptance criteria templates
+- evidence templates
+- scanner tool descriptions
+- approved anonymized package case patterns
 - active public team profiles
 - active public solo expert profiles
 

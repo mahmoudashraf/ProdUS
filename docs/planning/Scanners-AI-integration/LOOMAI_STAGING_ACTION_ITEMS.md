@@ -334,6 +334,11 @@ Safe records included:
 - service dependencies
 - package templates
 - AI capability contracts
+- milestone templates derived from approved package/template sequencing
+- acceptance criteria templates
+- evidence templates
+- scanner tool descriptions
+- approved anonymized package case patterns
 - active public team profiles as `TEAM_PROFILE` -> `team-profile`
 - active public solo expert profiles as `SOLO_EXPERT_PROFILE` -> `solo-expert-profile`
 

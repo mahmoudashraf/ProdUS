@@ -706,11 +706,11 @@ Safe record types:
 - `AI_CAPABILITY_CONTRACT`
 - `TEAM_PROFILE` for active public team discovery profiles
 - `SOLO_EXPERT_PROFILE` for active public solo expert discovery profiles
-- future `MILESTONE_TEMPLATE`
-- future `ACCEPTANCE_CRITERIA_TEMPLATE`
-- future `EVIDENCE_TEMPLATE`
-- future `SCANNER_TOOL_DESCRIPTION`
-- future approved anonymized `CASE_PATTERN`
+- `MILESTONE_TEMPLATE` from approved package/template sequencing
+- `ACCEPTANCE_CRITERIA_TEMPLATE` from catalog acceptance template definitions
+- `EVIDENCE_TEMPLATE` from catalog evidence template definitions
+- `SCANNER_TOOL_DESCRIPTION` from configured scanner tool descriptions
+- approved anonymized `CASE_PATTERN` records derived from package templates
 
 Current staging vector-space mapping:
 
@@ -721,6 +721,11 @@ Current staging vector-space mapping:
 | `SERVICE_DEPENDENCY` | `service-dependency` |
 | `PACKAGE_TEMPLATE` | `package-template` |
 | `AI_CAPABILITY_CONTRACT` | `ai-capability-contract` |
+| `MILESTONE_TEMPLATE` | `milestone-template` |
+| `ACCEPTANCE_CRITERIA_TEMPLATE` | `acceptance-criteria-template` |
+| `EVIDENCE_TEMPLATE` | `evidence-template` |
+| `SCANNER_TOOL_DESCRIPTION` | `scanner-tool-description` |
+| `CASE_PATTERN` | `case-pattern` |
 | `TEAM_PROFILE` | `team-profile` |
 | `SOLO_EXPERT_PROFILE` | `solo-expert-profile` |
 
