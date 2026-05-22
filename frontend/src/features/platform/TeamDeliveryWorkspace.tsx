@@ -149,6 +149,8 @@ export default function TeamDeliveryWorkspace() {
     queryFn: () => getJson<EvidenceAttachment[]>(`/attachments?workspaceId=${selectedWorkspace?.id}`),
     retry: false,
   });
+  const selectedWorkspaceMilestone = (milestones.data || []).find((milestone) => milestone.status === 'BLOCKED' || milestone.status === 'IN_PROGRESS')
+    || (milestones.data || [])[0];
   const addMember = useMutation({
     mutationFn: () =>
       postJson<TeamMember, TeamMemberPayload>(`/teams/${selectedTeam?.id}/members`, {
@@ -328,7 +330,7 @@ export default function TeamDeliveryWorkspace() {
               productId: selectedWorkspaceProduct?.id,
               packageId: selectedWorkspacePackage?.id,
               workspaceId: selectedWorkspace?.id,
-              milestoneId: (milestones.data || []).find((milestone) => milestone.status === 'BLOCKED' || milestone.status === 'IN_PROGRESS')?.id,
+              milestoneId: selectedWorkspaceMilestone?.id,
             }}
             disabled={!selectedWorkspace}
             accent={blockedWorkspaces ? appleColors.amber : appleColors.cyan}
