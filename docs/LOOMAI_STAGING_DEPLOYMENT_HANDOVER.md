@@ -264,6 +264,15 @@ X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer <rpa1-token>
 
 The request and response shape is the same as `/api/chat/me/query`. `conversationId` may be supplied as a correlation id, but `/api/chat/me/query-once` must not create conversation history. Do not send a `persistConversation` flag; ProdUS should choose `/query` or `/query-once` by product UX intent.
 
+ProdUS uses `/query-once` for page helpers with an explain-only context hint:
+
+- `context.assistantIntent=one-time-explanation`
+- `context.toolUsePolicy=answer-from-supplied-context-and-safe-indexed-knowledge`
+- `context.actionProfile=loomai-productization-explain-only`
+- `context.availableActionGroups=[]`
+
+Persistent `/query` remains the action-capable chat path with `actionProfile=loomai-productization-read`.
+
 Do not send:
 
 - `message` instead of `query`

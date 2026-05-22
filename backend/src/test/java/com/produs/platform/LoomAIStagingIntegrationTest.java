@@ -442,8 +442,12 @@ class LoomAIStagingIntegrationTest {
             respond(exchange, 400, "{\"error\":\"private runtime conversation id must be scoped by ProdUS\"}");
             return;
         }
+        boolean expectedActionHint = persistent
+                ? requestBody.contains("\"actionProfile\":\"loomai-productization-read\"")
+                : requestBody.contains("\"actionProfile\":\"loomai-productization-explain-only\"")
+                        && requestBody.contains("\"availableActionGroups\":[]");
         if (!requestBody.contains("\"productSummary\"") || !requestBody.contains("\"scannerSummary\"")
-                || !requestBody.contains("\"actionProfile\":\"loomai-productization-read\"")
+                || !expectedActionHint
                 || requestBody.contains("sk-test-secret") || requestBody.contains("api.example.test")) {
             respond(exchange, 400, "{\"error\":\"safe context enrichment is required\"}");
             return;

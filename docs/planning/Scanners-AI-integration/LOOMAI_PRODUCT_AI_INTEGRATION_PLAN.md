@@ -233,6 +233,8 @@ Content-Type: application/json
 
 The request and response shape is identical to `/api/ai/assistant/query`. ProdUS backend maps this endpoint to LoomAI runtime `POST /api/chat/me/query-once`, which treats `conversationId` as correlation only and must not create chat history. Do not add a `persistConversation` field; choose `/query` or `/query-once` by product UX intent.
 
+For page helpers, ProdUS marks the runtime context as `actionProfile=loomai-productization-explain-only`, `assistantIntent=one-time-explanation`, and `availableActionGroups=[]`. Persistent `/api/ai/assistant/query` remains the action-capable path. This keeps non-conversational UI explainers from accidentally invoking read actions when the page already supplied authorized summaries.
+
 ### 5.2 Query Response
 
 ```json

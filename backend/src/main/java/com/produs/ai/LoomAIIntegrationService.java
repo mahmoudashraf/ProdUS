@@ -216,6 +216,9 @@ public class LoomAIIntegrationService {
             throw new IllegalArgumentException("Assistant query is required");
         }
         Map<String, Object> context = safeContext(user, request.context());
+        if (oneTimeAnswer) {
+            context = explainOnlyContext(context);
+        }
         if (!isConfigured()) {
             return fallbackAnswer("LOOMAI_DISABLED", context);
         }
@@ -1045,6 +1048,15 @@ public class LoomAIIntegrationService {
             safe.put("diagnosisSummary", diagnosisSummary(scopedProduct));
             safe.put("scannerSummary", scannerSummary(scopedProduct, scopedWorkspace));
         }
+        return safe;
+    }
+
+    private Map<String, Object> explainOnlyContext(Map<String, Object> context) {
+        Map<String, Object> safe = new LinkedHashMap<>(context);
+        safe.put("assistantIntent", "one-time-explanation");
+        safe.put("toolUsePolicy", "answer-from-supplied-context-and-safe-indexed-knowledge");
+        safe.put("actionProfile", "loomai-productization-explain-only");
+        safe.put("availableActionGroups", List.of());
         return safe;
     }
 
