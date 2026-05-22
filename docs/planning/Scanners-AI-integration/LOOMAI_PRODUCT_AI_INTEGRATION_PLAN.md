@@ -300,7 +300,9 @@ POST /api/ai/assistant/suggestions
 }
 ```
 
-Backend keeps `conversationId` and `context` for local authorization/fallback. In direct runtime mode it forwards only:
+Backend keeps `conversationId` and `context` for local authorization/fallback. In direct runtime mode, provider-facing conversation ids must be opaque backend-generated values. UI conversation ids may include route names or local entity ids, but LoomAI runtime must receive only a subject-scoped hash, never raw product, package, workspace, milestone, finding, user, or tenant identifiers.
+
+For suggestions, direct runtime mode forwards only:
 
 ```json
 {

@@ -264,6 +264,8 @@ X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer <rpa1-token>
 
 The request and response shape is the same as `/api/chat/me/query`. `conversationId` may be supplied as a correlation id, but `/api/chat/me/query-once` must not create conversation history. Do not send a `persistConversation` flag; ProdUS should choose `/query` or `/query-once` by product UX intent.
 
+ProdUS backend must convert UI-supplied conversation ids into opaque subject-scoped provider ids before calling runtime. Do not pass raw product, package, workspace, milestone, finding, user, or tenant identifiers inside the runtime `conversationId`.
+
 ProdUS uses `/query-once` for page helpers with an explain-only context hint:
 
 - `context.assistantIntent=one-time-explanation`

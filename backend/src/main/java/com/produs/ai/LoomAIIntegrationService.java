@@ -1447,7 +1447,7 @@ public class LoomAIIntegrationService {
         String subject = user == null ? "anonymous" : stableSubject(user);
         String subjectHash = shortHash(subject);
         String conversationHash = shortHash(subject + ":" + baseConversationId);
-        String scoped = "produs-" + subjectHash + "-" + baseConversationId + "-" + conversationHash;
+        String scoped = "produs-" + subjectHash + "-" + shortHash(baseConversationId) + "-" + conversationHash;
         return reset ? appendResetSuffix(scoped) : truncateConversationId(scoped);
     }
 
