@@ -1061,6 +1061,8 @@ public class LoomAIIntegrationService {
         }
         safe.put("assistantIntent", "one-time-explanation");
         safe.put("toolUsePolicy", "answer-from-supplied-context-and-safe-indexed-knowledge");
+        safe.put("sourcePageType", String.valueOf(context.getOrDefault("pageType", "unknown")));
+        safe.put("pageType", "one-time-page-helper");
         safe.put("actionProfile", "loomai-productization-explain-only");
         safe.put("availableActionGroups", List.of());
         return safe;
