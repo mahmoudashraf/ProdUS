@@ -969,24 +969,6 @@ public class LoomAIIntegrationService {
         ProjectWorkspace scopedWorkspace = null;
         Milestone scopedMilestone = null;
         NormalizedFinding scopedFinding = null;
-        if (context.productId() != null) {
-            scopedProduct = productRepository.findById(context.productId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
-            requireProductRead(user, scopedProduct);
-            safe.put("productId", scopedProduct.getId().toString());
-            safe.put("productStage", scopedProduct.getBusinessStage() == null ? "" : scopedProduct.getBusinessStage().name());
-            safe.put("productName", safeText(scopedProduct.getName(), FIELD_LIMIT));
-            safe.put("productSummary", productSummary(scopedProduct));
-        }
-        if (context.packageId() != null) {
-            scopedPackage = packageRepository.findById(context.packageId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Package not found"));
-            requirePackageRead(user, scopedPackage);
-            safe.put("packageId", scopedPackage.getId().toString());
-            safe.put("packageStatus", scopedPackage.getStatus().name());
-            safe.put("packageSummary", packageSummary(scopedPackage));
-            scopedProduct = scopedProduct == null ? scopedPackage.getProductProfile() : scopedProduct;
-        }
         if (context.workspaceId() != null) {
             scopedWorkspace = workspaceRepository.findById(context.workspaceId())
                     .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
@@ -996,6 +978,30 @@ public class LoomAIIntegrationService {
             safe.put("workspaceSummary", workspaceSummary(scopedWorkspace));
             scopedPackage = scopedPackage == null ? scopedWorkspace.getPackageInstance() : scopedPackage;
             scopedProduct = scopedProduct == null && scopedWorkspace.getPackageInstance() != null ? scopedWorkspace.getPackageInstance().getProductProfile() : scopedProduct;
+        }
+        if (context.productId() != null) {
+            ProductProfile requestedProduct = productRepository.findById(context.productId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
+            if (!contextProductMatchesWorkspace(scopedWorkspace, requestedProduct)) {
+                requireProductRead(user, requestedProduct);
+            }
+            scopedProduct = requestedProduct;
+            safe.put("productId", scopedProduct.getId().toString());
+            safe.put("productStage", scopedProduct.getBusinessStage() == null ? "" : scopedProduct.getBusinessStage().name());
+            safe.put("productName", safeText(scopedProduct.getName(), FIELD_LIMIT));
+            safe.put("productSummary", productSummary(scopedProduct));
+        }
+        if (context.packageId() != null) {
+            PackageInstance requestedPackage = packageRepository.findById(context.packageId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Package not found"));
+            if (!contextPackageMatchesWorkspace(scopedWorkspace, requestedPackage)) {
+                requirePackageRead(user, requestedPackage);
+            }
+            scopedPackage = requestedPackage;
+            safe.put("packageId", scopedPackage.getId().toString());
+            safe.put("packageStatus", scopedPackage.getStatus().name());
+            safe.put("packageSummary", packageSummary(scopedPackage));
+            scopedProduct = scopedProduct == null ? scopedPackage.getProductProfile() : scopedProduct;
         }
         if (context.milestoneId() != null) {
             scopedMilestone = milestoneRepository.findById(context.milestoneId())
@@ -1040,6 +1046,21 @@ public class LoomAIIntegrationService {
             safe.put("scannerSummary", scannerSummary(scopedProduct, scopedWorkspace));
         }
         return safe;
+    }
+
+    private boolean contextProductMatchesWorkspace(ProjectWorkspace workspace, ProductProfile product) {
+        if (workspace == null || product == null || workspace.getPackageInstance() == null
+                || workspace.getPackageInstance().getProductProfile() == null) {
+            return false;
+        }
+        return workspace.getPackageInstance().getProductProfile().getId().equals(product.getId());
+    }
+
+    private boolean contextPackageMatchesWorkspace(ProjectWorkspace workspace, PackageInstance packageInstance) {
+        if (workspace == null || packageInstance == null || workspace.getPackageInstance() == null) {
+            return false;
+        }
+        return workspace.getPackageInstance().getId().equals(packageInstance.getId());
     }
 
     private Map<String, Object> productSummary(ProductProfile product) {

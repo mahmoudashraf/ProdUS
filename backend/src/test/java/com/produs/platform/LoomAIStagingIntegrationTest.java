@@ -13,11 +13,17 @@ import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
 import com.produs.experts.ExpertProfile;
 import com.produs.experts.ExpertProfileRepository;
+import com.produs.packages.PackageInstance;
+import com.produs.packages.PackageInstanceRepository;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
 import com.produs.repository.UserRepository;
 import com.produs.teams.Team;
 import com.produs.teams.TeamRepository;
+import com.produs.workspace.ProjectWorkspace;
+import com.produs.workspace.ProjectWorkspaceRepository;
+import com.produs.workspace.WorkspaceParticipant;
+import com.produs.workspace.WorkspaceParticipantRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -78,6 +84,9 @@ class LoomAIStagingIntegrationTest {
     private ProductProfileRepository productRepository;
 
     @Autowired
+    private PackageInstanceRepository packageRepository;
+
+    @Autowired
     private ServiceCategoryRepository categoryRepository;
 
     @Autowired
@@ -97,6 +106,12 @@ class LoomAIStagingIntegrationTest {
 
     @Autowired
     private ExpertProfileRepository expertProfileRepository;
+
+    @Autowired
+    private ProjectWorkspaceRepository workspaceRepository;
+
+    @Autowired
+    private WorkspaceParticipantRepository participantRepository;
 
     @DynamicPropertySource
     static void loomAIProperties(DynamicPropertyRegistry registry) throws IOException {
@@ -182,6 +197,29 @@ class LoomAIStagingIntegrationTest {
                                   "context": {"pageType":"owner-package-builder","productId":"%s"}
                                 }
                                 """.formatted(product.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.provider").value("LOOMAI"))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.answer").value(containsString("Use scanner evidence")));
+
+        User teamLead = saveUser("loom-staging-team-lead@produs.test", User.UserRole.TEAM_MANAGER);
+        PackageInstance packageInstance = savePackage(owner, product);
+        ProjectWorkspace workspace = saveWorkspace(owner, packageInstance, teamLead);
+        mockMvc.perform(post("/api/ai/assistant/query-once")
+                        .with(auth(teamLead))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "conversationId": "loom-team-workspace-helper-123",
+                                  "query": "Summarize delivery evidence from the team workspace",
+                                  "context": {
+                                    "pageType":"active-workspace",
+                                    "productId":"%s",
+                                    "packageId":"%s",
+                                    "workspaceId":"%s"
+                                  }
+                                }
+                                """.formatted(product.getId(), packageInstance.getId(), workspace.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.provider").value("LOOMAI"))
                 .andExpect(jsonPath("$.success").value(true))
@@ -597,6 +635,34 @@ class LoomAIStagingIntegrationTest {
                 "{\"evidence\":\"array\",\"reviewStatus\":\"enum\"}",
                 3
         );
+    }
+
+    private PackageInstance savePackage(User owner, ProductProfile product) {
+        PackageInstance packageInstance = new PackageInstance();
+        packageInstance.setOwner(owner);
+        packageInstance.setProductProfile(product);
+        packageInstance.setName("LoomAI delivery package");
+        packageInstance.setSummary("Package used to verify workspace-scoped assistant access.");
+        packageInstance.setStatus(PackageInstance.PackageStatus.ACTIVE_DELIVERY);
+        return packageRepository.save(packageInstance);
+    }
+
+    private ProjectWorkspace saveWorkspace(User owner, PackageInstance packageInstance, User teamLead) {
+        ProjectWorkspace workspace = new ProjectWorkspace();
+        workspace.setOwner(owner);
+        workspace.setPackageInstance(packageInstance);
+        workspace.setName("LoomAI participant workspace");
+        workspace.setStatus(ProjectWorkspace.WorkspaceStatus.ACTIVE_DELIVERY);
+        workspace = workspaceRepository.save(workspace);
+
+        WorkspaceParticipant participant = new WorkspaceParticipant();
+        participant.setWorkspace(workspace);
+        participant.setUser(teamLead);
+        participant.setAddedBy(owner);
+        participant.setRole(WorkspaceParticipant.ParticipantRole.TEAM_LEAD);
+        participant.setActive(true);
+        participantRepository.save(participant);
+        return workspace;
     }
 
     private void saveTemplateDefinition(
