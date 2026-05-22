@@ -1057,15 +1057,33 @@ public class LoomAIIntegrationService {
             if (isContextIdentifierKey(entry.getKey())) {
                 continue;
             }
-            safe.put(entry.getKey(), stripIdentifiersForExplainOnly(entry.getValue()));
+            String key = explainOnlyContextKey(entry.getKey());
+            if (key != null) {
+                safe.put(key, stripIdentifiersForExplainOnly(entry.getValue()));
+            }
         }
         safe.put("assistantIntent", "one-time-explanation");
         safe.put("toolUsePolicy", "answer-from-supplied-context-and-safe-indexed-knowledge");
-        safe.put("sourcePageType", String.valueOf(context.getOrDefault("pageType", "unknown")));
         safe.put("pageType", "one-time-page-helper");
         safe.put("actionProfile", "loomai-productization-explain-only");
         safe.put("availableActionGroups", List.of());
         return safe;
+    }
+
+    private String explainOnlyContextKey(String key) {
+        if (key == null) {
+            return null;
+        }
+        return switch (key) {
+            case "pageType" -> null;
+            case "workspaceStatus" -> "deliveryStatus";
+            case "workspaceSummary" -> "deliverySummary";
+            case "packageStatus" -> "servicePlanStatus";
+            case "packageSummary" -> "servicePlanSummary";
+            case "milestoneStatus" -> "checkpointStatus";
+            case "milestoneSummary" -> "checkpointSummary";
+            default -> key;
+        };
     }
 
     @SuppressWarnings("unchecked")
