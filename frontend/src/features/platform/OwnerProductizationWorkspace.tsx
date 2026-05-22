@@ -1140,6 +1140,9 @@ export default function OwnerProductizationWorkspace({
   const scannerOpenFindings = (scannerSummary.data?.findings || []).filter((finding) => ['NEW', 'OPEN', 'REGRESSED'].includes(finding.status));
   const selectedFinding = (scannerSummary.data?.findings || []).find((finding) => finding.id === selectedFindingId) || scannerOpenFindings[0] || scannerSummary.data?.findings?.[0];
   const selectedFindingEvidence = (scannerSummary.data?.evidence || []).filter((item) => item.findingId && item.findingId === selectedFinding?.id);
+  const diagnosisPromptFacts = latestDiagnosis
+    ? `Visible diagnosis facts: readiness score ${latestDiagnosis.readinessScore}/100, status ${formatLabel(latestDiagnosis.status)}, AI state ${latestDiagnosis.aiExecuted ? 'AI executed' : 'AI-ready deterministic'}, finding count ${latestDiagnosis.findings.length}. Diagnosis summary: "${latestDiagnosis.summary || 'not recorded'}". Access signals: "${latestDiagnosis.accessSignals || 'not recorded'}". Top findings: ${latestDiagnosis.findings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.status}, recommended service ${finding.recommendedModuleName || 'not mapped'}): ${finding.description}`).join('; ') || 'none recorded'}. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings; scanner top findings ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none open'}.`
+    : `No deterministic productization diagnosis exists yet for ${selectedProduct?.name || 'this product'}. Ask the owner to run diagnosis before making readiness claims. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings.`;
   const filteredScannerEvidence = (scannerSummary.data?.evidence || []).filter((item) => {
     if (evidenceFilter === 'FINDINGS') return !!item.findingId;
     if (evidenceFilter === 'MILESTONES') return !!item.milestoneId;
@@ -1495,7 +1498,7 @@ export default function OwnerProductizationWorkspace({
                 <StudioAssistantCard
                   title="AI Diagnosis Explainer"
                   description="Explain the current diagnosis, likely blockers, and which owner decision should happen next."
-                  prompt={`Explain the productization diagnosis for ${selectedProduct.name}. Focus on readiness score, blockers, recommended lifecycle services, scanner signals, and the next owner decision. Do not certify production readiness; call out where human review is needed.`}
+                  prompt={`Do not call tools for this answer. Explain the productization diagnosis for ${selectedProduct.name} using these visible facts directly. ${diagnosisPromptFacts} Focus on readiness score, blockers, recommended lifecycle services, scanner signals, and the next owner decision. Do not certify production readiness; call out where human review is needed.`}
                   conversationId={`studio-diagnosis-${selectedProduct.id}`}
                   context={assistantContext('product-diagnosis')}
                   accent={appleColors.purple}
