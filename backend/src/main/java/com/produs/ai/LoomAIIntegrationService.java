@@ -1052,12 +1052,50 @@ public class LoomAIIntegrationService {
     }
 
     private Map<String, Object> explainOnlyContext(Map<String, Object> context) {
-        Map<String, Object> safe = new LinkedHashMap<>(context);
+        Map<String, Object> safe = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : context.entrySet()) {
+            if (isContextIdentifierKey(entry.getKey())) {
+                continue;
+            }
+            safe.put(entry.getKey(), stripIdentifiersForExplainOnly(entry.getValue()));
+        }
         safe.put("assistantIntent", "one-time-explanation");
         safe.put("toolUsePolicy", "answer-from-supplied-context-and-safe-indexed-knowledge");
         safe.put("actionProfile", "loomai-productization-explain-only");
         safe.put("availableActionGroups", List.of());
         return safe;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object stripIdentifiersForExplainOnly(Object value) {
+        if (value instanceof Map<?, ?> source) {
+            Map<String, Object> sanitized = new LinkedHashMap<>();
+            source.forEach((key, nestedValue) -> {
+                String textKey = String.valueOf(key);
+                if (!isContextIdentifierKey(textKey)) {
+                    sanitized.put(textKey, stripIdentifiersForExplainOnly(nestedValue));
+                }
+            });
+            return sanitized;
+        }
+        if (value instanceof List<?> source) {
+            return source.stream().map(this::stripIdentifiersForExplainOnly).toList();
+        }
+        return value;
+    }
+
+    private boolean isContextIdentifierKey(String key) {
+        if (key == null) {
+            return false;
+        }
+        String normalized = key.trim();
+        return normalized.equals("id")
+                || normalized.equals("productId")
+                || normalized.equals("packageId")
+                || normalized.equals("workspaceId")
+                || normalized.equals("milestoneId")
+                || normalized.equals("findingId")
+                || normalized.endsWith("Id");
     }
 
     private boolean contextProductMatchesWorkspace(ProjectWorkspace workspace, ProductProfile product) {
