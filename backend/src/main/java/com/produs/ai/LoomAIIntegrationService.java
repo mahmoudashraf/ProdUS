@@ -68,6 +68,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -204,29 +205,27 @@ public class LoomAIIntegrationService {
             return fallbackAnswer("LOOMAI_DISABLED", context);
         }
         try {
+            String requestedConversationId = conversationId(request.conversationId(), context);
+            String providerConversationId = providerConversationId(requestedConversationId, user, false);
             ProviderJsonResponse response = postJson(
                     properties.getAssistantQueryPath(),
-                    assistantQueryPayload(request, context),
+                    assistantQueryPayload(request, context, providerConversationId),
                     user,
-                    conversationId(request.conversationId(), context)
+                    providerConversationId
             );
             JsonNode body = response.body();
-            String conversationId = conversationId(request.conversationId(), context);
-            return new AssistantQueryResponse(
-                    "LOOMAI",
-                    "LIVE",
-                    boolOr(body, "success", true),
-                    textOr(body, "type", "INFORMATION_PROVIDED"),
-                    normalizedAnswer(body),
-                    normalizedSafeSummary(body),
-                    conversationId(body, conversationId),
-                    normalizedConfidence(body),
-                    jsonList(firstArray(body, "sources")),
-                    jsonList(firstArray(body, "actions")),
-                    suggestionList(body),
-                    firstText(body.path("fallbackReason"), body.path("errorCode"), body.path("result").path("fallbackReason")),
-                    response.providerRequestId()
-            );
+            if (isConversationAccessDenied(body)) {
+                String resetConversationId = providerConversationId(requestedConversationId, user, true);
+                response = postJson(
+                        properties.getAssistantQueryPath(),
+                        assistantQueryPayload(request, context, resetConversationId),
+                        user,
+                        resetConversationId
+                );
+                body = response.body();
+                providerConversationId = resetConversationId;
+            }
+            return assistantQueryResponse(response, providerConversationId);
         } catch (RuntimeException exception) {
             log.warn("loomai_assistant_query_fallback reason={} detail={}",
                     exception.getClass().getSimpleName(),
@@ -246,7 +245,7 @@ public class LoomAIIntegrationService {
                     properties.getAssistantSuggestionsPath(),
                     assistantSuggestionsPayload(request, context),
                     user,
-                    conversationId(request == null ? null : request.conversationId(), context)
+                    providerConversationId(conversationId(request == null ? null : request.conversationId(), context), user, false)
             );
             JsonNode body = response.body();
             List<String> parsedSuggestions = suggestionList(body);
@@ -800,13 +799,16 @@ public class LoomAIIntegrationService {
     }
 
     private String sourceRecordVersion(SafeKnowledgeRecord record) {
+        return sha256Hex(record.id() + "\n" + record.type() + "\n" + record.title() + "\n" + record.body() + "\n" + record.metadata());
+    }
+
+    private String sha256Hex(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest((record.id() + "\n" + record.type() + "\n" + record.title() + "\n" + record.body() + "\n" + record.metadata())
-                    .getBytes(StandardCharsets.UTF_8));
+            byte[] hash = digest.digest(nullToEmpty(value).getBytes(StandardCharsets.UTF_8));
             StringBuilder builder = new StringBuilder();
-            for (byte value : hash) {
-                builder.append(String.format("%02x", value));
+            for (byte byteValue : hash) {
+                builder.append(String.format("%02x", byteValue));
             }
             return builder.toString();
         } catch (NoSuchAlgorithmException exception) {
@@ -1218,9 +1220,9 @@ public class LoomAIIntegrationService {
         return value;
     }
 
-    private Map<String, Object> assistantQueryPayload(AssistantQueryRequest request, Map<String, Object> context) {
+    private Map<String, Object> assistantQueryPayload(AssistantQueryRequest request, Map<String, Object> context, String conversationId) {
         if (properties.isPrivateRuntimeMode() || properties.isPlatformBridgeMode()) {
-            Map<String, Object> payload = runtimeChatPayload(context, conversationId(request.conversationId(), context));
+            Map<String, Object> payload = runtimeChatPayload(context, conversationId);
             payload.put("query", request.query());
             payload.put("mode", mode(request.mode()));
             payload.put("position", position(request.position()));
@@ -1298,6 +1300,60 @@ public class LoomAIIntegrationService {
         String actorRole = String.valueOf(context.getOrDefault("actorRole", "user"));
         String pageType = String.valueOf(context.getOrDefault("pageType", "productization"));
         return "produs-" + actorRole.toLowerCase() + "-" + pageType.toLowerCase();
+    }
+
+    private String providerConversationId(String requestedConversationId, User user, boolean reset) {
+        String baseConversationId = safeConversationSegment(requestedConversationId);
+        if (!properties.isPrivateRuntimeAssertionAuth()) {
+            return reset ? appendResetSuffix(baseConversationId) : baseConversationId;
+        }
+        String subject = user == null ? "anonymous" : stableSubject(user);
+        String subjectHash = shortHash(subject);
+        String conversationHash = shortHash(subject + ":" + baseConversationId);
+        String scoped = "produs-" + subjectHash + "-" + baseConversationId + "-" + conversationHash;
+        return reset ? appendResetSuffix(scoped) : truncateConversationId(scoped);
+    }
+
+    private String safeConversationSegment(String value) {
+        String sanitized = blank(value) ? "assistant" : value.trim();
+        sanitized = sanitized.replaceAll("[^A-Za-z0-9._:-]", "-").replaceAll("-{2,}", "-");
+        if (sanitized.isBlank() || "-".equals(sanitized)) {
+            sanitized = "assistant";
+        }
+        if (sanitized.length() > 90) {
+            sanitized = sanitized.substring(0, 72) + "-" + shortHash(sanitized);
+        }
+        return sanitized;
+    }
+
+    private String appendResetSuffix(String conversationId) {
+        String suffix = "-reset-" + UUID.randomUUID().toString().substring(0, 8);
+        return truncateConversationId(conversationId, 180 - suffix.length()) + suffix;
+    }
+
+    private String truncateConversationId(String conversationId) {
+        return truncateConversationId(conversationId, 180);
+    }
+
+    private String truncateConversationId(String conversationId, int maxLength) {
+        if (conversationId.length() <= maxLength) {
+            return conversationId;
+        }
+        return conversationId.substring(0, Math.max(1, maxLength - 13)) + "-" + shortHash(conversationId);
+    }
+
+    private String stableSubject(User user) {
+        if (user == null) {
+            return "anonymous";
+        }
+        if (!blank(user.getSupabaseId())) {
+            return user.getSupabaseId();
+        }
+        return user.getId() == null ? user.getEmail() : user.getId().toString();
+    }
+
+    private String shortHash(String value) {
+        return sha256Hex(value).substring(0, 12);
     }
 
     private ProviderJsonResponse postJson(String path, Object payload, User user, String conversationId) {
@@ -1440,6 +1496,36 @@ public class LoomAIIntegrationService {
                 resultMetadata.path("requestId"),
                 resultMetadata.path("providerRequestId")
         );
+    }
+
+    private AssistantQueryResponse assistantQueryResponse(ProviderJsonResponse response, String fallbackConversationId) {
+        JsonNode body = response.body();
+        return new AssistantQueryResponse(
+                "LOOMAI",
+                "LIVE",
+                boolOr(body, "success", true),
+                textOr(body, "type", "INFORMATION_PROVIDED"),
+                normalizedAnswer(body),
+                normalizedSafeSummary(body),
+                conversationId(body, fallbackConversationId),
+                normalizedConfidence(body),
+                jsonList(firstArray(body, "sources")),
+                jsonList(firstArray(body, "actions")),
+                suggestionList(body),
+                firstText(body.path("fallbackReason"), body.path("errorCode"), body.path("result").path("fallbackReason")),
+                response.providerRequestId()
+        );
+    }
+
+    private boolean isConversationAccessDenied(JsonNode body) {
+        if (body == null || body.isMissingNode() || body.isNull()) {
+            return false;
+        }
+        String raw = body.toString().toLowerCase(Locale.ROOT);
+        return raw.contains("access denied to conversation")
+                || raw.contains("conversation_access_denied")
+                || raw.contains("access_denied")
+                || (raw.contains("conversation") && raw.contains("access") && raw.contains("denied"));
     }
 
     private String normalizedAnswer(JsonNode body) {
