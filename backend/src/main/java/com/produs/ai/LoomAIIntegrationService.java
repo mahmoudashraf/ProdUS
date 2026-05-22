@@ -19,6 +19,10 @@ import com.produs.catalog.ServiceDependencyRepository;
 import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
 import com.produs.entity.User;
+import com.produs.engine.ProductDiagnosis;
+import com.produs.engine.ProductDiagnosisRepository;
+import com.produs.engine.ProductFinding;
+import com.produs.engine.ProductFindingRepository;
 import com.produs.exception.ResourceNotFoundException;
 import com.produs.experts.ExpertProfile;
 import com.produs.experts.ExpertProfileRepository;
@@ -119,6 +123,8 @@ public class LoomAIIntegrationService {
     private final LoomAIRuntimeAssertionService runtimeAssertionService;
     private final ObjectMapper objectMapper;
     private final ProductProfileRepository productRepository;
+    private final ProductDiagnosisRepository diagnosisRepository;
+    private final ProductFindingRepository productFindingRepository;
     private final PackageInstanceRepository packageRepository;
     private final PackageModuleRepository packageModuleRepository;
     private final ProjectWorkspaceRepository workspaceRepository;
@@ -1021,6 +1027,7 @@ public class LoomAIIntegrationService {
             safe.put("workspaceSummary", workspaceSummary(scopedWorkspace));
         }
         if (scopedProduct != null) {
+            safe.put("diagnosisSummary", diagnosisSummary(scopedProduct));
             safe.put("scannerSummary", scannerSummary(scopedProduct, scopedWorkspace));
         }
         return safe;
@@ -1036,6 +1043,54 @@ public class LoomAIIntegrationService {
         value.put("productUrlAvailable", !blank(product.getProductUrl()));
         value.put("repositoryUrlAvailable", !blank(product.getRepositoryUrl()));
         value.put("ownerPresent", product.getOwner() != null);
+        return value;
+    }
+
+    private Map<String, Object> diagnosisSummary(ProductProfile product) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        List<ProductDiagnosis> diagnoses = diagnosisRepository.findByProductProfileIdOrderByCreatedAtDesc(product.getId());
+        value.put("present", !diagnoses.isEmpty());
+        value.put("diagnosisCount", diagnoses.size());
+        if (diagnoses.isEmpty()) {
+            value.put("instruction", "No deterministic diagnosis exists yet; recommend running product diagnosis before making readiness claims.");
+            return value;
+        }
+        ProductDiagnosis diagnosis = diagnoses.getFirst();
+        List<ProductFinding> findings = productFindingRepository.findByDiagnosisIdOrderByCreatedAtAsc(diagnosis.getId());
+        value.put("id", diagnosis.getId().toString());
+        value.put("createdAt", diagnosis.getCreatedAt() == null ? "" : diagnosis.getCreatedAt().toString());
+        value.put("readinessScore", diagnosis.getReadinessScore());
+        value.put("status", diagnosis.getStatus().name());
+        value.put("summary", safeText(diagnosis.getSummary(), SUMMARY_LIMIT));
+        value.put("accessSignals", safeText(diagnosis.getAccessSignals(), SUMMARY_LIMIT));
+        value.put("aiReady", diagnosis.isAiReady());
+        value.put("aiExecuted", diagnosis.isAiExecuted());
+        value.put("findingCount", findings.size());
+        value.put("findingSeverityCounts", countBy(findings, finding -> finding.getSeverity().name()));
+        value.put("findingStatusCounts", countBy(findings, finding -> finding.getStatus().name()));
+        value.put("findings", findings.stream()
+                .limit(LIST_LIMIT)
+                .map(this::productFindingSummary)
+                .toList());
+        return value;
+    }
+
+    private Map<String, Object> productFindingSummary(ProductFinding finding) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("title", safeText(finding.getTitle(), FIELD_LIMIT));
+        value.put("description", safeText(finding.getDescription(), SUMMARY_LIMIT));
+        value.put("affectedLayer", safeText(finding.getAffectedLayer(), FIELD_LIMIT));
+        value.put("severity", finding.getSeverity().name());
+        value.put("status", finding.getStatus().name());
+        value.put("confidenceLevel", finding.getConfidenceLevel().name());
+        value.put("confidenceBasis", safeText(finding.getConfidenceBasis(), SUMMARY_LIMIT));
+        value.put("sourceSignal", safeText(finding.getSourceSignal(), SUMMARY_LIMIT));
+        ServiceModule recommended = finding.getRecommendedModule();
+        value.put("recommendedService", recommended == null ? Map.of() : Map.of(
+                "slug", recommended.getSlug(),
+                "name", safeText(recommended.getName(), FIELD_LIMIT),
+                "categorySlug", recommended.getCategory() == null ? "" : recommended.getCategory().getSlug()
+        ));
         return value;
     }
 
