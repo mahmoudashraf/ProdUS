@@ -34,6 +34,7 @@ public class LoomAIProperties {
     private int timeoutMs = 2500;
     private String assistantSessionPath = "/api/public/chat/session";
     private String assistantQueryPath = "/api/chat/me/query";
+    private String assistantQueryOncePath = "/api/chat/me/query-once";
     private String assistantSuggestionsPath = "/api/chat/me/suggestions";
     private String authContextPath = "/api/chat/me/auth-context";
     private String dataSyncBatchPath = "/api/ai/data-sync/batch";

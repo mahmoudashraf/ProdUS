@@ -203,6 +203,15 @@ public class LoomAIIntegrationService {
 
     @Transactional(readOnly = true)
     public AssistantQueryResponse query(User user, AssistantQueryRequest request) {
+        return query(user, request, false);
+    }
+
+    @Transactional(readOnly = true)
+    public AssistantQueryResponse queryOnce(User user, AssistantQueryRequest request) {
+        return query(user, request, true);
+    }
+
+    private AssistantQueryResponse query(User user, AssistantQueryRequest request, boolean oneTimeAnswer) {
         if (request == null || request.query() == null || request.query().isBlank()) {
             throw new IllegalArgumentException("Assistant query is required");
         }
@@ -214,7 +223,7 @@ public class LoomAIIntegrationService {
             String requestedConversationId = conversationId(request.conversationId(), context);
             String providerConversationId = providerConversationId(requestedConversationId, user, false);
             ProviderJsonResponse response = postJson(
-                    properties.getAssistantQueryPath(),
+                    oneTimeAnswer ? properties.getAssistantQueryOncePath() : properties.getAssistantQueryPath(),
                     assistantQueryPayload(request, context, providerConversationId),
                     user,
                     providerConversationId
@@ -223,7 +232,7 @@ public class LoomAIIntegrationService {
             if (isConversationAccessDenied(body)) {
                 String resetConversationId = providerConversationId(requestedConversationId, user, true);
                 response = postJson(
-                        properties.getAssistantQueryPath(),
+                        oneTimeAnswer ? properties.getAssistantQueryOncePath() : properties.getAssistantQueryPath(),
                         assistantQueryPayload(request, context, resetConversationId),
                         user,
                         resetConversationId

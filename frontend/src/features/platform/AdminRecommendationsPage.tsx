@@ -4,6 +4,7 @@ import { AutoAwesomeOutlined, CloudSyncOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getJson, postJson } from './api';
+import PlatformAssistantCard from './PlatformAssistantCard';
 import { EmptyState, PageHeader, PastelChip, QueryState, SectionTitle, Surface, appleColors, formatLabel } from './PlatformComponents';
 import { AdminReadiness, AIRecommendation, LoomAIKnowledgeSync, LoomAIStatus } from './types';
 
@@ -79,6 +80,16 @@ export default function AdminRecommendationsPage() {
           </Box>
         </Box>
       </Surface>
+      <PlatformAssistantCard
+        title="AI Operations Brief"
+        description="Summarize LoomAI readiness, scanner gates, provider traces, fallback risk, and production-readiness follow-up."
+        prompt={`Review ProdUS AI and scanner operations readiness for admins. LoomAI configured: ${loomAIStatus.data?.configured ? 'yes' : 'no'}, environment: ${loomAIStatus.data?.environment || 'unknown'}, live read actions: ${loomAIStatus.data?.activeReadActions?.length || 0}, knowledge sync configured: ${loomAIStatus.data?.knowledgeSyncConfigured ? 'yes' : 'no'}, production gate status: ${readiness.data?.overallStatus || 'unknown'}, latest recommendation events: ${(recommendations.data || []).slice(0, 5).map((item) => `${item.recommendationType} via ${item.providerName || 'unknown'}${item.fallback ? ' fallback' : ''}`).join('; ') || 'none'}. Explain operational risks, missing integration proof, fallback implications, and what the admin should inspect next. Do not expose secrets or runtime internals beyond high-level status.`}
+        conversationId="admin-ai-operations-brief"
+        context={{ pageType: 'admin-scanner-ops' }}
+        disabled={!loomAIStatus.data}
+        accent={readiness.data?.overallStatus === 'BLOCKED' ? appleColors.red : readiness.data?.overallStatus === 'WARN' ? appleColors.amber : appleColors.purple}
+        cta="Summarize Ops"
+      />
       <Surface>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }} justifyContent="space-between" sx={{ mb: 2 }}>
           <Box>

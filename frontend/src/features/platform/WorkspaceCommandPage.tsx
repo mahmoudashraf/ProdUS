@@ -17,6 +17,7 @@ import useAuth from '@/hooks/useAuth';
 import { uploadService } from '@/services/uploadService';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
+import PlatformAssistantCard from './PlatformAssistantCard';
 import { sortWorkspacesForOwner } from './displayOrder';
 import {
   DotLabel,
@@ -789,6 +790,22 @@ export default function WorkspaceCommandPage() {
 
               {(milestones.isFetching || deliverables.isFetching || supportRequests.isFetching || disputes.isFetching || attachments.isFetching) && <LinearProgress />}
 
+              <PlatformAssistantCard
+                title="AI Milestone Evidence Advisor"
+                description="Summarize acceptance proof, missing evidence, failed checks, and review notes before owner approval."
+                prompt={`Review milestone evidence for workspace "${selectedWorkspace.name}". Product is ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}, package is ${selectedWorkspace.packageInstance?.name || 'not recorded'}, selected milestone is "${selectedMilestone?.title || 'not selected'}" with status ${selectedMilestone?.status || 'unknown'}. Deliverables in focus: ${deliverableList.slice(0, 5).map((deliverable) => `${deliverable.title} (${deliverable.status})`).join('; ') || 'none'}. Acceptance criteria: ${selectedMilestoneCriteria.slice(0, 5).map((criterion) => `${criterion.title} (${criterion.status})`).join('; ') || 'none generated'}. Missing required evidence count is ${missingEvidenceCount}. Scanner evidence count is ${scannerEvidenceList.length}. Explain what is verified, what is missing, what needs human review, and what change request or approval decision is safe next. Do not certify production readiness.`}
+                conversationId={`workspace-evidence-advisor-${selectedWorkspace.id}-${selectedMilestone?.id || 'summary'}`}
+                context={{
+                  pageType: 'milestone-review',
+                  productId: selectedWorkspaceProductId,
+                  packageId: selectedWorkspace.packageInstance?.id,
+                  workspaceId: selectedWorkspace.id,
+                  milestoneId: selectedMilestone?.id,
+                }}
+                accent={missingEvidenceCount ? appleColors.amber : appleColors.green}
+                cta="Review Evidence"
+              />
+
               <Surface>
                 <SectionTitle title="Milestones" action={selectedMilestone && <PastelChip label={`Selected: ${selectedMilestone.title}`} accent={workspaceAccent(selectedMilestone.status)} />} />
                 <Box component="form" onSubmit={milestoneForm.handleSubmit(() => createMilestone.mutate())} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 1fr) 170px auto' }, gap: 1, mb: 2 }}>
@@ -1109,6 +1126,23 @@ export default function WorkspaceCommandPage() {
         </Stack>
 
         <Stack spacing={2}>
+          {selectedWorkspace && (
+            <PlatformAssistantCard
+              title="AI Handoff Readiness"
+              description="Identify support handoff gaps across runbooks, access, monitoring, unresolved risks, and evidence quality."
+              prompt={`Assess support handoff readiness for workspace "${selectedWorkspace.name}". Workspace status is ${selectedWorkspace.status}. Product is ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}. Completed milestones: ${milestoneList.filter((milestone) => ['ACCEPTED', 'COMPLETED', 'DONE'].includes(milestone.status)).length}/${milestoneList.length}. Open support requests: ${supportList.length}. Open risks: ${disputeList.length}. Missing required evidence: ${missingEvidenceCount}. Integration records: ${integrationList.length}. Handoff documents: ${governance.data?.handoffs?.length || 0}. Explain missing runbooks, access, monitoring, known issue, and ownership evidence. Recommend safe owner/team questions and next actions. Do not claim handoff is complete unless the evidence supports human review.`}
+              conversationId={`workspace-handoff-${selectedWorkspace.id}`}
+              context={{
+                pageType: 'active-workspace',
+                productId: selectedWorkspaceProductId,
+                packageId: selectedWorkspace.packageInstance?.id,
+                workspaceId: selectedWorkspace.id,
+                milestoneId: selectedMilestone?.id,
+              }}
+              accent={supportList.length || disputeList.length || missingEvidenceCount ? appleColors.amber : appleColors.green}
+              cta="Check Handoff"
+            />
+          )}
           <Surface>
             <SectionTitle title="Participants" action={<PastelChip label={`${participantList.length}`} accent={appleColors.cyan} bg="#e4f9fd" />} />
             {selectedWorkspace && canCoordinate && (

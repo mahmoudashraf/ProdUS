@@ -6,7 +6,7 @@ Audience: ProdUS backend, frontend, platform operations, MCP, scanner, and LoomA
 
 Status: staging LoomAI deployment is live and verified. ProdUS should integrate through the standardized backend-mediated private runtime contract. The Platform consumer bridge remains useful for operator smoke tests and fallback comparison, but it is not the target application path.
 
-Latest LoomAI-side status, verified 2026-05-21:
+Latest LoomAI-side status, verified 2026-05-22:
 
 - Runtime `dep-7706fafb` accepts issuer `produs-staging-backend`.
 - Runtime `dep-7706fafb` accepts audience `dep-7706fafb`.
@@ -14,6 +14,8 @@ Latest LoomAI-side status, verified 2026-05-21:
 - Raw runtime and MCP secret material is captured in the LoomAI private handoff under `2026-05-20 ProdUS Direct Runtime Auth Material (Private)`. Transfer those values only through the agreed secure operations channel.
 - Direct private runtime `GET /api/chat/me/auth-context` passed with a ProdUS-shaped `rpa1` assertion.
 - Direct private runtime `POST /api/chat/me/query` passed with `mode=support_assistant`, `position=productization`, and canonical `context`.
+- Direct private runtime `POST /api/chat/me/query-once` is the supported one-time answer endpoint for page helpers and smoke checks. It uses the same request/response contract as `/api/chat/me/query` and the same `chat:query` scope. Runtime treats `conversationId` as correlation only on this endpoint, skips persisted chat-memory loading, and skips conversation turn recording.
+- Runtime code deployment `jz8ntc2b03kmllnpfn43esa7` deployed commit `22fa7fb48` for the implementation smoke; follow-up deployment `kpx28b02ryukztitqvem2399` deployed commit `969f87dfb` after the status documentation update. Live smoke verified `/query-once` returns `200` without creating a chat conversation (`GET /conversations/{queryOnceConversationId}` returned `404`), while normal `/query` still persists (`GET /conversations/{queryConversationId}` returned `200`).
 - Direct private runtime `POST /api/chat/me/suggestions` passed with `content` and `maxSuggestions`.
 - Negative auth smoke passed for missing runtime API key and wrong issuer.
 - ProdUS backend `/health` and `/loomai/tool-allowlist` are reachable and tool allowlist reports `ready=true`.
@@ -32,6 +34,7 @@ Latest LoomAI-side status, verified 2026-05-21:
 Current contract alignment:
 
 - LoomAI runtime/bridge now returns the flat canonical chat response for supported chat calls.
+- LoomAI runtime now separates persistent chat intent from one-time answer intent: `/api/chat/me/query` is for chat panels; `/api/chat/me/query-once` is for non-persistent one-time answers and must not be used to read or write chat history.
 - Machine-safe action failures are preserved as `actions[].errorCode` and `actions[].actionResult.errorCode`.
 - ProdUS must not parse shopper/user-facing answer text to detect auth, access, action, or provider failures.
 - ProdUS must not expose runtime, bridge, provider, MCP, vector, or Coolify internals to the browser.
@@ -135,6 +138,7 @@ LOOMAI_ASSERTION_SIGNING_ALGORITHM=HS256
 LOOMAI_ASSERTION_SIGNING_SECRET=<same HMAC signing secret configured on runtime>
 LOOMAI_TIMEOUT_MS=8000
 LOOMAI_ASSISTANT_QUERY_PATH=/api/chat/me/query
+LOOMAI_ASSISTANT_QUERY_ONCE_PATH=/api/chat/me/query-once
 LOOMAI_ASSISTANT_SUGGESTIONS_PATH=/api/chat/me/suggestions
 LOOMAI_AUTH_CONTEXT_PATH=/api/chat/me/auth-context
 ```
@@ -248,6 +252,17 @@ X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer <rpa1-token>
   }
 }
 ```
+
+For page-level helpers, inline analysis, and smoke checks that must not persist chat history, call the one-time endpoint instead:
+
+```http
+POST http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/query-once
+Content-Type: application/json
+X-AIFABRIC-RUNTIME-API-KEY: <deployment-scoped-runtime-api-key>
+X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer <rpa1-token>
+```
+
+The request and response shape is the same as `/api/chat/me/query`. `conversationId` may be supplied as a correlation id, but `/api/chat/me/query-once` must not create conversation history. Do not send a `persistConversation` flag; ProdUS should choose `/query` or `/query-once` by product UX intent.
 
 Do not send:
 

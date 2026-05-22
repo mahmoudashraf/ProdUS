@@ -905,11 +905,11 @@ export interface LoomAIKnowledgeSync {
 
 export interface AssistantContext {
   pageType: string;
-  productId?: string;
-  packageId?: string;
-  workspaceId?: string;
-  milestoneId?: string;
-  findingId?: string;
+  productId?: string | undefined;
+  packageId?: string | undefined;
+  workspaceId?: string | undefined;
+  milestoneId?: string | undefined;
+  findingId?: string | undefined;
 }
 
 export interface AssistantSuggestionsResponse {

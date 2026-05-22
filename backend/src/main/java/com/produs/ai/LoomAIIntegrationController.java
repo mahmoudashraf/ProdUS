@@ -77,6 +77,14 @@ public class LoomAIIntegrationController {
         return integrationService.query(user, request);
     }
 
+    @PostMapping("/assistant/query-once")
+    public AssistantQueryResponse queryOnce(
+            @AuthenticationPrincipal User user,
+            @RequestBody AssistantQueryRequest request
+    ) {
+        return integrationService.queryOnce(user, request);
+    }
+
     @PostMapping("/assistant/suggestions")
     public AssistantSuggestionsResponse suggestions(
             @AuthenticationPrincipal User user,

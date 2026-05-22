@@ -172,6 +172,21 @@ class LoomAIStagingIntegrationTest {
                 .andExpect(jsonPath("$.answer").value(containsString("Use scanner evidence")))
                 .andExpect(jsonPath("$.providerRequestId").value("loom-staging-request"));
 
+        mockMvc.perform(post("/api/ai/assistant/query-once")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "conversationId": "loom-page-helper-123",
+                                  "query": "Summarize package readiness without chat history",
+                                  "context": {"pageType":"owner-package-builder","productId":"%s"}
+                                }
+                                """.formatted(product.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.provider").value("LOOMAI"))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.answer").value(containsString("Use scanner evidence")));
+
         conversationAccessDeniedAttempts.set(0);
         mockMvc.perform(post("/api/ai/assistant/query")
                         .with(auth(owner))
@@ -302,62 +317,9 @@ class LoomAIStagingIntegrationTest {
                     }
                     """);
         });
+        server.createContext("/api/chat/me/query-once", exchange -> handleRuntimeQuery(exchange, false));
         server.createContext("/api/chat/me/query", exchange -> {
-            if (!privateRuntimeAuthorized(exchange)) {
-                respond(exchange, 401, "{\"error\":\"unauthorized\"}");
-                return;
-            }
-            String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-            if (!requestBody.contains("\"query\"") || !requestBody.contains("\"conversationId\"")
-                    || !requestBody.contains("\"mode\"") || !requestBody.contains("\"position\"")
-                    || requestBody.contains("\"message\"") || requestBody.contains("\"allowedActions\"")) {
-                respond(exchange, 400, "{\"error\":\"query and conversationId are required\"}");
-                return;
-            }
-            String assertionPayload = assertionPayload(exchange);
-            if (requestBody.contains("\"conversationId\":\"loom-session-123\"")
-                    || assertionPayload.contains("\"sessionId\":\"loom-session-123\"")) {
-                respond(exchange, 400, "{\"error\":\"private runtime conversation id must be scoped by ProdUS\"}");
-                return;
-            }
-            if (!requestBody.contains("\"productSummary\"") || !requestBody.contains("\"scannerSummary\"")
-                    || !requestBody.contains("\"actionProfile\":\"loomai-productization-read\"")
-                    || requestBody.contains("sk-test-secret") || requestBody.contains("api.example.test")) {
-                respond(exchange, 400, "{\"error\":\"safe context enrichment is required\"}");
-                return;
-            }
-            if (requestBody.contains("force fallback")) {
-                respond(exchange, 503, "{\"error\":\"temporarily unavailable\"}");
-                return;
-            }
-            if (requestBody.contains("force access denied once")
-                    && conversationAccessDeniedAttempts.getAndIncrement() == 0) {
-                respond(exchange, 200, """
-                        {
-                          "success": false,
-                          "type": "ACCESS_DENIED",
-                          "answer": "Access denied to conversation",
-                          "safeSummary": "Access denied to conversation",
-                          "errorCode": "ACCESS_DENIED",
-                          "conversationId": "denied-conversation",
-                          "metadata": {"requestId": "loom-denied-request"}
-                        }
-                        """);
-                return;
-            }
-            respond(exchange, 200, """
-                    {
-                      "success": true,
-	                      "type": "INFORMATION_PROVIDED",
-	                      "answer": "Use scanner evidence and product context to prioritize readiness.",
-	                      "safeSummary": "Use scanner evidence and product context to prioritize readiness.",
-                          "conversationId": "loom-session-123",
-                          "providerRequestId": "loom-result-request",
-	                      "sources": [{"type": "scanner"}],
-	                      "actions": [],
-	                      "metadata": {"requestId": "loom-result-request"}
-                    }
-                    """);
+            handleRuntimeQuery(exchange, true);
         });
         server.createContext("/api/chat/me/suggestions", exchange -> {
             if (!privateRuntimeAuthorized(exchange)) {
@@ -422,6 +384,64 @@ class LoomAIStagingIntegrationTest {
                     """);
         });
         server.start();
+    }
+
+    private static void handleRuntimeQuery(HttpExchange exchange, boolean persistent) throws IOException {
+        if (!privateRuntimeAuthorized(exchange)) {
+            respond(exchange, 401, "{\"error\":\"unauthorized\"}");
+            return;
+        }
+        String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        if (!requestBody.contains("\"query\"") || !requestBody.contains("\"conversationId\"")
+                || !requestBody.contains("\"mode\"") || !requestBody.contains("\"position\"")
+                || requestBody.contains("\"message\"") || requestBody.contains("\"allowedActions\"")) {
+            respond(exchange, 400, "{\"error\":\"query and conversationId are required\"}");
+            return;
+        }
+        String assertionPayload = assertionPayload(exchange);
+        if (requestBody.contains("\"conversationId\":\"loom-session-123\"")
+                || assertionPayload.contains("\"sessionId\":\"loom-session-123\"")) {
+            respond(exchange, 400, "{\"error\":\"private runtime conversation id must be scoped by ProdUS\"}");
+            return;
+        }
+        if (!requestBody.contains("\"productSummary\"") || !requestBody.contains("\"scannerSummary\"")
+                || !requestBody.contains("\"actionProfile\":\"loomai-productization-read\"")
+                || requestBody.contains("sk-test-secret") || requestBody.contains("api.example.test")) {
+            respond(exchange, 400, "{\"error\":\"safe context enrichment is required\"}");
+            return;
+        }
+        if (requestBody.contains("force fallback")) {
+            respond(exchange, 503, "{\"error\":\"temporarily unavailable\"}");
+            return;
+        }
+        if (persistent && requestBody.contains("force access denied once")
+                && conversationAccessDeniedAttempts.getAndIncrement() == 0) {
+            respond(exchange, 200, """
+                    {
+                      "success": false,
+                      "type": "ACCESS_DENIED",
+                      "answer": "Access denied to conversation",
+                      "safeSummary": "Access denied to conversation",
+                      "errorCode": "ACCESS_DENIED",
+                      "conversationId": "denied-conversation",
+                      "metadata": {"requestId": "loom-denied-request"}
+                    }
+                    """);
+            return;
+        }
+        respond(exchange, 200, """
+                {
+                  "success": true,
+                  "type": "INFORMATION_PROVIDED",
+                  "answer": "Use scanner evidence and product context to prioritize readiness.",
+                  "safeSummary": "Use scanner evidence and product context to prioritize readiness.",
+                  "conversationId": "loom-session-123",
+                  "providerRequestId": "loom-result-request",
+                  "sources": [{"type": "scanner", "title": "Scanner evidence"}],
+                  "actions": [{"name": "produs.scan.start", "label": "Prepare scanner run", "confirmationRequired": true, "rationale": "Validate current evidence before launch.", "riskLevel": "medium"}],
+                  "metadata": {"requestId": "loom-result-request"}
+                }
+                """);
     }
 
     private static boolean privateRuntimeAuthorized(HttpExchange exchange) {

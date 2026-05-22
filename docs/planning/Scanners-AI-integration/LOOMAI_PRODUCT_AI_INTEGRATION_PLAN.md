@@ -33,6 +33,7 @@ Current staging direct-runtime behavior is verified:
 - Runtime auth uses `X-AIFABRIC-RUNTIME-API-KEY` and `X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer rpa1...`.
 - `GET /api/chat/me/auth-context` works with ProdUS-generated assertions.
 - `POST /api/chat/me/query` works with canonical `query`, `conversationId`, `mode`, `position`, and `context`.
+- `POST /api/chat/me/query-once` is the supported LoomAI endpoint for page helpers, inline explainers, smoke checks, and other non-conversational requests that must not persist chat history.
 - `POST /api/chat/me/suggestions` works with `content` and `maxSuggestions`.
 - ProdUS staging broker endpoints return live LoomAI query and suggestions responses.
 - ProdUS MCP authentication is enforced in staging: unauthenticated `/mcp tools/list` returns `401`; authenticated discovery returns the ProdUS tool catalog.
@@ -52,6 +53,7 @@ GET  /api/ai/loomai/knowledge-export
 POST /api/ai/loomai/knowledge-sync
 POST /api/ai/assistant/session
 POST /api/ai/assistant/query
+POST /api/ai/assistant/query-once
 POST /api/ai/assistant/suggestions
 ```
 
@@ -216,6 +218,20 @@ Frontend rules:
 - `conversationId` should be stable per assistant surface/session.
 - `context` may include IDs visible on the current page.
 - Do not send raw files, private URLs, Supabase session data, access tokens, raw scanner logs, or source code.
+
+Use `POST /api/ai/assistant/query` only for persistent assistant conversations where the user expects a chat thread to continue.
+
+### 5.1a One-Time Query Request
+
+Use `POST /api/ai/assistant/query-once` for page-level helpers and non-conversational assistant panels:
+
+```http
+POST /api/ai/assistant/query-once
+Authorization: Bearer <Supabase JWT or staging mock token>
+Content-Type: application/json
+```
+
+The request and response shape is identical to `/api/ai/assistant/query`. ProdUS backend maps this endpoint to LoomAI runtime `POST /api/chat/me/query-once`, which treats `conversationId` as correlation only and must not create chat history. Do not add a `persistConversation` field; choose `/query` or `/query-once` by product UX intent.
 
 ### 5.2 Query Response
 
@@ -1207,13 +1223,23 @@ Required:
 
 ### Phase 6: UI Completion
 
-Required:
+Status: implemented for current Studio assistant surfaces on 2026-05-22; staging deployment and live verification are required after each UI change.
 
-- wire assistant surfaces to real backend broker endpoints
-- connect action proposals to real confirmed backend actions
-- show source basis and confidence/uncertainty where present
-- test owner, team, advisor, and admin role-specific views
-- verify mobile layout for assistant panels/action previews
+Implemented:
+
+- owner product workspace AI diagnosis, scanner summary, finding review, service selection, package recommendation, and milestone/evidence readiness panels now use the ProdUS backend `query-once` broker.
+- package builder includes an AI service plan advisor.
+- active delivery/workspace views include delivery evidence, milestone evidence, and handoff readiness assistant panels.
+- admin recommendations includes an AI operations brief.
+- assistant answers render Markdown safely as UI blocks instead of raw Markdown text.
+- source basis, confidence, provider trace, fallback state, and proposed actions render in compact Apple-like action/source rows.
+- owner workspace action proposals are connected to confirmed ProdUS flows for package build, workspace creation, hosted scan start, and finding risk acceptance where the current page has the required context.
+
+Remaining:
+
+- run live staging verification after deployment for every assistant surface.
+- broaden confirmed action handlers only after each action has explicit UX confirmation, authorization, audit, and deterministic backend execution.
+- verify mobile layout for assistant panels/action previews in staging screenshots.
 
 ### Phase 7: Production Readiness
 

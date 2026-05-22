@@ -163,6 +163,7 @@ loomai:
   timeout-ms: ${LOOMAI_TIMEOUT_MS:2500}
   assistant-session-path: ${LOOMAI_ASSISTANT_SESSION_PATH:/api/public/chat/session}
   assistant-query-path: ${LOOMAI_ASSISTANT_QUERY_PATH:/api/chat/me/query}
+  assistant-query-once-path: ${LOOMAI_ASSISTANT_QUERY_ONCE_PATH:/api/chat/me/query-once}
   assistant-suggestions-path: ${LOOMAI_ASSISTANT_SUGGESTIONS_PATH:/api/chat/me/suggestions}
   auth-context-path: ${LOOMAI_AUTH_CONTEXT_PATH:/api/chat/me/auth-context}
   data-sync-batch-path: ${LOOMAI_DATA_SYNC_BATCH_PATH:/api/ai/data-sync/batch}

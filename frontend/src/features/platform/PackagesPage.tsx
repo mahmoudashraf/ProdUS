@@ -13,6 +13,7 @@ import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
+import PlatformAssistantCard from './PlatformAssistantCard';
 import { sortPackagesForOwner } from './displayOrder';
 import {
   DotLabel,
@@ -321,6 +322,21 @@ export default function PackagesPage() {
                   <ProgressRing value={score} size={96} color={statusAccent(selectedPackage.status)} label="confidence" />
                 </Stack>
                 {(modules.isFetching || teamRecommendations.isFetching) && <LinearProgress sx={{ borderRadius: 999 }} />}
+
+                <PlatformAssistantCard
+                  title="AI Service Plan Advisor"
+                  description="Explain package dependencies, service sequence, budget/timeline risk, and what proof a matched team should provide."
+                  prompt={`Review service plan "${selectedPackage.name}" for product ${selectedPackage.productProfile?.name || 'not recorded'}. Package status is ${selectedPackage.status}. Included services: ${(modules.data || []).map((module) => `${module.serviceModule.name} (${module.status})`).join('; ') || 'none'}. Matched teams: ${(teamRecommendations.data || []).slice(0, 4).map((recommendation) => `${recommendation.team.name} ${Math.round(recommendation.score * 100)}%`).join('; ') || 'none'}. Proposals: ${(proposals.data || []).slice(0, 4).map((proposal) => `${proposal.team.name} ${proposal.status}`).join('; ') || 'none'}. Explain whether the package sequence is coherent, what dependencies or evidence gates matter, what owner should ask teams, and what should happen before workspace creation. Do not invent services outside the catalog.`}
+                  conversationId={`packages-service-plan-${selectedPackage.id}`}
+                  context={{
+                    pageType: 'owner-package-builder',
+                    productId: selectedPackage.productProfile?.id,
+                    packageId: selectedPackage.id,
+                    workspaceId: workspaceOptions[0]?.id,
+                  }}
+                  accent={statusAccent(selectedPackage.status)}
+                  cta="Advise Plan"
+                />
 
                 <Box>
                   <SectionTitle title="Selected Services" action={<PastelChip label={`${modules.data?.length || 0} included`} accent={appleColors.green} />} />

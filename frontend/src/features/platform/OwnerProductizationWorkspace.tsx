@@ -30,7 +30,25 @@ import {
   ShieldOutlined,
   VisibilityOutlined,
 } from '@mui/icons-material';
-import { Alert, Box, Button, Checkbox, Divider, FormControlLabel, IconButton, LinearProgress, MenuItem, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControlLabel,
+  IconButton,
+  LinearProgress,
+  MenuItem,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import { deleteJson, getJson, patchJson, postJson, putJson } from './api';
@@ -255,6 +273,8 @@ interface StudioAssistantCardProps {
   accent?: string;
   compact?: boolean;
   cta?: string;
+  onConfirmAction?: (action: Record<string, unknown>) => Promise<void> | void;
+  actionDisabledReason?: (action: Record<string, unknown>) => string;
 }
 
 const productInitialValues: ProductProfilePayload = {
@@ -607,6 +627,21 @@ function AssistantMarkdown({ text }: { text: string }) {
   );
 }
 
+const assistantRecordText = (record: Record<string, unknown>, keys: string[], fallback = '') => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number') return String(value);
+  }
+  return fallback;
+};
+
+const assistantActionLabel = (action: Record<string, unknown>) =>
+  assistantRecordText(action, ['label', 'title', 'name'], 'Review proposed action');
+
+const assistantSourceLabel = (source: Record<string, unknown>) =>
+  assistantRecordText(source, ['title', 'name', 'id', 'type'], 'Source');
+
 function StudioAssistantCard({
   title,
   description,
@@ -617,7 +652,10 @@ function StudioAssistantCard({
   accent = appleColors.purple,
   compact = false,
   cta = 'Ask AI',
+  onConfirmAction,
+  actionDisabledReason,
 }: StudioAssistantCardProps) {
+  const [pendingAction, setPendingAction] = useState<Record<string, unknown> | null>(null);
   const assistantQuery = useMutation({
     mutationFn: () =>
       postJson<AssistantQueryResponse, {
@@ -626,7 +664,7 @@ function StudioAssistantCard({
         mode: string;
         position: string;
         context: StudioAssistantContext;
-      }>('/ai/assistant/query', {
+      }>('/ai/assistant/query-once', {
         conversationId,
         query: prompt,
         mode: 'support_assistant',
@@ -634,9 +672,20 @@ function StudioAssistantCard({
         context,
       }),
   });
+  const confirmAssistantAction = useMutation({
+    mutationFn: async (action: Record<string, unknown>) => {
+      if (onConfirmAction) {
+        await onConfirmAction(action);
+        return;
+      }
+      throw new Error('This proposed action needs a product-specific confirmation flow before execution.');
+    },
+    onSuccess: () => setPendingAction(null),
+  });
 
   const result = assistantQuery.data;
   const isLive = result?.mode === 'LIVE';
+  const actionDisabled = pendingAction ? actionDisabledReason?.(pendingAction) || (!onConfirmAction ? 'This proposed action is displayed for review only.' : '') : '';
 
   return (
     <Box
@@ -727,8 +776,92 @@ function StudioAssistantCard({
               <PastelChip label={formatLabel(result.fallbackReason)} accent={appleColors.amber} bg="#fff4dc" />
             )}
           </Stack>
+          {!!result.sources?.length && (
+            <Box sx={{ mt: 1.25 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.65, fontWeight: 900, textTransform: 'uppercase' }}>
+                Source basis
+              </Typography>
+              <Stack spacing={0.75}>
+                {result.sources.slice(0, 4).map((source, index) => (
+                  <Box key={`${assistantSourceLabel(source)}-${index}`} sx={{ p: 1, border: '1px solid', borderColor: '#dbeafe', borderRadius: 1, bgcolor: '#f8fbff' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{assistantSourceLabel(source)}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {assistantRecordText(source, ['summary', 'description', 'type'], 'Authorized ProdUS context')}
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+          )}
+          {!!result.actions?.length && (
+            <Box sx={{ mt: 1.25 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.65, fontWeight: 900, textTransform: 'uppercase' }}>
+                Proposed actions
+              </Typography>
+              <Stack spacing={0.75}>
+                {result.actions.slice(0, 3).map((action, index) => {
+                  const disabledReason = actionDisabledReason?.(action) || (!onConfirmAction ? 'Review only. No confirmed action handler is attached here.' : '');
+                  return (
+                    <Box key={`${assistantActionLabel(action)}-${index}`} sx={{ p: 1, border: '1px solid', borderColor: '#e7ddff', borderRadius: 1, bgcolor: '#f8f7ff' }}>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 900 }}>{assistantActionLabel(action)}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            {assistantRecordText(action, ['rationale', 'summary'], 'Requires explicit human confirmation before ProdUS executes anything.')}
+                          </Typography>
+                          {disabledReason && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35 }}>
+                              {disabledReason}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          disabled={!!disabledReason}
+                          onClick={() => setPendingAction(action)}
+                          sx={{ minWidth: 112, minHeight: 34, bgcolor: accent, '&:hover': { bgcolor: accent } }}
+                        >
+                          Confirm
+                        </Button>
+                      </Stack>
+                    </Box>
+                  );
+                })}
+              </Stack>
+            </Box>
+          )}
         </Box>
       )}
+      <Dialog open={!!pendingAction} onClose={() => setPendingAction(null)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 900 }}>Confirm AI Proposed Action</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontWeight: 900 }}>{pendingAction ? assistantActionLabel(pendingAction) : ''}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
+            {pendingAction ? assistantRecordText(pendingAction, ['rationale', 'summary'], 'ProdUS will execute this only after this confirmation.') : ''}
+          </Typography>
+          {pendingAction && assistantRecordText(pendingAction, ['riskLevel']) && (
+            <Box sx={{ mt: 1.25 }}>
+              <PastelChip label={`Risk ${assistantRecordText(pendingAction, ['riskLevel'])}`} accent={appleColors.amber} bg="#fff4dc" />
+            </Box>
+          )}
+          {confirmAssistantAction.isError && (
+            <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 1 }}>
+              {confirmAssistantAction.error instanceof Error ? confirmAssistantAction.error.message : 'Could not execute this proposed action.'}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setPendingAction(null)} disabled={confirmAssistantAction.isPending}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => pendingAction && confirmAssistantAction.mutate(pendingAction)}
+            disabled={!pendingAction || !!actionDisabled || confirmAssistantAction.isPending}
+          >
+            {confirmAssistantAction.isPending ? 'Confirming...' : 'Confirm'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
@@ -1345,6 +1478,65 @@ export default function OwnerProductizationWorkspace({
     workspaceId: selectedWorkspace?.id,
     ...overrides,
   });
+  const assistantActionName = (action: Record<string, unknown>) =>
+    assistantRecordText(action, ['name', 'action', 'toolName']).toLowerCase();
+  const assistantActionInput = (action: Record<string, unknown>) =>
+    action.input && typeof action.input === 'object' && !Array.isArray(action.input)
+      ? action.input as Record<string, unknown>
+      : {};
+  const assistantActionDisabledReason = (action: Record<string, unknown>) => {
+    const name = assistantActionName(action);
+    if (name.includes('package.build') || name.includes('requirement.submit')) {
+      const requirementId = assistantActionInput(action).requirementId;
+      return typeof requirementId === 'string' || buildTargetRequirementId ? '' : 'Submit a product brief before building a package.';
+    }
+    if (name.includes('workspace.create')) {
+      return (cart.data?.serviceItems || []).length ? '' : 'Add at least one lifecycle service to the draft cart first.';
+    }
+    if (name.includes('scan.start')) {
+      return hostedScanBlockedReason;
+    }
+    if (name.includes('finding.accept_risk')) {
+      return selectedFinding?.id ? '' : 'Select a scanner finding first.';
+    }
+    return 'This action is not in the confirmed ProdUS execution allowlist yet.';
+  };
+  const handleAssistantAction = async (action: Record<string, unknown>) => {
+    const name = assistantActionName(action);
+    const input = assistantActionInput(action);
+    if (name.includes('package.build') || name.includes('requirement.submit')) {
+      const requirementId = typeof input.requirementId === 'string' && input.requirementId ? input.requirementId : buildTargetRequirementId;
+      if (!requirementId) throw new Error('No requirement intake is available for package creation.');
+      await buildPackage.mutateAsync(requirementId);
+      return;
+    }
+    if (name.includes('workspace.create')) {
+      if (!(cart.data?.serviceItems || []).length) throw new Error('Add lifecycle services to the draft cart before creating a workspace.');
+      await convertCart.mutateAsync();
+      return;
+    }
+    if (name.includes('scan.start')) {
+      if (hostedScanBlockedReason) throw new Error(hostedScanBlockedReason);
+      await startHostedScan.mutateAsync();
+      return;
+    }
+    if (name.includes('finding.accept_risk')) {
+      if (!selectedFinding?.id) throw new Error('Select a scanner finding first.');
+      await updateFindingStatus.mutateAsync({
+        findingId: selectedFinding.id,
+        payload: {
+          status: 'ACCEPTED_RISK',
+          reason: assistantRecordText(action, ['rationale', 'summary'], 'Owner confirmed AI-proposed risk acceptance for review tracking.'),
+        },
+      });
+      return;
+    }
+    throw new Error('This AI proposed action is not enabled for execution in this surface.');
+  };
+  const assistantActionProps = {
+    onConfirmAction: handleAssistantAction,
+    actionDisabledReason: assistantActionDisabledReason,
+  };
 
   useEffect(() => {
     if (!scannerUploadForm.sourceId && scannerSummary.data?.sources[0]?.id) {
@@ -1658,6 +1850,7 @@ export default function OwnerProductizationWorkspace({
                   prompt={`Do not call tools for this answer. Explain the productization diagnosis for ${selectedProduct.name} using these visible facts directly. ${diagnosisPromptFacts} Focus on readiness score, blockers, recommended lifecycle services, scanner signals, and the next owner decision. Do not certify production readiness; call out where human review is needed.`}
                   conversationId={`studio-diagnosis-${selectedProduct.id}`}
                   context={assistantContext('product-diagnosis')}
+                  {...assistantActionProps}
                   accent={appleColors.purple}
                   cta="Explain Diagnosis"
                 />
@@ -1714,6 +1907,7 @@ export default function OwnerProductizationWorkspace({
                   prompt={`Do not call tools for this answer. Summarize scanner readiness for ${selectedProduct.name}. Current scanner score is ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings. Top visible findings: ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none'}. Prioritize critical and high findings, explain the business risk, identify missing evidence, and recommend lifecycle services or milestone actions. Use the provided context and visible facts directly. Avoid raw artifact details.`}
                   conversationId={`studio-scanner-${selectedProduct.id}-${selectedFinding?.id || 'summary'}`}
                   context={assistantContext('scanner-readiness', { findingId: selectedFinding?.id })}
+                  {...assistantActionProps}
                   accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green}
                   cta="Summarize Readiness"
                 />
@@ -2624,6 +2818,7 @@ export default function OwnerProductizationWorkspace({
                           prompt={`Do not call tools for this answer. Review scanner finding ${selectedFinding.id} for ${selectedProduct.name}. Finding details: title "${selectedFinding.title}", severity ${selectedFinding.severity}, status ${selectedFinding.status}, affected area "${selectedFinding.affectedComponent || 'not specified'}", source rule "${selectedFinding.sourceRuleId || selectedFinding.sourceTool}", description "${selectedFinding.description}", linked evidence count ${selectedFindingEvidence.length}. Explain likely impact, what evidence is needed to resolve or accept risk, and which productization service or milestone should own follow-up. Use these provided details directly. Do not include raw artifact contents.`}
                           conversationId={`studio-finding-${selectedProduct.id}-${selectedFinding.id}`}
                           context={assistantContext('scanner-finding-review', { findingId: selectedFinding.id })}
+                          {...assistantActionProps}
                           accent={findingStatusAccent(selectedFinding.status)}
                           compact
                           cta="Review Finding"
@@ -2703,6 +2898,7 @@ export default function OwnerProductizationWorkspace({
                 conversationId={`studio-services-${selectedProduct?.id || 'none'}`}
                 context={assistantContext('service-selection')}
                 disabled={!selectedProduct}
+                {...assistantActionProps}
                 accent={appleColors.cyan}
                 cta="Recommend Services"
               />
@@ -2928,6 +3124,7 @@ export default function OwnerProductizationWorkspace({
                   prompt={`Evaluate the service plan "${selectedPackage.name}" for ${selectedProduct?.name || 'this product'}. Explain whether the package sequence is appropriate, which dependencies or evidence gates matter, what a team should prove, and what the owner should decide next.`}
                   conversationId={`studio-package-${selectedPackage.id}`}
                   context={assistantContext('package-recommendation')}
+                  {...assistantActionProps}
                   accent={appleColors.purple}
                   cta="Review Package"
                 />
@@ -3261,6 +3458,7 @@ export default function OwnerProductizationWorkspace({
                   prompt={`Do not call tools for this answer. Review milestone and evidence readiness for ${selectedMilestone?.title || selectedWorkspace.name}. Visible workspace "${selectedWorkspace.name}" is ${selectedWorkspace.status}. Current milestone details: title "${selectedMilestone?.title || 'workspace summary'}", status "${selectedMilestone?.status || selectedWorkspace.status}", due date "${selectedMilestone?.dueDate || 'not recorded'}", description "${selectedMilestone?.description || 'not recorded'}". Explain missing acceptance evidence, scanner proof, owner review risks, and the next safe decision. Do not approve the milestone automatically.`}
                   conversationId={`studio-milestone-${selectedWorkspace.id}-${selectedMilestone?.id || 'summary'}`}
                   context={assistantContext('milestone-evidence-readiness', { milestoneId: selectedMilestone?.id })}
+                  {...assistantActionProps}
                   accent={blockedMilestones ? appleColors.red : appleColors.green}
                   compact
                   cta="Check Evidence"

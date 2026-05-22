@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
+import PlatformAssistantCard from './PlatformAssistantCard';
 import {
   DotLabel,
   EmptyState,
@@ -135,6 +136,8 @@ export default function TeamDeliveryWorkspace() {
     retry: false,
   });
   const selectedWorkspace = activeWorkspaces.find((workspace) => workspace.id === selectedWorkspaceId) || activeWorkspaces[0];
+  const selectedWorkspaceProduct = selectedWorkspace?.packageInstance?.productProfile;
+  const selectedWorkspacePackage = selectedWorkspace?.packageInstance;
   const milestones = useQuery({
     queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'],
     enabled: !!selectedWorkspace?.id,
@@ -314,6 +317,23 @@ export default function TeamDeliveryWorkspace() {
               <EmptyState label="No active delivery workspace is assigned to this user yet." />
             )}
           </Surface>
+
+          <PlatformAssistantCard
+            title="AI Delivery Evidence Coach"
+            description="Explain blocked work, missing evidence, scanner-sensitive milestones, and what the team should update next."
+            prompt={`Review delivery evidence for ${selectedWorkspace?.name || 'the selected workspace'} from the team perspective. Workspace status is ${selectedWorkspace?.status || 'not selected'}, product is ${selectedWorkspaceProduct?.name || 'not available'}, visible milestones are ${(milestones.data || []).slice(0, 5).map((milestone) => `${milestone.title} (${milestone.status})`).join('; ') || 'none'}, attachments count is ${attachments.data?.length || 0}, support risks are ${teamSupport.slice(0, 4).map((request) => `${request.title} (${request.priority}, ${request.status})`).join('; ') || 'none'}. Focus on missing evidence, blocked deliverables, owner-facing proof, and safe next team actions. Do not approve production readiness.`}
+            conversationId={`team-delivery-evidence-${selectedWorkspace?.id || selectedTeam?.id || 'none'}`}
+            context={{
+              pageType: 'active-workspace',
+              productId: selectedWorkspaceProduct?.id,
+              packageId: selectedWorkspacePackage?.id,
+              workspaceId: selectedWorkspace?.id,
+              milestoneId: (milestones.data || []).find((milestone) => milestone.status === 'BLOCKED' || milestone.status === 'IN_PROGRESS')?.id,
+            }}
+            disabled={!selectedWorkspace}
+            accent={blockedWorkspaces ? appleColors.amber : appleColors.cyan}
+            cta="Coach Delivery"
+          />
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
             <Box ref={evidencePanelRef} sx={{ scrollMarginTop: 96 }}>
