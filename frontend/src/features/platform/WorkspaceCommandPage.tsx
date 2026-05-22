@@ -791,9 +791,9 @@ export default function WorkspaceCommandPage() {
               {(milestones.isFetching || deliverables.isFetching || supportRequests.isFetching || disputes.isFetching || attachments.isFetching) && <LinearProgress />}
 
               <PlatformAssistantCard
-                title="AI Milestone Evidence Advisor"
-                description="Summarize acceptance proof, missing evidence, failed checks, and review notes before owner approval."
-                prompt={`Do not call tools for this answer. Use only the facts in this prompt and the supplied safe summaries. Review delivery checkpoint evidence for "${selectedWorkspace.name}". Product is ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}, service plan is ${selectedWorkspace.packageInstance?.name || 'not recorded'}, selected checkpoint is "${selectedMilestone?.title || 'not selected'}" with status ${selectedMilestone?.status || 'unknown'}. Deliverables in focus: ${deliverableList.slice(0, 5).map((deliverable) => `${deliverable.title} (${deliverable.status})`).join('; ') || 'none'}. Acceptance criteria: ${selectedMilestoneCriteria.slice(0, 5).map((criterion) => `${criterion.title} (${criterion.status})`).join('; ') || 'none generated'}. Missing required evidence count is ${missingEvidenceCount}. Scanner evidence count is ${scannerEvidenceList.length}. Explain what is verified, what is missing, what needs human review, and what change request or approval decision is safe next. Do not certify production readiness.`}
+                title="AI Proof Readiness Advisor"
+                description="Summarize supporting proof, missing review inputs, failed checks, and safe owner decisions before approval."
+                prompt={`Do not call tools for this answer. Use only the facts in this prompt and the supplied safe summaries. Create an owner-facing proof readiness note for the delivery named "${selectedWorkspace.name}". Product is ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}. Service plan is ${selectedWorkspace.packageInstance?.name || 'not recorded'}. Current review area is "${selectedMilestone?.title || 'not selected'}", status ${selectedMilestone?.status || 'unknown'}. Deliverables in focus: ${deliverableList.slice(0, 5).map((deliverable) => `${deliverable.title} (${deliverable.status})`).join('; ') || 'none'}. Acceptance checklist: ${selectedMilestoneCriteria.slice(0, 5).map((criterion) => `${criterion.title} (${criterion.status})`).join('; ') || 'none generated'}. Missing proof count is ${missingEvidenceCount}. Scanner proof count is ${scannerEvidenceList.length}. Explain what is already supported, what is still missing, what needs human review, and what owner decision is safe next. Do not certify production readiness.`}
                 conversationId={`workspace-evidence-advisor-${selectedWorkspace.id}-${selectedMilestone?.id || 'summary'}`}
                 context={{
                   pageType: 'milestone-review',
@@ -803,7 +803,7 @@ export default function WorkspaceCommandPage() {
                   milestoneId: selectedMilestone?.id,
                 }}
                 accent={missingEvidenceCount ? appleColors.amber : appleColors.green}
-                cta="Review Evidence"
+                cta="Review Proof"
               />
 
               <Surface>
