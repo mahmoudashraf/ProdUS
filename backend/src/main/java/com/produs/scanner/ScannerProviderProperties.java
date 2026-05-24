@@ -27,6 +27,7 @@ public class ScannerProviderProperties {
         github.setClientId(text("app.scanner.providers.github.client-id", github.getClientId()));
         github.setClientSecret(text("app.scanner.providers.github.client-secret", github.getClientSecret()));
         github.setPrivateKeyPath(text("app.scanner.providers.github.private-key-path", github.getPrivateKeyPath()));
+        github.setPrivateKeyBase64(text("app.scanner.providers.github.private-key-base64", github.getPrivateKeyBase64()));
         github.setWebhookSecret(text("app.scanner.providers.github.webhook-secret", github.getWebhookSecret()));
         github.setInstallUrl(text("app.scanner.providers.github.install-url", github.getInstallUrl()));
         github.setCallbackUrl(text("app.scanner.providers.github.callback-url", github.getCallbackUrl()));
@@ -56,6 +57,7 @@ public class ScannerProviderProperties {
         private String clientId = "";
         private String clientSecret = "";
         private String privateKeyPath = "";
+        private String privateKeyBase64 = "";
         private String webhookSecret = "";
         private String installUrl = "";
         private String callbackUrl = "";

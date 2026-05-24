@@ -40,8 +40,7 @@ public class GitHubAppTokenService {
         ScannerProviderProperties.GitHub github = providerProperties.getGithub();
         return github.isEnabled()
                 && !blank(github.getAppId())
-                && !blank(github.getPrivateKeyPath())
-                && Files.isRegularFile(Path.of(github.getPrivateKeyPath()));
+                && hasConfiguredPrivateKey(github);
     }
 
     public String createInstallationToken(String installationId) {
@@ -93,18 +92,87 @@ public class GitHubAppTokenService {
                 .type(JOSEObjectType.JWT)
                 .build();
         SignedJWT jwt = new SignedJWT(header, claims);
-        jwt.sign(new RSASSASigner(readPrivateKey(github.getPrivateKeyPath())));
+        jwt.sign(new RSASSASigner(readPrivateKey(github)));
         return jwt.serialize();
     }
 
-    private RSAPrivateKey readPrivateKey(String path) throws Exception {
-        String pem = Files.readString(Path.of(path), StandardCharsets.UTF_8)
-                .replace("-----BEGIN PRIVATE KEY-----", "")
-                .replace("-----END PRIVATE KEY-----", "")
-                .replaceAll("\\s", "");
-        byte[] decoded = Base64.getDecoder().decode(pem);
+    private boolean hasConfiguredPrivateKey(ScannerProviderProperties.GitHub github) {
+        if (!blank(github.getPrivateKeyBase64())) {
+            return true;
+        }
+        return !blank(github.getPrivateKeyPath()) && Files.isRegularFile(Path.of(github.getPrivateKeyPath()));
+    }
+
+    private RSAPrivateKey readPrivateKey(ScannerProviderProperties.GitHub github) throws Exception {
+        String pem = !blank(github.getPrivateKeyBase64())
+                ? new String(Base64.getDecoder().decode(github.getPrivateKeyBase64()), StandardCharsets.UTF_8)
+                : Files.readString(Path.of(github.getPrivateKeyPath()), StandardCharsets.UTF_8);
+        byte[] decoded = decodePrivateKey(pem);
         PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(decoded);
         return (RSAPrivateKey) KeyFactory.getInstance("RSA").generatePrivate(spec);
+    }
+
+    private byte[] decodePrivateKey(String pem) {
+        if (pem.contains("-----BEGIN RSA PRIVATE KEY-----")) {
+            return wrapPkcs1RsaPrivateKey(extractPemBlock(pem, "RSA PRIVATE KEY"));
+        }
+        if (pem.contains("-----BEGIN PRIVATE KEY-----")) {
+            return extractPemBlock(pem, "PRIVATE KEY");
+        }
+        return Base64.getDecoder().decode(pem.replaceAll("\\s", ""));
+    }
+
+    private byte[] extractPemBlock(String pem, String type) {
+        return Base64.getDecoder().decode(pem
+                .replace("-----BEGIN " + type + "-----", "")
+                .replace("-----END " + type + "-----", "")
+                .replaceAll("\\s", ""));
+    }
+
+    private byte[] wrapPkcs1RsaPrivateKey(byte[] pkcs1) {
+        byte[] version = new byte[] { 0x02, 0x01, 0x00 };
+        byte[] rsaAlgorithmIdentifier = new byte[] {
+                0x30, 0x0d,
+                0x06, 0x09,
+                0x2a, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xf7, 0x0d, 0x01, 0x01, 0x01,
+                0x05, 0x00
+        };
+        byte[] privateKeyOctetString = concat(new byte[] { 0x04 }, derLength(pkcs1.length), pkcs1);
+        byte[] privateKeyInfo = concat(version, rsaAlgorithmIdentifier, privateKeyOctetString);
+        return concat(new byte[] { 0x30 }, derLength(privateKeyInfo.length), privateKeyInfo);
+    }
+
+    private byte[] derLength(int length) {
+        if (length < 128) {
+            return new byte[] { (byte) length };
+        }
+        int size = 0;
+        int value = length;
+        while (value > 0) {
+            size++;
+            value >>= 8;
+        }
+        byte[] encoded = new byte[size + 1];
+        encoded[0] = (byte) (0x80 | size);
+        for (int i = size; i > 0; i--) {
+            encoded[i] = (byte) (length & 0xff);
+            length >>= 8;
+        }
+        return encoded;
+    }
+
+    private byte[] concat(byte[]... arrays) {
+        int length = 0;
+        for (byte[] array : arrays) {
+            length += array.length;
+        }
+        byte[] result = new byte[length];
+        int position = 0;
+        for (byte[] array : arrays) {
+            System.arraycopy(array, 0, result, position, array.length);
+            position += array.length;
+        }
+        return result;
     }
 
     private boolean blank(String value) {

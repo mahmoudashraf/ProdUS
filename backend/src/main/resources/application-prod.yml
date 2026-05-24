@@ -65,6 +65,7 @@ app:
         client-id: ${APP_SCANNER_GITHUB_CLIENT_ID:}
         client-secret: ${APP_SCANNER_GITHUB_CLIENT_SECRET:}
         private-key-path: ${APP_SCANNER_GITHUB_PRIVATE_KEY_PATH:}
+        private-key-base64: ${APP_SCANNER_GITHUB_PRIVATE_KEY_BASE64:}
         webhook-secret: ${APP_SCANNER_GITHUB_WEBHOOK_SECRET:}
         install-url: ${APP_SCANNER_GITHUB_INSTALL_URL:}
         callback-url: ${APP_SCANNER_GITHUB_CALLBACK_URL:}
