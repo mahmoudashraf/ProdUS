@@ -57,7 +57,7 @@ The system must:
 - index safe reusable knowledge through managed vectorization
 - provide live context to LoomAI through backend context enrichment and approved MCP/read/write action contracts
 - show AI output as supporting guidance for decisions, while allowing AI-created draft records when the owner has opted into AI-assisted creation
-- require explicit human confirmation for workspace creation, team invitations, milestone approval, risk acceptance, and product-level readiness
+- require explicit human confirmation for selected teams/experts, workspace participant access, team invitations, milestone approval, risk acceptance, and product-level readiness
 - audit every AI-created record with human initiator, AI actor, source inputs, and trace metadata
 
 ## 4. Journey Stages
@@ -369,7 +369,8 @@ Acceptance criteria:
 - package can be saved as draft
 - owner can adjust service plan before workspace creation
 - package recommendation is backed by real catalog and product context
-- AI does not create final package/workspace records automatically; any AI-created service-plan or cart draft remains reversible, editable, and owner-scoped
+- AI can create a package or workspace only when the owner explicitly chooses the AI creation action from the UI
+- selected team/expert assignments and participant access require owner review before they are applied
 
 ### 4.7 Stage 7: Team And Solo Expert Matching
 
@@ -407,7 +408,14 @@ Acceptance criteria:
 
 ### 4.8 Stage 8: Workspace Creation
 
-Owner converts package and selected delivery support into a project workspace.
+Owner converts package scope into a project workspace manually or by choosing "Create workspace with AI."
+
+When the owner chooses AI workspace creation, ProdUS can create the workspace immediately through an approved backend write action. This is not a separate draft-workspace concept. The workspace is a real workspace record, but owner-sensitive selections still have confirmation boundaries:
+
+- selected team or solo experts must be reviewed and confirmed by the owner before assignment
+- access and participant list must be reviewed and confirmed by the owner before invitations or access grants
+- AI-recommended milestones, deliverables, acceptance criteria, evidence requirements, and kickoff notes can be created with the workspace
+- owner can edit workspace fields normally after creation
 
 Workspace contains:
 
@@ -426,13 +434,17 @@ AI support:
 - summarize workspace scope
 - explain milestone order
 - identify early blockers
-- generate draft kickoff questions
+- create the workspace record when owner has chosen AI workspace creation
+- generate kickoff questions
+- generate milestones, deliverables, acceptance criteria, and evidence requirements from package context
 - explain evidence expectations to teams
 
 Acceptance criteria:
 
-- workspace creation requires explicit owner confirmation
-- participants are authorized
+- workspace creation requires either manual owner action or owner-selected AI workspace creation action
+- AI-created workspace records are real records, editable after creation, and audited as AI-created with the initiating owner
+- participant access and selected team/expert assignment require owner confirmation before they are applied
+- participants are authorized before access is granted
 - milestones and deliverables are created from the package plan
 - AI-generated kickoff content is editable before use
 
@@ -591,7 +603,7 @@ ProdUS frontend must:
 
 ## 9. Human Confirmation Boundary
 
-AI may directly create bounded draft records when the owner has opted into AI-assisted creation:
+AI may directly create bounded records when the owner has opted into AI-assisted creation:
 
 - draft productization project
 - intake analysis notes
@@ -599,6 +611,9 @@ AI may directly create bounded draft records when the owner has opted into AI-as
 - missing-evidence checklist
 - initial diagnosis draft
 - suggested service-plan draft or project-cart draft, if scoped to the active product and clearly reversible
+- package record when the owner chooses AI package creation
+- workspace record when the owner chooses AI workspace creation
+- workspace milestones, deliverables, acceptance criteria, and evidence requirements generated from the confirmed package scope
 
 These records must be marked as AI-created, editable, and audited. The owner consent to use AI-assisted creation from the UI is sufficient for these draft creation writes; individual field-level confirmation is not required.
 
@@ -617,13 +632,14 @@ AI must not directly execute high-risk or external-impact actions:
 - connect repository
 - start scan
 - invite team or solo expert
-- create workspace
+- assign selected team or solo expert without owner confirmation
+- grant participant access without owner confirmation
 - approve milestone
 - accept risk
 - mark product as product-level ready
 - execute payment, contract, access-control, or deployment changes
 
-AI-created drafts and AI-written analysis records are ProdUS backend actions with audit logging. High-risk workflow transitions require separate human confirmation and remain controlled by ProdUS.
+AI-created records and AI-written analysis records are ProdUS backend actions with audit logging. High-risk workflow transitions and access-impacting actions require separate human confirmation and remain controlled by ProdUS.
 
 ## 10. Product-Level Definition Of Done
 
