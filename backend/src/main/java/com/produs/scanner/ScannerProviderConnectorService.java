@@ -78,13 +78,14 @@ public class ScannerProviderConnectorService {
 
     @Transactional
     public ConnectorInstallationResponse githubCallback(User actor, GitHubCallbackRequest request) {
-        consumeState(ScanSource.ProviderType.GITHUB, request.state(), actor);
+        ScannerConnectorAuthState authState = consumeState(ScanSource.ProviderType.GITHUB, request.state(), actor);
+        User owner = authState.getRequestedBy();
         ScannerConnectorInstallation installation = installationRepository
                 .findByProviderTypeAndExternalInstallationId(ScanSource.ProviderType.GITHUB, request.installationId())
                 .orElseGet(ScannerConnectorInstallation::new);
         installation.setProviderType(ScanSource.ProviderType.GITHUB);
-        installation.setOwner(actor);
-        installation.setCreatedBy(actor);
+        installation.setOwner(owner);
+        installation.setCreatedBy(owner);
         installation.setExternalInstallationId(cleanRequired(request.installationId(), "GitHub installation id is required"));
         installation.setAccountLogin(trimToNull(request.accountLogin()));
         installation.setAccountType(trimToNull(request.accountType()));
@@ -93,25 +94,26 @@ public class ScannerProviderConnectorService {
         installation.setConnectedAt(LocalDateTime.now());
         installation.setDisconnectedAt(null);
         ScannerConnectorInstallation saved = installationRepository.save(installation);
-        audit(actor, "SCANNER_GITHUB_INSTALLATION_CONNECTED", "SCANNER_CONNECTOR_INSTALLATION", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
+        audit(owner, "SCANNER_GITHUB_INSTALLATION_CONNECTED", "SCANNER_CONNECTOR_INSTALLATION", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
                 "Connected GitHub installation " + saved.getExternalInstallationId());
         return toInstallationResponse(saved);
     }
 
     @Transactional
     public ConnectorInstallationResponse gitlabCallback(User actor, GitLabCallbackRequest request) {
-        consumeState(ScanSource.ProviderType.GITLAB, request.state(), actor);
+        ScannerConnectorAuthState authState = consumeState(ScanSource.ProviderType.GITLAB, request.state(), actor);
+        User owner = authState.getRequestedBy();
         ScannerConnectorInstallation installation = new ScannerConnectorInstallation();
         installation.setProviderType(ScanSource.ProviderType.GITLAB);
-        installation.setOwner(actor);
-        installation.setCreatedBy(actor);
+        installation.setOwner(owner);
+        installation.setCreatedBy(owner);
         installation.setExternalInstallationId(cleanRequired(request.projectOrGroupId(), "GitLab project or group id is required"));
         installation.setAccountLogin(trimToNull(request.accountPath()));
         installation.setAccountType("project_or_group");
         installation.setPermissionsJson("{\"scope\":\"read_repository read_api\"}");
         installation.setStatus(ScannerConnectorInstallation.InstallationStatus.ACTIVE);
         ScannerConnectorInstallation saved = installationRepository.save(installation);
-        audit(actor, "SCANNER_GITLAB_INSTALLATION_CONNECTED", "SCANNER_CONNECTOR_INSTALLATION", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
+        audit(owner, "SCANNER_GITLAB_INSTALLATION_CONNECTED", "SCANNER_CONNECTOR_INSTALLATION", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
                 "Connected GitLab project/group " + saved.getExternalInstallationId());
         return toInstallationResponse(saved);
     }
@@ -212,14 +214,15 @@ public class ScannerProviderConnectorService {
         }
     }
 
-    private void consumeState(ScanSource.ProviderType providerType, String state, User actor) {
+    private ScannerConnectorAuthState consumeState(ScanSource.ProviderType providerType, String state, User actor) {
         ScannerConnectorAuthState authState = authStateRepository.findByStateHash(hashState(state))
                 .orElseThrow(() -> new AccessDeniedException("Connector authorization state is invalid"));
-        if (authState.getProviderType() != providerType || authState.isExpired() || authState.getConsumedAt() != null || !authState.getRequestedBy().getId().equals(actor.getId())) {
+        boolean actorMismatch = actor != null && !authState.getRequestedBy().getId().equals(actor.getId());
+        if (authState.getProviderType() != providerType || authState.isExpired() || authState.getConsumedAt() != null || actorMismatch) {
             throw new AccessDeniedException("Connector authorization state is invalid or expired");
         }
         authState.setConsumedAt(LocalDateTime.now());
-        authStateRepository.save(authState);
+        return authStateRepository.save(authState);
     }
 
     private void verifyGithubSignature(String signature, String payload) {

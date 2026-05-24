@@ -52,6 +52,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/teams", "/api/teams/{id}", "/api/teams/{id}/capabilities").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/expert-profiles", "/api/expert-profiles/{id}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/ai/loomai/knowledge-export").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/scanner/connectors/github/callback").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/scanner/connectors/gitlab/callback").permitAll()
 
                         // Signed provider webhooks; authentication is the HMAC signature.
                         .requestMatchers(HttpMethod.POST, "/api/integrations/payments/webhook").permitAll()
