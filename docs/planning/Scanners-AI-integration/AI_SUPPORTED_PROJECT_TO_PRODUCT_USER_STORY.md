@@ -10,13 +10,17 @@ Audience: product, backend, frontend, scanner, LoomAI, delivery, and operations 
 
 This document defines the full AI-supported ProdUS user story from the moment an owner creates a productization project until the work reaches product-level readiness.
 
-ProdUS remains the system of record for identity, authorization, product data, source connections, scanner execution, service packages, team selection, workspace delivery, evidence, milestones, and audit. LoomAI supports the journey with governed explanation, recommendations, summaries, and decision preparation. AI must not mutate business records without an explicit ProdUS confirmation path.
+ProdUS remains the system of record for identity, authorization, product data, source connections, scanner execution, service packages, team selection, workspace delivery, evidence, milestones, and audit. LoomAI supports the journey with governed conversation, recommendations, summaries, decision preparation, and selected write-backed creation flows.
+
+AI is a first-class productization participant when the owner intentionally chooses AI-assisted project analysis or AI-assisted creation from the ProdUS UI. In that mode, ProdUS may allow AI to create bounded draft business records through approved backend write actions. Those writes must be authorized by the current user session, scoped to the active productization intent, and audited as `created by AI` with the initiating human, prompt trace, source inputs, and provider request id. AI must not execute high-risk operational or contractual mutations without a separate human confirmation path.
 
 The target journey is:
 
 ```text
-Create productization project
-  -> describe product and business goal
+AI-first intake conversation
+  -> owner shares product goal, attachments, links, and constraints
+  -> owner opts into AI-assisted project creation
+  -> AI creates draft productization project and analysis records through ProdUS write action
   -> AI-assisted diagnosis
   -> connect source and run scanners
   -> normalize findings and evidence
@@ -38,10 +42,11 @@ Create productization project
 | Solo Expert | Join productization work with scoped contribution | Capability match rationale, work context, evidence expectations |
 | Reviewer or Advisor | Assess readiness, evidence, and risk | Evidence summary, finding explanation, review notes, risk framing |
 | Admin or Operator | Keep AI, scanner, connectors, and indexing healthy | Integration health, sync status, production readiness checks, audit trace visibility |
+| AI Operator | Convert owner-approved conversations, attachments, links, and analysis output into structured draft records | Governed write actions for draft project creation, intake normalization, analysis note creation, and suggested service plan seeding |
 
 ## 3. Core User Story
 
-As a product owner, I want to create a productization project, connect the product context and source evidence, receive AI-guided diagnosis and service recommendations, select the right delivery support, and move through a governed workspace until the product has evidence-backed readiness.
+As a product owner, I want to explain my product naturally to an AI productization operator, attach the context I already have, let AI create the first structured project draft for me, connect source evidence, receive AI-guided diagnosis and service recommendations, select the right delivery support, and move through a governed workspace until the product has evidence-backed readiness.
 
 The system must:
 
@@ -50,17 +55,32 @@ The system must:
 - use real scanner, catalog, package, workspace, team, solo expert, milestone, and evidence data
 - keep private product data authorized and bounded
 - index safe reusable knowledge through managed vectorization
-- provide live context to LoomAI through backend context enrichment and read-only MCP actions
-- show AI output as supporting guidance, not final authority
-- require explicit human confirmation for package creation, workspace creation, milestone approval, and risk acceptance
+- provide live context to LoomAI through backend context enrichment and approved MCP/read/write action contracts
+- show AI output as supporting guidance for decisions, while allowing AI-created draft records when the owner has opted into AI-assisted creation
+- require explicit human confirmation for workspace creation, team invitations, milestone approval, risk acceptance, and product-level readiness
+- audit every AI-created record with human initiator, AI actor, source inputs, and trace metadata
 
 ## 4. Journey Stages
 
 ### 4.1 Stage 1: Productization Project Creation
 
-Owner opens ProdUS Studio and creates a productization project.
+Owner opens ProdUS Studio and starts productization through either a guided form or an AI-first conversational intake.
 
-Required inputs:
+The preferred experience is AI-first:
+
+```text
+Owner opens Studio
+  -> chooses "Use AI to create my productization project"
+  -> describes the product naturally
+  -> attaches docs, screenshots, pitch notes, architecture notes, URLs, repo links, videos, or customer context
+  -> AI asks targeted follow-up questions
+  -> AI extracts structured product facts, risks, goals, users, constraints, and evidence hints
+  -> owner runs project analysis
+  -> ProdUS backend authorizes AI write action
+  -> AI creates a draft productization project and initial analysis records in ProdUS
+```
+
+Minimum structured inputs, whether provided directly or extracted by AI:
 
 - product name
 - current stage: idea, prototype, internal tool, pilot, production candidate, live product
@@ -70,38 +90,80 @@ Required inputs:
 - known risks
 - target launch or readiness date
 - optional source repository
+- optional attachments and links
 
 AI support:
 
-- improve product summary language
-- identify missing project context
-- suggest initial productization questions
+- conduct a creative intake conversation that feels like a senior productization partner
+- ingest owner-provided text, attachments, screenshots, documents, and links through ProdUS-controlled upload/link records
+- extract candidate product facts, target users, business goal, product stage, tech stack, risks, dependencies, and missing evidence
+- ask targeted follow-up questions only when needed to reduce ambiguity
+- produce an owner-readable brief before or after project creation
+- create a draft productization project through an approved AI write action when the owner has enabled AI-assisted creation
+- create initial analysis notes, assumptions, missing-evidence list, and suggested next steps as structured ProdUS records
 - explain what evidence will be needed later
 
 Expected UI behavior:
 
-- form validates required fields
-- owner can save draft or continue to diagnosis
-- AI helper appears as a compact Studio assistant panel, not a blocking wizard
-- AI suggestions can be accepted into fields only by explicit click
+- owner can choose either manual creation or AI-assisted creation
+- AI-assisted creation has a clear consent action such as "Use AI to create this project"
+- after consent, project creation does not require a second confirmation for each extracted field
+- AI shows extracted facts, assumptions, attachments, and links before or immediately after draft creation
+- owner can edit the AI-created draft project, analysis notes, and extracted facts
+- AI helper appears as a Studio creation surface, not a generic chatbot floating outside context
+- vague required fields can be created as assumptions only if marked clearly and routed to follow-up
 
 Backend responsibilities:
 
-- create product/project record
-- create audit event for product creation
+- accept conversational intake, attachments, and links through ProdUS backend only
+- store uploads and links as owner-scoped intake evidence records
+- authorize AI-assisted creation against current user/session and productization intent
+- create product/project draft records through an approved AI write action
+- create audit event for product creation with `createdByType=AI`, `initiatedBy=<ownerId>`, `aiProviderRequestId`, `traceId`, and source input references
+- mark AI-created fields with provenance where practical
 - expose product context to AI only after authorization
 - include product id in later assistant context
 
+Recommended AI write action contract:
+
+```json
+{
+  "action": "produs.productization_project.create_draft",
+  "initiatedBy": "<ownerUserId>",
+  "actor": "AI_OPERATOR",
+  "consentToken": "<ui-ai-assisted-creation-consent>",
+  "inputs": {
+    "conversationId": "project-intake:<temporaryOrProductId>",
+    "ownerMessage": "Natural product description",
+    "attachmentIds": ["<attachmentId>"],
+    "linkIds": ["<linkId>"]
+  },
+  "draft": {
+    "name": "Extracted product name",
+    "stage": "PROTOTYPE",
+    "businessGoal": "Owner-readable goal",
+    "targetUsers": "Target users",
+    "techStack": "Detected or declared stack",
+    "knownRisks": "Known or inferred risks",
+    "readinessTargetDate": "optional ISO date",
+    "assumptions": ["Explicitly marked assumption"]
+  }
+}
+```
+
 Acceptance criteria:
 
-- product record is created with owner identity
-- empty or vague required fields are blocked
-- AI cannot create the project by itself
+- owner can create a project manually or through AI-assisted intake
+- AI-created project record is persisted with owner identity and AI provenance
+- AI-created records are drafts until the owner edits, continues to diagnosis, or converts them into later workflow records
+- attachments and links used for creation are visible in the project intake evidence trail
+- empty or vague required fields are either blocked in manual mode or clearly marked as AI assumptions in AI-assisted mode
 - product appears in owner dashboard and product studio
+- audit trail shows the AI write action, human initiator, created fields, and trace metadata
 
 ### 4.2 Stage 2: AI-Assisted Diagnosis
 
-Owner opens the product diagnosis view.
+Owner opens the product diagnosis view or runs project analysis directly from AI-assisted creation.
 
 Diagnosis inputs:
 
@@ -121,6 +183,7 @@ AI support:
 - distinguish facts, missing evidence, and assumptions
 - suggest the next owner decision
 - recommend whether to connect source code, build a service package, or request expert review
+- when invoked from Stage 1, seed the initial diagnosis draft from the AI-created project context and intake evidence
 
 LoomAI request pattern:
 
@@ -150,6 +213,7 @@ Acceptance criteria:
 
 - diagnosis page gives clear readiness interpretation
 - AI response references real product context
+- project analysis can create the initial project and diagnosis draft through approved AI write actions after owner opt-in
 - access-denied responses are rendered as actionable product-access issues
 - no private secrets, repository code, or raw scanner logs are sent to LoomAI
 
@@ -305,7 +369,7 @@ Acceptance criteria:
 - package can be saved as draft
 - owner can adjust service plan before workspace creation
 - package recommendation is backed by real catalog and product context
-- AI does not create package automatically without owner confirmation
+- AI does not create final package/workspace records automatically; any AI-created service-plan or cart draft remains reversible, editable, and owner-scoped
 
 ### 4.7 Stage 7: Team And Solo Expert Matching
 
@@ -436,6 +500,7 @@ Acceptance criteria:
 
 | Surface | Page | Purpose | Runtime Endpoint |
 | --- | --- | --- | --- |
+| AI Project Intake | Product Creation | Conversationally collect owner input, attachments, and links, then create draft project through approved write action | `/api/ai/assistant/query` + ProdUS AI write action |
 | Owner Brief | Product Studio | Explain product state and next decision | `/api/ai/assistant/query-once` |
 | Diagnosis Explainer | Product Diagnosis | Explain readiness and blockers | `/api/ai/assistant/query-once` |
 | Service Selector Assistant | Service Catalog/Product Cart | Recommend lifecycle services | `/api/ai/assistant/query-once` |
@@ -448,6 +513,8 @@ Acceptance criteria:
 | Conversational Assistant | Studio Side Panel | Follow-up questions within authorized product context | `/api/ai/assistant/query` |
 
 Use `query-once` for page helpers and explainers. Use persistent `query` only for conversational assistant panels where saved chat history is intended.
+
+Use backend-approved AI write actions only for bounded draft creation flows. The frontend never calls LoomAI directly and never sends write instructions outside the ProdUS backend action gateway.
 
 ## 6. Data And Indexing Model
 
@@ -501,10 +568,12 @@ ProdUS backend must:
 - redact secrets and sensitive fields
 - sign private runtime assertions
 - call LoomAI runtime from backend only
+- expose an AI action gateway for approved write-backed flows
 - normalize LoomAI responses for frontend
 - store audit events for AI requests where needed
 - expose provider request id and trace id for support
-- enforce confirmation for all business mutations
+- enforce human opt-in and action-level policy for AI mutations
+- persist AI-created records with provenance and editable draft status
 
 ## 8. Frontend Responsibilities
 
@@ -515,13 +584,25 @@ ProdUS frontend must:
 - render Markdown safely
 - show loading, error, denied, fallback, and retry states
 - tie every AI surface to the current product or workspace context
-- make AI suggestions visibly optional
+- make AI suggestions visibly optional, except when the owner explicitly starts AI-assisted creation
+- show AI-created fields, assumptions, source attachments, and edit controls clearly
 - provide clear owner actions after AI output
 - keep Apple-like Studio UI: clean hierarchy, soft cards, compact controls, clear status labels, and consistent button sizing
 
 ## 9. Human Confirmation Boundary
 
-AI may prepare:
+AI may directly create bounded draft records when the owner has opted into AI-assisted creation:
+
+- draft productization project
+- intake analysis notes
+- extracted product facts and assumptions
+- missing-evidence checklist
+- initial diagnosis draft
+- suggested service-plan draft or project-cart draft, if scoped to the active product and clearly reversible
+
+These records must be marked as AI-created, editable, and audited. The owner consent to use AI-assisted creation from the UI is sufficient for these draft creation writes; individual field-level confirmation is not required.
+
+AI may also prepare:
 
 - service recommendations
 - package rationale
@@ -531,11 +612,8 @@ AI may prepare:
 - scanner remediation summaries
 - readiness memos
 
-AI must not directly execute:
+AI must not directly execute high-risk or external-impact actions:
 
-- create product
-- create package
-- add/remove cart items
 - connect repository
 - start scan
 - invite team or solo expert
@@ -543,8 +621,9 @@ AI must not directly execute:
 - approve milestone
 - accept risk
 - mark product as product-level ready
+- execute payment, contract, access-control, or deployment changes
 
-Each mutation must remain a ProdUS UI/backend action with audit logging.
+AI-created drafts and AI-written analysis records are ProdUS backend actions with audit logging. High-risk workflow transitions require separate human confirmation and remain controlled by ProdUS.
 
 ## 10. Product-Level Definition Of Done
 
@@ -568,25 +647,30 @@ AI may generate the readiness explanation, but ProdUS records the readiness deci
 Use this scenario to verify the complete AI-supported story:
 
 1. Log in as product owner.
-2. Create a productization project for a prototype product.
-3. Ask AI for an owner brief.
-4. Open diagnosis and request AI diagnosis explanation.
-5. Connect GitHub App source.
-6. Run hosted SAFE_STATIC scan.
-7. Review scanner summary and a critical/high finding with AI.
-8. Add recommended lifecycle services to the project cart.
-9. Build a package and request AI package recommendation.
-10. Compare matched teams and solo experts with AI rationale.
-11. Create workspace from package and selected delivery support.
-12. Upload or attach milestone evidence.
-13. Use AI milestone evidence review.
-14. Resolve or risk-accept blockers through human workflow.
-15. Generate final readiness memo.
-16. Mark product-level readiness only through authorized ProdUS action.
+2. Start AI-assisted project creation for a prototype product.
+3. Add natural-language product context plus at least one attachment or link.
+4. Run project analysis and allow AI to create the draft productization project.
+5. Review AI-created fields, assumptions, intake evidence, and audit trace.
+6. Ask AI for an owner brief.
+7. Open diagnosis and request AI diagnosis explanation.
+8. Connect GitHub App source.
+9. Run hosted SAFE_STATIC scan.
+10. Review scanner summary and a critical/high finding with AI.
+11. Add recommended lifecycle services to the project cart.
+12. Build a package and request AI package recommendation.
+13. Compare matched teams and solo experts with AI rationale.
+14. Create workspace from package and selected delivery support.
+15. Upload or attach milestone evidence.
+16. Use AI milestone evidence review.
+17. Resolve or risk-accept blockers through human workflow.
+18. Generate final readiness memo.
+19. Mark product-level readiness only through authorized ProdUS action.
 
 Expected outcome:
 
 - every AI response is grounded in current product context
+- AI can create draft project records only after owner opt-in to AI-assisted creation
+- AI-created records have provenance, source inputs, and audit trace
 - every business action has backend persistence
 - no browser call goes directly to LoomAI
 - no secrets or raw private artifacts are sent to LoomAI
@@ -597,6 +681,9 @@ Expected outcome:
 These checks must be tracked as part of implementation QA:
 
 - verify all Studio assistant surfaces use `/api/ai/assistant/query-once` except persistent chat
+- verify AI-assisted project intake uses persistent conversation plus approved write action gateway
+- verify AI-created productization records are drafts with AI provenance and human initiator
+- verify attachments and links used by AI intake are stored, authorized, redacted, and visible in the evidence trail
 - verify product, scanner, package, workspace, milestone, team, and solo expert contexts are authorized
 - verify managed vectorization export includes team and solo expert public profiles
 - verify UI renders Markdown and denial/error states cleanly
