@@ -114,7 +114,7 @@ public class AdminController {
         addGate(gates, "github-scanner-connector", "Integrations", providerGateStatus(scannerProviderProperties.getGithub().isEnabled(), githubConnectorConfigured()),
                 "GitHub scanner connector",
                 scannerProviderProperties.getGithub().isEnabled() ? "GitHub App connector is enabled." : "GitHub App connector is disabled until credentials are provided.",
-                "Configure APP_SCANNER_GITHUB_* values: app id, client id/secret, private key path, install URL, callback URL, and webhook secret.");
+                "Configure APP_SCANNER_GITHUB_* values: app id, client id, private key path or base64 key, install URL, callback URL, and webhook secret.");
         addGate(gates, "gitlab-scanner-connector", "Integrations", providerGateStatus(scannerProviderProperties.getGitlab().isEnabled(), gitlabConnectorConfigured()),
                 "GitLab scanner connector",
                 scannerProviderProperties.getGitlab().isEnabled() ? "GitLab connector is enabled." : "GitLab connector is disabled until credentials are provided.",
@@ -205,10 +205,10 @@ public class AdminController {
 
     private boolean githubConnectorConfigured() {
         ScannerProviderProperties.GitHub github = scannerProviderProperties.getGithub();
+        boolean privateKeyConfigured = configured(github.getPrivateKeyPath()) || configured(github.getPrivateKeyBase64());
         return configured(github.getAppId())
                 && configured(github.getClientId())
-                && configured(github.getClientSecret())
-                && configured(github.getPrivateKeyPath())
+                && privateKeyConfigured
                 && configured(github.getWebhookSecret())
                 && configured(github.getInstallUrl())
                 && configured(github.getCallbackUrl());
