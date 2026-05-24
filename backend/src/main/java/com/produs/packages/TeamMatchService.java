@@ -88,9 +88,21 @@ public class TeamMatchService {
         return modules.stream().anyMatch(module ->
                 normalized.contains(module.getName().toLowerCase(Locale.ROOT))
                         || normalized.contains(module.getSlug().toLowerCase(Locale.ROOT))
+                        || (module.getStableCode() != null && normalized.contains(module.getStableCode().toLowerCase(Locale.ROOT)))
+                        || (module.getAiAssistanceTags() != null && containsAnyToken(normalized, module.getAiAssistanceTags()))
                         || normalized.contains(module.getCategory().getName().toLowerCase(Locale.ROOT))
                         || normalized.contains(module.getCategory().getSlug().toLowerCase(Locale.ROOT))
         );
+    }
+
+    private boolean containsAnyToken(String normalized, String csv) {
+        for (String token : csv.toLowerCase(Locale.ROOT).split(",")) {
+            String trimmed = token.trim();
+            if (!trimmed.isBlank() && normalized.contains(trimmed)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private double verificationWeight(Team.VerificationStatus status) {

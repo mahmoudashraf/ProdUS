@@ -2,13 +2,21 @@
 
 Date: 2026-05-24
 
-Status: review plan
+Status: implemented in catalog seed, demo seed, matching, frontend category display, and AI-safe knowledge export path
 
 Source context:
 
 - Current catalog includes testing-related services, but they are fragmented.
 - Existing related modules include `validation.codebase`, `code.refactor`, `cloud.staging_setup`, `cloud.cicd_setup`, `scale.load_testing`, `security.evidence_review`, `launch.readiness_review`, and `support.bug_triage`.
 - There is no single owner-selectable Testing Pack and no dedicated team/solo expert capability model for teams that want to offer testing as a productized service.
+
+Implementation note, 2026-05-24:
+
+- Added `quality-testing` as a first-class service category.
+- Added Product Testing Pack, Launch Testing Pack, and Test Automation Foundation package templates.
+- Added testing service modules, dependency rules, recommendation rules, and `testing-pack-assist` AI capability contract.
+- Added demo team/solo expert testing capabilities and matching support for stable codes and AI assistance tags.
+- Existing LoomAI safe knowledge export automatically includes the new service modules, package templates, dependencies, team capabilities, solo expert skills, evidence templates, and AI capability contract.
 
 ## 1. Decision
 

@@ -8,6 +8,7 @@ import {
   FactCheckOutlined,
   HeadsetMicOutlined,
   RocketLaunchOutlined,
+  ScienceOutlined,
   SecurityOutlined,
   StorageOutlined,
   TaskAltOutlined,
@@ -39,6 +40,7 @@ const iconBySlug = {
   'cloud-devops': CloudQueueOutlined,
   database: StorageOutlined,
   security: SecurityOutlined,
+  'quality-testing': ScienceOutlined,
   'launch-gtm-readiness': RocketLaunchOutlined,
   'operations-support': HeadsetMicOutlined,
 };
@@ -50,6 +52,7 @@ const demandBySlug: Record<string, { label: string; color: string }> = {
   'cloud-devops': { label: 'High demand', color: appleColors.cyan },
   database: { label: 'Medium demand', color: appleColors.cyan },
   security: { label: 'High demand', color: appleColors.red },
+  'quality-testing': { label: 'High demand', color: appleColors.green },
   'launch-gtm-readiness': { label: 'New demand', color: appleColors.green },
   'operations-support': { label: 'Medium demand', color: '#7c3aed' },
 };
@@ -329,7 +332,7 @@ export default function CatalogPage() {
           <Surface sx={{ mt: 3, background: 'linear-gradient(135deg, #ffffff, #f5fdff)' }}>
             <SectionTitle title="AI-Ready Catalog Contracts" />
             <Typography color="text.secondary" sx={{ lineHeight: 1.7, mb: 1.5 }}>
-              The catalog exposes structured inputs, outputs, evidence requirements, and human-review flags for a future AI integration layer. AI execution is disabled in the product path.
+              The catalog exposes structured inputs, outputs, evidence requirements, testing gates, team capability signals, and human-review flags for the Studio assistant. AI can recommend and explain services, but product actions stay human-confirmed in ProdUS.
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {(aiCapabilities.data || []).slice(0, 8).map((capability) => (
