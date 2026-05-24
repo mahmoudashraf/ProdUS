@@ -281,6 +281,69 @@ class ScannerEvidenceIntegrationTest {
     }
 
     @Test
+    void hostedScannerTreatsAcceptedNonZeroFindingExitAsCompleted(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
+        assumeGitAvailable();
+        User owner = saveUser("scanner-osv-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        UUID productId = createProduct(owner);
+        Path repo = createGitRepository(tempDir.resolve("repo"));
+        Path fakeScanner = createFakeOsvScanner(tempDir.resolve("fake-osv.sh"));
+        ScannerProperties.ToolProperties osv = scannerProperties.getTools().get("osv-scanner");
+        osv.setCommand("'" + fakeScanner + "' {target} {output}");
+        osv.setVersionCommand("'" + fakeScanner + "' --version");
+        osv.setAcceptedExitCodes(List.of(0, 1));
+        osv.setEnabled(true);
+
+        MvcResult sourceResult = mockMvc.perform(post("/api/scanner/sources")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "providerType": "GITHUB",
+                                  "displayName": "Local authorized repository",
+                                  "externalReference": "%s",
+                                  "scopeNote": "Test repository authorized for safe static scanner execution."
+                                }
+                                """.formatted(productId, repo.toUri())))
+                .andExpect(status().isOk())
+                .andReturn();
+        UUID sourceId = readId(sourceResult);
+
+        MvcResult runResult = mockMvc.perform(post("/api/scanner/runs/hosted")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "sourceId": "%s",
+                                  "depth": "SAFE_STATIC",
+                                  "toolKeys": ["osv-scanner"],
+                                  "authorizationConfirmed": true,
+                                  "reason": "Owner authorized safe static scan for productization readiness."
+                                }
+                                """.formatted(productId, sourceId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("QUEUED"))
+                .andReturn();
+        UUID runId = readId(runResult);
+
+        org.assertj.core.api.Assertions.assertThat(scannerWorker.executeNextQueuedJob()).isTrue();
+
+        mockMvc.perform(get("/api/scanner/runs/{runId}", runId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.toolRuns[0].status").value("COMPLETED"))
+                .andExpect(jsonPath("$.toolRuns[0].exitCode").value(1))
+                .andExpect(jsonPath("$.toolRuns[0].normalizedCount").value(1));
+
+        mockMvc.perform(get("/api/scanner/runs/{runId}/findings", runId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sourceTool").value("OSV-Scanner"))
+                .andExpect(jsonPath("$[0].severity").value("HIGH"))
+                .andExpect(jsonPath("$[0].title").value(containsString("Prototype pollution")));
+    }
+
+    @Test
     void hostedScanCanBeCanceledBeforeExecution(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
         assumeGitAvailable();
         User owner = saveUser("scanner-cancel-owner@produs.test", User.UserRole.PRODUCT_OWNER);
@@ -772,6 +835,35 @@ class ScannerEvidenceIntegrationTest {
                 }]
                 JSON
                 exit 0
+                """);
+        script.toFile().setExecutable(true);
+        return script;
+    }
+
+    private Path createFakeOsvScanner(Path script) throws Exception {
+        Files.writeString(script, """
+                #!/bin/sh
+                if [ "$1" = "--version" ]; then
+                  echo "fake-osv 1.0.0"
+                  exit 0
+                fi
+                output="$2"
+                cat > "$output" <<'JSON'
+                {
+                  "results": [{
+                    "packages": [{
+                      "package": { "name": "lodash", "version": "4.17.20" },
+                      "vulnerabilities": [{
+                        "id": "GHSA-test",
+                        "summary": "Prototype pollution vulnerability",
+                        "details": "Dependency needs upgrade before production use.",
+                        "database_specific": { "severity": "HIGH" }
+                      }]
+                    }]
+                  }]
+                }
+                JSON
+                exit 1
                 """);
         script.toFile().setExecutable(true);
         return script;

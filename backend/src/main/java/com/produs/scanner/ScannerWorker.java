@@ -139,7 +139,7 @@ public class ScannerWorker {
                 scannerService.markToolFailed(toolRun.getId(), "Scanner timed out after " + timeout.toSeconds() + " seconds", result.exitCode(), result.duration().toMillis(), logs);
                 return;
             }
-            if (result.exitCode() != 0) {
+            if (!acceptedExitCodes(tool).contains(result.exitCode())) {
                 scannerService.markToolFailed(toolRun.getId(), "Scanner exited with code " + result.exitCode(), result.exitCode(), result.duration().toMillis(), logs);
                 return;
             }
@@ -249,6 +249,13 @@ public class ScannerWorker {
             return null;
         }
         return null;
+    }
+
+    private List<Integer> acceptedExitCodes(ScannerProperties.ToolProperties tool) {
+        if (tool.getAcceptedExitCodes() == null || tool.getAcceptedExitCodes().isEmpty()) {
+            return List.of(0);
+        }
+        return tool.getAcceptedExitCodes();
     }
 
     private boolean containsIacFiles(Path target) {

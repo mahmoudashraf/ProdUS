@@ -40,13 +40,15 @@ public class ScannerProperties {
                 "JSON",
                 "repository"
         ));
-        defaults.put("osv-scanner", tool(
+        ToolProperties osv = tool(
                 "OSV-Scanner",
                 "osv-scanner scan source -r {target} --format json --output {output}",
                 "osv-scanner --version",
                 "JSON",
                 "repository"
-        ));
+        );
+        osv.setAcceptedExitCodes(List.of(0, 1));
+        defaults.put("osv-scanner", osv);
         defaults.put("semgrep", tool(
                 "Semgrep",
                 "semgrep scan --config auto --json --output {output} {target}",
@@ -131,5 +133,6 @@ public class ScannerProperties {
         private String targetType = "repository";
         private boolean requiresIac;
         private int timeoutSeconds = 300;
+        private List<Integer> acceptedExitCodes = List.of(0);
     }
 }
