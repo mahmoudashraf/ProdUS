@@ -1,5 +1,6 @@
 package com.produs.attachments;
 
+import com.produs.common.AttachmentFileTypePolicy;
 import com.produs.commerce.DisputeCase;
 import com.produs.commerce.DisputeCaseRepository;
 import com.produs.entity.User;
@@ -30,22 +31,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class EvidenceAttachmentService {
-
-    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
-            "application/json",
-            "application/pdf",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/x-zip-compressed",
-            "application/zip",
-            "image/jpeg",
-            "image/png",
-            "image/webp",
-            "text/csv",
-            "text/markdown",
-            "text/plain"
-    );
 
     private final EvidenceAttachmentRepository attachmentRepository;
     private final ProjectWorkspaceRepository workspaceRepository;
@@ -91,7 +76,7 @@ public class EvidenceAttachmentService {
         requireScopeContributor(user, scope);
 
         String fileName = sanitizeFileName(file.getOriginalFilename());
-        String contentType = normalizeContentType(file.getContentType());
+        String contentType = AttachmentFileTypePolicy.resolveAllowedContentType(file);
         String key = s3Service.generateFileKey(storagePrefix(scope), fileName);
         String fileUrl;
         try {
@@ -252,17 +237,9 @@ public class EvidenceAttachmentService {
         if (file.getSize() > maxFileSizeBytes) {
             throw new IllegalArgumentException("Attachment exceeds the maximum allowed size");
         }
-        String contentType = normalizeContentType(file.getContentType());
-        if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
+        if (!AttachmentFileTypePolicy.isAllowed(file)) {
             throw new IllegalArgumentException("Attachment file type is not allowed");
         }
-    }
-
-    private String normalizeContentType(String contentType) {
-        if (contentType == null || contentType.isBlank()) {
-            return "application/octet-stream";
-        }
-        return contentType.toLowerCase(Locale.ROOT).trim();
     }
 
     private String sanitizeFileName(String originalFileName) {

@@ -117,7 +117,7 @@ class ProductizationWorkflowIntegrationTest {
         MockMultipartFile brief = new MockMultipartFile(
                 "files",
                 "inventory-readiness.md",
-                "text/markdown",
+                "application/octet-stream",
                 "Inventory sync prototype needs launch readiness, database migration proof, and operating runbooks.".getBytes(StandardCharsets.UTF_8)
         );
 
@@ -137,6 +137,7 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.analysis.productName").exists())
                 .andExpect(jsonPath("$.attachments", hasSize(1)))
                 .andExpect(jsonPath("$.attachments[0].fileName").value("inventory-readiness.md"))
+                .andExpect(jsonPath("$.attachments[0].contentType").value("text/markdown"))
                 .andExpect(jsonPath("$.attachments[0].aiShareRequested").value(true))
                 .andExpect(jsonPath("$.attachments[0].aiAccessExpiresAt").exists())
                 .andExpect(jsonPath("$.aiSharedDocuments", hasSize(1)))
