@@ -7,9 +7,11 @@ import {
   ArrowForwardOutlined,
   CheckCircleOutlineOutlined,
   CloudUploadOutlined,
+  ErrorOutlineOutlined,
   Inventory2Outlined,
   LinkOutlined,
   PsychologyAltOutlined,
+  RuleOutlined,
   SecurityOutlined,
 } from '@mui/icons-material';
 import {
@@ -37,6 +39,7 @@ import {
   TextInput,
   appleColors,
   categoryPalette,
+  errorMessageFromUnknown,
   formatLabel,
 } from './PlatformComponents';
 import {
@@ -89,12 +92,112 @@ const setupSteps = [
   },
   {
     title: 'Risks and constraints',
-    detail:
-      'Capture known blockers early so the created project starts with grounded analysis.',
+    detail: 'Capture known blockers early so the created project starts with grounded analysis.',
     icon: SecurityOutlined,
     accent: appleColors.amber,
   },
 ];
+
+type ValidationState = 'ready' | 'attention' | 'blocked';
+
+const validationMeta: Record<
+  ValidationState,
+  { label: string; color: string; background: string }
+> = {
+  ready: { label: 'Ready', color: appleColors.green, background: '#f0fdf6' },
+  attention: { label: 'Review', color: appleColors.amber, background: '#fff8eb' },
+  blocked: { label: 'Needed', color: appleColors.red, background: '#fff3f4' },
+};
+
+const formatExpiry = (value?: string) => {
+  if (!value) return 'no expiry returned';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'expiry unavailable';
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const compactCount = (count: number, singular: string, plural = `${singular}s`) =>
+  `${count} ${count === 1 ? singular : plural}`;
+
+function ValidationRow({
+  title,
+  detail,
+  state,
+}: {
+  title: string;
+  detail: string;
+  state: ValidationState;
+}) {
+  const meta = validationMeta[state];
+  const Icon =
+    state === 'ready'
+      ? CheckCircleOutlineOutlined
+      : state === 'attention'
+        ? ErrorOutlineOutlined
+        : RuleOutlined;
+
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+        gap: 1,
+        alignItems: 'start',
+        p: 1,
+        borderRadius: 1,
+        border: `1px solid ${meta.color}24`,
+        bgcolor: meta.background,
+      }}
+    >
+      <Box
+        sx={{
+          width: 28,
+          height: 28,
+          borderRadius: 1,
+          display: 'grid',
+          placeItems: 'center',
+          color: meta.color,
+          bgcolor: '#fff',
+          border: `1px solid ${meta.color}20`,
+        }}
+      >
+        <Icon sx={{ fontSize: 18 }} />
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="body2" sx={{ fontWeight: 900 }}>
+          {title}
+        </Typography>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: 'block', lineHeight: 1.45 }}
+        >
+          {detail}
+        </Typography>
+      </Box>
+      <Typography
+        variant="caption"
+        sx={{
+          px: 0.85,
+          py: 0.35,
+          borderRadius: 1,
+          color: meta.color,
+          bgcolor: '#fff',
+          border: `1px solid ${meta.color}24`,
+          fontWeight: 900,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {meta.label}
+      </Typography>
+    </Box>
+  );
+}
 
 export default function ProductOnboardingWizard() {
   const queryClient = useQueryClient();
@@ -214,6 +317,79 @@ export default function ProductOnboardingWizard() {
   const submit = form.handleSubmit(() => createProduct.mutate());
   const selectedAiDocumentCount = aiDocumentFiles.filter(item => item.shareWithAi).length;
   const aiBusy = analyzeProductWithAI.isPending || createProductFromAIAction.isPending;
+  const productNameReady = form.values.name.trim().length > 0;
+  const productSummaryReady = form.values.summary.trim().length > 0;
+  const aiMissingEvidence = aiAnalysis?.analysis.missingEvidence ?? [];
+  const aiAssumptions = aiAnalysis?.analysis.assumptions ?? [];
+  const aiIntentExpiresAt = formatExpiry(aiAnalysis?.intent.expiresAt);
+  const aiActionErrorMessage = createProductFromAIAction.error
+    ? errorMessageFromUnknown(
+        createProductFromAIAction.error,
+        'The AI project creation action was rejected.'
+      )
+    : '';
+  const aiValidationItems: Array<{
+    title: string;
+    detail: string;
+    state: ValidationState;
+  }> = [
+    {
+      title: 'Owner intent',
+      detail: aiBrief.trim()
+        ? 'Conversation brief is captured and will be used as the owner request.'
+        : 'Describe what should become production-ready before asking AI to analyze it.',
+      state: aiBrief.trim() ? 'ready' : 'blocked',
+    },
+    {
+      title: 'AI project analysis',
+      detail: aiAnalysis
+        ? aiAnalysis.aiApplied
+          ? `LoomAI returned structured project attributes${aiAnalysis.intent.analysisProviderRequestId ? ` with trace ${aiAnalysis.intent.analysisProviderRequestId}.` : '.'}`
+          : `Fallback analysis is available${aiAnalysis.fallbackReason ? `: ${aiAnalysis.fallbackReason}` : '.'}`
+        : 'Run AI analysis to extract project fields, assumptions, missing evidence, and action payload.',
+      state: aiAnalysis ? (aiAnalysis.aiApplied ? 'ready' : 'attention') : 'blocked',
+    },
+    {
+      title: 'Required creation fields',
+      detail:
+        productNameReady && productSummaryReady
+          ? `Ready to create "${form.values.name.trim()}".`
+          : 'Product name and product outcome must be present before the action can run.',
+      state: productNameReady && productSummaryReady ? 'ready' : 'blocked',
+    },
+    {
+      title: 'Document access boundary',
+      detail: aiDocumentFiles.length
+        ? `${compactCount(aiDocumentFiles.length, 'private attachment')} will stay with the project; ${compactCount(selectedAiDocumentCount, 'file')} ${selectedAiDocumentCount === 1 ? 'is' : 'are'} shared with AI temporarily.`
+        : 'No documents attached. You can still create the project from the conversation and links.',
+      state: aiDocumentFiles.length > 0 && selectedAiDocumentCount === 0 ? 'attention' : 'ready',
+    },
+    {
+      title: 'AI validation notes',
+      detail: aiAnalysis
+        ? aiMissingEvidence.length
+          ? `${compactCount(aiMissingEvidence.length, 'missing evidence item')} found. The project can be created, but the items should become follow-up evidence tasks.`
+          : aiAssumptions.length
+            ? `${compactCount(aiAssumptions.length, 'assumption')} captured for owner review. No missing evidence was flagged for creation.`
+            : 'AI did not flag missing evidence for the creation step.'
+        : 'AI validation notes appear after analysis.',
+      state: aiAnalysis ? (aiMissingEvidence.length ? 'attention' : 'ready') : 'blocked',
+    },
+    {
+      title: 'Action guard',
+      detail: aiAnalysis
+        ? `One-time owner-approved action payload expires ${aiIntentExpiresAt}. Consent and idempotency are checked again by the backend.`
+        : 'The action guard is created only after AI analysis succeeds.',
+      state: aiAnalysis ? 'ready' : 'blocked',
+    },
+  ];
+  const aiBlockedValidationCount = aiValidationItems.filter(
+    item => item.state === 'blocked'
+  ).length;
+  const aiAttentionValidationCount = aiValidationItems.filter(
+    item => item.state === 'attention'
+  ).length;
+  const canCreateWithAi = Boolean(aiAnalysis) && productNameReady && productSummaryReady && !aiBusy;
 
   return (
     <>
@@ -232,7 +408,7 @@ export default function ProductOnboardingWizard() {
       />
       <QueryState
         isLoading={createProduct.isPending || aiBusy}
-        error={createProduct.error || analyzeProductWithAI.error || createProductFromAIAction.error}
+        error={createProduct.error || analyzeProductWithAI.error}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 340px' }, gap: 2.5 }}>
@@ -386,18 +562,16 @@ export default function ProductOnboardingWizard() {
                               control={
                                 <Checkbox
                                   checked={item.shareWithAi}
-                                  onChange={event =>
-                                    {
-                                      setAiDocumentFiles(current =>
-                                        current.map((doc, docIndex) =>
-                                          docIndex === index
-                                            ? { ...doc, shareWithAi: event.target.checked }
-                                            : doc
-                                        )
-                                      );
-                                      setAiAnalysis(null);
-                                    }
-                                  }
+                                  onChange={event => {
+                                    setAiDocumentFiles(current =>
+                                      current.map((doc, docIndex) =>
+                                        docIndex === index
+                                          ? { ...doc, shareWithAi: event.target.checked }
+                                          : doc
+                                      )
+                                    );
+                                    setAiAnalysis(null);
+                                  }}
                                 />
                               }
                               label="Share with AI"
@@ -409,14 +583,12 @@ export default function ProductOnboardingWizard() {
                             <Button
                               variant="text"
                               color="inherit"
-                              onClick={() =>
-                                {
-                                  setAiDocumentFiles(current =>
-                                    current.filter((_, docIndex) => docIndex !== index)
-                                  );
-                                  setAiAnalysis(null);
-                                }
-                              }
+                              onClick={() => {
+                                setAiDocumentFiles(current =>
+                                  current.filter((_, docIndex) => docIndex !== index)
+                                );
+                                setAiAnalysis(null);
+                              }}
                               sx={{ minHeight: 34, minWidth: 72 }}
                             >
                               Remove
@@ -453,8 +625,16 @@ export default function ProductOnboardingWizard() {
                             AI project attributes
                           </Typography>
                           <DotLabel
-                            label={aiAnalysis.intent.analysisProviderRequestId ? 'LoomAI analyzed' : 'Fallback analysis'}
-                            color={aiAnalysis.intent.analysisProviderRequestId ? appleColors.green : appleColors.amber}
+                            label={
+                              aiAnalysis.intent.analysisProviderRequestId
+                                ? 'LoomAI analyzed'
+                                : 'Fallback analysis'
+                            }
+                            color={
+                              aiAnalysis.intent.analysisProviderRequestId
+                                ? appleColors.green
+                                : appleColors.amber
+                            }
                           />
                         </Stack>
                         <Typography variant="h4">{aiAnalysis.analysis.productName}</Typography>
@@ -538,6 +718,70 @@ export default function ProductOnboardingWizard() {
                       />
                       <DotLabel label="No document indexing" color={appleColors.green} />
                     </Stack>
+                    <Box
+                      sx={{
+                        borderRadius: 1,
+                        border: '1px solid #dfe7f5',
+                        bgcolor: '#fbfdff',
+                        p: 1.25,
+                      }}
+                    >
+                      <Stack spacing={1}>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                          justifyContent="space-between"
+                        >
+                          <Stack direction="row" spacing={0.8} alignItems="center">
+                            <RuleOutlined sx={{ color: appleColors.purple, fontSize: 19 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 900 }}>
+                              AI journey validation
+                            </Typography>
+                          </Stack>
+                          <DotLabel
+                            label={
+                              aiBlockedValidationCount
+                                ? `${aiBlockedValidationCount} blocked`
+                                : aiAttentionValidationCount
+                                  ? `${aiAttentionValidationCount} review`
+                                  : 'Ready'
+                            }
+                            color={
+                              aiBlockedValidationCount
+                                ? appleColors.red
+                                : aiAttentionValidationCount
+                                  ? appleColors.amber
+                                  : appleColors.green
+                            }
+                          />
+                        </Stack>
+                        <Stack spacing={0.75}>
+                          {aiValidationItems.map(item => (
+                            <ValidationRow
+                              key={item.title}
+                              title={item.title}
+                              detail={item.detail}
+                              state={item.state}
+                            />
+                          ))}
+                        </Stack>
+                      </Stack>
+                    </Box>
+                    {aiActionErrorMessage && (
+                      <Alert
+                        severity="error"
+                        icon={<ErrorOutlineOutlined />}
+                        sx={{ borderRadius: 1 }}
+                      >
+                        <Typography variant="body2" sx={{ fontWeight: 900 }}>
+                          AI action validation failed
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.45 }}>
+                          {aiActionErrorMessage}
+                        </Typography>
+                      </Alert>
+                    )}
                     <Button
                       variant={aiAnalysis ? 'outlined' : 'contained'}
                       size="large"
@@ -556,13 +800,15 @@ export default function ProductOnboardingWizard() {
                       variant="contained"
                       size="large"
                       endIcon={<ArrowForwardOutlined />}
-                      disabled={!aiAnalysis || !form.values.name || !form.values.summary || aiBusy}
+                      disabled={!canCreateWithAi}
                       onClick={() => createProductFromAIAction.mutate()}
                       sx={{ minHeight: 48 }}
                     >
                       {createProductFromAIAction.isPending
                         ? 'Creating project...'
-                        : 'Create Project with AI Action'}
+                        : canCreateWithAi
+                          ? 'Create Project with AI Action'
+                          : 'Resolve Validation First'}
                     </Button>
                   </Stack>
                 </Box>
@@ -706,11 +952,7 @@ export default function ProductOnboardingWizard() {
                 />
                 <SaveButton
                   disabled={!form.values.name || !form.values.summary || createProduct.isPending}
-                  label={
-                    createProduct.isPending
-                      ? 'Creating product...'
-                      : 'Create product'
-                  }
+                  label={createProduct.isPending ? 'Creating product...' : 'Create product'}
                   endIcon={<ArrowForwardOutlined />}
                 />
               </Stack>

@@ -40,7 +40,20 @@ export const categoryPalette = [
   { accent: '#7c3aed', bg: '#f1e9ff', soft: '#fbf8ff' },
 ];
 
-const labelAcronyms = new Set(['AI', 'API', 'CI/CD', 'JWT', 'MCP', 'QA', 'RBAC', 'S3', 'SLA', 'SSO', 'UAT', 'URL']);
+const labelAcronyms = new Set([
+  'AI',
+  'API',
+  'CI/CD',
+  'JWT',
+  'MCP',
+  'QA',
+  'RBAC',
+  'S3',
+  'SLA',
+  'SSO',
+  'UAT',
+  'URL',
+]);
 
 export const formatLabel = (value?: string | null) => {
   if (!value) return 'Not Set';
@@ -49,10 +62,10 @@ export const formatLabel = (value?: string | null) => {
     .replaceAll('_', ' ')
     .split(' ')
     .filter(Boolean)
-    .map((word) => {
+    .map(word => {
       const upper = word.toUpperCase();
       if (labelAcronyms.has(upper)) return upper;
-      return word.toLowerCase().replace(/^\w/, (letter) => letter.toUpperCase());
+      return word.toLowerCase().replace(/^\w/, letter => letter.toUpperCase());
     })
     .join(' ');
 };
@@ -125,22 +138,65 @@ export const EmptyState = ({ label }: { label: string }) => (
   </Surface>
 );
 
-export const QueryState = ({
-  isLoading,
-  error,
-}: {
-  isLoading: boolean;
-  error: unknown;
-}) => (
+export const QueryState = ({ isLoading, error }: { isLoading: boolean; error: unknown }) => (
   <>
     {isLoading && <LinearProgress sx={{ mb: 2, borderRadius: 999 }} />}
     {error && (
       <Alert severity="error" sx={{ mb: 2, borderRadius: 1 }}>
-        Failed to load platform data.
+        {errorMessageFromUnknown(error)}
       </Alert>
     )}
   </>
 );
+
+export const errorMessageFromUnknown = (
+  error: unknown,
+  fallback = 'The request could not be completed.'
+) => {
+  if (!error) return fallback;
+
+  const responseData =
+    typeof error === 'object' && error !== null && 'response' in error
+      ? (error as { response?: { data?: unknown } }).response?.data
+      : undefined;
+
+  if (typeof responseData === 'string' && responseData.trim()) {
+    return responseData;
+  }
+
+  if (responseData && typeof responseData === 'object') {
+    const data = responseData as Record<string, unknown>;
+    for (const key of ['message', 'error', 'detail', 'title']) {
+      const value = data[key];
+      if (typeof value === 'string' && value.trim()) {
+        return value;
+      }
+    }
+
+    if (data.errors && typeof data.errors === 'object') {
+      const validationMessages = Object.entries(data.errors as Record<string, unknown>).flatMap(
+        ([field, value]) => {
+          if (Array.isArray(value)) {
+            return value.map(item => `${formatLabel(field)}: ${String(item)}`);
+          }
+          if (typeof value === 'string') {
+            return [`${formatLabel(field)}: ${value}`];
+          }
+          return [];
+        }
+      );
+      if (validationMessages.length > 0) {
+        return validationMessages.join(' ');
+      }
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+};
 
 export const TextInput = ({
   label,
@@ -160,7 +216,7 @@ export const TextInput = ({
     label={label}
     value={value}
     disabled={!!disabled}
-    onChange={(event) => onChange(event.target.value)}
+    onChange={event => onChange(event.target.value)}
     {...(multiline ? { multiline: true, minRows: 3 } : {})}
   />
 );
@@ -177,10 +233,7 @@ export const SaveButton = ({
     type={type}
     variant={variant}
     disabled={!!disabled}
-    sx={[
-      { minHeight: 44 },
-      ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
-    ]}
+    sx={[{ minHeight: 44 }, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}
     {...props}
   >
     {label}
@@ -194,14 +247,39 @@ const chipAccent = (label: string, color: ChipProps['color'] = 'default') => {
   if (color === 'primary') return appleColors.purple;
 
   const value = label.toUpperCase();
-  if (value.includes('REJECT') || value.includes('FAILED') || value.includes('BLOCK') || value.includes('CRITICAL')) return appleColors.red;
-  if (value.includes('SUBMITTED') || value.includes('REVIEW') || value.includes('PENDING') || value.includes('AWAITING')) return appleColors.amber;
-  if (value.includes('ACCEPT') || value.includes('ACTIVE') || value.includes('SIGNED') || value.includes('PAID') || value.includes('COMPLETE')) return appleColors.green;
+  if (
+    value.includes('REJECT') ||
+    value.includes('FAILED') ||
+    value.includes('BLOCK') ||
+    value.includes('CRITICAL')
+  )
+    return appleColors.red;
+  if (
+    value.includes('SUBMITTED') ||
+    value.includes('REVIEW') ||
+    value.includes('PENDING') ||
+    value.includes('AWAITING')
+  )
+    return appleColors.amber;
+  if (
+    value.includes('ACCEPT') ||
+    value.includes('ACTIVE') ||
+    value.includes('SIGNED') ||
+    value.includes('PAID') ||
+    value.includes('COMPLETE')
+  )
+    return appleColors.green;
   if (value.includes('RECOMMENDED') || value.includes('READY')) return appleColors.purple;
   return appleColors.muted;
 };
 
-export const StatusChip = ({ label, color = 'default' }: { label: string; color?: ChipProps['color'] }) => {
+export const StatusChip = ({
+  label,
+  color = 'default',
+}: {
+  label: string;
+  color?: ChipProps['color'];
+}) => {
   const accent = chipAccent(label, color);
 
   return (
@@ -262,7 +340,15 @@ export const DotLabel = ({
   color?: string;
 }) => (
   <Stack direction="row" spacing={0.75} alignItems="center">
-    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color, boxShadow: `0 0 0 4px ${color}18` }} />
+    <Box
+      sx={{
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        bgcolor: color,
+        boxShadow: `0 0 0 4px ${color}18`,
+      }}
+    />
     <Typography variant="body2" sx={{ color, fontWeight: 700 }}>
       {label}
     </Typography>
@@ -304,11 +390,22 @@ export const ProgressRing = ({
       }}
     >
       <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-        <Typography sx={{ fontWeight: 800, color: appleColors.ink, fontSize: size > 82 ? 26 : 18, lineHeight: 1 }}>
+        <Typography
+          sx={{
+            fontWeight: 800,
+            color: appleColors.ink,
+            fontSize: size > 82 ? 26 : 18,
+            lineHeight: 1,
+          }}
+        >
           {safeValue}%
         </Typography>
         {label && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: 10 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: 'block', fontSize: 10 }}
+          >
             {label}
           </Typography>
         )}
@@ -337,8 +434,19 @@ export const MiniSparkline = ({
     .join(' ');
 
   return (
-    <Box component="svg" viewBox={`0 0 ${width} ${height}`} sx={{ width: 132, height, display: 'block' }}>
-      <path d={path} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    <Box
+      component="svg"
+      viewBox={`0 0 ${width} ${height}`}
+      sx={{ width: 132, height, display: 'block' }}
+    >
+      <path
+        d={path}
+        fill="none"
+        stroke={color}
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </Box>
   );
 };
@@ -380,7 +488,9 @@ export const MetricTile = ({
           {label}
         </Typography>
       </Stack>
-      <Typography sx={{ fontSize: 30, lineHeight: 1, fontWeight: 800, color: appleColors.ink }}>{value}</Typography>
+      <Typography sx={{ fontSize: 30, lineHeight: 1, fontWeight: 800, color: appleColors.ink }}>
+        {value}
+      </Typography>
       {detail && (
         <Typography variant="body2" color="text.secondary">
           {detail}
@@ -391,14 +501,14 @@ export const MetricTile = ({
   </Surface>
 );
 
-export const SectionTitle = ({
-  title,
-  action,
-}: {
-  title: string;
-  action?: ReactNode;
-}) => (
-  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
+export const SectionTitle = ({ title, action }: { title: string; action?: ReactNode }) => (
+  <Stack
+    direction="row"
+    alignItems="center"
+    justifyContent="space-between"
+    spacing={2}
+    sx={{ mb: 2 }}
+  >
     <Typography variant="h4" sx={{ color: appleColors.ink }}>
       {title}
     </Typography>
