@@ -285,9 +285,9 @@ Authorization: Bearer <Supabase JWT or staging mock token>
 Content-Type: multipart/form-data
 ```
 
-ProdUS stores the uploaded files as private product-project attachments, creates the initial product record, and calls LoomAI runtime `POST /api/chat/me/query-once` from the backend. This is scoped to project creation only; it does not create packages, workspaces, team selections, invitations, or participants.
+ProdUS project creation uses a two-step LoomAI flow. Step 1 is runtime analysis through `POST /api/chat/me/query-once`. Step 2 is project creation through a governed runtime action named `produs.productization_project.create`. This is scoped to project creation only; it does not create packages, workspaces, team selections, invitations, or participants.
 
-ProdUS sends LoomAI a canonical runtime payload with:
+Step 1 analysis payload:
 
 ```json
 {
@@ -299,7 +299,7 @@ ProdUS sends LoomAI a canonical runtime payload with:
     "contextVersion": "produs-project-creation-v1",
     "contextBoundary": "owner-authorized-intake-and-temporary-documents",
     "pageType": "project-creation",
-    "actionProfile": "project-creation-write-authorized",
+    "actionProfile": "project-creation-analysis-only",
     "ownerAuthorizedAiCreation": true,
     "documentSharingPolicy": {
       "scope": "project-creation-analysis-only",
@@ -320,7 +320,7 @@ ProdUS sends LoomAI a canonical runtime payload with:
     ],
     "outputContract": {
       "format": "strict-json-object",
-      "fields": ["productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary"]
+      "fields": ["productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary", "assumptions", "missingEvidence"]
     }
   }
 }
@@ -331,10 +331,68 @@ LoomAI requirements for this project-creation path:
 - Treat `temporaryAccessUrl` documents as analysis-only transient inputs.
 - Do not index, vectorize, retain, or expose project-creation document content.
 - Fetch temporary document URLs during the request window only. URLs expire in minutes and can fail closed.
-- Return a strict JSON object in `answer` or `safeSummary` with `productName`, `summary`, `businessStage`, `techStack`, `productUrl`, `repositoryUrl`, `riskProfile`, and `aiCreationSummary`.
+- Return a strict JSON object in `answer` or `safeSummary` with `productName`, `summary`, `businessStage`, `techStack`, `productUrl`, `repositoryUrl`, `riskProfile`, `aiCreationSummary`, `assumptions`, and `missingEvidence`.
 - Keep `/query-once` non-persistent: no chat conversation, no memory write, no document retention.
 
-ProdUS persists the product as `creationMode=AI_ASSISTED`, `createdByAi=true`, attaches documents privately to the product, and stores LoomAI `providerRequestId`. Selected documents are only available to LoomAI through short-lived ProdUS token URLs; the browser never receives runtime secrets and LoomAI never receives storage credentials.
+Step 2 runtime action configuration:
+
+```json
+{
+  "name": "produs.productization_project.create",
+  "mode": "mutation",
+  "confirmationRequired": false,
+  "confirmationModel": "pre_authorized_by_produs_ui_creation_intent",
+  "profile": "loomai-productization-confirmed-actions",
+  "description": "Create the initial ProdUS productization project from owner-approved AI analysis attributes.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["creationIntentId", "consentToken", "idempotencyKey", "productName", "summary", "businessStage"],
+    "properties": {
+      "creationIntentId": { "type": "string", "format": "uuid" },
+      "consentToken": { "type": "string" },
+      "idempotencyKey": { "type": "string" },
+      "analysisProviderRequestId": { "type": "string" },
+      "productName": { "type": "string", "maxLength": 255 },
+      "summary": { "type": "string" },
+      "businessStage": { "type": "string", "enum": ["IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING"] },
+      "techStack": { "type": "string" },
+      "productUrl": { "type": "string" },
+      "repositoryUrl": { "type": "string" },
+      "riskProfile": { "type": "string" },
+      "aiCreationSummary": { "type": "string" },
+      "assumptions": { "type": "array", "items": { "type": "string" } },
+      "missingEvidence": { "type": "array", "items": { "type": "string" } },
+      "sourceAttachmentIds": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+      "aiAccessibleAttachmentIds": { "type": "array", "items": { "type": "string", "format": "uuid" } }
+    },
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": ["productId", "creationMode", "createdByAi", "idempotencyKey"],
+    "properties": {
+      "productId": { "type": "string", "format": "uuid" },
+      "productName": { "type": "string" },
+      "creationMode": { "const": "AI_ASSISTED" },
+      "createdByAi": { "const": true },
+      "aiProviderRequestId": { "type": "string" },
+      "attachmentCount": { "type": "integer" },
+      "aiSourceAttachmentCount": { "type": "integer" },
+      "auditEventId": { "type": "string" },
+      "idempotencyKey": { "type": "string" }
+    }
+  }
+}
+```
+
+ProdUS persists the product as `creationMode=AI_ASSISTED`, `createdByAi=true`, attaches documents privately to the product, and stores LoomAI `providerRequestId`. Selected documents are only available to LoomAI through short-lived ProdUS token URLs during Step 1 analysis; the Step 2 mutation receives attachment ids only. The browser never receives runtime secrets and LoomAI never receives storage credentials.
+
+ProdUS action validation requirements:
+
+- Validate `creationIntentId`, `consentToken`, owner identity, TTL, and document ownership before creating anything.
+- Validate `idempotencyKey`; duplicate calls return the existing product.
+- Reject package, workspace, team, invitation, participant, scanner, readiness, payment, or contract creation in this action.
+- Reject mutation calls that include temporary document URLs, storage URLs, credentials, or raw document content.
 
 Do not send:
 

@@ -237,12 +237,12 @@ For page helpers, ProdUS marks the runtime context as `actionProfile=loomai-prod
 
 ### 5.1b AI Project Creation With Temporary Documents
 
-ProdUS supports AI-assisted project creation through a backend-only runtime call. This section is limited to project creation: the AI can create the initial product record after the owner clicks the AI creation action, but it must not create packages, workspaces, team selections, invitations, participants, or access lists in this flow.
+ProdUS supports AI-assisted project creation as a two-step LoomAI runtime flow. This section is limited to project creation: the AI may analyze owner input and then create the initial product record through the approved ProdUS runtime action, but it must not create packages, workspaces, team selections, invitations, participants, or access lists in this flow.
 
-Frontend to ProdUS:
+Step 1: analysis from frontend to ProdUS:
 
 ```http
-POST /api/products/ai-assisted
+POST /api/products/ai-assisted/analyze
 Authorization: Bearer <Supabase JWT or staging mock token>
 Content-Type: multipart/form-data
 ```
@@ -254,22 +254,23 @@ Form fields:
 - `files`: optional project documents.
 - `aiSharedFileIndexes`: zero-based indexes of files the owner explicitly allows AI to inspect temporarily.
 
-ProdUS behavior:
+ProdUS analysis behavior:
 
 - Store uploaded files as private product-project attachments.
-- Create the product record as `creationMode=AI_ASSISTED`, `createdByAi=true`.
+- Create a short-lived `projectCreationIntent`.
 - Generate short-lived ProdUS token URLs only for files selected in `aiSharedFileIndexes`.
 - Call LoomAI runtime `POST /api/chat/me/query-once` from the backend with canonical `query`, `conversationId`, `mode`, `position`, and `context`.
-- Persist LoomAI `providerRequestId`, AI creation summary, and selected AI attachment count on the product.
+- Persist analysis metadata against the creation intent, including LoomAI `providerRequestId`, selected AI attachment count, consent token hash, expiry, and idempotency seed.
+- Return analyzed creation attributes to the UI.
 
-Runtime context contract:
+Step 1 runtime context contract:
 
 ```json
 {
   "contextVersion": "produs-project-creation-v1",
   "contextBoundary": "owner-authorized-intake-and-temporary-documents",
   "pageType": "project-creation",
-  "actionProfile": "project-creation-write-authorized",
+  "actionProfile": "project-creation-analysis-only",
   "ownerAuthorizedAiCreation": true,
   "documentSharingPolicy": {
     "scope": "project-creation-analysis-only",
@@ -290,13 +291,83 @@ Runtime context contract:
   ],
   "outputContract": {
     "format": "strict-json-object",
-    "fields": ["productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary"],
+    "fields": ["productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary", "assumptions", "missingEvidence"],
     "businessStageValues": ["IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING"]
   }
 }
 ```
 
-LoomAI must not index, vectorize, retain, summarize for future retrieval, or expose temporary project documents. The expected response is a strict JSON object in `answer` or `safeSummary`. ProdUS falls back to deterministic creation if LoomAI is disabled or does not return the strict project creation contract.
+LoomAI must not index, vectorize, retain, summarize for future retrieval, or expose temporary project documents. The expected response is a strict JSON object in `answer` or `safeSummary`. ProdUS falls back to deterministic analysis if LoomAI is disabled or does not return the strict project analysis contract.
+
+Step 2: project creation through runtime action:
+
+```text
+UI continues from analysis
+  -> ProdUS sends analyzed attributes, creationIntentId, consentToken, and idempotencyKey to LoomAI
+  -> LoomAI invokes action produs.productization_project.create
+  -> ProdUS MCP/action endpoint validates owner consent and intent
+  -> ProdUS creates the product record as creationMode=AI_ASSISTED, createdByAi=true
+  -> ProdUS returns the created product id and audit metadata
+```
+
+Action configuration to share with LoomAI:
+
+```json
+{
+  "name": "produs.productization_project.create",
+  "mode": "mutation",
+  "confirmationRequired": false,
+  "confirmationModel": "pre_authorized_by_produs_ui_creation_intent",
+  "profile": "loomai-productization-confirmed-actions",
+  "description": "Create the initial ProdUS productization project from owner-approved AI analysis attributes.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["creationIntentId", "consentToken", "idempotencyKey", "productName", "summary", "businessStage"],
+    "properties": {
+      "creationIntentId": { "type": "string", "format": "uuid" },
+      "consentToken": { "type": "string" },
+      "idempotencyKey": { "type": "string" },
+      "analysisProviderRequestId": { "type": "string" },
+      "productName": { "type": "string", "maxLength": 255 },
+      "summary": { "type": "string" },
+      "businessStage": { "type": "string", "enum": ["IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING"] },
+      "techStack": { "type": "string" },
+      "productUrl": { "type": "string" },
+      "repositoryUrl": { "type": "string" },
+      "riskProfile": { "type": "string" },
+      "aiCreationSummary": { "type": "string" },
+      "assumptions": { "type": "array", "items": { "type": "string" } },
+      "missingEvidence": { "type": "array", "items": { "type": "string" } },
+      "sourceAttachmentIds": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+      "aiAccessibleAttachmentIds": { "type": "array", "items": { "type": "string", "format": "uuid" } }
+    },
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": ["productId", "creationMode", "createdByAi", "idempotencyKey"],
+    "properties": {
+      "productId": { "type": "string", "format": "uuid" },
+      "productName": { "type": "string" },
+      "creationMode": { "const": "AI_ASSISTED" },
+      "createdByAi": { "const": true },
+      "aiProviderRequestId": { "type": "string" },
+      "attachmentCount": { "type": "integer" },
+      "aiSourceAttachmentCount": { "type": "integer" },
+      "auditEventId": { "type": "string" },
+      "idempotencyKey": { "type": "string" }
+    }
+  }
+}
+```
+
+Security rules:
+
+- Runtime action is not globally self-authorizing. ProdUS must reject the action unless `creationIntentId`, `consentToken`, current owner, attached document ids, and TTL all validate.
+- `confirmationRequired=false` is allowed only because the owner already clicked the AI creation action in ProdUS and ProdUS minted the consent token.
+- Duplicate action calls with the same `idempotencyKey` must return the existing created product.
+- The action cannot create package, workspace, team, invite, participant, access-list, scanner, readiness, payment, or contract records.
+- Temporary document URLs are analysis inputs only. The mutation action receives attachment ids, not storage URLs.
 
 ### 5.2 Query Response
 

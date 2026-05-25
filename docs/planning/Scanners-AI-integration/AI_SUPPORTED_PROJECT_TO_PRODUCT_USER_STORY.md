@@ -76,9 +76,12 @@ Owner opens Studio
   -> explicitly selects which attached documents may be shared with AI for this analysis run
   -> AI asks targeted follow-up questions
   -> AI extracts structured product facts, risks, goals, users, constraints, and evidence hints
-  -> owner runs project analysis
-  -> ProdUS backend authorizes AI write action
-  -> AI creates the productization project record in ProdUS
+  -> Step 1: owner runs AI project analysis
+  -> LoomAI returns creation attributes, assumptions, and missing evidence
+  -> Step 2: owner continues with AI creation
+  -> LoomAI runtime action invokes ProdUS project creation action with the analyzed attributes
+  -> ProdUS backend validates consent, idempotency, authorization, and temporary document references
+  -> ProdUS creates the productization project record
 ```
 
 Minimum structured inputs, whether provided directly or extracted by AI:
@@ -99,8 +102,9 @@ AI support:
 - use owner-selected project attachments and links only for the current AI analysis run
 - extract candidate product facts, target users, business goal, product stage, tech stack, risks, dependencies, and missing evidence
 - ask targeted follow-up questions only when needed to reduce ambiguity
-- produce an owner-readable brief before or after project creation
-- create the productization project through an approved AI write action when the owner has enabled AI-assisted creation
+- produce an owner-readable analysis brief before project creation
+- return normalized creation attributes from the analysis step
+- create the productization project through an approved runtime action when the owner continues after analysis
 - store the AI creation summary, assumptions, missing-evidence notes, and provider request id on the created project context
 - explain what evidence will be needed later
 - avoid package, workspace, team, invite, participant, or access-list creation in this project creation flow
@@ -109,6 +113,7 @@ Expected UI behavior:
 
 - owner can choose either manual creation or AI-assisted creation
 - AI-assisted creation has a clear consent action such as "Use AI to create this project"
+- AI-assisted creation has two visible steps: analysis first, then creation
 - document upload is attached only to the project/product context, not public catalog knowledge
 - each uploaded document has a clear "Share with AI for this analysis" control
 - after consent, project creation does not require a second confirmation for each extracted field
@@ -122,8 +127,10 @@ Backend responsibilities:
 - accept conversational intake, attachments, and links through ProdUS backend only
 - store uploads and links as private project/product-scoped attachment records
 - issue temporary AI access only for explicitly selected attachments during the analysis run
-- authorize AI-assisted creation against current user/session and productization intent
-- create the product/project record through an approved AI write action
+- create and validate a short-lived project creation intent between analysis and mutation
+- authorize AI-assisted creation against current user/session, creation intent, and productization intent
+- expose a governed ProdUS action/MCP mutation for runtime action execution
+- create the product/project record only from the approved runtime action call
 - create audit event for product creation with `createdByType=AI`, `initiatedBy=<ownerId>`, `aiProviderRequestId`, `traceId`, and source input references
 - mark AI-created fields with provenance where practical
 - expose product context to AI only after authorization
@@ -148,7 +155,9 @@ Recommended AI write action contract:
   "action": "produs.productization_project.create",
   "initiatedBy": "<ownerUserId>",
   "actor": "AI_OPERATOR",
-  "consentToken": "<ui-ai-assisted-creation-consent>",
+  "creationIntentId": "<produsProjectCreationIntentId>",
+  "consentToken": "<server-issued-ai-assisted-creation-consent>",
+  "idempotencyKey": "project-create:<creationIntentId>:<analysisProviderRequestId>",
   "inputs": {
     "conversationId": "project-intake:<temporaryOrProductId>",
     "ownerMessage": "Natural product description",
@@ -172,6 +181,7 @@ Recommended AI write action contract:
 Acceptance criteria:
 
 - owner can create a project manually or through AI-assisted intake
+- AI-assisted intake separates analysis and mutation into two backend-visible steps
 - AI-created project record is persisted with owner identity and AI provenance
 - AI-created project fields are normal editable project fields after creation
 - attachments and links used for creation are visible in the project intake evidence trail
@@ -181,6 +191,7 @@ Acceptance criteria:
 - empty or vague required fields are either blocked in manual mode or clearly marked as AI assumptions in AI-assisted mode
 - product appears in owner dashboard and product studio
 - audit trail shows the AI write action, human initiator, created fields, and trace metadata
+- duplicate runtime action calls with the same idempotency key return the existing product instead of creating duplicates
 
 ### 4.2 Stage 2: AI-Assisted Diagnosis
 
