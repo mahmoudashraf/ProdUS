@@ -106,8 +106,11 @@ public class AiAssistedProductCreationService {
                         .toList()
         ));
 
-        Optional<ProductCreationFields> parsedFields = parseFields(assistant);
-        ProductCreationFields fields = parsedFields.orElseGet(() -> deterministicFields(request));
+        ProductCreationFields ownerProvidedFields = deterministicFields(request);
+        Optional<ProductCreationFields> parsedFields = parseFields(assistant).filter(this::hasMeaningfulFields);
+        ProductCreationFields fields = parsedFields
+                .map(parsed -> mergeFields(parsed, ownerProvidedFields))
+                .orElse(ownerProvidedFields);
         applyAnalysis(intent, fields, assistant, temporaryAccess.size());
         intent.setStatus(ProductCreationIntent.Status.READY_FOR_ACTION);
         intent = intentRepository.save(intent);
@@ -377,6 +380,46 @@ public class AiAssistedProductCreationService {
         return parseFields(response.answer())
                 .or(() -> parseFields(response.safeSummary()))
                 .or(() -> parseFieldsFromActionParameters(response));
+    }
+
+    private ProductCreationFields mergeFields(
+            ProductCreationFields aiFields,
+            ProductCreationFields ownerProvidedFields
+    ) {
+        return new ProductCreationFields(
+                firstNonBlank(aiFields.productName(), ownerProvidedFields.productName()),
+                firstNonBlank(aiFields.summary(), ownerProvidedFields.summary()),
+                firstNonBlank(aiFields.businessStage(), ownerProvidedFields.businessStage()),
+                firstNonBlank(aiFields.techStack(), ownerProvidedFields.techStack()),
+                firstNonBlank(aiFields.productUrl(), ownerProvidedFields.productUrl()),
+                firstNonBlank(aiFields.repositoryUrl(), ownerProvidedFields.repositoryUrl()),
+                firstNonBlank(aiFields.riskProfile(), ownerProvidedFields.riskProfile()),
+                firstNonBlank(
+                        aiFields.aiCreationSummary(),
+                        "LoomAI analyzed the owner intake and produced the initial project attributes. ProdUS completed any missing required fields from owner-provided inputs."
+                ),
+                aiFields.assumptions() == null ? List.of() : aiFields.assumptions(),
+                aiFields.missingEvidence() == null ? List.of() : aiFields.missingEvidence()
+        );
+    }
+
+    private boolean hasMeaningfulFields(ProductCreationFields fields) {
+        return fields != null && (
+                hasText(fields.productName())
+                        || hasText(fields.summary())
+                        || hasText(fields.businessStage())
+                        || hasText(fields.techStack())
+                        || hasText(fields.productUrl())
+                        || hasText(fields.repositoryUrl())
+                        || hasText(fields.riskProfile())
+                        || hasText(fields.aiCreationSummary())
+                        || (fields.assumptions() != null && !fields.assumptions().isEmpty())
+                        || (fields.missingEvidence() != null && !fields.missingEvidence().isEmpty())
+        );
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private Optional<ProductCreationFields> parseFieldsFromActionParameters(AssistantQueryResponse response) {

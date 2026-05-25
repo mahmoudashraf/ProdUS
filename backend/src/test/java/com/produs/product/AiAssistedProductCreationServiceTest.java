@@ -70,4 +70,69 @@ class AiAssistedProductCreationServiceTest {
         assertThat(fields.orElseThrow().assumptions()).containsExactly("Owner wants an AI-assisted productization path.");
         assertThat(fields.orElseThrow().missingEvidence()).containsExactly("Run scanner evidence collection.");
     }
+
+    @Test
+    void mergesPartialLoomAiFieldsWithOwnerProvidedIntake() throws Exception {
+        AiAssistedProductCreationService service = new AiAssistedProductCreationService(
+                mock(ProductProfileRepository.class),
+                mock(ProductCreationIntentRepository.class),
+                mock(ProductProjectAttachmentRepository.class),
+                mock(ProductProjectAttachmentService.class),
+                mock(LoomAIIntegrationService.class),
+                mock(AuditService.class),
+                new ObjectMapper()
+        );
+        AiAssistedProductCreationService.ProductCreationFields partialAiFields =
+                new AiAssistedProductCreationService.ProductCreationFields(
+                        "ProdUS",
+                        "ProdUS helps owners productize prototypes.",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        List.of(),
+                        List.of()
+                );
+        AiAssistedProductCreationService.ProductCreationFields ownerProvidedFields =
+                new AiAssistedProductCreationService.ProductCreationFields(
+                        "Owner fallback",
+                        "Owner-provided productization brief.",
+                        "PROTOTYPE",
+                        "Next.js, Spring Boot, PostgreSQL",
+                        "https://produs-staging.46.224.145.148.sslip.io/",
+                        "https://github.com/mahmoudashraf/ProdUS",
+                        "Scanner and production readiness evidence is incomplete.",
+                        "Fallback summary",
+                        List.of("Fallback assumption"),
+                        List.of("Fallback evidence")
+                );
+
+        Method merger = AiAssistedProductCreationService.class
+                .getDeclaredMethod(
+                        "mergeFields",
+                        AiAssistedProductCreationService.ProductCreationFields.class,
+                        AiAssistedProductCreationService.ProductCreationFields.class
+                );
+        merger.setAccessible(true);
+
+        AiAssistedProductCreationService.ProductCreationFields fields =
+                (AiAssistedProductCreationService.ProductCreationFields) merger.invoke(
+                        service,
+                        partialAiFields,
+                        ownerProvidedFields
+                );
+
+        assertThat(fields.productName()).isEqualTo("ProdUS");
+        assertThat(fields.summary()).isEqualTo("ProdUS helps owners productize prototypes.");
+        assertThat(fields.businessStage()).isEqualTo("PROTOTYPE");
+        assertThat(fields.techStack()).isEqualTo("Next.js, Spring Boot, PostgreSQL");
+        assertThat(fields.productUrl()).isEqualTo("https://produs-staging.46.224.145.148.sslip.io/");
+        assertThat(fields.repositoryUrl()).isEqualTo("https://github.com/mahmoudashraf/ProdUS");
+        assertThat(fields.riskProfile()).isEqualTo("Scanner and production readiness evidence is incomplete.");
+        assertThat(fields.aiCreationSummary()).contains("LoomAI analyzed the owner intake");
+        assertThat(fields.assumptions()).isEmpty();
+        assertThat(fields.missingEvidence()).isEmpty();
+    }
 }

@@ -124,6 +124,8 @@ const formatExpiry = (value?: string) => {
 const compactCount = (count: number, singular: string, plural = `${singular}s`) =>
   `${count} ${count === 1 ? singular : plural}`;
 
+const cleanText = (value?: string | null) => value?.trim() ?? '';
+
 function ValidationRow({
   title,
   detail,
@@ -195,6 +197,92 @@ function ValidationRow({
       >
         {meta.label}
       </Typography>
+    </Box>
+  );
+}
+
+function AiAttributeCard({
+  label,
+  value,
+  source,
+  accent,
+  wide = false,
+}: {
+  label: string;
+  value?: string | null | undefined;
+  source: string;
+  accent: string;
+  wide?: boolean | undefined;
+}) {
+  const hasValue = cleanText(value).length > 0;
+
+  return (
+    <Box
+      sx={{
+        minWidth: 0,
+        gridColumn: wide ? { xs: 'auto', md: 'span 2' } : 'auto',
+        p: 1.2,
+        borderRadius: 1,
+        border: `1px solid ${hasValue ? `${accent}30` : '#e4e9f3'}`,
+        bgcolor: hasValue ? `${accent}08` : '#f8fafc',
+      }}
+    >
+      <Stack spacing={0.7}>
+        <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900 }}>
+            {label}
+          </Typography>
+          <DotLabel label={hasValue ? source : 'Needs input'} color={hasValue ? accent : '#94a3b8'} />
+        </Stack>
+        <Typography
+          variant={wide ? 'body1' : 'body2'}
+          sx={{
+            fontWeight: wide ? 700 : 800,
+            color: hasValue ? 'text.primary' : 'text.secondary',
+            lineHeight: 1.5,
+            overflowWrap: 'anywhere',
+            whiteSpace: wide ? 'pre-wrap' : 'normal',
+          }}
+        >
+          {hasValue ? value : 'Not provided yet'}
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
+
+function AiReviewList({
+  title,
+  items,
+  empty,
+  accent,
+}: {
+  title: string;
+  items: string[];
+  empty: string;
+  accent: string;
+}) {
+  return (
+    <Box
+      sx={{
+        p: 1.2,
+        borderRadius: 1,
+        border: `1px solid ${accent}24`,
+        bgcolor: `${accent}08`,
+      }}
+    >
+      <Typography variant="caption" sx={{ fontWeight: 900 }}>
+        {title}
+      </Typography>
+      <Stack spacing={0.5} sx={{ mt: 0.75 }}>
+        {items.length > 0 ? (
+          items.slice(0, 4).map(item => <DotLabel key={item} label={item} color={accent} />)
+        ) : (
+          <Typography variant="caption" color="text.secondary">
+            {empty}
+          </Typography>
+        )}
+      </Stack>
     </Box>
   );
 }
@@ -389,6 +477,60 @@ export default function ProductOnboardingWizard() {
   const aiAttentionValidationCount = aiValidationItems.filter(
     item => item.state === 'attention'
   ).length;
+  const aiProjectAttributes = aiAnalysis
+    ? [
+        {
+          label: 'Product name',
+          value: aiAnalysis.analysis.productName,
+          source: 'AI',
+          accent: appleColors.purple,
+        },
+        {
+          label: 'Business stage',
+          value: formatLabel(aiAnalysis.analysis.businessStage || form.values.businessStage),
+          source: aiAnalysis.analysis.businessStage ? 'AI' : 'Owner',
+          accent: appleColors.amber,
+        },
+        {
+          label: 'Outcome summary',
+          value: aiAnalysis.analysis.summary,
+          source: 'AI',
+          accent: appleColors.blue,
+          wide: true,
+        },
+        {
+          label: 'Tech stack',
+          value: aiAnalysis.analysis.techStack || form.values.techStack,
+          source: aiAnalysis.analysis.techStack ? 'AI' : 'Owner',
+          accent: appleColors.cyan,
+        },
+        {
+          label: 'Repository',
+          value: aiAnalysis.analysis.repositoryUrl || form.values.repositoryUrl,
+          source: aiAnalysis.analysis.repositoryUrl ? 'AI' : 'Owner',
+          accent: appleColors.green,
+        },
+        {
+          label: 'Product URL',
+          value: aiAnalysis.analysis.productUrl || form.values.productUrl,
+          source: aiAnalysis.analysis.productUrl ? 'AI' : 'Owner',
+          accent: appleColors.blue,
+        },
+        {
+          label: 'Risks and constraints',
+          value: aiAnalysis.analysis.riskProfile || form.values.riskProfile,
+          source: aiAnalysis.analysis.riskProfile ? 'AI' : 'Owner',
+          accent: appleColors.red,
+        },
+        {
+          label: 'AI creation summary',
+          value: aiAnalysis.analysis.aiCreationSummary,
+          source: 'AI',
+          accent: appleColors.purple,
+          wide: true,
+        },
+      ]
+    : [];
   const canCreateWithAi = Boolean(aiAnalysis) && productNameReady && productSummaryReady && !aiBusy;
 
   return (
@@ -637,41 +779,44 @@ export default function ProductOnboardingWizard() {
                             }
                           />
                         </Stack>
-                        <Typography variant="h4">{aiAnalysis.analysis.productName}</Typography>
-                        <Typography color="text.secondary" sx={{ lineHeight: 1.55 }}>
-                          {aiAnalysis.analysis.summary}
-                        </Typography>
-                        {(aiAnalysis.analysis.assumptions.length > 0 ||
-                          aiAnalysis.analysis.missingEvidence.length > 0) && (
-                          <Box
-                            sx={{
-                              display: 'grid',
-                              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-                              gap: 1,
-                            }}
-                          >
-                            <Box>
-                              <Typography variant="caption" sx={{ fontWeight: 900 }}>
-                                Assumptions
-                              </Typography>
-                              <Stack spacing={0.4} sx={{ mt: 0.5 }}>
-                                {aiAnalysis.analysis.assumptions.slice(0, 3).map(item => (
-                                  <DotLabel key={item} label={item} color={appleColors.blue} />
-                                ))}
-                              </Stack>
-                            </Box>
-                            <Box>
-                              <Typography variant="caption" sx={{ fontWeight: 900 }}>
-                                Missing evidence
-                              </Typography>
-                              <Stack spacing={0.4} sx={{ mt: 0.5 }}>
-                                {aiAnalysis.analysis.missingEvidence.slice(0, 3).map(item => (
-                                  <DotLabel key={item} label={item} color={appleColors.amber} />
-                                ))}
-                              </Stack>
-                            </Box>
-                          </Box>
-                        )}
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                            gap: 1,
+                          }}
+                        >
+                          {aiProjectAttributes.map(item => (
+                            <AiAttributeCard
+                              key={item.label}
+                              label={item.label}
+                              value={item.value}
+                              source={item.source}
+                              accent={item.accent}
+                              wide={item.wide}
+                            />
+                          ))}
+                        </Box>
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                            gap: 1,
+                          }}
+                        >
+                          <AiReviewList
+                            title="Assumptions"
+                            items={aiAnalysis.analysis.assumptions}
+                            empty="No assumptions returned."
+                            accent={appleColors.blue}
+                          />
+                          <AiReviewList
+                            title="Missing evidence"
+                            items={aiAnalysis.analysis.missingEvidence}
+                            empty="No missing evidence returned."
+                            accent={appleColors.amber}
+                          />
+                        </Box>
                       </Stack>
                     </Box>
                   )}
