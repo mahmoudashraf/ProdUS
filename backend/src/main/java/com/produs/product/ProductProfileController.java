@@ -1,10 +1,14 @@
 package com.produs.product;
 
+import com.produs.product.AiAssistedProductCreationService.AiAssistedProductCreationRequest;
+import com.produs.product.AiAssistedProductCreationService.AiAssistedProductCreationResponse;
 import com.produs.dto.PlatformDtos.ProductProfileResponse;
 import com.produs.entity.User;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,11 +17,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static com.produs.dto.PlatformDtos.toProductProfileResponse;
 
@@ -27,6 +35,7 @@ import static com.produs.dto.PlatformDtos.toProductProfileResponse;
 public class ProductProfileController {
 
     private final ProductProfileRepository productProfileRepository;
+    private final AiAssistedProductCreationService aiAssistedProductCreationService;
 
     @GetMapping
     public List<ProductProfileResponse> list(@AuthenticationPrincipal User owner) {
@@ -54,7 +63,43 @@ public class ProductProfileController {
         ProductProfile profile = new ProductProfile();
         profile.setOwner(owner);
         apply(profile, request);
+        profile.setCreationMode(ProductProfile.CreationMode.MANUAL);
+        profile.setCreatedByAi(false);
         return toProductProfileResponse(productProfileRepository.save(profile));
+    }
+
+    @PostMapping(value = "/ai-assisted", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public AiAssistedProductCreationResponse createWithAI(
+            @AuthenticationPrincipal User owner,
+            @RequestParam String ownerMessage,
+            @RequestParam(required = false) String productName,
+            @RequestParam(required = false) ProductProfile.BusinessStage businessStage,
+            @RequestParam(required = false) String techStack,
+            @RequestParam(required = false) String productUrl,
+            @RequestParam(required = false) String repositoryUrl,
+            @RequestParam(required = false) String knownRisks,
+            @RequestParam(required = false) List<MultipartFile> files,
+            @RequestParam(required = false) List<Integer> aiSharedFileIndexes,
+            HttpServletRequest servletRequest
+    ) {
+        Set<Integer> selectedDocumentIndexes = aiSharedFileIndexes == null
+                ? Set.of()
+                : aiSharedFileIndexes.stream().filter(index -> index != null && index >= 0).collect(Collectors.toSet());
+        return aiAssistedProductCreationService.create(
+                owner,
+                new AiAssistedProductCreationRequest(
+                        productName,
+                        ownerMessage,
+                        businessStage,
+                        techStack,
+                        productUrl,
+                        repositoryUrl,
+                        knownRisks
+                ),
+                files,
+                selectedDocumentIndexes,
+                apiBaseUrl(servletRequest)
+        );
     }
 
     @PutMapping("/{id}")
@@ -85,6 +130,19 @@ public class ProductProfileController {
             return;
         }
         throw new AccessDeniedException("Product profile belongs to another owner");
+    }
+
+    private String apiBaseUrl(HttpServletRequest request) {
+        String forwardedProto = request.getHeader("X-Forwarded-Proto");
+        String forwardedHost = request.getHeader("X-Forwarded-Host");
+        if (forwardedProto != null && !forwardedProto.isBlank() && forwardedHost != null && !forwardedHost.isBlank()) {
+            return forwardedProto.split(",", 2)[0].trim() + "://" + forwardedHost.split(",", 2)[0].trim();
+        }
+        String scheme = request.getScheme();
+        String host = request.getServerName();
+        int port = request.getServerPort();
+        boolean defaultPort = ("http".equalsIgnoreCase(scheme) && port == 80) || ("https".equalsIgnoreCase(scheme) && port == 443);
+        return scheme + "://" + host + (defaultPort ? "" : ":" + port);
     }
 
     public record ProductProfileRequest(

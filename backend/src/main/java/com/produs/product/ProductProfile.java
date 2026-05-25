@@ -46,11 +46,32 @@ public class ProductProfile extends BaseEntity {
     @Column(name = "risk_profile", columnDefinition = "TEXT")
     private String riskProfile;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "creation_mode", nullable = false)
+    private CreationMode creationMode = CreationMode.MANUAL;
+
+    @Column(name = "created_by_ai", nullable = false)
+    private boolean createdByAi = false;
+
+    @Column(name = "ai_creation_summary", columnDefinition = "TEXT")
+    private String aiCreationSummary;
+
+    @Column(name = "ai_provider_request_id")
+    private String aiProviderRequestId;
+
+    @Column(name = "ai_source_attachment_count", nullable = false)
+    private int aiSourceAttachmentCount = 0;
+
     public enum BusinessStage {
         IDEA,
         PROTOTYPE,
         VALIDATED,
         LIVE,
         SCALING
+    }
+
+    public enum CreationMode {
+        MANUAL,
+        AI_ASSISTED
     }
 }

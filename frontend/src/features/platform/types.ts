@@ -49,7 +49,15 @@ export interface ServiceDependency extends BaseRecord {
   dependsOnModule?: ServiceModule;
   reason?: string;
   message?: string;
-  dependencyType: 'HARD' | 'SOFT' | 'PARALLEL' | 'APPROVAL' | 'EVIDENCE' | 'ACCESS' | 'RISK' | 'COMMERCIAL';
+  dependencyType:
+    | 'HARD'
+    | 'SOFT'
+    | 'PARALLEL'
+    | 'APPROVAL'
+    | 'EVIDENCE'
+    | 'ACCESS'
+    | 'RISK'
+    | 'COMMERCIAL';
   severity: 'INFO' | 'RECOMMENDED' | 'WARNING' | 'BLOCKER';
   ruleMetadata?: string;
   required: boolean;
@@ -156,6 +164,37 @@ export interface ProductProfile extends BaseRecord {
   productUrl?: string;
   repositoryUrl?: string;
   riskProfile?: string;
+  creationMode?: 'MANUAL' | 'AI_ASSISTED';
+  createdByAi?: boolean;
+  aiCreationSummary?: string;
+  aiProviderRequestId?: string;
+  aiSourceAttachmentCount?: number;
+}
+
+export interface ProductProjectAttachment extends BaseRecord {
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  label?: string;
+  aiShareRequested: boolean;
+  aiAccessExpiresAt?: string;
+}
+
+export interface AiDocumentShare {
+  attachmentId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  expiresAt?: string;
+}
+
+export interface AiAssistedProductCreationResponse {
+  product: ProductProfile;
+  attachments: ProductProjectAttachment[];
+  aiSharedDocuments: AiDocumentShare[];
+  assistant: AssistantQueryResponse;
+  aiApplied: boolean;
+  fallbackReason?: string;
 }
 
 export interface ScanSource extends BaseRecord {
@@ -195,7 +234,12 @@ export interface ScanRun extends BaseRecord {
   workspaceId?: string;
   triggerType: 'MANUAL_UPLOAD' | 'CI_UPLOAD' | 'SCHEDULED' | 'HOSTED_SCAN' | 'EXTERNAL_IMPORT';
   status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED';
-  depth: 'CI_EVIDENCE' | 'SAFE_STATIC' | 'DEPENDENCY_CONTAINER' | 'RUNTIME_BASELINE' | 'DEEP_REVIEW';
+  depth:
+    | 'CI_EVIDENCE'
+    | 'SAFE_STATIC'
+    | 'DEPENDENCY_CONTAINER'
+    | 'RUNTIME_BASELINE'
+    | 'DEEP_REVIEW';
   startedAt?: string;
   completedAt?: string;
   requestedByEmail: string;
@@ -263,7 +307,14 @@ export interface NormalizedFinding extends BaseRecord {
   title: string;
   description: string;
   severity: 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  status: 'NEW' | 'OPEN' | 'RESOLVED' | 'REGRESSED' | 'ACCEPTED_RISK' | 'FALSE_POSITIVE' | 'INSUFFICIENT_EVIDENCE';
+  status:
+    | 'NEW'
+    | 'OPEN'
+    | 'RESOLVED'
+    | 'REGRESSED'
+    | 'ACCEPTED_RISK'
+    | 'FALSE_POSITIVE'
+    | 'INSUFFICIENT_EVIDENCE';
   affectedComponent?: string;
   evidenceItemId?: string;
   recommendedModule?: ServiceModule;
@@ -281,7 +332,16 @@ export interface ScannerEvidenceItem extends BaseRecord {
   findingId?: string;
   scanRunId?: string;
   toolRunId?: string;
-  evidenceType: 'SCAN_RESULT' | 'CI_RUN' | 'PULL_REQUEST' | 'COMMIT' | 'DEPLOYMENT_LOG' | 'SCREENSHOT' | 'URL_CHECK' | 'RUNBOOK' | 'MANUAL_NOTE';
+  evidenceType:
+    | 'SCAN_RESULT'
+    | 'CI_RUN'
+    | 'PULL_REQUEST'
+    | 'COMMIT'
+    | 'DEPLOYMENT_LOG'
+    | 'SCREENSHOT'
+    | 'URL_CHECK'
+    | 'RUNBOOK'
+    | 'MANUAL_NOTE';
   source: string;
   title: string;
   summary?: string;
@@ -708,7 +768,13 @@ export interface TeamReputationEvent extends BaseRecord {
   team?: Team;
   workspace?: ProjectWorkspace;
   createdBy?: CurrentUserSummary;
-  eventType: 'MILESTONE_ACCEPTED' | 'DELIVERABLE_REVIEW' | 'CONTRACT_COMPLETED' | 'SUPPORT_REVIEW' | 'WORKSPACE_REVIEW' | 'DISPUTE';
+  eventType:
+    | 'MILESTONE_ACCEPTED'
+    | 'DELIVERABLE_REVIEW'
+    | 'CONTRACT_COMPLETED'
+    | 'SUPPORT_REVIEW'
+    | 'WORKSPACE_REVIEW'
+    | 'DISPUTE';
   rating: number;
   verified: boolean;
   notes?: string;
@@ -743,7 +809,13 @@ export interface DisputeCase extends BaseRecord {
   title: string;
   description?: string;
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  status: 'OPEN' | 'UNDER_REVIEW' | 'OWNER_RESPONSE_NEEDED' | 'TEAM_RESPONSE_NEEDED' | 'RESOLVED' | 'CANCELLED';
+  status:
+    | 'OPEN'
+    | 'UNDER_REVIEW'
+    | 'OWNER_RESPONSE_NEEDED'
+    | 'TEAM_RESPONSE_NEEDED'
+    | 'RESOLVED'
+    | 'CANCELLED';
   responseDueOn?: string;
   resolution?: string;
 }

@@ -5,17 +5,35 @@ export async function getJson<T>(url: string): Promise<T> {
   return response.data;
 }
 
-export async function postJson<T, TPayload extends object>(url: string, payload: TPayload): Promise<T> {
+export async function postJson<T, TPayload extends object>(
+  url: string,
+  payload: TPayload
+): Promise<T> {
   const response = await apiClient.post<T>(url, payload);
   return response.data;
 }
 
-export async function putJson<T, TPayload extends object>(url: string, payload: TPayload): Promise<T> {
+export async function postFormData<T>(url: string, payload: FormData): Promise<T> {
+  const response = await apiClient.post<T>(url, payload, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+}
+
+export async function putJson<T, TPayload extends object>(
+  url: string,
+  payload: TPayload
+): Promise<T> {
   const response = await apiClient.put<T>(url, payload);
   return response.data;
 }
 
-export async function patchJson<T, TPayload extends object>(url: string, payload: TPayload): Promise<T> {
+export async function patchJson<T, TPayload extends object>(
+  url: string,
+  payload: TPayload
+): Promise<T> {
   const response = await apiClient.patch<T>(url, payload);
   return response.data;
 }

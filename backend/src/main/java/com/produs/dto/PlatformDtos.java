@@ -215,7 +215,12 @@ public final class PlatformDtos {
             String techStack,
             String productUrl,
             String repositoryUrl,
-            String riskProfile
+            String riskProfile,
+            ProductProfile.CreationMode creationMode,
+            boolean createdByAi,
+            String aiCreationSummary,
+            String aiProviderRequestId,
+            int aiSourceAttachmentCount
     ) {}
 
     public record RequirementIntakeResponse(
@@ -949,7 +954,12 @@ public final class PlatformDtos {
                 profile.getTechStack(),
                 profile.getProductUrl(),
                 profile.getRepositoryUrl(),
-                profile.getRiskProfile()
+                profile.getRiskProfile(),
+                profile.getCreationMode(),
+                profile.isCreatedByAi(),
+                profile.getAiCreationSummary(),
+                profile.getAiProviderRequestId(),
+                profile.getAiSourceAttachmentCount()
         );
     }
 

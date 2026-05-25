@@ -235,6 +235,69 @@ The request and response shape is identical to `/api/ai/assistant/query`. ProdUS
 
 For page helpers, ProdUS marks the runtime context as `actionProfile=loomai-productization-explain-only`, `assistantIntent=one-time-explanation`, and `availableActionGroups=[]`. Persistent `/api/ai/assistant/query` remains the action-capable path. This keeps non-conversational UI explainers from accidentally invoking read actions when the page already supplied authorized summaries.
 
+### 5.1b AI Project Creation With Temporary Documents
+
+ProdUS supports AI-assisted project creation through a backend-only runtime call. This section is limited to project creation: the AI can create the initial product record after the owner clicks the AI creation action, but it must not create packages, workspaces, team selections, invitations, participants, or access lists in this flow.
+
+Frontend to ProdUS:
+
+```http
+POST /api/products/ai-assisted
+Authorization: Bearer <Supabase JWT or staging mock token>
+Content-Type: multipart/form-data
+```
+
+Form fields:
+
+- `ownerMessage`: required owner brief/conversation text.
+- `productName`, `businessStage`, `techStack`, `productUrl`, `repositoryUrl`, `knownRisks`: optional owner hints.
+- `files`: optional project documents.
+- `aiSharedFileIndexes`: zero-based indexes of files the owner explicitly allows AI to inspect temporarily.
+
+ProdUS behavior:
+
+- Store uploaded files as private product-project attachments.
+- Create the product record as `creationMode=AI_ASSISTED`, `createdByAi=true`.
+- Generate short-lived ProdUS token URLs only for files selected in `aiSharedFileIndexes`.
+- Call LoomAI runtime `POST /api/chat/me/query-once` from the backend with canonical `query`, `conversationId`, `mode`, `position`, and `context`.
+- Persist LoomAI `providerRequestId`, AI creation summary, and selected AI attachment count on the product.
+
+Runtime context contract:
+
+```json
+{
+  "contextVersion": "produs-project-creation-v1",
+  "contextBoundary": "owner-authorized-intake-and-temporary-documents",
+  "pageType": "project-creation",
+  "actionProfile": "project-creation-write-authorized",
+  "ownerAuthorizedAiCreation": true,
+  "documentSharingPolicy": {
+    "scope": "project-creation-analysis-only",
+    "indexing": "not-allowed",
+    "retention": "do-not-store-document-content",
+    "access": "temporary-url-selected-by-owner",
+    "ttl": "minutes"
+  },
+  "documents": [
+    {
+      "attachmentId": "uuid",
+      "fileName": "brief.pdf",
+      "contentType": "application/pdf",
+      "sizeBytes": 12345,
+      "temporaryAccessUrl": "https://produs-api.../api/product-attachments/ai-access/<token>",
+      "expiresAt": "ISO-8601 timestamp"
+    }
+  ],
+  "outputContract": {
+    "format": "strict-json-object",
+    "fields": ["productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary"],
+    "businessStageValues": ["IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING"]
+  }
+}
+```
+
+LoomAI must not index, vectorize, retain, summarize for future retrieval, or expose temporary project documents. The expected response is a strict JSON object in `answer` or `safeSummary`. ProdUS falls back to deterministic creation if LoomAI is disabled or does not return the strict project creation contract.
+
 ### 5.2 Query Response
 
 ```json

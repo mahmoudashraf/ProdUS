@@ -1,0 +1,83 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2200
+      author: produs
+      changes:
+        - addColumn:
+            tableName: product_profiles
+            columns:
+              - column:
+                  name: creation_mode
+                  type: VARCHAR(50)
+                  defaultValue: MANUAL
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by_ai
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ai_creation_summary
+                  type: TEXT
+              - column:
+                  name: ai_provider_request_id
+                  type: VARCHAR(255)
+              - column:
+                  name: ai_source_attachment_count
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 2201
+      author: produs
+      changes:
+        - createTable:
+            tableName: product_project_attachments
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: uploaded_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: file_name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: storage_key, type: VARCHAR(512), constraints: { nullable: false } }
+              - column: { name: file_url, type: TEXT, constraints: { nullable: false } }
+              - column: { name: content_type, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: size_bytes, type: BIGINT, constraints: { nullable: false } }
+              - column: { name: label, type: VARCHAR(255) }
+              - column: { name: ai_share_requested, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: ai_access_token_hash, type: VARCHAR(64) }
+              - column: { name: ai_access_expires_at, type: TIMESTAMP }
+              - column: { name: ai_access_revoked_at, type: TIMESTAMP }
+              - column: { name: ai_access_last_used_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: product_project_attachments
+            columnNames: storage_key
+            constraintName: uk_product_project_attachments_storage_key
+        - addForeignKeyConstraint:
+            baseTableName: product_project_attachments
+            baseColumnNames: product_profile_id
+            constraintName: fk_product_project_attachments_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: product_project_attachments
+            baseColumnNames: uploaded_by
+            constraintName: fk_product_project_attachments_uploaded_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_project_attachments
+            indexName: idx_product_project_attachments_product
+            columns:
+              - column: { name: product_profile_id }
+              - column: { name: created_at }
+        - createIndex:
+            tableName: product_project_attachments
+            indexName: idx_product_project_attachments_ai_token
+            columns:
+              - column: { name: ai_access_token_hash }

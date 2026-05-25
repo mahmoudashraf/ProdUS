@@ -3004,7 +3004,25 @@ export default function OwnerProductizationWorkspace({
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: showProductCreation ? '420px 1fr' : '1fr' }, gap: 2.5 }}>
             {showProductCreation && (
               <Surface>
-                <SectionTitle title="Add Product" action={<AddOutlined sx={{ color: appleColors.purple }} />} />
+                <SectionTitle
+                  title="Add Product"
+                  action={
+                    <Button
+                      component={NextLink}
+                      href="/products/new"
+                      size="small"
+                      variant="contained"
+                      startIcon={<AutoAwesomeOutlined />}
+                      sx={{
+                        borderRadius: 999,
+                        boxShadow: '0 12px 26px rgba(99, 91, 255, 0.2)',
+                        textTransform: 'none',
+                      }}
+                    >
+                      AI create
+                    </Button>
+                  }
+                />
                 <Box component="form" onSubmit={submitProduct}>
                   <Stack spacing={1.5}>
                     <TextInput label="Name" value={productForm.values.name} onChange={(value) => productForm.setValue('name', value)} />

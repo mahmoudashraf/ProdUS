@@ -12,7 +12,7 @@ This document defines the full AI-supported ProdUS user story from the moment an
 
 ProdUS remains the system of record for identity, authorization, product data, source connections, scanner execution, service packages, team selection, workspace delivery, evidence, milestones, and audit. LoomAI supports the journey with governed conversation, recommendations, summaries, decision preparation, and selected write-backed creation flows.
 
-AI is a first-class productization participant when the owner intentionally chooses AI-assisted project analysis or AI-assisted creation from the ProdUS UI. In that mode, ProdUS may allow AI to create bounded draft business records through approved backend write actions. Those writes must be authorized by the current user session, scoped to the active productization intent, and audited as `created by AI` with the initiating human, prompt trace, source inputs, and provider request id. AI must not execute high-risk operational or contractual mutations without a separate human confirmation path.
+AI is a first-class productization participant when the owner intentionally chooses AI-assisted project analysis or AI-assisted creation from the ProdUS UI. In that mode, ProdUS may allow AI to create bounded business records through approved backend write actions. Those writes must be authorized by the current user session, scoped to the active productization intent, and audited as `created by AI` with the initiating human, prompt trace, source inputs, and provider request id. AI must not execute high-risk operational or contractual mutations without a separate human confirmation path.
 
 The target journey is:
 
@@ -20,7 +20,7 @@ The target journey is:
 AI-first intake conversation
   -> owner shares product goal, attachments, links, and constraints
   -> owner opts into AI-assisted project creation
-  -> AI creates draft productization project and analysis records through ProdUS write action
+  -> AI creates the productization project record through ProdUS write action
   -> AI-assisted diagnosis
   -> connect source and run scanners
   -> normalize findings and evidence
@@ -78,7 +78,7 @@ Owner opens Studio
   -> AI extracts structured product facts, risks, goals, users, constraints, and evidence hints
   -> owner runs project analysis
   -> ProdUS backend authorizes AI write action
-  -> AI creates a draft productization project and initial analysis records in ProdUS
+  -> AI creates the productization project record in ProdUS
 ```
 
 Minimum structured inputs, whether provided directly or extracted by AI:
@@ -91,60 +91,61 @@ Minimum structured inputs, whether provided directly or extracted by AI:
 - known risks
 - target launch or readiness date
 - optional source repository
-- optional project/workspace attachments and links
+- optional project attachments and links
 
 AI support:
 
 - conduct a creative intake conversation that feels like a senior productization partner
-- use owner-selected project/workspace attachments and links only for the current AI analysis run
+- use owner-selected project attachments and links only for the current AI analysis run
 - extract candidate product facts, target users, business goal, product stage, tech stack, risks, dependencies, and missing evidence
 - ask targeted follow-up questions only when needed to reduce ambiguity
 - produce an owner-readable brief before or after project creation
-- create a draft productization project through an approved AI write action when the owner has enabled AI-assisted creation
-- create initial analysis notes, assumptions, missing-evidence list, and suggested next steps as structured ProdUS records
+- create the productization project through an approved AI write action when the owner has enabled AI-assisted creation
+- store the AI creation summary, assumptions, missing-evidence notes, and provider request id on the created project context
 - explain what evidence will be needed later
+- avoid package, workspace, team, invite, participant, or access-list creation in this project creation flow
 
 Expected UI behavior:
 
 - owner can choose either manual creation or AI-assisted creation
 - AI-assisted creation has a clear consent action such as "Use AI to create this project"
-- document upload is attached only to the project/workspace, not public catalog knowledge
+- document upload is attached only to the project/product context, not public catalog knowledge
 - each uploaded document has a clear "Share with AI for this analysis" control
 - after consent, project creation does not require a second confirmation for each extracted field
-- AI shows extracted facts, assumptions, attachments, and links before or immediately after draft creation
-- owner can edit the AI-created draft project, analysis notes, and extracted facts
+- AI shows extracted facts, assumptions, attachments, and links before or immediately after creation
+- owner can edit the AI-created project fields normally after creation
 - AI helper appears as a Studio creation surface, not a generic chatbot floating outside context
 - vague required fields can be created as assumptions only if marked clearly and routed to follow-up
 
 Backend responsibilities:
 
 - accept conversational intake, attachments, and links through ProdUS backend only
-- store uploads and links as project/workspace-scoped attachment records
+- store uploads and links as private project/product-scoped attachment records
 - issue temporary AI access only for explicitly selected attachments during the analysis run
 - authorize AI-assisted creation against current user/session and productization intent
-- create product/project draft records through an approved AI write action
+- create the product/project record through an approved AI write action
 - create audit event for product creation with `createdByType=AI`, `initiatedBy=<ownerId>`, `aiProviderRequestId`, `traceId`, and source input references
 - mark AI-created fields with provenance where practical
 - expose product context to AI only after authorization
 - include product id in later assistant context
 
-Project/workspace attachment handling:
+Project attachment handling:
 
-- Attachments uploaded during project creation are stored as private project/workspace files.
+- Attachments uploaded during project creation are stored as private project/product files.
 - Attachments are not exported to managed vectorization and are not added to safe shared knowledge.
 - Attachments are not publicly available and do not use permanent public URLs.
 - The owner must explicitly select which attachments are shared with AI for the current project analysis run.
 - ProdUS marks selected attachments as temporarily AI-accessible for a short TTL, normally 5-15 minutes.
 - AI access can be provided through a short-lived signed URL or short-lived document access token generated by ProdUS backend.
 - The temporary URL/token is invalidated after TTL, after project creation completes, or when the owner revokes AI access.
-- The document remains attached to the project/workspace for owner and approved participant access after AI access expires.
+- The document remains attached to the project/product for owner access after AI access expires. If the owner later creates a workspace, access for approved participants must be granted through the workspace flow, not by the AI creation flow.
 - No indexing is required for this flow.
 
 Recommended AI write action contract:
 
 ```json
 {
-  "action": "produs.productization_project.create_draft",
+  "action": "produs.productization_project.create",
   "initiatedBy": "<ownerUserId>",
   "actor": "AI_OPERATOR",
   "consentToken": "<ui-ai-assisted-creation-consent>",
@@ -155,7 +156,7 @@ Recommended AI write action contract:
     "aiAccessibleAttachmentIds": ["<projectAttachmentId>"],
     "linkIds": ["<linkId>"]
   },
-  "draft": {
+  "project": {
     "name": "Extracted product name",
     "stage": "PROTOTYPE",
     "businessGoal": "Owner-readable goal",
@@ -172,10 +173,11 @@ Acceptance criteria:
 
 - owner can create a project manually or through AI-assisted intake
 - AI-created project record is persisted with owner identity and AI provenance
-- AI-created records are drafts until the owner edits, continues to diagnosis, or converts them into later workflow records
+- AI-created project fields are normal editable project fields after creation
 - attachments and links used for creation are visible in the project intake evidence trail
 - only owner-selected attachments are temporarily shared with AI
 - temporary AI document access expires quickly and does not create public availability
+- AI does not create packages, workspaces, teams, invites, participant lists, or access lists in Stage 1
 - empty or vague required fields are either blocked in manual mode or clearly marked as AI assumptions in AI-assisted mode
 - product appears in owner dashboard and product studio
 - audit trail shows the AI write action, human initiator, created fields, and trace metadata
@@ -570,7 +572,7 @@ Export rules:
 
 - include only safe, non-secret, non-tenant-private content
 - include stable ids, versions, updated timestamps, and record type metadata
-- exclude project/workspace attachments, private messages, invitations, raw evidence files, source code, raw logs, tokens, object storage URLs, and credentials
+- exclude project/product attachments, private messages, invitations, raw evidence files, source code, raw logs, tokens, object storage URLs, and credentials
 - team and solo expert records must include only profile content that is safe for marketplace discovery
 
 ### 6.2 Live Context Enrichment
@@ -586,35 +588,35 @@ The following data should be passed at query time after authorization, not bulk-
 - private owner/team/reviewer comments
 - artifact availability
 - current user role and permissions
-- owner-selected project/workspace attachments through short-lived AI access only
+- owner-selected project/product attachments through short-lived AI access only
 
 Context must be compact, redacted, and bounded before sending to LoomAI.
 
 ### 6.3 Temporary AI Document Access
 
-Project/workspace documents are not indexed and are not exported as reusable knowledge. They are used only when the owner explicitly selects them for an AI run.
+Project/product documents are not indexed and are not exported as reusable knowledge. They are used only when the owner explicitly selects them for an AI run.
 
 Simple flow:
 
 ```text
 Owner uploads document during project creation
-  -> ProdUS stores private project/workspace attachment
+  -> ProdUS stores private project/product attachment
   -> Owner selects "Share with AI for this analysis"
   -> ProdUS creates short-lived AI access token or signed URL
   -> Backend sends only selected temporary access references to LoomAI
   -> AI analysis completes
   -> ProdUS invalidates or lets temporary access expire
-  -> Document remains attached privately to the project/workspace
+  -> Document remains attached privately to the project/product
 ```
 
 Rules:
 
 - default document state is not AI-accessible
 - AI access TTL should be measured in minutes
-- temporary access is scoped to one project/workspace and one analysis request
+- temporary access is scoped to one project/product and one analysis request
 - temporary access must be revocable by the owner
 - the attachment remains available later only to the owner and approved workspace participants through ProdUS authorization
-- no managed vectorization is required for uploaded project/workspace documents
+- no managed vectorization is required for uploaded project/product documents
 
 ## 7. Backend Responsibilities
 
@@ -622,7 +624,7 @@ ProdUS backend must:
 
 - authenticate user through Supabase or staging mock auth
 - authorize product/package/workspace/finding/milestone ids
-- authorize project/workspace attachment ids before temporary AI sharing
+- authorize project/product attachment ids before temporary AI sharing
 - build safe context summaries
 - redact secrets and sensitive fields
 - sign private runtime assertions
@@ -652,19 +654,16 @@ ProdUS frontend must:
 
 ## 9. Human Confirmation Boundary
 
-AI may directly create bounded records when the owner has opted into AI-assisted creation:
+For the project creation story, AI may directly create bounded records when the owner has opted into AI-assisted project creation:
 
-- draft productization project
-- intake analysis notes
-- extracted product facts and assumptions
-- missing-evidence checklist
-- initial diagnosis draft
-- suggested service-plan draft or project-cart draft, if scoped to the active product and clearly reversible
-- package record when the owner chooses AI package creation
-- workspace record when the owner chooses AI workspace creation
-- workspace milestones, deliverables, acceptance criteria, and evidence requirements generated from the confirmed package scope
+- productization project/product profile
+- extracted product facts and assumptions stored on that project context
+- missing-evidence notes or AI creation summary stored on that project context
+- source attachment references selected by the owner
 
-These records must be marked as AI-created, editable, and audited. The owner consent to use AI-assisted creation from the UI is sufficient for these draft creation writes; individual field-level confirmation is not required.
+These records must be marked as AI-created, editable, and audited. The owner consent to use AI-assisted creation from the UI is sufficient for project creation writes; individual field-level confirmation is not required.
+
+Package creation, workspace creation, team selection, expert selection, participant access, invitations, contracts, payments, scanner execution, and readiness decisions are outside this Stage 1 creation flow. They require their own dedicated UI action and confirmation boundary.
 
 AI may also prepare:
 
@@ -714,7 +713,7 @@ Use this scenario to verify the complete AI-supported story:
 1. Log in as product owner.
 2. Start AI-assisted project creation for a prototype product.
 3. Add natural-language product context plus at least one attachment or link.
-4. Run project analysis and allow AI to create the draft productization project.
+4. Run project analysis and allow AI to create the productization project.
 5. Review AI-created fields, assumptions, intake evidence, and audit trace.
 6. Ask AI for an owner brief.
 7. Open diagnosis and request AI diagnosis explanation.
@@ -749,7 +748,7 @@ These checks must be tracked as part of implementation QA:
 - verify AI-assisted project intake uses persistent conversation plus approved write action gateway
 - verify AI-created productization records are drafts with AI provenance and human initiator
 - verify attachments and links used by AI intake are stored, authorized, redacted, and visible in the evidence trail
-- verify project/workspace document uploads are private by default and never indexed
+- verify project/product document uploads are private by default and never indexed
 - verify only owner-selected documents receive short-lived AI access
 - verify temporary AI document access expires or is invalidated after project creation/analysis
 - verify product, scanner, package, workspace, milestone, team, and solo expert contexts are authorized

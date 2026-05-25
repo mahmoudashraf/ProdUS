@@ -275,6 +275,67 @@ ProdUS uses `/query-once` for page helpers with an explain-only context hint:
 
 Persistent `/query` remains the action-capable chat path with `actionProfile=loomai-productization-read`.
 
+### 6.1 Project Creation With Temporary Documents
+
+ProdUS project creation is now an AI-first backend-mediated flow. The browser calls ProdUS only:
+
+```http
+POST https://produs-api-staging.46.224.145.148.sslip.io/api/products/ai-assisted
+Authorization: Bearer <Supabase JWT or staging mock token>
+Content-Type: multipart/form-data
+```
+
+ProdUS stores the uploaded files as private product-project attachments, creates the initial product record, and calls LoomAI runtime `POST /api/chat/me/query-once` from the backend. This is scoped to project creation only; it does not create packages, workspaces, team selections, invitations, or participants.
+
+ProdUS sends LoomAI a canonical runtime payload with:
+
+```json
+{
+  "query": "Project creation instruction and owner brief",
+  "conversationId": "opaque-provider-conversation-id",
+  "mode": "support_assistant",
+  "position": "project_creation",
+  "context": {
+    "contextVersion": "produs-project-creation-v1",
+    "contextBoundary": "owner-authorized-intake-and-temporary-documents",
+    "pageType": "project-creation",
+    "actionProfile": "project-creation-write-authorized",
+    "ownerAuthorizedAiCreation": true,
+    "documentSharingPolicy": {
+      "scope": "project-creation-analysis-only",
+      "indexing": "not-allowed",
+      "retention": "do-not-store-document-content",
+      "access": "temporary-url-selected-by-owner",
+      "ttl": "minutes"
+    },
+    "documents": [
+      {
+        "attachmentId": "<uuid>",
+        "fileName": "brief.pdf",
+        "contentType": "application/pdf",
+        "sizeBytes": 12345,
+        "temporaryAccessUrl": "https://produs-api-staging.../api/product-attachments/ai-access/<token>",
+        "expiresAt": "2026-05-25T12:34:56"
+      }
+    ],
+    "outputContract": {
+      "format": "strict-json-object",
+      "fields": ["productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary"]
+    }
+  }
+}
+```
+
+LoomAI requirements for this project-creation path:
+
+- Treat `temporaryAccessUrl` documents as analysis-only transient inputs.
+- Do not index, vectorize, retain, or expose project-creation document content.
+- Fetch temporary document URLs during the request window only. URLs expire in minutes and can fail closed.
+- Return a strict JSON object in `answer` or `safeSummary` with `productName`, `summary`, `businessStage`, `techStack`, `productUrl`, `repositoryUrl`, `riskProfile`, and `aiCreationSummary`.
+- Keep `/query-once` non-persistent: no chat conversation, no memory write, no document retention.
+
+ProdUS persists the product as `creationMode=AI_ASSISTED`, `createdByAi=true`, attaches documents privately to the product, and stores LoomAI `providerRequestId`. Selected documents are only available to LoomAI through short-lived ProdUS token URLs; the browser never receives runtime secrets and LoomAI never receives storage credentials.
+
 Do not send:
 
 - `message` instead of `query`

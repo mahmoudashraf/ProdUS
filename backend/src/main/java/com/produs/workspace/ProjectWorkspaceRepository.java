@@ -7,4 +7,6 @@ import java.util.UUID;
 
 public interface ProjectWorkspaceRepository extends JpaRepository<ProjectWorkspace, UUID> {
     List<ProjectWorkspace> findByOwnerIdOrderByCreatedAtDesc(UUID ownerId);
+
+    List<ProjectWorkspace> findByPackageInstanceProductProfileId(UUID productProfileId);
 }

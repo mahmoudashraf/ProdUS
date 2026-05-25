@@ -111,6 +111,54 @@ class ProductizationWorkflowIntegrationTest {
     }
 
     @Test
+    void aiAssistedProductCreationStoresPrivateAttachmentsAndTemporaryAiShare() throws Exception {
+        User owner = saveUser("owner-ai-create@produs.test", User.UserRole.PRODUCT_OWNER);
+        MockMultipartFile brief = new MockMultipartFile(
+                "files",
+                "inventory-readiness.md",
+                "text/markdown",
+                "Inventory sync prototype needs launch readiness, database migration proof, and operating runbooks.".getBytes(StandardCharsets.UTF_8)
+        );
+
+        MvcResult result = mockMvc.perform(multipart("/api/products/ai-assisted")
+                        .file(brief)
+                        .param("ownerMessage", "Inventory Sync should become a paid operations product for retail teams.")
+                        .param("businessStage", "PROTOTYPE")
+                        .param("techStack", "Next.js, Spring Boot, PostgreSQL")
+                        .param("repositoryUrl", "https://github.com/example/inventory-sync")
+                        .param("knownRisks", "Migrations and runbook evidence are incomplete.")
+                        .param("aiSharedFileIndexes", "0")
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.product.creationMode").value("AI_ASSISTED"))
+                .andExpect(jsonPath("$.product.createdByAi").value(true))
+                .andExpect(jsonPath("$.product.aiSourceAttachmentCount").value(1))
+                .andExpect(jsonPath("$.attachments", hasSize(1)))
+                .andExpect(jsonPath("$.attachments[0].fileName").value("inventory-readiness.md"))
+                .andExpect(jsonPath("$.attachments[0].aiShareRequested").value(true))
+                .andExpect(jsonPath("$.attachments[0].aiAccessExpiresAt").exists())
+                .andExpect(jsonPath("$.aiSharedDocuments", hasSize(1)))
+                .andExpect(jsonPath("$.assistant.fallbackReason").value("LOOMAI_DISABLED"))
+                .andExpect(jsonPath("$.aiApplied").value(false))
+                .andReturn();
+
+        JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+        String productId = body.path("product").path("id").asText();
+        String attachmentId = body.path("attachments").get(0).path("id").asText();
+
+        mockMvc.perform(get("/api/product-attachments")
+                        .param("productId", productId)
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].fileName").value("inventory-readiness.md"));
+
+        mockMvc.perform(get("/api/product-attachments/{id}/download-url", attachmentId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.url", containsString("https://storage.produs.test/signed/project-attachments/products/")));
+    }
+
+    @Test
     void cartAppliesPackageTemplateAndEnforcesCatalogBlockersBeforeConversion() throws Exception {
         User owner = saveUser("owner-cart-governance@produs.test", User.UserRole.PRODUCT_OWNER);
         PlatformCatalog catalog = saveCatalog();

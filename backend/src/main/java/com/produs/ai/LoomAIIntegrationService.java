@@ -211,6 +211,43 @@ public class LoomAIIntegrationService {
         return query(user, request, true);
     }
 
+    @Transactional(readOnly = true)
+    public AssistantQueryResponse projectCreation(User user, ProjectCreationAssistantRequest request) {
+        if (request == null || request.ownerMessage() == null || request.ownerMessage().isBlank()) {
+            throw new IllegalArgumentException("Project creation prompt is required");
+        }
+        Map<String, Object> context = projectCreationContext(user, request);
+        if (!isConfigured()) {
+            return fallbackAnswer("LOOMAI_DISABLED", context);
+        }
+        try {
+            String conversationId = providerConversationId(
+                    "project-creation-" + (request.productId() == null ? UUID.randomUUID() : request.productId()),
+                    user,
+                    true
+            );
+            AssistantQueryRequest assistantRequest = new AssistantQueryRequest(
+                    conversationId,
+                    projectCreationPrompt(request),
+                    "support_assistant",
+                    "project_creation",
+                    null
+            );
+            ProviderJsonResponse response = postJson(
+                    properties.getAssistantQueryOncePath(),
+                    assistantQueryPayload(assistantRequest, context, conversationId),
+                    user,
+                    conversationId
+            );
+            return assistantQueryResponse(response, conversationId);
+        } catch (RuntimeException exception) {
+            log.warn("loomai_project_creation_fallback reason={} detail={}",
+                    exception.getClass().getSimpleName(),
+                    safeExceptionDetail(exception));
+            return fallbackAnswer("LOOMAI_UNAVAILABLE", context);
+        }
+    }
+
     private AssistantQueryResponse query(User user, AssistantQueryRequest request, boolean oneTimeAnswer) {
         if (request == null || request.query() == null || request.query().isBlank()) {
             throw new IllegalArgumentException("Assistant query is required");
@@ -1049,6 +1086,71 @@ public class LoomAIIntegrationService {
             safe.put("scannerSummary", scannerSummary(scopedProduct, scopedWorkspace));
         }
         return safe;
+    }
+
+    private Map<String, Object> projectCreationContext(User user, ProjectCreationAssistantRequest request) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("contextVersion", "produs-project-creation-v1");
+        context.put("contextBoundary", "owner-authorized-intake-and-temporary-documents");
+        context.put("pageType", "project-creation");
+        context.put("actionProfile", "project-creation-write-authorized");
+        context.put("actorRole", user.getRole().name());
+        context.put("ownerAuthorizedAiCreation", true);
+        context.put("productId", request.productId() == null ? "" : request.productId().toString());
+        context.put("businessStageHint", request.businessStage() == null ? "" : request.businessStage());
+        context.put("techStackHint", safeText(request.techStack(), SUMMARY_LIMIT));
+        context.put("productUrlAvailable", !blank(request.productUrl()));
+        context.put("repositoryUrlAvailable", !blank(request.repositoryUrl()));
+        context.put("knownRisks", safeText(request.knownRisks(), SUMMARY_LIMIT));
+        context.put("documentSharingPolicy", Map.of(
+                "scope", "project-creation-analysis-only",
+                "indexing", "not-allowed",
+                "retention", "do-not-store-document-content",
+                "access", "temporary-url-selected-by-owner",
+                "ttl", "minutes"
+        ));
+        context.put("documents", request.documents() == null ? List.of() : request.documents().stream()
+                .map(document -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("attachmentId", document.attachmentId() == null ? "" : document.attachmentId().toString());
+                    item.put("fileName", safeText(document.fileName(), FIELD_LIMIT));
+                    item.put("contentType", safeText(document.contentType(), FIELD_LIMIT));
+                    item.put("sizeBytes", document.sizeBytes());
+                    item.put("temporaryAccessUrl", document.temporaryAccessUrl());
+                    item.put("expiresAt", document.expiresAt() == null ? "" : document.expiresAt().toString());
+                    return item;
+                })
+                .toList());
+        context.put("outputContract", Map.of(
+                "format", "strict-json-object",
+                "fields", List.of("productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary"),
+                "businessStageValues", List.of("IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING")
+        ));
+        return context;
+    }
+
+    private String projectCreationPrompt(ProjectCreationAssistantRequest request) {
+        return """
+                You are ProdUS project creation AI. The owner opted into AI-assisted project creation.
+                Analyze the owner input and any owner-selected temporary documents. Do not index, retain, or expose document content.
+                Create the best initial product profile for ProdUS to store. Return only a strict JSON object with:
+                productName, summary, businessStage, techStack, productUrl, repositoryUrl, riskProfile, aiCreationSummary.
+                Use one businessStage value from IDEA, PROTOTYPE, VALIDATED, LIVE, SCALING.
+
+                Owner input:
+                %s
+
+                Optional product URL: %s
+                Optional repository URL: %s
+                Optional tech stack hint: %s
+                Optional risk hint: %s
+                """.formatted(
+                safeText(request.ownerMessage(), 4_000),
+                blank(request.productUrl()) ? "not provided" : request.productUrl(),
+                blank(request.repositoryUrl()) ? "not provided" : request.repositoryUrl(),
+                safeText(request.techStack(), SUMMARY_LIMIT),
+                safeText(request.knownRisks(), SUMMARY_LIMIT)
+        );
     }
 
     private Map<String, Object> explainOnlyContext(Map<String, Object> context) {
@@ -2012,6 +2114,26 @@ public class LoomAIIntegrationService {
     public record AssistantQueryRequest(String conversationId, String query, String mode, String position, AssistantContextRequest context) {}
 
     public record AssistantSuggestionsRequest(String content, String conversationId, Integer maxSuggestions, AssistantContextRequest context) {}
+
+    public record ProjectCreationAssistantRequest(
+            UUID productId,
+            String ownerMessage,
+            String businessStage,
+            String techStack,
+            String productUrl,
+            String repositoryUrl,
+            String knownRisks,
+            List<ProjectCreationDocumentReference> documents
+    ) {}
+
+    public record ProjectCreationDocumentReference(
+            UUID attachmentId,
+            String fileName,
+            String contentType,
+            long sizeBytes,
+            String temporaryAccessUrl,
+            LocalDateTime expiresAt
+    ) {}
 
     public record AssistantSessionResponse(
             String provider,

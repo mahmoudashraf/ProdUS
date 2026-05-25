@@ -52,6 +52,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/teams", "/api/teams/{id}", "/api/teams/{id}/capabilities").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/expert-profiles", "/api/expert-profiles/{id}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/ai/loomai/knowledge-export").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/product-attachments/ai-access/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/scanner/connectors/github/callback").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/scanner/connectors/gitlab/callback").permitAll()
 
