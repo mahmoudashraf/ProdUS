@@ -13,6 +13,7 @@ public final class LoomAIToolAllowlist {
                 read("produs.product.list", "List products visible to the current ProdUS user."),
                 read("produs.package.inspect", "Inspect an authorized productization package."),
                 read("produs.workspace.inspect", "Inspect an authorized project workspace."),
+                mutation("produs.productization_project.create", "Create the owner-approved initial productization project from an active AI project creation intent.", false),
                 mutation("produs.requirement.submit", "Submit a productization requirement after explicit user confirmation."),
                 mutation("produs.package.build_from_requirement", "Build a package from a confirmed requirement and catalog rules."),
                 mutation("produs.team.shortlist", "Create or update a team shortlist after explicit owner confirmation."),
@@ -39,6 +40,10 @@ public final class LoomAIToolAllowlist {
 
     private static ToolDefinition mutation(String name, String description) {
         return new ToolDefinition(name, "mutation", true, description);
+    }
+
+    private static ToolDefinition mutation(String name, String description, boolean confirmationRequired) {
+        return new ToolDefinition(name, "mutation", confirmationRequired, description);
     }
 
     public record ToolDefinition(

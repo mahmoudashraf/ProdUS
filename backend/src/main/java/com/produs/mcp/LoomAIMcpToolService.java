@@ -15,6 +15,7 @@ import com.produs.packages.PackageInstance;
 import com.produs.packages.PackageInstanceRepository;
 import com.produs.packages.PackageModule;
 import com.produs.packages.PackageModuleRepository;
+import com.produs.product.AiAssistedProductCreationService;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
 import com.produs.scanner.NormalizedFinding;
@@ -67,9 +68,10 @@ public class LoomAIMcpToolService {
     private final ScanRunRepository scanRunRepository;
     private final NormalizedFindingRepository findingRepository;
     private final ScannerEvidenceItemRepository evidenceRepository;
+    private final AiAssistedProductCreationService aiAssistedProductCreationService;
     private final ObjectMapper objectMapper;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Map<String, Object> call(String toolName, Map<String, Object> arguments) {
         Map<String, Object> args = arguments == null ? Map.of() : arguments;
         return switch (toolName) {
@@ -77,6 +79,7 @@ public class LoomAIMcpToolService {
             case "produs.product.list" -> productList(args);
             case "produs.package.inspect" -> packageInspect(args);
             case "produs.workspace.inspect" -> workspaceInspect(args);
+            case "produs.productization_project.create" -> aiAssistedProductCreationService.createFromMcpAction(args);
             case "produs.scan.status" -> scanStatus(args);
             case "produs.finding.inspect" -> findingInspect(args);
             case "produs.evidence.list" -> evidenceList(args);

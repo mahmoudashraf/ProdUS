@@ -188,13 +188,47 @@ export interface AiDocumentShare {
   expiresAt?: string;
 }
 
-export interface AiAssistedProductCreationResponse {
-  product: ProductProfile;
+export interface ProductCreationIntent {
+  id: string;
+  status: 'ANALYZING' | 'READY_FOR_ACTION' | 'CREATED' | 'EXPIRED' | 'FAILED';
+  expiresAt: string;
+  consentToken?: string;
+  idempotencyKey: string;
+  analysisProviderRequestId?: string;
+  productId?: string;
+  aiSourceAttachmentCount: number;
+}
+
+export interface ProductCreationFields {
+  productName: string;
+  summary: string;
+  businessStage: ProductProfile['businessStage'];
+  techStack?: string;
+  productUrl?: string;
+  repositoryUrl?: string;
+  riskProfile?: string;
+  aiCreationSummary?: string;
+  assumptions: string[];
+  missingEvidence: string[];
+}
+
+export interface AiAssistedProductAnalysisResponse {
+  intent: ProductCreationIntent;
+  analysis: ProductCreationFields;
   attachments: ProductProjectAttachment[];
   aiSharedDocuments: AiDocumentShare[];
   assistant: AssistantQueryResponse;
   aiApplied: boolean;
   fallbackReason?: string;
+  runtimeActionPayload: Record<string, unknown>;
+}
+
+export interface ProductCreationActionResponse {
+  product: ProductProfile;
+  intent: ProductCreationIntent;
+  attachments: ProductProjectAttachment[];
+  auditEventId?: string;
+  idempotentReplay: boolean;
 }
 
 export interface ScanSource extends BaseRecord {

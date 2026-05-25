@@ -320,12 +320,13 @@ Expected discovery auth:
 Confirmed staging status:
 
 1. Unauthenticated `/mcp tools/list` returns `401`.
-2. Authenticated `/mcp tools/list` returns 17 ProdUS tool definitions.
+2. Authenticated `/mcp tools/list` returns 18 ProdUS tool definitions after adding the bounded `produs.productization_project.create` action candidate.
 3. Platform Marketplace discovery for `produs-staging` reports `ready=true`.
 4. LoomAI published and installed read-only Marketplace plugin `mkp-action-produs-productization-read-mcp@0.1.0`.
 5. Deployment `dep-7706fafb` version `v3`, release `rel-dcd6fd36`, is `APPLIED_VERIFIED`.
-6. Runtime currently loads 8 read actions only: catalog search, product list, package inspect, workspace inspect, scan status, finding inspect, evidence list, and milestone evidence review.
-7. Mutation tools are intentionally not imported until ProdUS ships confirmation UX, action audit enforcement, and a reviewed confirmed-action Marketplace manifest.
+6. Runtime currently loads the 8 read actions: catalog search, product list, package inspect, workspace inspect, scan status, finding inspect, evidence list, and milestone evidence review.
+7. ProdUS has now implemented one bounded confirmed-action candidate for AI-assisted project creation: `produs.productization_project.create`. It should be imported separately from broad mutation tools and only for the consent-bound creation-intent flow.
+8. Other mutation tools remain intentionally not imported until ProdUS ships dedicated confirmation UX, action audit enforcement, and reviewed confirmed-action Marketplace manifests for each flow.
 
 ProdUS AI tool scope is intentionally limited to productization value:
 

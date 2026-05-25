@@ -369,6 +369,22 @@ Security rules:
 - The action cannot create package, workspace, team, invite, participant, access-list, scanner, readiness, payment, or contract records.
 - Temporary document URLs are analysis inputs only. The mutation action receives attachment ids, not storage URLs.
 
+ProdUS implementation status:
+
+- `POST /api/products/ai-assisted/analyze` is implemented and returns an intent, analysis fields, temporary AI document share metadata, and a consent-bound `runtimeActionPayload`.
+- `produs.productization_project.create` is implemented in the ProdUS MCP/action adapter and published by the local allowlist as a mutation with `confirmationRequired=false`.
+- `POST /api/products/ai-assisted/intents/{intentId}/create` is implemented as the same action adapter behind an owner-scoped REST endpoint for UI continuity while LoomAI installs the confirmed action.
+- Private attachments can belong to a creation intent before product creation and are attached to the product after the action succeeds.
+- Temporary AI document access is revoked after the action creates the product.
+- Focused backend integration coverage verifies analyze -> MCP action -> AI-assisted product persistence -> private attachment access.
+
+Remaining LoomAI-side configuration before live action verification:
+
+- Install/import the `produs.productization_project.create` confirmed-action manifest using the schema above.
+- Keep the action out of broad mutation discovery. It is valid only for the project creation creation-intent flow.
+- Verify runtime can call the ProdUS MCP/action endpoint with the returned `runtimeActionPayload`.
+- Confirm failed action responses preserve the `errors[]` array from ProdUS structured content.
+
 ### 5.2 Query Response
 
 ```json

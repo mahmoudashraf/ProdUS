@@ -84,6 +84,27 @@ public class ProductProjectAttachmentService {
     }
 
     @Transactional
+    public List<ProductProjectAttachment> uploadForCreationIntent(
+            User user,
+            ProductCreationIntent intent,
+            List<MultipartFile> files,
+            Set<Integer> aiSharedFileIndexes
+    ) {
+        if (files == null || files.isEmpty()) {
+            return List.of();
+        }
+        Set<Integer> selectedIndexes = aiSharedFileIndexes == null ? Set.of() : aiSharedFileIndexes;
+        java.util.ArrayList<ProductProjectAttachment> uploaded = new java.util.ArrayList<>();
+        for (int index = 0; index < files.size(); index++) {
+            MultipartFile file = files.get(index);
+            if (file != null && !file.isEmpty()) {
+                uploaded.add(uploadOne(user, intent, file, selectedIndexes, index));
+            }
+        }
+        return uploaded;
+    }
+
+    @Transactional
     public TemporaryAiDocumentAccess grantTemporaryAiAccess(ProductProjectAttachment attachment, String apiBaseUrl) {
         String token = createToken();
         attachment.setAiShareRequested(true);
@@ -169,7 +190,41 @@ public class ProductProjectAttachmentService {
         return attachmentRepository.save(attachment);
     }
 
+    private ProductProjectAttachment uploadOne(
+            User user,
+            ProductCreationIntent intent,
+            MultipartFile file,
+            Set<Integer> aiSharedFileIndexes,
+            int index
+    ) {
+        validateFile(file);
+        String fileName = sanitizeFileName(file.getOriginalFilename());
+        String contentType = normalizeContentType(file.getContentType());
+        String key = s3Service.generateFileKey("project-attachments/intents/" + intent.getId(), fileName);
+        String fileUrl;
+        try {
+            fileUrl = s3Service.uploadFile(key, file.getBytes(), contentType);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("File could not be read for upload");
+        }
+
+        ProductProjectAttachment attachment = new ProductProjectAttachment();
+        attachment.setCreationIntent(intent);
+        attachment.setUploadedBy(user);
+        attachment.setFileName(fileName);
+        attachment.setStorageKey(key);
+        attachment.setFileUrl(fileUrl);
+        attachment.setContentType(contentType);
+        attachment.setSizeBytes(file.getSize());
+        attachment.setLabel(fileName);
+        attachment.setAiShareRequested(aiSharedFileIndexes.contains(index));
+        return attachmentRepository.save(attachment);
+    }
+
     private void requireProductAttachmentRead(User user, ProductProfile product) {
+        if (product == null) {
+            throw new AccessDeniedException("Project attachment is not attached to an active product");
+        }
         if (user.getRole() == User.UserRole.ADMIN || product.getOwner().getId().equals(user.getId())) {
             return;
         }

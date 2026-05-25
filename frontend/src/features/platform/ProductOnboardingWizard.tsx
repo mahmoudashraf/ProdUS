@@ -39,7 +39,12 @@ import {
   categoryPalette,
   formatLabel,
 } from './PlatformComponents';
-import { AiAssistedProductCreationResponse, ProductProfile, ProductizationCart } from './types';
+import {
+  AiAssistedProductAnalysisResponse,
+  ProductCreationActionResponse,
+  ProductProfile,
+  ProductizationCart,
+} from './types';
 
 interface ProductProfilePayload {
   name: string;
@@ -98,6 +103,7 @@ export default function ProductOnboardingWizard() {
   const [aiDocumentFiles, setAiDocumentFiles] = useState<
     Array<{ file: File; shareWithAi: boolean }>
   >([]);
+  const [aiAnalysis, setAiAnalysis] = useState<AiAssistedProductAnalysisResponse | null>(null);
   const form = useAdvancedForm<ProductProfilePayload>({
     initialValues,
     validationRules: {
@@ -129,7 +135,7 @@ export default function ProductOnboardingWizard() {
     },
   });
 
-  const createProductWithAI = useMutation({
+  const analyzeProductWithAI = useMutation({
     mutationFn: async () => {
       const payload = new FormData();
       payload.append('ownerMessage', aiBrief);
@@ -145,9 +151,48 @@ export default function ProductOnboardingWizard() {
           payload.append('aiSharedFileIndexes', String(index));
         }
       });
-      const response = await postFormData<AiAssistedProductCreationResponse>(
-        '/products/ai-assisted',
+      return postFormData<AiAssistedProductAnalysisResponse>(
+        '/products/ai-assisted/analyze',
         payload
+      );
+    },
+    onSuccess: response => {
+      setAiAnalysis(response);
+      form.setValue('name', response.analysis.productName || form.values.name);
+      form.setValue('summary', response.analysis.summary || form.values.summary);
+      form.setValue('businessStage', response.analysis.businessStage || form.values.businessStage);
+      form.setValue('techStack', response.analysis.techStack || form.values.techStack);
+      form.setValue('productUrl', response.analysis.productUrl || form.values.productUrl);
+      form.setValue('repositoryUrl', response.analysis.repositoryUrl || form.values.repositoryUrl);
+      form.setValue('riskProfile', response.analysis.riskProfile || form.values.riskProfile);
+    },
+  });
+
+  const createProductFromAIAction = useMutation({
+    mutationFn: async () => {
+      if (!aiAnalysis) {
+        throw new Error('Run AI analysis before creating the project.');
+      }
+      const actionPayload: Record<string, unknown> = {
+        ...aiAnalysis.runtimeActionPayload,
+        creationIntentId: aiAnalysis.intent.id,
+        consentToken: aiAnalysis.intent.consentToken,
+        idempotencyKey: aiAnalysis.intent.idempotencyKey,
+        analysisProviderRequestId: aiAnalysis.intent.analysisProviderRequestId,
+        productName: form.values.name || aiAnalysis.analysis.productName,
+        summary: form.values.summary || aiAnalysis.analysis.summary,
+        businessStage: form.values.businessStage || aiAnalysis.analysis.businessStage,
+        techStack: form.values.techStack || aiAnalysis.analysis.techStack,
+        productUrl: form.values.productUrl || aiAnalysis.analysis.productUrl,
+        repositoryUrl: form.values.repositoryUrl || aiAnalysis.analysis.repositoryUrl,
+        riskProfile: form.values.riskProfile || aiAnalysis.analysis.riskProfile,
+        aiCreationSummary: aiAnalysis.analysis.aiCreationSummary,
+        assumptions: aiAnalysis.analysis.assumptions,
+        missingEvidence: aiAnalysis.analysis.missingEvidence,
+      };
+      const response = await postJson<ProductCreationActionResponse, Record<string, unknown>>(
+        `/products/ai-assisted/intents/${aiAnalysis.intent.id}/create`,
+        actionPayload
       );
       await putJson<
         ProductizationCart,
@@ -168,6 +213,7 @@ export default function ProductOnboardingWizard() {
 
   const submit = form.handleSubmit(() => createProduct.mutate());
   const selectedAiDocumentCount = aiDocumentFiles.filter(item => item.shareWithAi).length;
+  const aiBusy = analyzeProductWithAI.isPending || createProductFromAIAction.isPending;
 
   return (
     <>
@@ -185,8 +231,8 @@ export default function ProductOnboardingWizard() {
         }
       />
       <QueryState
-        isLoading={createProduct.isPending || createProductWithAI.isPending}
-        error={createProduct.error || createProductWithAI.error}
+        isLoading={createProduct.isPending || aiBusy}
+        error={createProduct.error || analyzeProductWithAI.error || createProductFromAIAction.error}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 340px' }, gap: 2.5 }}>
@@ -214,7 +260,10 @@ export default function ProductOnboardingWizard() {
                   <TextField
                     label="Tell ProdUS what you want to productize"
                     value={aiBrief}
-                    onChange={event => setAiBrief(event.target.value)}
+                    onChange={event => {
+                      setAiBrief(event.target.value);
+                      setAiAnalysis(null);
+                    }}
                     multiline
                     minRows={5}
                     fullWidth
@@ -295,6 +344,7 @@ export default function ProductOnboardingWizard() {
                               shareWithAi: true,
                             }));
                             setAiDocumentFiles(current => [...current, ...files]);
+                            setAiAnalysis(null);
                             event.target.value = '';
                           }}
                         />
@@ -337,13 +387,16 @@ export default function ProductOnboardingWizard() {
                                 <Checkbox
                                   checked={item.shareWithAi}
                                   onChange={event =>
-                                    setAiDocumentFiles(current =>
-                                      current.map((doc, docIndex) =>
-                                        docIndex === index
-                                          ? { ...doc, shareWithAi: event.target.checked }
-                                          : doc
-                                      )
-                                    )
+                                    {
+                                      setAiDocumentFiles(current =>
+                                        current.map((doc, docIndex) =>
+                                          docIndex === index
+                                            ? { ...doc, shareWithAi: event.target.checked }
+                                            : doc
+                                        )
+                                      );
+                                      setAiAnalysis(null);
+                                    }
                                   }
                                 />
                               }
@@ -357,9 +410,12 @@ export default function ProductOnboardingWizard() {
                               variant="text"
                               color="inherit"
                               onClick={() =>
-                                setAiDocumentFiles(current =>
-                                  current.filter((_, docIndex) => docIndex !== index)
-                                )
+                                {
+                                  setAiDocumentFiles(current =>
+                                    current.filter((_, docIndex) => docIndex !== index)
+                                  );
+                                  setAiAnalysis(null);
+                                }
                               }
                               sx={{ minHeight: 34, minWidth: 72 }}
                             >
@@ -370,12 +426,74 @@ export default function ProductOnboardingWizard() {
                       </Stack>
                     )}
                   </Box>
-                  {createProductWithAI.data && (
-                    <Alert severity={createProductWithAI.data.aiApplied ? 'success' : 'info'}>
-                      {createProductWithAI.data.aiApplied
-                        ? 'AI created the product profile and attached your project documents.'
-                        : 'Product created with deterministic fallback because AI did not return the expected creation contract.'}
+                  {aiAnalysis && (
+                    <Alert severity={aiAnalysis.aiApplied ? 'success' : 'info'}>
+                      {aiAnalysis.aiApplied
+                        ? 'AI analysis is ready. Review the generated attributes, then create the productization project through the action flow.'
+                        : 'Analysis used deterministic fallback because AI did not return the expected strict JSON contract.'}
                     </Alert>
+                  )}
+                  {aiAnalysis && (
+                    <Box
+                      sx={{
+                        border: '1px solid #dfe7f5',
+                        borderRadius: 1,
+                        bgcolor: '#fff',
+                        p: 1.5,
+                      }}
+                    >
+                      <Stack spacing={1}>
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          spacing={1}
+                          justifyContent="space-between"
+                          alignItems={{ sm: 'center' }}
+                        >
+                          <Typography variant="body2" sx={{ fontWeight: 900 }}>
+                            AI project attributes
+                          </Typography>
+                          <DotLabel
+                            label={aiAnalysis.intent.analysisProviderRequestId ? 'LoomAI analyzed' : 'Fallback analysis'}
+                            color={aiAnalysis.intent.analysisProviderRequestId ? appleColors.green : appleColors.amber}
+                          />
+                        </Stack>
+                        <Typography variant="h4">{aiAnalysis.analysis.productName}</Typography>
+                        <Typography color="text.secondary" sx={{ lineHeight: 1.55 }}>
+                          {aiAnalysis.analysis.summary}
+                        </Typography>
+                        {(aiAnalysis.analysis.assumptions.length > 0 ||
+                          aiAnalysis.analysis.missingEvidence.length > 0) && (
+                          <Box
+                            sx={{
+                              display: 'grid',
+                              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                              gap: 1,
+                            }}
+                          >
+                            <Box>
+                              <Typography variant="caption" sx={{ fontWeight: 900 }}>
+                                Assumptions
+                              </Typography>
+                              <Stack spacing={0.4} sx={{ mt: 0.5 }}>
+                                {aiAnalysis.analysis.assumptions.slice(0, 3).map(item => (
+                                  <DotLabel key={item} label={item} color={appleColors.blue} />
+                                ))}
+                              </Stack>
+                            </Box>
+                            <Box>
+                              <Typography variant="caption" sx={{ fontWeight: 900 }}>
+                                Missing evidence
+                              </Typography>
+                              <Stack spacing={0.4} sx={{ mt: 0.5 }}>
+                                {aiAnalysis.analysis.missingEvidence.slice(0, 3).map(item => (
+                                  <DotLabel key={item} label={item} color={appleColors.amber} />
+                                ))}
+                              </Stack>
+                            </Box>
+                          </Box>
+                        )}
+                      </Stack>
+                    </Box>
                   )}
                 </Stack>
                 <Box
@@ -421,16 +539,30 @@ export default function ProductOnboardingWizard() {
                       <DotLabel label="No document indexing" color={appleColors.green} />
                     </Stack>
                     <Button
-                      variant="contained"
+                      variant={aiAnalysis ? 'outlined' : 'contained'}
                       size="large"
                       startIcon={<AutoAwesomeOutlined />}
-                      disabled={!aiBrief.trim() || createProductWithAI.isPending}
-                      onClick={() => createProductWithAI.mutate()}
+                      disabled={!aiBrief.trim() || aiBusy}
+                      onClick={() => analyzeProductWithAI.mutate()}
                       sx={{ minHeight: 48, mt: 0.5 }}
                     >
-                      {createProductWithAI.isPending
-                        ? 'Creating with AI...'
-                        : 'Create Product with AI'}
+                      {analyzeProductWithAI.isPending
+                        ? 'Analyzing...'
+                        : aiAnalysis
+                          ? 'Re-run AI Analysis'
+                          : 'Analyze with AI'}
+                    </Button>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      endIcon={<ArrowForwardOutlined />}
+                      disabled={!aiAnalysis || !form.values.name || !form.values.summary || aiBusy}
+                      onClick={() => createProductFromAIAction.mutate()}
+                      sx={{ minHeight: 48 }}
+                    >
+                      {createProductFromAIAction.isPending
+                        ? 'Creating project...'
+                        : 'Create Project with AI Action'}
                     </Button>
                   </Stack>
                 </Box>

@@ -1,7 +1,9 @@
 package com.produs.product;
 
 import com.produs.product.AiAssistedProductCreationService.AiAssistedProductCreationRequest;
-import com.produs.product.AiAssistedProductCreationService.AiAssistedProductCreationResponse;
+import com.produs.product.AiAssistedProductCreationService.AiAssistedProductAnalysisResponse;
+import com.produs.product.AiAssistedProductCreationService.ProductCreationActionRequest;
+import com.produs.product.AiAssistedProductCreationService.ProductCreationActionResponse;
 import com.produs.dto.PlatformDtos.ProductProfileResponse;
 import com.produs.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
@@ -68,8 +70,8 @@ public class ProductProfileController {
         return toProductProfileResponse(productProfileRepository.save(profile));
     }
 
-    @PostMapping(value = "/ai-assisted", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public AiAssistedProductCreationResponse createWithAI(
+    @PostMapping(value = "/ai-assisted/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public AiAssistedProductAnalysisResponse analyzeWithAI(
             @AuthenticationPrincipal User owner,
             @RequestParam String ownerMessage,
             @RequestParam(required = false) String productName,
@@ -85,7 +87,7 @@ public class ProductProfileController {
         Set<Integer> selectedDocumentIndexes = aiSharedFileIndexes == null
                 ? Set.of()
                 : aiSharedFileIndexes.stream().filter(index -> index != null && index >= 0).collect(Collectors.toSet());
-        return aiAssistedProductCreationService.create(
+        return aiAssistedProductCreationService.analyze(
                 owner,
                 new AiAssistedProductCreationRequest(
                         productName,
@@ -100,6 +102,39 @@ public class ProductProfileController {
                 selectedDocumentIndexes,
                 apiBaseUrl(servletRequest)
         );
+    }
+
+    @PostMapping("/ai-assisted/intents/{intentId}/create")
+    public ProductCreationActionResponse createFromAIAction(
+            @AuthenticationPrincipal User owner,
+            @PathVariable UUID intentId,
+            @RequestBody ProductCreationActionRequest request
+    ) {
+        if (request == null) {
+            throw new IllegalArgumentException("Project creation action payload is required");
+        }
+        if (request.creationIntentId() != null && !intentId.equals(request.creationIntentId())) {
+            throw new AccessDeniedException("Project creation intent path does not match action payload");
+        }
+        ProductCreationActionRequest actionRequest = new ProductCreationActionRequest(
+                intentId,
+                request.consentToken(),
+                request.idempotencyKey(),
+                request.analysisProviderRequestId(),
+                request.productName(),
+                request.summary(),
+                request.businessStage(),
+                request.techStack(),
+                request.productUrl(),
+                request.repositoryUrl(),
+                request.riskProfile(),
+                request.aiCreationSummary(),
+                request.assumptions(),
+                request.missingEvidence(),
+                request.sourceAttachmentIds(),
+                request.aiAccessibleAttachmentIds()
+        );
+        return aiAssistedProductCreationService.createFromActionForOwner(owner, actionRequest);
     }
 
     @PutMapping("/{id}")

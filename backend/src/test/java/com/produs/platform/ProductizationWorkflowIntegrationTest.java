@@ -40,6 +40,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.HexFormat;
 import java.util.UUID;
 
@@ -120,7 +121,7 @@ class ProductizationWorkflowIntegrationTest {
                 "Inventory sync prototype needs launch readiness, database migration proof, and operating runbooks.".getBytes(StandardCharsets.UTF_8)
         );
 
-        MvcResult result = mockMvc.perform(multipart("/api/products/ai-assisted")
+        MvcResult analysisResult = mockMvc.perform(multipart("/api/products/ai-assisted/analyze")
                         .file(brief)
                         .param("ownerMessage", "Inventory Sync should become a paid operations product for retail teams.")
                         .param("businessStage", "PROTOTYPE")
@@ -130,9 +131,10 @@ class ProductizationWorkflowIntegrationTest {
                         .param("aiSharedFileIndexes", "0")
                         .with(auth(owner)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.product.creationMode").value("AI_ASSISTED"))
-                .andExpect(jsonPath("$.product.createdByAi").value(true))
-                .andExpect(jsonPath("$.product.aiSourceAttachmentCount").value(1))
+                .andExpect(jsonPath("$.intent.status").value("READY_FOR_ACTION"))
+                .andExpect(jsonPath("$.intent.consentToken").exists())
+                .andExpect(jsonPath("$.intent.idempotencyKey").exists())
+                .andExpect(jsonPath("$.analysis.productName").exists())
                 .andExpect(jsonPath("$.attachments", hasSize(1)))
                 .andExpect(jsonPath("$.attachments[0].fileName").value("inventory-readiness.md"))
                 .andExpect(jsonPath("$.attachments[0].aiShareRequested").value(true))
@@ -142,8 +144,28 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.aiApplied").value(false))
                 .andReturn();
 
-        JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
-        String productId = body.path("product").path("id").asText();
+        JsonNode body = objectMapper.readTree(analysisResult.getResponse().getContentAsString());
+        JsonNode actionPayload = body.path("runtimeActionPayload");
+        MvcResult actionResult = mockMvc.perform(post("/mcp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "jsonrpc", "2.0",
+                                "id", "create-project",
+                                "method", "tools/call",
+                                "params", Map.of(
+                                        "name", "produs.productization_project.create",
+                                        "arguments", objectMapper.convertValue(actionPayload, Map.class)
+                                )
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.structuredContent.status").value("OK"))
+                .andExpect(jsonPath("$.result.structuredContent.productId").exists())
+                .andExpect(jsonPath("$.result.structuredContent.createdByAi").value(true))
+                .andExpect(jsonPath("$.result.structuredContent.aiSourceAttachmentCount").value(1))
+                .andReturn();
+
+        JsonNode actionBody = objectMapper.readTree(actionResult.getResponse().getContentAsString());
+        String productId = actionBody.path("result").path("structuredContent").path("productId").asText();
         String attachmentId = body.path("attachments").get(0).path("id").asText();
 
         mockMvc.perform(get("/api/product-attachments")
@@ -155,7 +177,7 @@ class ProductizationWorkflowIntegrationTest {
 
         mockMvc.perform(get("/api/product-attachments/{id}/download-url", attachmentId).with(auth(owner)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.url", containsString("https://storage.produs.test/signed/project-attachments/products/")));
+                .andExpect(jsonPath("$.url", containsString("https://storage.produs.test/signed/project-attachments/intents/")));
     }
 
     @Test

@@ -21,9 +21,13 @@ import java.time.LocalDateTime;
 @Table(name = "product_project_attachments")
 public class ProductProjectAttachment extends BaseEntity {
 
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_profile_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_profile_id")
     private ProductProfile productProfile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creation_intent_id")
+    private ProductCreationIntent creationIntent;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "uploaded_by", nullable = false)

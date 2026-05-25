@@ -19,7 +19,7 @@ Latest LoomAI-side status, verified 2026-05-22:
 - Direct private runtime `POST /api/chat/me/suggestions` passed with `content` and `maxSuggestions`.
 - Negative auth smoke passed for missing runtime API key and wrong issuer.
 - ProdUS backend `/health` and `/loomai/tool-allowlist` are reachable and tool allowlist reports `ready=true`.
-- ProdUS MCP API-key auth is enabled on staging: unauthenticated `POST /mcp tools/list` returns `401 PRODUS_MCP_AUTH_REQUIRED`; authenticated `POST /mcp tools/list` returns `200` with 17 tools.
+- ProdUS MCP API-key auth is enabled on staging: unauthenticated `POST /mcp tools/list` returns `401 PRODUS_MCP_AUTH_REQUIRED`; authenticated `POST /mcp tools/list` returns `200` with 18 tools after adding the bounded `produs.productization_project.create` action candidate.
 - LoomAI Marketplace discovery for `produs-staging` returns `ready=true` through the managed MCP Gateway.
 - Read-only ProdUS MCP action bundle `mkp-action-produs-productization-read-mcp@0.1.0` is published, installed on `dep-7706fafb`, and applied in version `v3`.
 - Live runtime `/api/admin/actions/overview` shows 8 ProdUS read actions: `produs_catalog_search`, `produs_product_list`, `produs_package_inspect`, `produs_workspace_inspect`, `produs_scan_status`, `produs_finding_inspect`, `produs_evidence_list`, and `produs_milestone_review_evidence`.
@@ -280,12 +280,20 @@ Persistent `/query` remains the action-capable chat path with `actionProfile=loo
 ProdUS project creation is now an AI-first backend-mediated flow. The browser calls ProdUS only:
 
 ```http
-POST https://produs-api-staging.46.224.145.148.sslip.io/api/products/ai-assisted
+POST https://produs-api-staging.46.224.145.148.sslip.io/api/products/ai-assisted/analyze
 Authorization: Bearer <Supabase JWT or staging mock token>
 Content-Type: multipart/form-data
 ```
 
 ProdUS project creation uses a two-step LoomAI flow. Step 1 is runtime analysis through `POST /api/chat/me/query-once`. Step 2 is project creation through a governed runtime action named `produs.productization_project.create`. This is scoped to project creation only; it does not create packages, workspaces, team selections, invitations, or participants.
+
+ProdUS-side implementation status:
+
+- Backend endpoint `POST /api/products/ai-assisted/analyze` creates a short-lived creation intent, stores private attachments, grants owner-selected temporary AI document access, calls `/api/chat/me/query-once`, and returns a `runtimeActionPayload`.
+- Backend endpoint `POST /api/products/ai-assisted/intents/{intentId}/create` executes the same server-side action adapter used by MCP for local UI continuity while LoomAI config is being applied.
+- MCP/action endpoint `/mcp` exposes `produs.productization_project.create` in the allowlist with `mode=mutation` and `confirmationRequired=false` because ProdUS UI already minted a consent-bound creation intent.
+- The action validates `creationIntentId`, `consentToken`, `idempotencyKey`, TTL, and attachment ownership; duplicate idempotency calls return the existing product.
+- Focused ProdUS integration test passed for analyze -> MCP action -> product creation -> private attachment download URL.
 
 Step 1 analysis payload:
 
@@ -386,6 +394,13 @@ Step 2 runtime action configuration:
 ```
 
 ProdUS persists the product as `creationMode=AI_ASSISTED`, `createdByAi=true`, attaches documents privately to the product, and stores LoomAI `providerRequestId`. Selected documents are only available to LoomAI through short-lived ProdUS token URLs during Step 1 analysis; the Step 2 mutation receives attachment ids only. The browser never receives runtime secrets and LoomAI never receives storage credentials.
+
+Current ProdUS UI flow:
+
+1. Browser posts owner brief, optional hints, and selected files to `POST /api/products/ai-assisted/analyze`.
+2. ProdUS returns analysis fields plus the consent-bound `runtimeActionPayload`.
+3. Browser renders the analysis preview and calls `POST /api/products/ai-assisted/intents/{intentId}/create` when the owner continues.
+4. Once LoomAI installs the confirmed-action manifest, the runtime can invoke `produs.productization_project.create` with the same payload shape.
 
 ProdUS action validation requirements:
 

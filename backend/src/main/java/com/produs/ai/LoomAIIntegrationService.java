@@ -1093,7 +1093,7 @@ public class LoomAIIntegrationService {
         context.put("contextVersion", "produs-project-creation-v1");
         context.put("contextBoundary", "owner-authorized-intake-and-temporary-documents");
         context.put("pageType", "project-creation");
-        context.put("actionProfile", "project-creation-write-authorized");
+        context.put("actionProfile", "project-creation-analysis-only");
         context.put("actorRole", user.getRole().name());
         context.put("ownerAuthorizedAiCreation", true);
         context.put("productId", request.productId() == null ? "" : request.productId().toString());
@@ -1123,7 +1123,7 @@ public class LoomAIIntegrationService {
                 .toList());
         context.put("outputContract", Map.of(
                 "format", "strict-json-object",
-                "fields", List.of("productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary"),
+                "fields", List.of("productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary", "assumptions", "missingEvidence"),
                 "businessStageValues", List.of("IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING")
         ));
         return context;
@@ -1133,9 +1133,10 @@ public class LoomAIIntegrationService {
         return """
                 You are ProdUS project creation AI. The owner opted into AI-assisted project creation.
                 Analyze the owner input and any owner-selected temporary documents. Do not index, retain, or expose document content.
-                Create the best initial product profile for ProdUS to store. Return only a strict JSON object with:
-                productName, summary, businessStage, techStack, productUrl, repositoryUrl, riskProfile, aiCreationSummary.
+                Return the best initial project creation attributes for ProdUS to pass into a separate runtime action. Return only a strict JSON object with:
+                productName, summary, businessStage, techStack, productUrl, repositoryUrl, riskProfile, aiCreationSummary, assumptions, missingEvidence.
                 Use one businessStage value from IDEA, PROTOTYPE, VALIDATED, LIVE, SCALING.
+                assumptions and missingEvidence must be arrays of concise strings.
 
                 Owner input:
                 %s

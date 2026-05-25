@@ -9,5 +9,7 @@ import java.util.UUID;
 public interface ProductProjectAttachmentRepository extends JpaRepository<ProductProjectAttachment, UUID> {
     List<ProductProjectAttachment> findByProductProfileIdOrderByCreatedAtDesc(UUID productProfileId);
 
+    List<ProductProjectAttachment> findByCreationIntentIdOrderByCreatedAtDesc(UUID creationIntentId);
+
     Optional<ProductProjectAttachment> findByAiAccessTokenHash(String aiAccessTokenHash);
 }

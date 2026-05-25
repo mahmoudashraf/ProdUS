@@ -1,0 +1,86 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2300
+      author: produs
+      changes:
+        - createTable:
+            tableName: product_creation_intents
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: product_profile_id, type: UUID }
+              - column: { name: status, type: VARCHAR(50), constraints: { nullable: false } }
+              - column: { name: expires_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: created_product_at, type: TIMESTAMP }
+              - column: { name: consent_token_hash, type: VARCHAR(64), constraints: { nullable: false } }
+              - column: { name: idempotency_key, type: VARCHAR(180), constraints: { nullable: false } }
+              - column: { name: owner_message, type: TEXT, constraints: { nullable: false } }
+              - column: { name: product_name, type: VARCHAR(255) }
+              - column: { name: summary, type: TEXT }
+              - column: { name: business_stage, type: VARCHAR(50) }
+              - column: { name: tech_stack, type: TEXT }
+              - column: { name: product_url, type: VARCHAR(255) }
+              - column: { name: repository_url, type: VARCHAR(255) }
+              - column: { name: risk_profile, type: TEXT }
+              - column: { name: ai_creation_summary, type: TEXT }
+              - column: { name: assumptions, type: TEXT }
+              - column: { name: missing_evidence, type: TEXT }
+              - column: { name: analysis_provider_request_id, type: VARCHAR(255) }
+              - column: { name: analysis_fallback_reason, type: VARCHAR(255) }
+              - column: { name: ai_source_attachment_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: product_creation_intents
+            columnNames: idempotency_key
+            constraintName: uk_product_creation_intents_idempotency_key
+        - addUniqueConstraint:
+            tableName: product_creation_intents
+            columnNames: product_profile_id
+            constraintName: uk_product_creation_intents_product_profile
+        - addForeignKeyConstraint:
+            baseTableName: product_creation_intents
+            baseColumnNames: owner_id
+            constraintName: fk_product_creation_intents_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: product_creation_intents
+            baseColumnNames: product_profile_id
+            constraintName: fk_product_creation_intents_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_creation_intents
+            indexName: idx_product_creation_intents_owner_status
+            columns:
+              - column: { name: owner_id }
+              - column: { name: status }
+              - column: { name: expires_at }
+
+  - changeSet:
+      id: 2301
+      author: produs
+      changes:
+        - dropNotNullConstraint:
+            tableName: product_project_attachments
+            columnName: product_profile_id
+            columnDataType: UUID
+        - addColumn:
+            tableName: product_project_attachments
+            columns:
+              - column:
+                  name: creation_intent_id
+                  type: UUID
+        - addForeignKeyConstraint:
+            baseTableName: product_project_attachments
+            baseColumnNames: creation_intent_id
+            constraintName: fk_product_project_attachments_creation_intent
+            referencedTableName: product_creation_intents
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_project_attachments
+            indexName: idx_product_project_attachments_creation_intent
+            columns:
+              - column: { name: creation_intent_id }
+              - column: { name: created_at }
