@@ -6,7 +6,7 @@ Audience: ProdUS backend, frontend, platform operations, MCP, scanner, and LoomA
 
 Status: staging LoomAI deployment is live and verified. ProdUS should integrate through the standardized backend-mediated private runtime contract. The Platform consumer bridge remains useful for operator smoke tests and fallback comparison, but it is not the target application path.
 
-Latest LoomAI-side status, verified 2026-05-22:
+Latest LoomAI-side status, verified 2026-05-25:
 
 - Runtime `dep-7706fafb` accepts issuer `produs-staging-backend`.
 - Runtime `dep-7706fafb` accepts audience `dep-7706fafb`.
@@ -22,7 +22,13 @@ Latest LoomAI-side status, verified 2026-05-22:
 - ProdUS MCP API-key auth is enabled on staging: unauthenticated `POST /mcp tools/list` returns `401 PRODUS_MCP_AUTH_REQUIRED`; authenticated `POST /mcp tools/list` returns `200` with 18 tools after adding the bounded `produs.productization_project.create` action candidate.
 - LoomAI Marketplace discovery for `produs-staging` returns `ready=true` through the managed MCP Gateway.
 - Read-only ProdUS MCP action bundle `mkp-action-produs-productization-read-mcp@0.1.0` is published, installed on `dep-7706fafb`, and applied in version `v3`.
-- Live runtime `/api/admin/actions/overview` shows 8 ProdUS read actions: `produs_catalog_search`, `produs_product_list`, `produs_package_inspect`, `produs_workspace_inspect`, `produs_scan_status`, `produs_finding_inspect`, `produs_evidence_list`, and `produs_milestone_review_evidence`.
+- Confirmed project-creation action bundle `mkp-action-produs-productization-project-create-mcp@0.1.1` is published, installed on `dep-7706fafb` as `mpi-47247a04`, readiness `READY`, and live state `LIVE`.
+- Live runtime `/api/admin/actions/overview` shows 9 ProdUS actions: 8 read actions plus `produs_productization_project_create`.
+- The confirmed action maps to ProdUS MCP tool `produs.productization_project.create` on server ref `produs-staging`, schema hash `sha256:6a64c636165a0e6c92e7fefd41fad8e53132f411f2aa7d107a992c6e517867c0`, schema drift policy `DISABLE_ACTION`, and hidden backend-supplied parameters for `creationIntentId`, `consentToken`, `idempotencyKey`, and `analysisProviderRequestId`.
+- Deployment version `ver-f9069ce5` was published and applied through release `rel-623c91a0`; the apply finished `APPLIED_VERIFIED` with verification `PASSED`.
+- Negative live execution-path proof reached the ProdUS MCP tool and failed closed with `Project creation intent not found`; schema drift was `OK` and actual tool schema hash matched the manifest hash. This proves LoomAI config, MCP routing, and ProdUS authorization guard behavior without creating a project.
+- ProdUS positive action proof completed on 2026-05-25 through the staging ProdUS MCP endpoint with a real owner-approved `runtimeActionPayload` from `POST /api/products/ai-assisted/analyze`: product `595f259a-4fce-4468-83e3-5c110b999432`, `creationMode=AI_ASSISTED`, `createdByAi=true`, `attachmentCount=1`, `aiSourceAttachmentCount=1`, audit event `fcaeff37-1fd2-4273-9a69-1ba62f44eb03`, provider request `rag-9d588c66-264d-4d8e-95ea-3bde6689bd2f`. Replaying the same action payload returned the same product with `idempotentReplay=true`.
+- Remaining LoomAI-side positive proof is executing a fresh owner-approved payload through LoomAI's managed MCP gateway/runtime action path. A Codex-side direct gateway call returned `401 Invalid MCP gateway internal API key`, so this final proof requires LoomAI to run it with the live gateway secret or provide a valid temporary operator test key.
 - ProdUS DATA plugin `mkp-data-produs-safe-knowledge@0.1.1` is published, installed on `dep-7706fafb`, live, and applied through release `rel-f17c4793`.
 - Runtime `/api/ai/data-sync/vector-spaces` lists all 12 ProdUS safe knowledge vector spaces with no missing spaces.
 - Runtime `/api/ai/data-sync/batch` accepted platform-smoke and ProdUS-shaped `SYSTEM_PROCESS` upsert/delete operations with `providerRequestId` and success/failure counts. A temporary service-module retrieval smoke returned a grounded answer and was deleted.
@@ -46,9 +52,10 @@ Current contract alignment:
 | Platform deployment id | `dep-7706fafb` |
 | Platform deployment name | `ProdUS AI Enablement Staging` |
 | Environment | `staging` |
-| Latest applied release | `rel-579d7fce` |
+| Latest applied release | `rel-623c91a0` |
 | Runtime template | `dev-openai-qdrant` |
 | Template plugin | `mkp-template-support-desk-shell` |
+| Installed action plugins | `mkp-action-produs-productization-read-mcp@0.1.0`, `mkp-action-produs-productization-project-create-mcp@0.1.1` |
 | Installed data plugins | `mkp-data-help-center`, `mkp-data-policy-folder`, `mkp-data-produs-safe-knowledge@0.1.1` |
 | Stable consumer id | `produs-staging` |
 | Runtime base URL | `http://dep-7706fafb.46.224.145.148.sslip.io` |
@@ -290,7 +297,7 @@ ProdUS project creation uses a two-step LoomAI flow. Step 1 is runtime analysis 
 ProdUS-side implementation status:
 
 - Backend endpoint `POST /api/products/ai-assisted/analyze` creates a short-lived creation intent, stores private attachments, grants owner-selected temporary AI document access, calls `/api/chat/me/query-once`, and returns a `runtimeActionPayload`.
-- Backend endpoint `POST /api/products/ai-assisted/intents/{intentId}/create` executes the same server-side action adapter used by MCP for local UI continuity while LoomAI config is being applied.
+- Backend endpoint `POST /api/products/ai-assisted/intents/{intentId}/create` executes the same server-side action adapter used by MCP for local UI continuity and fallback.
 - MCP/action endpoint `/mcp` exposes `produs.productization_project.create` in the allowlist with `mode=mutation` and `confirmationRequired=false` because ProdUS UI already minted a consent-bound creation intent.
 - The action validates `creationIntentId`, `consentToken`, `idempotencyKey`, TTL, and attachment ownership; duplicate idempotency calls return the existing product.
 - Focused ProdUS integration test passed for analyze -> MCP action -> product creation -> private attachment download URL.
@@ -393,6 +400,19 @@ Step 2 runtime action configuration:
 }
 ```
 
+LoomAI-side Step 2 action status:
+
+- Marketplace plugin `mkp-action-produs-productization-project-create-mcp@0.1.1` is published and installed live on `dep-7706fafb`.
+- Platform install id is `mpi-47247a04`; deployment version is `ver-f9069ce5`; applied release is `rel-623c91a0`.
+- Runtime action name is `produs_productization_project_create`; underlying MCP tool is `produs.productization_project.create`.
+- Runtime action is `WRITE_ONLY`, `sideEffectLevel=MUTATING`, `confirmationRequired=false`, `groundingEligible=false`, and `readActionResolutionEligible=false`.
+- Required parameters are `creationIntentId`, `consentToken`, `idempotencyKey`, `productName`, `summary`, and `businessStage`.
+- `creationIntentId`, `consentToken`, `idempotencyKey`, and `analysisProviderRequestId` are hidden/backend-supplied parameters and must not be requested from the user.
+- Live negative execution proof reached the ProdUS MCP tool, matched the expected schema hash, and failed closed with `Project creation intent not found` for an intentionally invalid creation intent. This proves routing and authorization guard behavior without creating a project.
+- ProdUS positive MCP creation proof passed on 2026-05-25 using a real owner-approved `runtimeActionPayload` from the `POST /api/products/ai-assisted/analyze` flow. The action created product `595f259a-4fce-4468-83e3-5c110b999432`, persisted it as `AI_ASSISTED`, attached one private project document, stored LoomAI provider request `rag-9d588c66-264d-4d8e-95ea-3bde6689bd2f`, and produced audit event `fcaeff37-1fd2-4273-9a69-1ba62f44eb03`.
+- The same payload was replayed and returned `idempotentReplay=true`, proving duplicate action safety.
+- LoomAI runtime/gateway positive proof remains the final cross-system check. Codex attempted the managed MCP gateway endpoint and received `401 Invalid MCP gateway internal API key`; LoomAI should execute a fresh payload with its live gateway secret or provide a temporary operator test key for this verification.
+
 ProdUS persists the product as `creationMode=AI_ASSISTED`, `createdByAi=true`, attaches documents privately to the product, and stores LoomAI `providerRequestId`. Selected documents are only available to LoomAI through short-lived ProdUS token URLs during Step 1 analysis; the Step 2 mutation receives attachment ids only. The browser never receives runtime secrets and LoomAI never receives storage credentials.
 
 Current ProdUS UI flow:
@@ -400,7 +420,7 @@ Current ProdUS UI flow:
 1. Browser posts owner brief, optional hints, and selected files to `POST /api/products/ai-assisted/analyze`.
 2. ProdUS returns analysis fields plus the consent-bound `runtimeActionPayload`.
 3. Browser renders the analysis preview and calls `POST /api/products/ai-assisted/intents/{intentId}/create` when the owner continues.
-4. Once LoomAI installs the confirmed-action manifest, the runtime can invoke `produs.productization_project.create` with the same payload shape.
+4. LoomAI runtime can invoke `produs.productization_project.create` with the same payload shape after ProdUS supplies the owner-approved `runtimeActionPayload`.
 
 ProdUS action validation requirements:
 
@@ -1125,25 +1145,19 @@ Do not mark ProdUS LoomAI integration complete until these pass:
 
 Current gaps are expected and should be tracked:
 
-1. ProdUS still needs the deployment-scoped runtime API key and HMAC assertion signing secret transferred from the LoomAI private handoff through a secure secret channel before enabling `LOOMAI_ENABLED=true`.
-2. Current live runtime supports HMAC private assertions only. Asymmetric `LOOMAI_ASSERTION_PRIVATE_KEY_PATH` requires LoomAI runtime key-registry work before use.
-3. ProdUS owner-browser smoke through `/api/ai/assistant/*` still depends on the ProdUS UI surface being enabled with an authenticated owner.
-4. ProdUS safe knowledge sync is designed but not connected to a confirmed runtime ingestion endpoint.
-5. Mutation MCP tools are intentionally not installed yet. They need a reviewed confirmed-action Marketplace manifest because the generic importer treats imported tools as read-only.
-6. Current indexed data is generic help/policy marketplace data, not ProdUS productization knowledge.
-7. Platform apply currently requires preserving the ProdUS private-auth issuer in runtime env after rollout. LoomAI patched staging manually; Platform env rendering should be hardened before relying on repeated automatic applies.
+1. Current live runtime supports HMAC private assertions only. Asymmetric `LOOMAI_ASSERTION_PRIVATE_KEY_PATH` requires LoomAI runtime key-registry work before use.
+2. ProdUS owner-browser smoke through `/api/ai/assistant/*` still depends on the ProdUS UI surface being enabled with an authenticated owner.
+3. ProdUS-side positive `produs.productization_project.create` live creation verification passed through the staging ProdUS MCP endpoint with a real owner-approved payload. LoomAI-side runtime/gateway positive execution remains pending only because Codex did not have an accepted live MCP gateway internal key.
+4. Platform apply currently requires preserving the ProdUS private-auth issuer in runtime env after rollout. LoomAI patched staging manually; Platform env rendering should be hardened before relying on repeated automatic applies.
+5. Additional mutation MCP tools remain deferred. Each new mutation needs its own reviewed confirmed-action Marketplace manifest, explicit ProdUS UX confirmation/authorization contract, audit behavior, idempotency, and fail-closed verification.
 
 ## 17. Recommended Next Work
 
-1. Securely hand off the runtime API key, HMAC signing secret, and MCP key material from the LoomAI private handoff to ProdUS backend operations.
-2. Configure ProdUS backend env for direct private runtime mode.
-3. Implement or finish ProdUS backend `rpa1` assertion issuer.
-4. Run `/api/chat/me/auth-context` smoke with ProdUS-generated assertion.
-5. Implement ProdUS backend context enrichment for product/package/workspace/scanner/finding/evidence pages.
-6. Connect ProdUS safe knowledge preview/sync to a confirmed LoomAI ingestion path or a ProdUS `DATA` Marketplace plugin.
-7. Add a reviewed confirmed-action manifest for ProdUS mutation tools only after ProdUS has confirmation UX and audit enforcement wired.
-5. Run `/api/ai/assistant/query` and `/api/ai/assistant/suggestions` from an authenticated ProdUS owner session.
-6. Rerun Marketplace discovery against ProdUS `/mcp` and `/loomai/tool-allowlist` using `MCP_SECRET_PRODUS_STAGING_MCP_API_KEY`.
-7. Decide safe knowledge ingestion path: runtime import endpoint or ProdUS-specific Marketplace DATA plugin.
-8. Run end-to-end role tests: admin, owner, team manager, specialist, advisor.
-9. Only after staging passes, design production deployment with separate runtime, credentials, vector namespace, rate limits, and rollback plan.
+1. Ask LoomAI to execute a fresh owner-approved `runtimeActionPayload` through the managed MCP gateway/runtime action path using the live gateway secret, or provide ProdUS/Codex with a temporary accepted operator key for one positive execution proof.
+2. Keep the local ProdUS REST create endpoint as fallback/continuity until the LoomAI runtime/gateway action path has positive creation evidence from an owner-authenticated flow.
+3. Harden Platform env rendering so repeated deployment applies preserve ProdUS private-runtime issuer/audience and do not require manual Coolify correction.
+4. Run `/api/ai/assistant/query`, `/api/ai/assistant/query-once`, and `/api/ai/assistant/suggestions` from an authenticated ProdUS owner session after enabling the UI surface.
+5. Rerun Marketplace discovery against ProdUS `/mcp` and `/loomai/tool-allowlist` using `MCP_SECRET_PRODUS_STAGING_MCP_API_KEY` after each ProdUS tool catalog change.
+6. Add reviewed confirmed-action manifests for additional ProdUS mutation tools only after each action has explicit confirmation UX, authorization, audit, idempotency, and fail-closed behavior wired.
+7. Run end-to-end role tests: admin, owner, team manager, specialist, advisor.
+8. Only after staging passes, design production deployment with separate runtime, credentials, vector namespace, rate limits, and rollback plan.

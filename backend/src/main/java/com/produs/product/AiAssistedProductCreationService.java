@@ -374,7 +374,47 @@ public class AiAssistedProductCreationService {
         if (response == null) {
             return Optional.empty();
         }
-        return parseFields(response.answer()).or(() -> parseFields(response.safeSummary()));
+        return parseFields(response.answer())
+                .or(() -> parseFields(response.safeSummary()))
+                .or(() -> parseFieldsFromActionParameters(response));
+    }
+
+    private Optional<ProductCreationFields> parseFieldsFromActionParameters(AssistantQueryResponse response) {
+        if (response.actions() == null || response.actions().isEmpty()) {
+            return Optional.empty();
+        }
+        for (Map<String, Object> action : response.actions()) {
+            if (!isProjectCreationAction(action)) {
+                continue;
+            }
+            Object provided = action.get("providedParameters");
+            if (!(provided instanceof Map<?, ?> providedParameters) || providedParameters.isEmpty()) {
+                continue;
+            }
+            JsonNode node = objectMapper.valueToTree(providedParameters);
+            return Optional.of(new ProductCreationFields(
+                    text(node, "productName", "name"),
+                    text(node, "summary", "productSummary"),
+                    text(node, "businessStage", "stage"),
+                    text(node, "techStack"),
+                    text(node, "productUrl"),
+                    text(node, "repositoryUrl", "repoUrl"),
+                    text(node, "riskProfile", "risks"),
+                    text(node, "aiCreationSummary", "creationSummary"),
+                    textList(node, "assumptions"),
+                    textList(node, "missingEvidence", "missing_evidence")
+            ));
+        }
+        return Optional.empty();
+    }
+
+    private boolean isProjectCreationAction(Map<String, Object> action) {
+        Object name = firstNonNull(action.get("action"), action.get("name"), action.get("actionId"), action.get("tool"));
+        if (!(name instanceof String value) || value.isBlank()) {
+            return false;
+        }
+        return "produs_productization_project_create".equals(value)
+                || "produs.productization_project.create".equals(value);
     }
 
     private Optional<ProductCreationFields> parseFields(String raw) {
@@ -520,6 +560,15 @@ public class AiAssistedProductCreationService {
 
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private Object firstNonNull(Object... values) {
+        for (Object value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private String createToken(String prefix) {

@@ -38,8 +38,10 @@ Current staging direct-runtime behavior is verified:
 - ProdUS staging broker endpoints return live LoomAI query and suggestions responses.
 - ProdUS MCP authentication is enforced in staging: unauthenticated `/mcp tools/list` returns `401`; authenticated discovery returns the ProdUS tool catalog.
 - LoomAI staging deployment `dep-7706fafb` has installed the read-only Marketplace plugin `mkp-action-produs-productization-read-mcp@0.1.0`.
-- Runtime action discovery currently loads these 8 ProdUS read actions only: `produs_catalog_search`, `produs_product_list`, `produs_package_inspect`, `produs_workspace_inspect`, `produs_scan_status`, `produs_finding_inspect`, `produs_evidence_list`, and `produs_milestone_review_evidence`.
-- Mutation MCP tools are intentionally not imported into LoomAI runtime yet. They require ProdUS confirmation UX, audit enforcement, and a separate reviewed confirmed-action Marketplace manifest.
+- Runtime action discovery currently loads 9 ProdUS actions: the 8 read actions (`produs_catalog_search`, `produs_product_list`, `produs_package_inspect`, `produs_workspace_inspect`, `produs_scan_status`, `produs_finding_inspect`, `produs_evidence_list`, `produs_milestone_review_evidence`) plus the confirmed write action `produs_productization_project_create`.
+- LoomAI staging deployment `dep-7706fafb` has installed the confirmed project-creation Marketplace plugin `mkp-action-produs-productization-project-create-mcp@0.1.1`.
+- The confirmed project-creation action maps to MCP tool `produs.productization_project.create`, schema hash `sha256:6a64c636165a0e6c92e7fefd41fad8e53132f411f2aa7d107a992c6e517867c0`, and deployment release `rel-623c91a0`.
+- Other mutation MCP tools are intentionally not imported into LoomAI runtime yet. They require ProdUS confirmation UX, audit enforcement, and separate reviewed confirmed-action Marketplace manifests.
 - Suggestions endpoint must not receive `conversationId` or `context` in the runtime request body unless LoomAI changes its OpenAPI contract.
 - Query endpoint must not receive legacy or unsupported top-level fields such as `message`, `sessionId`, `allowedActions`, or `storefrontContext`.
 
@@ -373,17 +375,27 @@ ProdUS implementation status:
 
 - `POST /api/products/ai-assisted/analyze` is implemented and returns an intent, analysis fields, temporary AI document share metadata, and a consent-bound `runtimeActionPayload`.
 - `produs.productization_project.create` is implemented in the ProdUS MCP/action adapter and published by the local allowlist as a mutation with `confirmationRequired=false`.
-- `POST /api/products/ai-assisted/intents/{intentId}/create` is implemented as the same action adapter behind an owner-scoped REST endpoint for UI continuity while LoomAI installs the confirmed action.
+- `POST /api/products/ai-assisted/intents/{intentId}/create` is implemented as the same action adapter behind an owner-scoped REST endpoint for UI continuity and fallback.
 - Private attachments can belong to a creation intent before product creation and are attached to the product after the action succeeds.
 - Temporary AI document access is revoked after the action creates the product.
 - Focused backend integration coverage verifies analyze -> MCP action -> AI-assisted product persistence -> private attachment access.
 
-Remaining LoomAI-side configuration before live action verification:
+LoomAI-side configuration status for live action verification:
 
-- Install/import the `produs.productization_project.create` confirmed-action manifest using the schema above.
+- Installed/imported the `produs.productization_project.create` confirmed-action manifest as `mkp-action-produs-productization-project-create-mcp@0.1.1`.
 - Keep the action out of broad mutation discovery. It is valid only for the project creation creation-intent flow.
-- Verify runtime can call the ProdUS MCP/action endpoint with the returned `runtimeActionPayload`.
-- Confirm failed action responses preserve the `errors[]` array from ProdUS structured content.
+- Verified runtime action catalog loads `produs_productization_project_create` as a `WRITE_ONLY` mutating action.
+- Verified negative runtime/MCP execution reaches the ProdUS tool, matches the schema hash, and fails closed with `Project creation intent not found` for an invalid creation intent.
+- ProdUS positive MCP creation verification passed on 2026-05-25 using a real owner-approved `runtimeActionPayload` from `POST /api/products/ai-assisted/analyze`. The action created product `595f259a-4fce-4468-83e3-5c110b999432`, persisted `creationMode=AI_ASSISTED`, attached one private project document, stored provider request `rag-9d588c66-264d-4d8e-95ea-3bde6689bd2f`, and wrote audit event `fcaeff37-1fd2-4273-9a69-1ba62f44eb03`.
+- Duplicate action replay with the same `idempotencyKey` returned the same product with `idempotentReplay=true`.
+- LoomAI runtime/gateway positive verification remains pending only because Codex did not have an accepted live MCP gateway internal key; a direct managed-gateway attempt returned `401 Invalid MCP gateway internal API key`. LoomAI should execute a fresh payload with its live gateway secret or provide a temporary operator test key.
+- Failed action responses preserve machine-safe failure evidence from the MCP tool path.
+
+Parser hardening added on 2026-05-25:
+
+- Project-creation analysis first accepts strict JSON from `answer` or `safeSummary`.
+- If LoomAI returns the intended project attributes as `actions[].providedParameters` for `produs_productization_project_create`, ProdUS now parses those fields before falling back to deterministic owner-provided fields.
+- This keeps Step 1 as analysis-only while tolerating the live LoomAI response shape observed during staging proof.
 
 ### 5.2 Query Response
 
@@ -1050,7 +1062,7 @@ Managed vectorization acceptance:
 
 LoomAI may propose or prepare actions. ProdUS executes actions through backend/MCP only after authorization and confirmation.
 
-Current staging deployment imports only read actions into LoomAI runtime. ProdUS exposes confirmed mutation candidates in its own MCP catalog for future review, but LoomAI must not call them until a separate confirmed-action Marketplace manifest is reviewed, installed, and verified.
+Current staging deployment imports 8 read actions and one confirmed write action into LoomAI runtime. ProdUS exposes other mutation candidates in its own MCP catalog for future review, but LoomAI must not call them until a separate confirmed-action Marketplace manifest is reviewed, installed, and verified.
 
 Allowed read tools:
 
