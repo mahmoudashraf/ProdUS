@@ -290,7 +290,7 @@ Step 1 runtime context contract:
       "temporaryAccessUrl": "https://produs-api.../api/product-attachments/ai-access/<token>",
       "expiresAt": "ISO-8601 timestamp",
       "accessInstruction": "open-temporary-url-first-use-redacted-excerpt-only-as-fallback",
-      "fallbackRedactedExcerpt": "Optional bounded redacted text for fallback only"
+      "fallbackRedactedExcerpt": "Only populated if ProdUS could not provide a temporary URL"
     }
   ],
   "outputContract": {
@@ -318,7 +318,7 @@ LoomAI must not index, vectorize, retain, summarize for future retrieval, or exp
 Document handling contract:
 
 - LoomAI must try to open each `temporaryAccessUrl` first during the request window.
-- `fallbackRedactedExcerpt` is only for failure fallback or quick orientation, not the primary evidence path.
+- `fallbackRedactedExcerpt` is only for the exceptional path where ProdUS did not provide a temporary URL or explicitly populated fallback text. In the normal path, it is blank so LoomAI must open the temporary URL or report `NOT_USED`.
 - LoomAI must return one `documentUsage` item for every selected document:
 
 ```json

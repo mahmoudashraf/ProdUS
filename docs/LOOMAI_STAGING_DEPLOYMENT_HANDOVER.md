@@ -332,7 +332,7 @@ Step 1 analysis payload:
         "temporaryAccessUrl": "https://produs-api-staging.../api/product-attachments/ai-access/<token>",
         "expiresAt": "2026-05-25T12:34:56",
         "accessInstruction": "open-temporary-url-first-use-redacted-excerpt-only-as-fallback",
-        "fallbackRedactedExcerpt": "Optional bounded redacted text for fallback only"
+        "fallbackRedactedExcerpt": "Only populated if ProdUS could not provide a temporary URL"
       }
     ],
     "outputContract": {
@@ -360,7 +360,7 @@ LoomAI requirements for this project-creation path:
 - Treat `temporaryAccessUrl` documents as analysis-only transient inputs.
 - Do not index, vectorize, retain, or expose project-creation document content.
 - Fetch/open every temporary document URL during the request window only. URLs expire in minutes and can fail closed.
-- Use `fallbackRedactedExcerpt` only when the temporary URL cannot be retrieved or parsed. Do not treat fallback excerpts as the preferred path.
+- Use `fallbackRedactedExcerpt` only when ProdUS did not provide a temporary URL or explicitly populated fallback text. In the normal path, this field is blank so LoomAI must open the temporary URL or report `NOT_USED`.
 - Return a strict JSON object in `answer` or `safeSummary` with `productName`, `summary`, `businessStage`, `techStack`, `productUrl`, `repositoryUrl`, `riskProfile`, `aiCreationSummary`, `assumptions`, `missingEvidence`, and `documentUsage`.
 - Return one `documentUsage` item per owner-selected document:
 

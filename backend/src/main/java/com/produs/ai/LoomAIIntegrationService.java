@@ -1111,6 +1111,9 @@ public class LoomAIIntegrationService {
         ));
         context.put("documents", request.documents() == null ? List.of() : request.documents().stream()
                 .map(document -> {
+                    String fallbackExcerpt = blank(document.temporaryAccessUrl())
+                            ? safeText(document.contentExcerpt(), 4_000)
+                            : "";
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("attachmentId", document.attachmentId() == null ? "" : document.attachmentId().toString());
                     item.put("fileName", safeText(document.fileName(), FIELD_LIMIT));
@@ -1118,12 +1121,11 @@ public class LoomAIIntegrationService {
                     item.put("sizeBytes", document.sizeBytes());
                     item.put("temporaryAccessUrl", document.temporaryAccessUrl());
                     item.put("expiresAt", document.expiresAt() == null ? "" : document.expiresAt().toString());
-                    item.put("contentExcerptIncluded", document.contentExcerptIncluded());
-                    item.put("contentExcerptTruncated", document.contentExcerptTruncated());
+                    item.put("fallbackRedactedExcerptIncluded", !fallbackExcerpt.isBlank());
+                    item.put("fallbackRedactedExcerptTruncated", !fallbackExcerpt.isBlank() && document.contentExcerptTruncated());
                     item.put("contentStatus", safeText(document.contentStatus(), FIELD_LIMIT));
                     item.put("accessInstruction", "open-temporary-url-first-use-redacted-excerpt-only-as-fallback");
-                    item.put("contentExcerpt", safeText(document.contentExcerpt(), 4_000));
-                    item.put("fallbackRedactedExcerpt", safeText(document.contentExcerpt(), 4_000));
+                    item.put("fallbackRedactedExcerpt", fallbackExcerpt);
                     return item;
                 })
                 .toList());
@@ -1190,7 +1192,9 @@ public class LoomAIIntegrationService {
         List<String> sections = new ArrayList<>();
         for (int index = 0; index < documents.size(); index++) {
             ProjectCreationDocumentReference document = documents.get(index);
-            String excerpt = safeText(document.contentExcerpt(), 4_000);
+            String fallbackExcerpt = blank(document.temporaryAccessUrl())
+                    ? safeText(document.contentExcerpt(), 4_000)
+                    : "";
             sections.add("""
                     Document %d:
                     fileName: %s
@@ -1208,7 +1212,7 @@ public class LoomAIIntegrationService {
                     safeText(document.contentStatus(), FIELD_LIMIT),
                     blank(document.temporaryAccessUrl()) ? "not provided" : document.temporaryAccessUrl(),
                     document.expiresAt() == null ? "not provided" : document.expiresAt().toString(),
-                    blank(excerpt) ? "[no text excerpt supplied]" : excerpt
+                    blank(fallbackExcerpt) ? "[not supplied because temporaryAccessUrl is available]" : fallbackExcerpt
             ).trim());
         }
         return String.join("\n\n", sections);
