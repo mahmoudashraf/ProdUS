@@ -186,6 +186,9 @@ export interface AiDocumentShare {
   contentType: string;
   sizeBytes: number;
   expiresAt?: string;
+  contentExcerptIncluded?: boolean;
+  contentExcerptTruncated?: boolean;
+  contentStatus?: string;
 }
 
 export interface ProductCreationIntent {

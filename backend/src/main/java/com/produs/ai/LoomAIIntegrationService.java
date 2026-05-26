@@ -1118,6 +1118,10 @@ public class LoomAIIntegrationService {
                     item.put("sizeBytes", document.sizeBytes());
                     item.put("temporaryAccessUrl", document.temporaryAccessUrl());
                     item.put("expiresAt", document.expiresAt() == null ? "" : document.expiresAt().toString());
+                    item.put("contentExcerptIncluded", document.contentExcerptIncluded());
+                    item.put("contentExcerptTruncated", document.contentExcerptTruncated());
+                    item.put("contentStatus", safeText(document.contentStatus(), FIELD_LIMIT));
+                    item.put("contentExcerpt", safeText(document.contentExcerpt(), 4_000));
                     return item;
                 })
                 .toList());
@@ -1132,11 +1136,14 @@ public class LoomAIIntegrationService {
     private String projectCreationPrompt(ProjectCreationAssistantRequest request) {
         return """
                 You are ProdUS project creation AI. The owner opted into AI-assisted project creation.
-                Analyze the owner input and any owner-selected temporary documents. Do not index, retain, or expose document content.
+                Analyze the owner input and every owner-selected temporary document. Do not index, retain, or expose document content.
+                Use the supplied document excerpts as primary evidence. If a selected document has no excerpt, use its temporaryAccessUrl if your runtime can retrieve it.
+                If you cannot access or use a selected document, add a concise missingEvidence item that says which document was not analyzed.
                 Return the best initial project creation attributes for ProdUS to pass into a separate runtime action. Return only a strict JSON object with:
                 productName, summary, businessStage, techStack, productUrl, repositoryUrl, riskProfile, aiCreationSummary, assumptions, missingEvidence.
                 Use one businessStage value from IDEA, PROTOTYPE, VALIDATED, LIVE, SCALING.
                 assumptions and missingEvidence must be arrays of concise strings.
+                aiCreationSummary must mention whether selected documents were used.
 
                 Owner input:
                 %s
@@ -1145,13 +1152,44 @@ public class LoomAIIntegrationService {
                 Optional repository URL: %s
                 Optional tech stack hint: %s
                 Optional risk hint: %s
+                Owner-selected documents:
+                %s
                 """.formatted(
                 safeText(request.ownerMessage(), 4_000),
                 blank(request.productUrl()) ? "not provided" : request.productUrl(),
                 blank(request.repositoryUrl()) ? "not provided" : request.repositoryUrl(),
                 safeText(request.techStack(), SUMMARY_LIMIT),
-                safeText(request.knownRisks(), SUMMARY_LIMIT)
+                safeText(request.knownRisks(), SUMMARY_LIMIT),
+                projectCreationDocumentPromptSection(request.documents())
         );
+    }
+
+    private String projectCreationDocumentPromptSection(List<ProjectCreationDocumentReference> documents) {
+        if (documents == null || documents.isEmpty()) {
+            return "No owner-selected documents were shared with AI.";
+        }
+        List<String> sections = new ArrayList<>();
+        for (int index = 0; index < documents.size(); index++) {
+            ProjectCreationDocumentReference document = documents.get(index);
+            String excerpt = safeText(document.contentExcerpt(), 4_000);
+            sections.add("""
+                    Document %d:
+                    fileName: %s
+                    contentType: %s
+                    contentStatus: %s
+                    temporaryAccessUrl: %s
+                    contentExcerpt:
+                    %s
+                    """.formatted(
+                    index + 1,
+                    safeText(document.fileName(), FIELD_LIMIT),
+                    safeText(document.contentType(), FIELD_LIMIT),
+                    safeText(document.contentStatus(), FIELD_LIMIT),
+                    blank(document.temporaryAccessUrl()) ? "not provided" : document.temporaryAccessUrl(),
+                    blank(excerpt) ? "[no text excerpt supplied]" : excerpt
+            ).trim());
+        }
+        return String.join("\n\n", sections);
     }
 
     private Map<String, Object> explainOnlyContext(Map<String, Object> context) {
@@ -2133,7 +2171,11 @@ public class LoomAIIntegrationService {
             String contentType,
             long sizeBytes,
             String temporaryAccessUrl,
-            LocalDateTime expiresAt
+            LocalDateTime expiresAt,
+            String contentExcerpt,
+            boolean contentExcerptIncluded,
+            boolean contentExcerptTruncated,
+            String contentStatus
     ) {}
 
     public record AssistantSessionResponse(

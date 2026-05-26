@@ -7,6 +7,7 @@ import com.produs.ai.LoomAIIntegrationService.AssistantQueryResponse;
 import com.produs.ai.LoomAIIntegrationService.ProjectCreationAssistantRequest;
 import com.produs.ai.LoomAIIntegrationService.ProjectCreationDocumentReference;
 import com.produs.audit.AuditEvent;
+import com.produs.common.AttachmentFileTypePolicy;
 import com.produs.dto.PlatformDtos.ProductProfileResponse;
 import com.produs.entity.User;
 import com.produs.service.AuditService;
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -30,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import static com.produs.dto.PlatformDtos.toProductProfileResponse;
 
@@ -39,6 +43,20 @@ public class AiAssistedProductCreationService {
 
     private static final int NAME_LIMIT = 120;
     private static final int TEXT_LIMIT = 2_000;
+    private static final int AI_DOCUMENT_EXCERPT_LIMIT = 4_000;
+    private static final int AI_DOCUMENT_TOTAL_EXCERPT_LIMIT = 12_000;
+    private static final Set<String> AI_EXCERPT_CONTENT_TYPES = Set.of(
+            "application/json",
+            "text/csv",
+            "text/markdown",
+            "text/plain"
+    );
+    private static final Pattern SENSITIVE_DOCUMENT_PATTERN = Pattern.compile(
+            "(?is)(api[_-]?key|secret|token|password|authorization|bearer|private[_-]?key)\\s*[:=]\\s*[^\\s,;]+"
+                    + "|gh[pousr]_[A-Za-z0-9_]+"
+                    + "|sk-[A-Za-z0-9_-]+"
+                    + "|-----BEGIN [^-]+ PRIVATE KEY-----.*?-----END [^-]+ PRIVATE KEY-----"
+    );
 
     private final ProductProfileRepository productRepository;
     private final ProductCreationIntentRepository intentRepository;
@@ -80,11 +98,16 @@ public class AiAssistedProductCreationService {
         intent.setRiskProfile(trim(request.knownRisks(), TEXT_LIMIT));
         intent = intentRepository.save(intent);
 
+        List<AiSharedDocumentContent> selectedDocumentContent = selectedDocumentContent(files, aiSharedFileIndexes);
         List<ProductProjectAttachment> attachments = attachmentService.uploadForCreationIntent(owner, intent, files, aiSharedFileIndexes);
         List<ProductProjectAttachmentService.TemporaryAiDocumentAccess> temporaryAccess = attachments.stream()
                 .filter(ProductProjectAttachment::isAiShareRequested)
                 .map(attachment -> attachmentService.grantTemporaryAiAccess(attachment, apiBaseUrl))
                 .toList();
+        List<ProjectCreationDocumentReference> documentReferences = projectCreationDocumentReferences(
+                temporaryAccess,
+                selectedDocumentContent
+        );
 
         AssistantQueryResponse assistant = loomAIIntegrationService.projectCreation(owner, new ProjectCreationAssistantRequest(
                 intent.getId(),
@@ -94,16 +117,7 @@ public class AiAssistedProductCreationService {
                 request.productUrl(),
                 request.repositoryUrl(),
                 request.knownRisks(),
-                temporaryAccess.stream()
-                        .map(document -> new ProjectCreationDocumentReference(
-                                document.attachmentId(),
-                                document.fileName(),
-                                document.contentType(),
-                                document.sizeBytes(),
-                                document.temporaryAccessUrl(),
-                                document.expiresAt()
-                        ))
-                        .toList()
+                documentReferences
         ));
 
         ProductCreationFields ownerProvidedFields = deterministicFields(request);
@@ -119,13 +133,16 @@ public class AiAssistedProductCreationService {
                 ProductCreationIntentResponse.from(intent, consentToken),
                 fields,
                 attachments.stream().map(ProductProjectAttachmentResponse::from).toList(),
-                temporaryAccess.stream()
-                        .map(access -> new AiDocumentShareResponse(
-                                access.attachmentId(),
-                                access.fileName(),
-                                access.contentType(),
-                                access.sizeBytes(),
-                                access.expiresAt()
+                documentReferences.stream()
+                        .map(document -> new AiDocumentShareResponse(
+                                document.attachmentId(),
+                                document.fileName(),
+                                document.contentType(),
+                                document.sizeBytes(),
+                                document.expiresAt(),
+                                document.contentExcerptIncluded(),
+                                document.contentExcerptTruncated(),
+                                document.contentStatus()
                         ))
                         .toList(),
                 assistant,
@@ -133,6 +150,88 @@ public class AiAssistedProductCreationService {
                 assistant.fallbackReason(),
                 projectCreationActionPayload(intent, consentToken, fields, attachments, temporaryAccess)
         );
+    }
+
+    private List<ProjectCreationDocumentReference> projectCreationDocumentReferences(
+            List<ProductProjectAttachmentService.TemporaryAiDocumentAccess> temporaryAccess,
+            List<AiSharedDocumentContent> selectedDocumentContent
+    ) {
+        List<ProjectCreationDocumentReference> references = new ArrayList<>();
+        for (int index = 0; index < temporaryAccess.size(); index++) {
+            ProductProjectAttachmentService.TemporaryAiDocumentAccess document = temporaryAccess.get(index);
+            AiSharedDocumentContent content = index < selectedDocumentContent.size()
+                    ? selectedDocumentContent.get(index)
+                    : AiSharedDocumentContent.unavailable("content-unavailable");
+            references.add(new ProjectCreationDocumentReference(
+                    document.attachmentId(),
+                    document.fileName(),
+                    document.contentType(),
+                    document.sizeBytes(),
+                    document.temporaryAccessUrl(),
+                    document.expiresAt(),
+                    content.excerpt(),
+                    !content.excerpt().isBlank(),
+                    content.truncated(),
+                    content.status()
+            ));
+        }
+        return references;
+    }
+
+    private List<AiSharedDocumentContent> selectedDocumentContent(
+            List<MultipartFile> files,
+            Set<Integer> aiSharedFileIndexes
+    ) {
+        if (files == null || files.isEmpty() || aiSharedFileIndexes == null || aiSharedFileIndexes.isEmpty()) {
+            return List.of();
+        }
+        int remainingBudget = AI_DOCUMENT_TOTAL_EXCERPT_LIMIT;
+        List<AiSharedDocumentContent> contents = new ArrayList<>();
+        for (int index = 0; index < files.size(); index++) {
+            MultipartFile file = files.get(index);
+            if (file == null || file.isEmpty() || !aiSharedFileIndexes.contains(index)) {
+                continue;
+            }
+            String contentType = AttachmentFileTypePolicy.resolveAllowedContentType(file);
+            if (!AI_EXCERPT_CONTENT_TYPES.contains(contentType)) {
+                contents.add(AiSharedDocumentContent.unavailable("temporary-url-only-non-text-document"));
+                continue;
+            }
+            if (remainingBudget <= 0) {
+                contents.add(AiSharedDocumentContent.unavailable("excerpt-budget-exhausted"));
+                continue;
+            }
+            AiSharedDocumentContent content = extractTextDocumentContent(file, remainingBudget);
+            remainingBudget = Math.max(0, remainingBudget - content.excerpt().length());
+            contents.add(content);
+        }
+        return contents;
+    }
+
+    private AiSharedDocumentContent extractTextDocumentContent(MultipartFile file, int remainingBudget) {
+        try {
+            String raw = new String(file.getBytes(), StandardCharsets.UTF_8);
+            String normalized = redactDocumentText(raw)
+                    .replaceAll("[\\p{Cntrl}&&[^\\n\\t]]", "")
+                    .replaceAll("\\R{3,}", "\n\n")
+                    .trim();
+            if (normalized.isBlank()) {
+                return AiSharedDocumentContent.unavailable("empty-text-document");
+            }
+            int limit = Math.min(AI_DOCUMENT_EXCERPT_LIMIT, remainingBudget);
+            boolean truncated = normalized.length() > limit;
+            String excerpt = truncated ? normalized.substring(0, limit).trim() : normalized;
+            return new AiSharedDocumentContent(excerpt, truncated, "excerpt-included");
+        } catch (IOException exception) {
+            return AiSharedDocumentContent.unavailable("document-read-failed");
+        }
+    }
+
+    private String redactDocumentText(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return SENSITIVE_DOCUMENT_PATTERN.matcher(value).replaceAll("[redacted-secret]");
     }
 
     @Transactional
@@ -628,6 +727,12 @@ public class AiAssistedProductCreationService {
         }
     }
 
+    private record AiSharedDocumentContent(String excerpt, boolean truncated, String status) {
+        static AiSharedDocumentContent unavailable(String status) {
+            return new AiSharedDocumentContent("", false, status);
+        }
+    }
+
     public record AiAssistedProductCreationRequest(
             String productName,
             String ownerMessage,
@@ -723,7 +828,10 @@ public class AiAssistedProductCreationService {
             String fileName,
             String contentType,
             long sizeBytes,
-            LocalDateTime expiresAt
+            LocalDateTime expiresAt,
+            boolean contentExcerptIncluded,
+            boolean contentExcerptTruncated,
+            String contentStatus
     ) {}
 
     public record ProductCreationActionRequest(

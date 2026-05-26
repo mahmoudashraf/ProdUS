@@ -4,16 +4,79 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.ai.LoomAIIntegrationService;
 import com.produs.service.AuditService;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 class AiAssistedProductCreationServiceTest {
+
+    @Test
+    void extractsSharedMarkdownDocumentContentForLoomAiAndRedactsSecrets() throws Exception {
+        AiAssistedProductCreationService service = new AiAssistedProductCreationService(
+                mock(ProductProfileRepository.class),
+                mock(ProductCreationIntentRepository.class),
+                mock(ProductProjectAttachmentRepository.class),
+                mock(ProductProjectAttachmentService.class),
+                mock(LoomAIIntegrationService.class),
+                mock(AuditService.class),
+                new ObjectMapper()
+        );
+        MockMultipartFile sharedMarkdown = new MockMultipartFile(
+                "files",
+                "PROJECT_OVERVIEW.md",
+                "application/octet-stream",
+                """
+                        # Matchly Project Overview
+                        Product name: Matchly Vendor Matching
+                        Tech stack: Next.js 15, Spring Boot 3, PostgreSQL, Supabase Auth
+                        Known risks: webhook replay protection and scanner evidence mapping
+                        api_key: should-not-leak
+                        """.getBytes(StandardCharsets.UTF_8)
+        );
+        MockMultipartFile notSharedMarkdown = new MockMultipartFile(
+                "files",
+                "PRIVATE_NOTES.md",
+                "text/markdown",
+                "This should not be sent to AI.".getBytes(StandardCharsets.UTF_8)
+        );
+
+        Method extractor = AiAssistedProductCreationService.class
+                .getDeclaredMethod("selectedDocumentContent", List.class, Set.class);
+        extractor.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        List<Object> extracted = (List<Object>) extractor.invoke(
+                service,
+                List.<MultipartFile>of(sharedMarkdown, notSharedMarkdown),
+                Set.of(0)
+        );
+
+        assertThat(extracted).hasSize(1);
+        Object content = extracted.get(0);
+        Method excerptMethod = content.getClass().getDeclaredMethod("excerpt");
+        Method statusMethod = content.getClass().getDeclaredMethod("status");
+        excerptMethod.setAccessible(true);
+        statusMethod.setAccessible(true);
+        String excerpt = (String) excerptMethod.invoke(content);
+        String status = (String) statusMethod.invoke(content);
+
+        assertThat(status).isEqualTo("excerpt-included");
+        assertThat(excerpt).contains("Matchly Vendor Matching");
+        assertThat(excerpt).contains("Next.js 15, Spring Boot 3, PostgreSQL, Supabase Auth");
+        assertThat(excerpt).contains("webhook replay protection and scanner evidence mapping");
+        assertThat(excerpt).doesNotContain("should-not-leak");
+        assertThat(excerpt).doesNotContain("This should not be sent to AI");
+        assertThat(excerpt).contains("[redacted-secret]");
+    }
 
     @Test
     void parsesProjectCreationFieldsFromLoomAiActionParameters() throws Exception {

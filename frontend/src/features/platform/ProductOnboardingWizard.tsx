@@ -404,6 +404,12 @@ export default function ProductOnboardingWizard() {
 
   const submit = form.handleSubmit(() => createProduct.mutate());
   const selectedAiDocumentCount = aiDocumentFiles.filter(item => item.shareWithAi).length;
+  const aiExcerptDocumentCount =
+    aiAnalysis?.aiSharedDocuments.filter(document => document.contentExcerptIncluded).length ?? 0;
+  const aiUrlOnlyDocumentCount =
+    aiAnalysis?.aiSharedDocuments.filter(
+      document => document.contentStatus === 'temporary-url-only-non-text-document'
+    ).length ?? 0;
   const aiBusy = analyzeProductWithAI.isPending || createProductFromAIAction.isPending;
   const productNameReady = form.values.name.trim().length > 0;
   const productSummaryReady = form.values.summary.trim().length > 0;
@@ -447,9 +453,11 @@ export default function ProductOnboardingWizard() {
     },
     {
       title: 'Document access boundary',
-      detail: aiDocumentFiles.length
-        ? `${compactCount(aiDocumentFiles.length, 'private attachment')} will stay with the project; ${compactCount(selectedAiDocumentCount, 'file')} ${selectedAiDocumentCount === 1 ? 'is' : 'are'} shared with AI temporarily.`
-        : 'No documents attached. You can still create the project from the conversation and links.',
+      detail: aiAnalysis?.aiSharedDocuments.length
+        ? `${compactCount(aiAnalysis.aiSharedDocuments.length, 'selected document')} reached AI; ${compactCount(aiExcerptDocumentCount, 'redacted text excerpt')} ${aiExcerptDocumentCount === 1 ? 'was' : 'were'} sent directly${aiUrlOnlyDocumentCount ? `, and ${compactCount(aiUrlOnlyDocumentCount, 'non-text file')} used temporary URL fallback` : ''}.`
+        : aiDocumentFiles.length
+          ? `${compactCount(aiDocumentFiles.length, 'private attachment')} will stay with the project; ${compactCount(selectedAiDocumentCount, 'file')} ${selectedAiDocumentCount === 1 ? 'is' : 'are'} shared with AI temporarily.`
+          : 'No documents attached. You can still create the project from the conversation and links.',
       state: aiDocumentFiles.length > 0 && selectedAiDocumentCount === 0 ? 'attention' : 'ready',
     },
     {
@@ -861,6 +869,12 @@ export default function ProductOnboardingWizard() {
                         label={`${selectedAiDocumentCount} temporary AI shares`}
                         color={selectedAiDocumentCount ? appleColors.purple : appleColors.muted}
                       />
+                      {aiAnalysis && (
+                        <DotLabel
+                          label={`${aiExcerptDocumentCount} redacted text excerpts sent`}
+                          color={aiExcerptDocumentCount ? appleColors.green : appleColors.amber}
+                        />
+                      )}
                       <DotLabel label="No document indexing" color={appleColors.green} />
                     </Stack>
                     <Box
