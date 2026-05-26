@@ -116,6 +116,25 @@ public class ProductProjectAttachmentService {
 
     @Transactional
     public String createAiAccessDownloadUrl(String token) {
+        ProductProjectAttachment attachment = requireTemporaryAiAccess(token);
+        return s3Service.generatePresignedDownloadUrl(attachment.getStorageKey());
+    }
+
+    @Transactional
+    public TemporaryAiDocumentDownload createAiAccessDocumentDownload(String token) {
+        ProductProjectAttachment attachment = requireTemporaryAiAccess(token);
+        S3Service.StoredObject object = s3Service.downloadFile(attachment.getStorageKey());
+        String contentType = firstNonBlank(object.contentType(), attachment.getContentType(), "application/octet-stream");
+        long contentLength = object.contentLength() > 0 ? object.contentLength() : object.bytes().length;
+        return new TemporaryAiDocumentDownload(
+                attachment.getFileName(),
+                contentType,
+                object.bytes(),
+                contentLength
+        );
+    }
+
+    private ProductProjectAttachment requireTemporaryAiAccess(String token) {
         if (token == null || token.isBlank()) {
             throw new AccessDeniedException("Temporary document token is required");
         }
@@ -129,7 +148,7 @@ public class ProductProjectAttachmentService {
         }
         attachment.setAiAccessLastUsedAt(LocalDateTime.now());
         attachmentRepository.save(attachment);
-        return s3Service.generatePresignedDownloadUrl(attachment.getStorageKey());
+        return attachment;
     }
 
     @Transactional
@@ -269,6 +288,18 @@ public class ProductProjectAttachmentService {
         return base + "/api/product-attachments/ai-access/" + token;
     }
 
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
     public record TemporaryAiDocumentAccess(
             UUID attachmentId,
             String fileName,
@@ -276,5 +307,12 @@ public class ProductProjectAttachmentService {
             long sizeBytes,
             String temporaryAccessUrl,
             LocalDateTime expiresAt
+    ) {}
+
+    public record TemporaryAiDocumentDownload(
+            String fileName,
+            String contentType,
+            byte[] bytes,
+            long contentLength
     ) {}
 }

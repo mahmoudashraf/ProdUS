@@ -699,6 +699,17 @@ public class AiAssistedProductCreationService {
                 String accessMethod = normalizedDocumentAccessMethod(text(item, "accessMethod", "method"));
                 List<String> evidence = textList(item, "evidence", "evidenceItems", "facts");
                 String reason = text(item, "reason", "why", "notes");
+                if (("USED".equals(status) || "FALLBACK_EXCERPT_USED".equals(status)) && evidence.isEmpty()) {
+                    status = "NOT_USED";
+                    accessMethod = "NONE";
+                    reason = firstNonBlank(
+                            reason,
+                            "LoomAI did not return the required owner-safe evidence for this file."
+                    );
+                }
+                if ("NOT_USED".equals(status) && reason.isBlank()) {
+                    reason = "LoomAI did not use this file for the project creation analysis.";
+                }
                 result.add(new DocumentUsageEvidence(
                         trim(fileName, NAME_LIMIT),
                         status,

@@ -1124,7 +1124,7 @@ public class LoomAIIntegrationService {
                     item.put("fallbackRedactedExcerptIncluded", !fallbackExcerpt.isBlank());
                     item.put("fallbackRedactedExcerptTruncated", !fallbackExcerpt.isBlank() && document.contentExcerptTruncated());
                     item.put("contentStatus", safeText(document.contentStatus(), FIELD_LIMIT));
-                    item.put("accessInstruction", "open-temporary-url-first-use-redacted-excerpt-only-as-fallback");
+                    item.put("accessInstruction", "open-temporary-url-first-and-return-document-usage-evidence");
                     item.put("fallbackRedactedExcerpt", fallbackExcerpt);
                     return item;
                 })
@@ -1153,8 +1153,10 @@ public class LoomAIIntegrationService {
         return """
                 You are ProdUS project creation AI. The owner opted into AI-assisted project creation.
                 Analyze the owner input and every owner-selected temporary document. Do not index, retain, or expose document content.
-                For every selected document, first open and read temporaryAccessUrl. Use fallbackRedactedExcerpt only if the temporary URL cannot be retrieved or parsed.
+                For every selected document, first open and read temporaryAccessUrl. The URL returns the document bytes directly from ProdUS with no browser credentials and no storage redirect.
+                Use fallbackRedactedExcerpt only if the temporary URL cannot be retrieved or parsed and fallbackRedactedExcerpt is not blank.
                 Do not claim a document was used unless you extracted at least one owner-safe evidence item from the document content.
+                Do not infer file facts from the filename, owner prompt, or repository URL when document content is unavailable.
                 For every selected document, return documentUsage with fileName, status, accessMethod, evidence, and reason.
                 documentUsage.status must be one of USED, FALLBACK_EXCERPT_USED, NOT_USED.
                 documentUsage.accessMethod must be one of TEMPORARY_URL, REDACTED_EXCERPT_FALLBACK, NONE.
@@ -1202,7 +1204,7 @@ public class LoomAIIntegrationService {
                     contentStatus: %s
                     temporaryAccessUrl: %s
                     expiresAt: %s
-                    instruction: Open temporaryAccessUrl first. Use fallbackRedactedExcerpt only if URL access or parsing fails.
+                    instruction: Open temporaryAccessUrl first and extract owner-safe evidence from the returned file body. Do not infer file facts from the filename. Use fallbackRedactedExcerpt only if URL access or parsing fails and fallbackRedactedExcerpt is not blank.
                     fallbackRedactedExcerpt:
                     %s
                     """.formatted(

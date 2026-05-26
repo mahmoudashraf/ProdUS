@@ -147,6 +147,63 @@ class AiAssistedProductCreationServiceTest {
     }
 
     @Test
+    void downgradesClaimedDocumentUsageWhenEvidenceIsMissing() throws Exception {
+        AiAssistedProductCreationService service = new AiAssistedProductCreationService(
+                mock(ProductProfileRepository.class),
+                mock(ProductCreationIntentRepository.class),
+                mock(ProductProjectAttachmentRepository.class),
+                mock(ProductProjectAttachmentService.class),
+                mock(LoomAIIntegrationService.class),
+                mock(AuditService.class),
+                new ObjectMapper()
+        );
+        LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(
+                "LOOMAI",
+                "LIVE",
+                false,
+                "COMPLETE",
+                "",
+                """
+                        {
+                          "productName": "Orion Launch Auditor",
+                          "summary": "Project creation attributes.",
+                          "documentUsage": [
+                            {
+                              "fileName": "PROJECT_OVERVIEW.md",
+                              "status": "USED",
+                              "accessMethod": "TEMPORARY_URL",
+                              "evidence": [],
+                              "reason": "Document was accessed successfully."
+                            }
+                          ]
+                        }
+                        """,
+                "conversation-1",
+                0.0,
+                List.of(),
+                List.of(),
+                List.of(),
+                "COMPLETE",
+                "rag-test"
+        );
+
+        Method parser = AiAssistedProductCreationService.class
+                .getDeclaredMethod("parseFields", LoomAIIntegrationService.AssistantQueryResponse.class);
+        parser.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        Optional<AiAssistedProductCreationService.ProductCreationFields> fields =
+                (Optional<AiAssistedProductCreationService.ProductCreationFields>) parser.invoke(service, response);
+
+        assertThat(fields).isPresent();
+        AiAssistedProductCreationService.DocumentUsageEvidence documentUsage =
+                fields.orElseThrow().documentUsage().get(0);
+        assertThat(documentUsage.status()).isEqualTo("NOT_USED");
+        assertThat(documentUsage.accessMethod()).isEqualTo("NONE");
+        assertThat(documentUsage.reason()).contains("Document was accessed successfully.");
+    }
+
+    @Test
     void mergesPartialLoomAiFieldsWithOwnerProvidedIntake() throws Exception {
         AiAssistedProductCreationService service = new AiAssistedProductCreationService(
                 mock(ProductProfileRepository.class),

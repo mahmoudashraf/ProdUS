@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
@@ -91,6 +92,30 @@ public class S3Service {
         } catch (Exception e) {
             log.error("Failed to generate presigned download URL for key: {}", key, e);
             throw new RuntimeException("Failed to generate presigned download URL", e);
+        }
+    }
+
+    /**
+     * Download a private file through the backend. Use this for short-lived,
+     * audited access paths where the caller should not need to follow S3 redirects.
+     */
+    public StoredObject downloadFile(String key) {
+        try {
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
+
+            ResponseBytes<GetObjectResponse> response = s3Client.getObjectAsBytes(getObjectRequest);
+            GetObjectResponse metadata = response.response();
+            return new StoredObject(
+                    response.asByteArray(),
+                    metadata.contentType(),
+                    metadata.contentLength()
+            );
+        } catch (Exception e) {
+            log.error("Failed to download file with key: {}", key, e);
+            throw new RuntimeException("Failed to download file from S3", e);
         }
     }
 
@@ -277,4 +302,6 @@ public class S3Service {
         }
         return value.isBlank() ? "uploads" : value;
     }
+
+    public record StoredObject(byte[] bytes, String contentType, long contentLength) {}
 }

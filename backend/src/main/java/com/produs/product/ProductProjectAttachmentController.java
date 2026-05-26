@@ -3,8 +3,9 @@ package com.produs.product;
 import com.produs.product.AiAssistedProductCreationService.ProductProjectAttachmentResponse;
 import com.produs.entity.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -14,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -57,11 +58,28 @@ public class ProductProjectAttachmentController {
     }
 
     @GetMapping("/ai-access/{token}")
-    public ResponseEntity<Void> temporaryAiAccess(@PathVariable String token) {
-        String signedUrl = attachmentService.createAiAccessDownloadUrl(token);
-        return ResponseEntity.status(HttpStatus.FOUND)
+    public ResponseEntity<byte[]> temporaryAiAccess(@PathVariable String token) {
+        ProductProjectAttachmentService.TemporaryAiDocumentDownload document =
+                attachmentService.createAiAccessDocumentDownload(token);
+        return ResponseEntity.ok()
                 .header(HttpHeaders.CACHE_CONTROL, "no-store")
-                .location(URI.create(signedUrl))
-                .build();
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                        .filename(document.fileName(), StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .contentType(mediaType(document.contentType()))
+                .contentLength(document.bytes().length)
+                .body(document.bytes());
+    }
+
+    private MediaType mediaType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
+        try {
+            return MediaType.parseMediaType(contentType);
+        } catch (IllegalArgumentException exception) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
     }
 }
