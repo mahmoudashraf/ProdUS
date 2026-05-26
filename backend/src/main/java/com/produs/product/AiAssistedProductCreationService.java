@@ -163,6 +163,8 @@ public class AiAssistedProductCreationService {
             AiSharedDocumentContent content = index < selectedDocumentContent.size()
                     ? selectedDocumentContent.get(index)
                     : AiSharedDocumentContent.unavailable("content-unavailable");
+            boolean temporaryUrlAvailable = hasText(document.temporaryAccessUrl());
+            boolean fallbackExcerptSent = !temporaryUrlAvailable && !content.excerpt().isBlank();
             references.add(new ProjectCreationDocumentReference(
                     document.attachmentId(),
                     document.fileName(),
@@ -170,10 +172,10 @@ public class AiAssistedProductCreationService {
                     document.sizeBytes(),
                     document.temporaryAccessUrl(),
                     document.expiresAt(),
-                    content.excerpt(),
-                    !content.excerpt().isBlank(),
-                    content.truncated(),
-                    content.status()
+                    fallbackExcerptSent ? content.excerpt() : "",
+                    fallbackExcerptSent,
+                    fallbackExcerptSent && content.truncated(),
+                    temporaryUrlAvailable ? "temporary-url-only" : content.status()
             ));
         }
         return references;
@@ -546,11 +548,30 @@ public class AiAssistedProductCreationService {
                 fields.productUrl(),
                 fields.repositoryUrl(),
                 fields.riskProfile(),
-                fields.aiCreationSummary(),
+                documentAwareCreationSummary(fields.aiCreationSummary(), completedUsage),
                 fields.assumptions(),
                 completedMissingEvidence,
                 completedUsage
         );
+    }
+
+    private String documentAwareCreationSummary(String aiCreationSummary, List<DocumentUsageEvidence> documentUsage) {
+        if (documentUsage == null || documentUsage.isEmpty()) {
+            return aiCreationSummary;
+        }
+        long used = documentUsage.stream()
+                .filter(usage -> "USED".equals(usage.status()) || "FALLBACK_EXCERPT_USED".equals(usage.status()))
+                .count();
+        long notUsed = documentUsage.stream()
+                .filter(usage -> "NOT_USED".equals(usage.status()))
+                .count();
+        if (used == 0 && notUsed > 0) {
+            return "LoomAI analyzed the owner intake, but did not return owner-safe evidence proving that selected documents were used.";
+        }
+        if (used > 0 && notUsed > 0) {
+            return "LoomAI used some selected documents and did not prove usage for others. Review document evidence before creating the project.";
+        }
+        return aiCreationSummary;
     }
 
     private boolean sameDocumentName(String left, String right) {

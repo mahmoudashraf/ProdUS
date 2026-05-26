@@ -258,6 +258,7 @@ class AiAssistedProductCreationServiceTest {
         assertThat(completed.documentUsage().get(0).status()).isEqualTo("NOT_USED");
         assertThat(completed.documentUsage().get(0).reason()).contains("did not return document usage evidence");
         assertThat(completed.missingEvidence()).contains("Document PROJECT_OVERVIEW.md was not proven used by LoomAI.");
+        assertThat(completed.aiCreationSummary()).contains("did not return owner-safe evidence");
     }
 
     @Test
