@@ -288,18 +288,53 @@ Step 1 runtime context contract:
       "contentType": "application/pdf",
       "sizeBytes": 12345,
       "temporaryAccessUrl": "https://produs-api.../api/product-attachments/ai-access/<token>",
-      "expiresAt": "ISO-8601 timestamp"
+      "expiresAt": "ISO-8601 timestamp",
+      "accessInstruction": "open-temporary-url-first-use-redacted-excerpt-only-as-fallback",
+      "fallbackRedactedExcerpt": "Optional bounded redacted text for fallback only"
     }
   ],
   "outputContract": {
     "format": "strict-json-object",
-    "fields": ["productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary", "assumptions", "missingEvidence"],
+    "fields": [
+      "productName",
+      "summary",
+      "businessStage",
+      "techStack",
+      "productUrl",
+      "repositoryUrl",
+      "riskProfile",
+      "aiCreationSummary",
+      "assumptions",
+      "missingEvidence",
+      "documentUsage"
+    ],
     "businessStageValues": ["IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING"]
   }
 }
 ```
 
 LoomAI must not index, vectorize, retain, summarize for future retrieval, or expose temporary project documents. The expected response is a strict JSON object in `answer` or `safeSummary`. ProdUS falls back to deterministic analysis if LoomAI is disabled or does not return the strict project analysis contract.
+
+Document handling contract:
+
+- LoomAI must try to open each `temporaryAccessUrl` first during the request window.
+- `fallbackRedactedExcerpt` is only for failure fallback or quick orientation, not the primary evidence path.
+- LoomAI must return one `documentUsage` item for every selected document:
+
+```json
+{
+  "fileName": "brief.pdf",
+  "status": "USED",
+  "accessMethod": "TEMPORARY_URL",
+  "evidence": ["Owner-safe fact extracted from the opened document"],
+  "reason": "Temporary URL opened and parsed successfully."
+}
+```
+
+- `status`: `USED`, `FALLBACK_EXCERPT_USED`, or `NOT_USED`.
+- `accessMethod`: `TEMPORARY_URL`, `REDACTED_EXCERPT_FALLBACK`, or `NONE`.
+- LoomAI must not claim `USED` without at least one evidence fact from the file.
+- If a file is not used, `reason` must say why, such as expired URL, retrieval failure, parser failure, unsupported file type, or irrelevant content.
 
 Step 2: project creation through runtime action:
 
@@ -324,7 +359,14 @@ Action configuration to share with LoomAI:
   "description": "Create the initial ProdUS productization project from owner-approved AI analysis attributes.",
   "inputSchema": {
     "type": "object",
-    "required": ["creationIntentId", "consentToken", "idempotencyKey", "productName", "summary", "businessStage"],
+    "required": [
+      "creationIntentId",
+      "consentToken",
+      "idempotencyKey",
+      "productName",
+      "summary",
+      "businessStage"
+    ],
     "properties": {
       "creationIntentId": { "type": "string", "format": "uuid" },
       "consentToken": { "type": "string" },
@@ -332,7 +374,10 @@ Action configuration to share with LoomAI:
       "analysisProviderRequestId": { "type": "string" },
       "productName": { "type": "string", "maxLength": 255 },
       "summary": { "type": "string" },
-      "businessStage": { "type": "string", "enum": ["IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING"] },
+      "businessStage": {
+        "type": "string",
+        "enum": ["IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING"]
+      },
       "techStack": { "type": "string" },
       "productUrl": { "type": "string" },
       "repositoryUrl": { "type": "string" },
@@ -340,8 +385,14 @@ Action configuration to share with LoomAI:
       "aiCreationSummary": { "type": "string" },
       "assumptions": { "type": "array", "items": { "type": "string" } },
       "missingEvidence": { "type": "array", "items": { "type": "string" } },
-      "sourceAttachmentIds": { "type": "array", "items": { "type": "string", "format": "uuid" } },
-      "aiAccessibleAttachmentIds": { "type": "array", "items": { "type": "string", "format": "uuid" } }
+      "sourceAttachmentIds": {
+        "type": "array",
+        "items": { "type": "string", "format": "uuid" }
+      },
+      "aiAccessibleAttachmentIds": {
+        "type": "array",
+        "items": { "type": "string", "format": "uuid" }
+      }
     },
     "additionalProperties": false
   },
@@ -511,7 +562,16 @@ POST /api/chat/me/query
     "contextVersion": "produs-safe-summary-v1",
     "contextBoundary": "authorized-redacted-summaries-only",
     "actionProfile": "loomai-productization-read",
-    "availableActionGroups": ["catalog", "product", "package", "workspace", "scanner", "finding", "evidence", "milestone"],
+    "availableActionGroups": [
+      "catalog",
+      "product",
+      "package",
+      "workspace",
+      "scanner",
+      "finding",
+      "evidence",
+      "milestone"
+    ],
     "actorRole": "PRODUCT_OWNER",
     "pageType": "owner-product-workspace",
     "productId": "uuid",
@@ -532,7 +592,7 @@ POST /api/chat/me/query
       "name": "Payments Hub production package",
       "status": "DRAFT",
       "serviceCount": 4,
-      "serviceStatusCounts": {"PLANNED": 3, "BLOCKED": 1},
+      "serviceStatusCounts": { "PLANNED": 3, "BLOCKED": 1 },
       "services": []
     },
     "workspaceId": "uuid",
@@ -542,7 +602,7 @@ POST /api/chat/me/query
       "status": "ACTIVE_DELIVERY",
       "participantCount": 3,
       "milestoneCount": 6,
-      "milestoneStatusCounts": {"ACCEPTED": 3, "IN_PROGRESS": 2, "BLOCKED": 1}
+      "milestoneStatusCounts": { "ACCEPTED": 3, "IN_PROGRESS": 2, "BLOCKED": 1 }
     },
     "milestoneId": "uuid",
     "milestoneStatus": "IN_PROGRESS",
@@ -560,13 +620,13 @@ POST /api/chat/me/query
       "severity": "HIGH",
       "status": "OPEN",
       "sourceTool": "dependency-scan",
-      "recommendedService": {"slug": "dependency-security-review"}
+      "recommendedService": { "slug": "dependency-security-review" }
     },
     "scannerSummary": {
       "scanRunCount": 3,
-      "scanRunStatusCounts": {"COMPLETED": 2, "FAILED": 1},
-      "findingSeverityCounts": {"CRITICAL": 1, "HIGH": 3, "MEDIUM": 7},
-      "findingStatusCounts": {"OPEN": 8, "RESOLVED": 3},
+      "scanRunStatusCounts": { "COMPLETED": 2, "FAILED": 1 },
+      "findingSeverityCounts": { "CRITICAL": 1, "HIGH": 3, "MEDIUM": 7 },
+      "findingStatusCounts": { "OPEN": 8, "RESOLVED": 3 },
       "evidenceCount": 12
     }
   }
@@ -624,10 +684,7 @@ LoomAI should return a flat response:
       "idempotencyKey": "produs-owner-product-workspace-123:package-build:uuid"
     }
   ],
-  "suggestions": [
-    "Show missing evidence",
-    "Recommend lifecycle services"
-  ],
+  "suggestions": ["Show missing evidence", "Recommend lifecycle services"],
   "fallbackReason": null,
   "providerRequestId": "rag-..."
 }
@@ -700,16 +757,16 @@ The service should be deterministic, redacted, and bounded by page type.
 
 ### 7.1 Page Context Matrix
 
-| Page Type | AI Use | Safe Context To Send | Must Not Send |
-| --- | --- | --- | --- |
-| `owner-product-workspace` | product readiness, blockers, next steps | product ID/name/stage, package status, workspace status, open finding counts, milestone completion, service plan summary | raw evidence URLs, logs, source code |
-| `owner-package-builder` | service/package recommendation | selected service slugs, dependency warnings, budget/timeline band, product stage, requirement summary | payment data, private messages |
-| `scanner-dashboard` | scan status and scanner health | scan run ID/status, tool status counts, finding severity counts, redaction state | raw scanner artifacts, secret values |
-| `scanner-finding-detail` | finding explanation and remediation | finding ID/title/severity/status, scanner type, affected area summary, mapped service slugs, redaction state | raw secret match, exact private code snippet |
-| `milestone-review` | evidence review support | milestone ID/status, acceptance criteria counts, evidence counts, failed checks summary | private files, private URLs |
-| `active-workspace` | delivery support | workspace ID/status, milestone progress, blocker counts, deliverable statuses, support/dispute summary | private user messages |
-| `service-catalog` | service education and cart guidance | category/module slug, service dependency info, current cart service slugs | account/session data |
-| `admin-scanner-ops` | operational summary | aggregate job status, tool health, import failures, readiness gate states | tenant private details unless explicitly scoped |
+| Page Type                 | AI Use                                  | Safe Context To Send                                                                                                     | Must Not Send                                   |
+| ------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `owner-product-workspace` | product readiness, blockers, next steps | product ID/name/stage, package status, workspace status, open finding counts, milestone completion, service plan summary | raw evidence URLs, logs, source code            |
+| `owner-package-builder`   | service/package recommendation          | selected service slugs, dependency warnings, budget/timeline band, product stage, requirement summary                    | payment data, private messages                  |
+| `scanner-dashboard`       | scan status and scanner health          | scan run ID/status, tool status counts, finding severity counts, redaction state                                         | raw scanner artifacts, secret values            |
+| `scanner-finding-detail`  | finding explanation and remediation     | finding ID/title/severity/status, scanner type, affected area summary, mapped service slugs, redaction state             | raw secret match, exact private code snippet    |
+| `milestone-review`        | evidence review support                 | milestone ID/status, acceptance criteria counts, evidence counts, failed checks summary                                  | private files, private URLs                     |
+| `active-workspace`        | delivery support                        | workspace ID/status, milestone progress, blocker counts, deliverable statuses, support/dispute summary                   | private user messages                           |
+| `service-catalog`         | service education and cart guidance     | category/module slug, service dependency info, current cart service slugs                                                | account/session data                            |
+| `admin-scanner-ops`       | operational summary                     | aggregate job status, tool health, import failures, readiness gate states                                                | tenant private details unless explicitly scoped |
 
 ### 7.2 Enriched Context Shape
 
@@ -741,7 +798,7 @@ The enriched context must remain compact:
   },
   "scanner": {
     "latestRunStatus": "COMPLETED",
-    "openFindings": {"critical": 1, "high": 3, "medium": 7, "low": 12},
+    "openFindings": { "critical": 1, "high": 3, "medium": 7, "low": 12 },
     "redactionState": "REDACTED"
   },
   "evidence": {
@@ -786,20 +843,20 @@ Staging install:
 
 Required vector spaces:
 
-| Vector Space | Record Types |
-| --- | --- |
-| `service-category` | `SERVICE_CATEGORY` |
-| `service-module` | `SERVICE_MODULE` |
-| `service-dependency` | `SERVICE_DEPENDENCY` |
-| `package-template` | `PACKAGE_TEMPLATE` |
-| `ai-capability-contract` | `AI_CAPABILITY_CONTRACT` |
-| `milestone-template` | `MILESTONE_TEMPLATE` |
-| `acceptance-criteria-template` | `ACCEPTANCE_CRITERIA_TEMPLATE` |
-| `evidence-template` | `EVIDENCE_TEMPLATE` |
-| `scanner-tool-description` | `SCANNER_TOOL_DESCRIPTION` |
-| `case-pattern` | approved anonymized `CASE_PATTERN` records only |
-| `team-profile` | `TEAM_PROFILE` public active team discovery profiles |
-| `solo-expert-profile` | `SOLO_EXPERT_PROFILE` public active solo expert discovery profiles |
+| Vector Space                   | Record Types                                                       |
+| ------------------------------ | ------------------------------------------------------------------ |
+| `service-category`             | `SERVICE_CATEGORY`                                                 |
+| `service-module`               | `SERVICE_MODULE`                                                   |
+| `service-dependency`           | `SERVICE_DEPENDENCY`                                               |
+| `package-template`             | `PACKAGE_TEMPLATE`                                                 |
+| `ai-capability-contract`       | `AI_CAPABILITY_CONTRACT`                                           |
+| `milestone-template`           | `MILESTONE_TEMPLATE`                                               |
+| `acceptance-criteria-template` | `ACCEPTANCE_CRITERIA_TEMPLATE`                                     |
+| `evidence-template`            | `EVIDENCE_TEMPLATE`                                                |
+| `scanner-tool-description`     | `SCANNER_TOOL_DESCRIPTION`                                         |
+| `case-pattern`                 | approved anonymized `CASE_PATTERN` records only                    |
+| `team-profile`                 | `TEAM_PROFILE` public active team discovery profiles               |
+| `solo-expert-profile`          | `SOLO_EXPERT_PROFILE` public active solo expert discovery profiles |
 
 Current safe record shape:
 
@@ -896,20 +953,20 @@ Safe record types:
 
 Current staging vector-space mapping:
 
-| Safe Record Type | Vector Space |
-| --- | --- |
-| `SERVICE_CATEGORY` | `service-category` |
-| `SERVICE_MODULE` | `service-module` |
-| `SERVICE_DEPENDENCY` | `service-dependency` |
-| `PACKAGE_TEMPLATE` | `package-template` |
-| `AI_CAPABILITY_CONTRACT` | `ai-capability-contract` |
-| `MILESTONE_TEMPLATE` | `milestone-template` |
+| Safe Record Type               | Vector Space                   |
+| ------------------------------ | ------------------------------ |
+| `SERVICE_CATEGORY`             | `service-category`             |
+| `SERVICE_MODULE`               | `service-module`               |
+| `SERVICE_DEPENDENCY`           | `service-dependency`           |
+| `PACKAGE_TEMPLATE`             | `package-template`             |
+| `AI_CAPABILITY_CONTRACT`       | `ai-capability-contract`       |
+| `MILESTONE_TEMPLATE`           | `milestone-template`           |
 | `ACCEPTANCE_CRITERIA_TEMPLATE` | `acceptance-criteria-template` |
-| `EVIDENCE_TEMPLATE` | `evidence-template` |
-| `SCANNER_TOOL_DESCRIPTION` | `scanner-tool-description` |
-| `CASE_PATTERN` | `case-pattern` |
-| `TEAM_PROFILE` | `team-profile` |
-| `SOLO_EXPERT_PROFILE` | `solo-expert-profile` |
+| `EVIDENCE_TEMPLATE`            | `evidence-template`            |
+| `SCANNER_TOOL_DESCRIPTION`     | `scanner-tool-description`     |
+| `CASE_PATTERN`                 | `case-pattern`                 |
+| `TEAM_PROFILE`                 | `team-profile`                 |
+| `SOLO_EXPERT_PROFILE`          | `solo-expert-profile`          |
 
 Not safe to index:
 
@@ -1127,7 +1184,7 @@ ProdUS sends:
     "productId": "uuid",
     "productStage": "PROTOTYPE",
     "workspaceStatus": "ACTIVE",
-    "findingSeverityCounts": {"critical": 1, "high": 3, "medium": 7},
+    "findingSeverityCounts": { "critical": 1, "high": 3, "medium": 7 },
     "missingEvidenceCount": 4
   }
 }
@@ -1220,8 +1277,8 @@ ProdUS sends:
     "workspaceStatus": "ACTIVE",
     "milestoneId": "uuid",
     "milestoneStatus": "SUBMITTED",
-    "criteria": {"passed": 5, "failed": 1, "pending": 0},
-    "evidence": {"required": 6, "attached": 5, "missing": 1}
+    "criteria": { "passed": 5, "failed": 1, "pending": 0 },
+    "evidence": { "required": 6, "attached": 5, "missing": 1 }
   }
 }
 ```

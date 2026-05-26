@@ -498,7 +498,8 @@ public class AiAssistedProductCreationService {
                         "LoomAI analyzed the owner intake and produced the initial project attributes. ProdUS completed any missing required fields from owner-provided inputs."
                 ),
                 aiFields.assumptions() == null ? List.of() : aiFields.assumptions(),
-                aiFields.missingEvidence() == null ? List.of() : aiFields.missingEvidence()
+                aiFields.missingEvidence() == null ? List.of() : aiFields.missingEvidence(),
+                aiFields.documentUsage() == null ? List.of() : aiFields.documentUsage()
         );
     }
 
@@ -514,6 +515,7 @@ public class AiAssistedProductCreationService {
                         || hasText(fields.aiCreationSummary())
                         || (fields.assumptions() != null && !fields.assumptions().isEmpty())
                         || (fields.missingEvidence() != null && !fields.missingEvidence().isEmpty())
+                        || (fields.documentUsage() != null && !fields.documentUsage().isEmpty())
         );
     }
 
@@ -544,7 +546,8 @@ public class AiAssistedProductCreationService {
                     text(node, "riskProfile", "risks"),
                     text(node, "aiCreationSummary", "creationSummary"),
                     textList(node, "assumptions"),
-                    textList(node, "missingEvidence", "missing_evidence")
+                    textList(node, "missingEvidence", "missing_evidence"),
+                    documentUsageList(node, "documentUsage", "document_usage")
             ));
         }
         return Optional.empty();
@@ -579,7 +582,8 @@ public class AiAssistedProductCreationService {
                     text(node, "riskProfile", "risks"),
                     text(node, "aiCreationSummary", "creationSummary"),
                     textList(node, "assumptions"),
-                    textList(node, "missingEvidence", "missing_evidence")
+                    textList(node, "missingEvidence", "missing_evidence"),
+                    documentUsageList(node, "documentUsage", "document_usage")
             ));
         } catch (Exception ignored) {
             return Optional.empty();
@@ -618,7 +622,8 @@ public class AiAssistedProductCreationService {
                 request.knownRisks(),
                 "Analysis prepared from owner-approved AI project intake. LoomAI response was unavailable or did not return the strict project analysis JSON contract.",
                 List.of("ProdUS used owner-provided intake because AI analysis was unavailable."),
-                List.of("Run diagnosis and scanner evidence collection after project creation.")
+                List.of("Run diagnosis and scanner evidence collection after project creation."),
+                List.of()
         );
     }
 
@@ -673,6 +678,54 @@ public class AiAssistedProductCreationService {
             }
         }
         return List.of();
+    }
+
+    private List<DocumentUsageEvidence> documentUsageList(JsonNode node, String... fields) {
+        for (String field : fields) {
+            JsonNode value = node.path(field);
+            if (!value.isArray()) {
+                continue;
+            }
+            List<DocumentUsageEvidence> result = new ArrayList<>();
+            value.forEach(item -> {
+                if (!item.isObject()) {
+                    return;
+                }
+                String fileName = firstNonBlank(
+                        text(item, "fileName", "filename", "name"),
+                        "Shared document"
+                );
+                String status = normalizedDocumentUsageStatus(text(item, "status", "usageStatus"));
+                String accessMethod = normalizedDocumentAccessMethod(text(item, "accessMethod", "method"));
+                List<String> evidence = textList(item, "evidence", "evidenceItems", "facts");
+                String reason = text(item, "reason", "why", "notes");
+                result.add(new DocumentUsageEvidence(
+                        trim(fileName, NAME_LIMIT),
+                        status,
+                        accessMethod,
+                        evidence.stream().limit(4).toList(),
+                        trim(reason, 500)
+                ));
+            });
+            return result;
+        }
+        return List.of();
+    }
+
+    private String normalizedDocumentUsageStatus(String value) {
+        String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "USED", "FALLBACK_EXCERPT_USED", "NOT_USED" -> normalized;
+            default -> "NOT_USED";
+        };
+    }
+
+    private String normalizedDocumentAccessMethod(String value) {
+        String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "TEMPORARY_URL", "REDACTED_EXCERPT_FALLBACK", "NONE" -> normalized;
+            default -> "NONE";
+        };
     }
 
     private String writeStringList(List<String> values) {
@@ -753,7 +806,16 @@ public class AiAssistedProductCreationService {
             String riskProfile,
             String aiCreationSummary,
             List<String> assumptions,
-            List<String> missingEvidence
+            List<String> missingEvidence,
+            List<DocumentUsageEvidence> documentUsage
+    ) {}
+
+    public record DocumentUsageEvidence(
+            String fileName,
+            String status,
+            String accessMethod,
+            List<String> evidence,
+            String reason
     ) {}
 
     public record AiAssistedProductAnalysisResponse(

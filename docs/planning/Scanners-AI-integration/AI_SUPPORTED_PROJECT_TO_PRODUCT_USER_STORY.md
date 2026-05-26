@@ -35,14 +35,14 @@ AI-first intake conversation
 
 ## 2. Primary Actors
 
-| Actor | Primary Need | AI Support |
-| --- | --- | --- |
-| Product Owner | Turn a prototype or internal project into a production-ready product | Diagnosis, service selection, package recommendation, blocker explanation, next decision guidance |
-| Team Lead | Understand delivery scope and evidence requirements | Workspace summary, milestone risk, missing proof, remediation guidance |
-| Solo Expert | Join productization work with scoped contribution | Capability match rationale, work context, evidence expectations |
-| Reviewer or Advisor | Assess readiness, evidence, and risk | Evidence summary, finding explanation, review notes, risk framing |
-| Admin or Operator | Keep AI, scanner, connectors, and indexing healthy | Integration health, sync status, production readiness checks, audit trace visibility |
-| AI Operator | Convert owner-approved conversations, attachments, links, and analysis output into structured draft records | Governed write actions for draft project creation, intake normalization, analysis note creation, and suggested service plan seeding |
+| Actor               | Primary Need                                                                                                | AI Support                                                                                                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Product Owner       | Turn a prototype or internal project into a production-ready product                                        | Diagnosis, service selection, package recommendation, blocker explanation, next decision guidance                                   |
+| Team Lead           | Understand delivery scope and evidence requirements                                                         | Workspace summary, milestone risk, missing proof, remediation guidance                                                              |
+| Solo Expert         | Join productization work with scoped contribution                                                           | Capability match rationale, work context, evidence expectations                                                                     |
+| Reviewer or Advisor | Assess readiness, evidence, and risk                                                                        | Evidence summary, finding explanation, review notes, risk framing                                                                   |
+| Admin or Operator   | Keep AI, scanner, connectors, and indexing healthy                                                          | Integration health, sync status, production readiness checks, audit trace visibility                                                |
+| AI Operator         | Convert owner-approved conversations, attachments, links, and analysis output into structured draft records | Governed write actions for draft project creation, intake normalization, analysis note creation, and suggested service plan seeding |
 
 ## 3. Core User Story
 
@@ -118,6 +118,7 @@ Expected UI behavior:
 - each uploaded document has a clear "Share with AI for this analysis" control
 - after consent, project creation does not require a second confirmation for each extracted field
 - AI shows extracted facts, assumptions, attachments, and links before or immediately after creation
+- AI shows document-use evidence for every owner-selected file: opened through temporary URL, fallback excerpt used, or not used with reason
 - owner can edit the AI-created project fields normally after creation
 - AI helper appears as a Studio creation surface, not a generic chatbot floating outside context
 - vague required fields can be created as assumptions only if marked clearly and routed to follow-up
@@ -127,6 +128,8 @@ Backend responsibilities:
 - accept conversational intake, attachments, and links through ProdUS backend only
 - store uploads and links as private project/product-scoped attachment records
 - issue temporary AI access only for explicitly selected attachments during the analysis run
+- instruct LoomAI to open temporary document URLs first and use redacted excerpts only as fallback
+- require LoomAI to return per-document evidence status before treating a selected document as used
 - create and validate a short-lived project creation intent between analysis and mutation
 - authorize AI-assisted creation against current user/session, creation intent, and productization intent
 - expose a governed ProdUS action/MCP mutation for runtime action execution
@@ -147,6 +150,10 @@ Project attachment handling:
 - The temporary URL/token is invalidated after TTL, after project creation completes, or when the owner revokes AI access.
 - The document remains attached to the project/product for owner access after AI access expires. If the owner later creates a workspace, access for approved participants must be granted through the workspace flow, not by the AI creation flow.
 - No indexing is required for this flow.
+- AI must return a `documentUsage` entry for each selected file with `status`, `accessMethod`, owner-safe `evidence`, and `reason`.
+- Valid `status` values are `USED`, `FALLBACK_EXCERPT_USED`, and `NOT_USED`.
+- Valid `accessMethod` values are `TEMPORARY_URL`, `REDACTED_EXCERPT_FALLBACK`, and `NONE`.
+- AI must not mark a file as `USED` unless it extracted at least one owner-safe evidence fact from the file.
 
 Recommended AI write action contract:
 
@@ -187,6 +194,7 @@ Acceptance criteria:
 - attachments and links used for creation are visible in the project intake evidence trail
 - only owner-selected attachments are temporarily shared with AI
 - temporary AI document access expires quickly and does not create public availability
+- UI shows whether each selected document was actually opened by AI, only used through fallback, or not used
 - AI does not create packages, workspaces, teams, invites, participant lists, or access lists in Stage 1
 - empty or vague required fields are either blocked in manual mode or clearly marked as AI assumptions in AI-assisted mode
 - product appears in owner dashboard and product studio
@@ -542,19 +550,19 @@ Acceptance criteria:
 
 ## 5. AI Surfaces Required In Studio
 
-| Surface | Page | Purpose | Runtime Endpoint |
-| --- | --- | --- | --- |
-| AI Project Intake | Product Creation | Conversationally collect owner input, attachments, and links, then create draft project through approved write action | `/api/ai/assistant/query` + ProdUS AI write action |
-| Owner Brief | Product Studio | Explain product state and next decision | `/api/ai/assistant/query-once` |
-| Diagnosis Explainer | Product Diagnosis | Explain readiness and blockers | `/api/ai/assistant/query-once` |
-| Service Selector Assistant | Service Catalog/Product Cart | Recommend lifecycle services | `/api/ai/assistant/query-once` |
-| Package Recommendation | Package Builder | Explain package structure, dependencies, budget/timeline risk | `/api/ai/assistant/query-once` |
-| Scanner Summary | Product Scanner | Summarize scan outcome and risk | `/api/ai/assistant/query-once` |
-| Finding Review | Finding Detail | Explain finding impact and remediation | `/api/ai/assistant/query-once` |
-| Team Match Rationale | Team/Expert Matching | Explain shortlist and comparison logic | `/api/ai/assistant/query-once` |
-| Workspace Brief | Active Workspace | Summarize scope, blockers, and next work | `/api/ai/assistant/query-once` |
-| Milestone Evidence Review | Milestone Review | Explain evidence readiness and missing proof | `/api/ai/assistant/query-once` |
-| Conversational Assistant | Studio Side Panel | Follow-up questions within authorized product context | `/api/ai/assistant/query` |
+| Surface                    | Page                         | Purpose                                                                                                               | Runtime Endpoint                                   |
+| -------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| AI Project Intake          | Product Creation             | Conversationally collect owner input, attachments, and links, then create draft project through approved write action | `/api/ai/assistant/query` + ProdUS AI write action |
+| Owner Brief                | Product Studio               | Explain product state and next decision                                                                               | `/api/ai/assistant/query-once`                     |
+| Diagnosis Explainer        | Product Diagnosis            | Explain readiness and blockers                                                                                        | `/api/ai/assistant/query-once`                     |
+| Service Selector Assistant | Service Catalog/Product Cart | Recommend lifecycle services                                                                                          | `/api/ai/assistant/query-once`                     |
+| Package Recommendation     | Package Builder              | Explain package structure, dependencies, budget/timeline risk                                                         | `/api/ai/assistant/query-once`                     |
+| Scanner Summary            | Product Scanner              | Summarize scan outcome and risk                                                                                       | `/api/ai/assistant/query-once`                     |
+| Finding Review             | Finding Detail               | Explain finding impact and remediation                                                                                | `/api/ai/assistant/query-once`                     |
+| Team Match Rationale       | Team/Expert Matching         | Explain shortlist and comparison logic                                                                                | `/api/ai/assistant/query-once`                     |
+| Workspace Brief            | Active Workspace             | Summarize scope, blockers, and next work                                                                              | `/api/ai/assistant/query-once`                     |
+| Milestone Evidence Review  | Milestone Review             | Explain evidence readiness and missing proof                                                                          | `/api/ai/assistant/query-once`                     |
+| Conversational Assistant   | Studio Side Panel            | Follow-up questions within authorized product context                                                                 | `/api/ai/assistant/query`                          |
 
 Use `query-once` for page helpers and explainers. Use persistent `query` only for conversational assistant panels where saved chat history is intended.
 

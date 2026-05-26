@@ -1121,13 +1121,27 @@ public class LoomAIIntegrationService {
                     item.put("contentExcerptIncluded", document.contentExcerptIncluded());
                     item.put("contentExcerptTruncated", document.contentExcerptTruncated());
                     item.put("contentStatus", safeText(document.contentStatus(), FIELD_LIMIT));
+                    item.put("accessInstruction", "open-temporary-url-first-use-redacted-excerpt-only-as-fallback");
                     item.put("contentExcerpt", safeText(document.contentExcerpt(), 4_000));
+                    item.put("fallbackRedactedExcerpt", safeText(document.contentExcerpt(), 4_000));
                     return item;
                 })
                 .toList());
         context.put("outputContract", Map.of(
                 "format", "strict-json-object",
-                "fields", List.of("productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary", "assumptions", "missingEvidence"),
+                "fields", List.of(
+                        "productName",
+                        "summary",
+                        "businessStage",
+                        "techStack",
+                        "productUrl",
+                        "repositoryUrl",
+                        "riskProfile",
+                        "aiCreationSummary",
+                        "assumptions",
+                        "missingEvidence",
+                        "documentUsage"
+                ),
                 "businessStageValues", List.of("IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING")
         ));
         return context;
@@ -1137,13 +1151,18 @@ public class LoomAIIntegrationService {
         return """
                 You are ProdUS project creation AI. The owner opted into AI-assisted project creation.
                 Analyze the owner input and every owner-selected temporary document. Do not index, retain, or expose document content.
-                Use the supplied document excerpts as primary evidence. If a selected document has no excerpt, use its temporaryAccessUrl if your runtime can retrieve it.
-                If you cannot access or use a selected document, add a concise missingEvidence item that says which document was not analyzed.
+                For every selected document, first open and read temporaryAccessUrl. Use fallbackRedactedExcerpt only if the temporary URL cannot be retrieved or parsed.
+                Do not claim a document was used unless you extracted at least one owner-safe evidence item from the document content.
+                For every selected document, return documentUsage with fileName, status, accessMethod, evidence, and reason.
+                documentUsage.status must be one of USED, FALLBACK_EXCERPT_USED, NOT_USED.
+                documentUsage.accessMethod must be one of TEMPORARY_URL, REDACTED_EXCERPT_FALLBACK, NONE.
+                If you cannot access or use a selected document, add a concise missingEvidence item that says which document was not analyzed and why.
                 Return the best initial project creation attributes for ProdUS to pass into a separate runtime action. Return only a strict JSON object with:
-                productName, summary, businessStage, techStack, productUrl, repositoryUrl, riskProfile, aiCreationSummary, assumptions, missingEvidence.
+                productName, summary, businessStage, techStack, productUrl, repositoryUrl, riskProfile, aiCreationSummary, assumptions, missingEvidence, documentUsage.
                 Use one businessStage value from IDEA, PROTOTYPE, VALIDATED, LIVE, SCALING.
                 assumptions and missingEvidence must be arrays of concise strings.
-                aiCreationSummary must mention whether selected documents were used.
+                documentUsage.evidence must be an array of concise, non-sensitive facts. Never include secrets, tokens, credentials, or raw private content.
+                aiCreationSummary must mention whether selected documents were opened through temporary URLs, used through fallback excerpts, or not used.
 
                 Owner input:
                 %s
@@ -1178,7 +1197,9 @@ public class LoomAIIntegrationService {
                     contentType: %s
                     contentStatus: %s
                     temporaryAccessUrl: %s
-                    contentExcerpt:
+                    expiresAt: %s
+                    instruction: Open temporaryAccessUrl first. Use fallbackRedactedExcerpt only if URL access or parsing fails.
+                    fallbackRedactedExcerpt:
                     %s
                     """.formatted(
                     index + 1,
@@ -1186,6 +1207,7 @@ public class LoomAIIntegrationService {
                     safeText(document.contentType(), FIELD_LIMIT),
                     safeText(document.contentStatus(), FIELD_LIMIT),
                     blank(document.temporaryAccessUrl()) ? "not provided" : document.temporaryAccessUrl(),
+                    document.expiresAt() == null ? "not provided" : document.expiresAt().toString(),
                     blank(excerpt) ? "[no text excerpt supplied]" : excerpt
             ).trim());
         }

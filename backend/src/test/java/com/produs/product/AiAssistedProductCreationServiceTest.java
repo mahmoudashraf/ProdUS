@@ -110,7 +110,14 @@ class AiAssistedProductCreationServiceTest {
                                 "riskProfile", "Deployment evidence and database migration proof are missing.",
                                 "aiCreationSummary", "AI-assisted analysis prepared the initial project attributes.",
                                 "assumptions", List.of("Owner wants an AI-assisted productization path."),
-                                "missingEvidence", List.of("Run scanner evidence collection.")
+                                "missingEvidence", List.of("Run scanner evidence collection."),
+                                "documentUsage", List.of(Map.of(
+                                        "fileName", "PROJECT_OVERVIEW.md",
+                                        "status", "USED",
+                                        "accessMethod", "TEMPORARY_URL",
+                                        "evidence", List.of("The document identifies Spring Boot and PostgreSQL."),
+                                        "reason", "Temporary URL was opened and parsed."
+                                ))
                         )
                 )),
                 List.of(),
@@ -132,6 +139,11 @@ class AiAssistedProductCreationServiceTest {
         assertThat(fields.orElseThrow().repositoryUrl()).isEqualTo("https://github.com/mahmoudashraf/easy-luxury");
         assertThat(fields.orElseThrow().assumptions()).containsExactly("Owner wants an AI-assisted productization path.");
         assertThat(fields.orElseThrow().missingEvidence()).containsExactly("Run scanner evidence collection.");
+        assertThat(fields.orElseThrow().documentUsage()).hasSize(1);
+        assertThat(fields.orElseThrow().documentUsage().get(0).status()).isEqualTo("USED");
+        assertThat(fields.orElseThrow().documentUsage().get(0).accessMethod()).isEqualTo("TEMPORARY_URL");
+        assertThat(fields.orElseThrow().documentUsage().get(0).evidence())
+                .containsExactly("The document identifies Spring Boot and PostgreSQL.");
     }
 
     @Test
@@ -156,6 +168,7 @@ class AiAssistedProductCreationServiceTest {
                         "",
                         "",
                         List.of(),
+                        List.of(),
                         List.of()
                 );
         AiAssistedProductCreationService.ProductCreationFields ownerProvidedFields =
@@ -169,7 +182,8 @@ class AiAssistedProductCreationServiceTest {
                         "Scanner and production readiness evidence is incomplete.",
                         "Fallback summary",
                         List.of("Fallback assumption"),
-                        List.of("Fallback evidence")
+                        List.of("Fallback evidence"),
+                        List.of()
                 );
 
         Method merger = AiAssistedProductCreationService.class
@@ -197,5 +211,6 @@ class AiAssistedProductCreationServiceTest {
         assertThat(fields.aiCreationSummary()).contains("LoomAI analyzed the owner intake");
         assertThat(fields.assumptions()).isEmpty();
         assertThat(fields.missingEvidence()).isEmpty();
+        assertThat(fields.documentUsage()).isEmpty();
     }
 }

@@ -47,21 +47,21 @@ Current contract alignment:
 
 ## 1. Live Staging Deployment
 
-| Field | Value |
-| --- | --- |
-| Platform deployment id | `dep-7706fafb` |
-| Platform deployment name | `ProdUS AI Enablement Staging` |
-| Environment | `staging` |
-| Latest applied release | `rel-623c91a0` |
-| Runtime template | `dev-openai-qdrant` |
-| Template plugin | `mkp-template-support-desk-shell` |
-| Installed action plugins | `mkp-action-produs-productization-read-mcp@0.1.0`, `mkp-action-produs-productization-project-create-mcp@0.1.1` |
-| Installed data plugins | `mkp-data-help-center`, `mkp-data-policy-folder`, `mkp-data-produs-safe-knowledge@0.1.1` |
-| Stable consumer id | `produs-staging` |
-| Runtime base URL | `http://dep-7706fafb.46.224.145.148.sslip.io` |
-| Preferred integration mode | `BACKEND_MEDIATED_PRIVATE_RUNTIME` |
-| Auth mode | `PRIVATE_RUNTIME_ASSERTION` |
-| Last known health | `UP` |
+| Field                      | Value                                                                                                          |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Platform deployment id     | `dep-7706fafb`                                                                                                 |
+| Platform deployment name   | `ProdUS AI Enablement Staging`                                                                                 |
+| Environment                | `staging`                                                                                                      |
+| Latest applied release     | `rel-623c91a0`                                                                                                 |
+| Runtime template           | `dev-openai-qdrant`                                                                                            |
+| Template plugin            | `mkp-template-support-desk-shell`                                                                              |
+| Installed action plugins   | `mkp-action-produs-productization-read-mcp@0.1.0`, `mkp-action-produs-productization-project-create-mcp@0.1.1` |
+| Installed data plugins     | `mkp-data-help-center`, `mkp-data-policy-folder`, `mkp-data-produs-safe-knowledge@0.1.1`                       |
+| Stable consumer id         | `produs-staging`                                                                                               |
+| Runtime base URL           | `http://dep-7706fafb.46.224.145.148.sslip.io`                                                                  |
+| Preferred integration mode | `BACKEND_MEDIATED_PRIVATE_RUNTIME`                                                                             |
+| Auth mode                  | `PRIVATE_RUNTIME_ASSERTION`                                                                                    |
+| Last known health          | `UP`                                                                                                           |
 
 The deployment is generic. It does not contain Shopify-specific plugins, Shopify actions, ProdUS-owned private data, raw scanner artifacts, repository content, secrets, or tenant-private workspace data.
 
@@ -120,11 +120,11 @@ Rules:
 
 For staging, use one of these postures:
 
-| Posture | Status | Notes |
-| --- | --- | --- |
-| Deployment-scoped HMAC shared secret | Supported now | ProdUS backend and runtime both know the same signing secret. Backend-only. |
-| ProdUS-owned asymmetric private key + LoomAI public key | Future | Requires runtime key registry/public-key verification support before use. |
-| Platform bridge only | Supported fallback | ProdUS backend calls Platform, Platform signs runtime assertions. Not the preferred app path. |
+| Posture                                                 | Status             | Notes                                                                                         |
+| ------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------- |
+| Deployment-scoped HMAC shared secret                    | Supported now      | ProdUS backend and runtime both know the same signing secret. Backend-only.                   |
+| ProdUS-owned asymmetric private key + LoomAI public key | Future             | Requires runtime key registry/public-key verification support before use.                     |
+| Platform bridge only                                    | Supported fallback | ProdUS backend calls Platform, Platform signs runtime assertions. Not the preferred app path. |
 
 The practical staging choice is deployment-scoped HMAC.
 
@@ -330,12 +330,26 @@ Step 1 analysis payload:
         "contentType": "application/pdf",
         "sizeBytes": 12345,
         "temporaryAccessUrl": "https://produs-api-staging.../api/product-attachments/ai-access/<token>",
-        "expiresAt": "2026-05-25T12:34:56"
+        "expiresAt": "2026-05-25T12:34:56",
+        "accessInstruction": "open-temporary-url-first-use-redacted-excerpt-only-as-fallback",
+        "fallbackRedactedExcerpt": "Optional bounded redacted text for fallback only"
       }
     ],
     "outputContract": {
       "format": "strict-json-object",
-      "fields": ["productName", "summary", "businessStage", "techStack", "productUrl", "repositoryUrl", "riskProfile", "aiCreationSummary", "assumptions", "missingEvidence"]
+      "fields": [
+        "productName",
+        "summary",
+        "businessStage",
+        "techStack",
+        "productUrl",
+        "repositoryUrl",
+        "riskProfile",
+        "aiCreationSummary",
+        "assumptions",
+        "missingEvidence",
+        "documentUsage"
+      ]
     }
   }
 }
@@ -345,8 +359,25 @@ LoomAI requirements for this project-creation path:
 
 - Treat `temporaryAccessUrl` documents as analysis-only transient inputs.
 - Do not index, vectorize, retain, or expose project-creation document content.
-- Fetch temporary document URLs during the request window only. URLs expire in minutes and can fail closed.
-- Return a strict JSON object in `answer` or `safeSummary` with `productName`, `summary`, `businessStage`, `techStack`, `productUrl`, `repositoryUrl`, `riskProfile`, `aiCreationSummary`, `assumptions`, and `missingEvidence`.
+- Fetch/open every temporary document URL during the request window only. URLs expire in minutes and can fail closed.
+- Use `fallbackRedactedExcerpt` only when the temporary URL cannot be retrieved or parsed. Do not treat fallback excerpts as the preferred path.
+- Return a strict JSON object in `answer` or `safeSummary` with `productName`, `summary`, `businessStage`, `techStack`, `productUrl`, `repositoryUrl`, `riskProfile`, `aiCreationSummary`, `assumptions`, `missingEvidence`, and `documentUsage`.
+- Return one `documentUsage` item per owner-selected document:
+
+```json
+{
+  "fileName": "brief.pdf",
+  "status": "USED",
+  "accessMethod": "TEMPORARY_URL",
+  "evidence": ["Owner-safe fact extracted from the opened file"],
+  "reason": "Temporary URL opened and parsed successfully."
+}
+```
+
+- `status` must be `USED`, `FALLBACK_EXCERPT_USED`, or `NOT_USED`.
+- `accessMethod` must be `TEMPORARY_URL`, `REDACTED_EXCERPT_FALLBACK`, or `NONE`.
+- Do not claim `USED` unless the runtime extracted at least one owner-safe evidence item from the file.
+- If a file is not used, `reason` must explain whether URL retrieval failed, parsing failed, access expired, or the file was irrelevant.
 - Keep `/query-once` non-persistent: no chat conversation, no memory write, no document retention.
 
 Step 2 runtime action configuration:
@@ -361,7 +392,14 @@ Step 2 runtime action configuration:
   "description": "Create the initial ProdUS productization project from owner-approved AI analysis attributes.",
   "inputSchema": {
     "type": "object",
-    "required": ["creationIntentId", "consentToken", "idempotencyKey", "productName", "summary", "businessStage"],
+    "required": [
+      "creationIntentId",
+      "consentToken",
+      "idempotencyKey",
+      "productName",
+      "summary",
+      "businessStage"
+    ],
     "properties": {
       "creationIntentId": { "type": "string", "format": "uuid" },
       "consentToken": { "type": "string" },
@@ -369,7 +407,10 @@ Step 2 runtime action configuration:
       "analysisProviderRequestId": { "type": "string" },
       "productName": { "type": "string", "maxLength": 255 },
       "summary": { "type": "string" },
-      "businessStage": { "type": "string", "enum": ["IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING"] },
+      "businessStage": {
+        "type": "string",
+        "enum": ["IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING"]
+      },
       "techStack": { "type": "string" },
       "productUrl": { "type": "string" },
       "repositoryUrl": { "type": "string" },
@@ -377,8 +418,14 @@ Step 2 runtime action configuration:
       "aiCreationSummary": { "type": "string" },
       "assumptions": { "type": "array", "items": { "type": "string" } },
       "missingEvidence": { "type": "array", "items": { "type": "string" } },
-      "sourceAttachmentIds": { "type": "array", "items": { "type": "string", "format": "uuid" } },
-      "aiAccessibleAttachmentIds": { "type": "array", "items": { "type": "string", "format": "uuid" } }
+      "sourceAttachmentIds": {
+        "type": "array",
+        "items": { "type": "string", "format": "uuid" }
+      },
+      "aiAccessibleAttachmentIds": {
+        "type": "array",
+        "items": { "type": "string", "format": "uuid" }
+      }
     },
     "additionalProperties": false
   },
@@ -505,13 +552,13 @@ Action evidence can appear as:
 
 ProdUS frontend/backend behavior:
 
-| Condition | Use |
-| --- | --- |
-| User-facing copy | `answer` or `safeSummary` |
+| Condition               | Use                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| User-facing copy        | `answer` or `safeSummary`                                                      |
 | Deterministic UI branch | `actions[].errorCode`, `actions[].actionResult.errorCode`, or `fallbackReason` |
-| Trace correlation | `providerRequestId` |
-| Source display | sanitized `sources[]` only |
-| Confirmable action | `type=CONFIRMATION_REQUIRED` plus `actions[]` |
+| Trace correlation       | `providerRequestId`                                                            |
+| Source display          | sanitized `sources[]` only                                                     |
+| Confirmable action      | `type=CONFIRMATION_REQUIRED` plus `actions[]`                                  |
 
 Recommended ProdUS error codes for future MCP/read actions:
 
@@ -585,7 +632,7 @@ curl -fsS http://dep-7706fafb.46.224.145.148.sslip.io/actuator/health
 Expected:
 
 ```json
-{"status":"UP"}
+{ "status": "UP" }
 ```
 
 ### Auth Context Smoke
@@ -781,23 +828,23 @@ Live export verification:
 
 LoomAI live configuration:
 
-| Field | Value |
-| --- | --- |
-| Source connection | `vcn-a9bb577d` |
-| Source adapter | `REST_API` |
-| Source status | `READY` |
-| Source base URL | `https://produs-api-staging.46.224.145.148.sslip.io` |
-| Source path | `/api/ai/loomai/knowledge-export` |
-| Auth mode | `BEARER` |
-| Token secret ref | `MANAGED_PRODUS_SAFE_KNOWLEDGE_EXPORT_TOKEN_DEP_DEP_7706FAFB` |
-| Pagination | cursor, `cursor`, `limit`, page size `100` |
-| Items path | `records` |
-| Vector space field | `vectorSpace` |
-| Plan | `vpl-33b42e24` |
-| Active revision | `vpr-d9e4b704`, revision `2` |
-| Runner mode | `PLATFORM_MANAGED_AUTO` |
-| Runner registration | `vrr-cb21c848`, `ACTIVE`, `CURRENT` |
-| Latest successful run | `vrn-39e54227` |
+| Field                 | Value                                                         |
+| --------------------- | ------------------------------------------------------------- |
+| Source connection     | `vcn-a9bb577d`                                                |
+| Source adapter        | `REST_API`                                                    |
+| Source status         | `READY`                                                       |
+| Source base URL       | `https://produs-api-staging.46.224.145.148.sslip.io`          |
+| Source path           | `/api/ai/loomai/knowledge-export`                             |
+| Auth mode             | `BEARER`                                                      |
+| Token secret ref      | `MANAGED_PRODUS_SAFE_KNOWLEDGE_EXPORT_TOKEN_DEP_DEP_7706FAFB` |
+| Pagination            | cursor, `cursor`, `limit`, page size `100`                    |
+| Items path            | `records`                                                     |
+| Vector space field    | `vectorSpace`                                                 |
+| Plan                  | `vpl-33b42e24`                                                |
+| Active revision       | `vpr-d9e4b704`, revision `2`                                  |
+| Runner mode           | `PLATFORM_MANAGED_AUTO`                                       |
+| Runner registration   | `vrr-cb21c848`, `ACTIVE`, `CURRENT`                           |
+| Latest successful run | `vrn-39e54227`                                                |
 
 Plan mapping:
 

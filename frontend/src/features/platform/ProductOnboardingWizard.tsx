@@ -232,7 +232,10 @@ function AiAttributeCard({
           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900 }}>
             {label}
           </Typography>
-          <DotLabel label={hasValue ? source : 'Needs input'} color={hasValue ? accent : '#94a3b8'} />
+          <DotLabel
+            label={hasValue ? source : 'Needs input'}
+            color={hasValue ? accent : '#94a3b8'}
+          />
         </Stack>
         <Typography
           variant={wide ? 'body1' : 'body2'}
@@ -282,6 +285,99 @@ function AiReviewList({
             {empty}
           </Typography>
         )}
+      </Stack>
+    </Box>
+  );
+}
+
+const documentUsageMeta = (status?: string, accessMethod?: string) => {
+  const normalizedStatus = (status ?? '').toUpperCase();
+  const normalizedMethod = (accessMethod ?? '').toUpperCase();
+  if (normalizedStatus === 'USED' && normalizedMethod === 'TEMPORARY_URL') {
+    return { label: 'Opened by AI', color: appleColors.green };
+  }
+  if (normalizedStatus === 'FALLBACK_EXCERPT_USED') {
+    return { label: 'Fallback used', color: appleColors.amber };
+  }
+  if (normalizedStatus === 'USED') {
+    return { label: 'Used', color: appleColors.green };
+  }
+  return { label: 'Not used', color: appleColors.red };
+};
+
+function AiDocumentUsageList({
+  usage,
+}: {
+  usage: NonNullable<AiAssistedProductAnalysisResponse['analysis']['documentUsage']>;
+}) {
+  return (
+    <Box
+      sx={{
+        p: 1.2,
+        borderRadius: 1,
+        border: '1px solid #dfe7f5',
+        background: 'linear-gradient(145deg, #fff, #f8fbff)',
+      }}
+    >
+      <Stack spacing={1}>
+        <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+          <Typography variant="caption" sx={{ fontWeight: 900 }}>
+            Document use evidence
+          </Typography>
+          <DotLabel label={`${usage.length} reported`} color={appleColors.purple} />
+        </Stack>
+        <Stack spacing={0.75}>
+          {usage.map((item, index) => {
+            const meta = documentUsageMeta(item.status, item.accessMethod);
+            const evidence = item.evidence ?? [];
+            return (
+              <Box
+                key={`${item.fileName}-${index}`}
+                sx={{
+                  p: 1,
+                  borderRadius: 1,
+                  border: `1px solid ${meta.color}24`,
+                  bgcolor: `${meta.color}08`,
+                }}
+              >
+                <Stack spacing={0.7}>
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={0.75}
+                    justifyContent="space-between"
+                    alignItems={{ sm: 'center' }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>
+                        {item.fileName || 'Shared document'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatLabel(item.accessMethod || 'none')}
+                      </Typography>
+                    </Box>
+                    <DotLabel label={meta.label} color={meta.color} />
+                  </Stack>
+                  {evidence.length > 0 ? (
+                    <Stack spacing={0.4}>
+                      {evidence.slice(0, 3).map(fact => (
+                        <DotLabel key={fact} label={fact} color={meta.color} />
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary">
+                      {item.reason || 'LoomAI did not return owner-safe file evidence.'}
+                    </Typography>
+                  )}
+                  {item.reason && evidence.length > 0 && (
+                    <Typography variant="caption" color="text.secondary">
+                      {item.reason}
+                    </Typography>
+                  )}
+                </Stack>
+              </Box>
+            );
+          })}
+        </Stack>
       </Stack>
     </Box>
   );
@@ -404,12 +500,16 @@ export default function ProductOnboardingWizard() {
 
   const submit = form.handleSubmit(() => createProduct.mutate());
   const selectedAiDocumentCount = aiDocumentFiles.filter(item => item.shareWithAi).length;
-  const aiExcerptDocumentCount =
-    aiAnalysis?.aiSharedDocuments.filter(document => document.contentExcerptIncluded).length ?? 0;
-  const aiUrlOnlyDocumentCount =
-    aiAnalysis?.aiSharedDocuments.filter(
-      document => document.contentStatus === 'temporary-url-only-non-text-document'
-    ).length ?? 0;
+  const aiDocumentUsage = aiAnalysis?.analysis.documentUsage ?? [];
+  const aiOpenedDocumentCount = aiDocumentUsage.filter(
+    item => item.status === 'USED' && item.accessMethod === 'TEMPORARY_URL'
+  ).length;
+  const aiFallbackDocumentCount = aiDocumentUsage.filter(
+    item => item.status === 'FALLBACK_EXCERPT_USED'
+  ).length;
+  const aiNotUsedDocumentCount = aiDocumentUsage.filter(item => item.status === 'NOT_USED').length;
+  const aiDocumentUsageMissing =
+    Boolean(aiAnalysis?.aiSharedDocuments.length) && aiDocumentUsage.length === 0;
   const aiBusy = analyzeProductWithAI.isPending || createProductFromAIAction.isPending;
   const productNameReady = form.values.name.trim().length > 0;
   const productSummaryReady = form.values.summary.trim().length > 0;
@@ -454,11 +554,18 @@ export default function ProductOnboardingWizard() {
     {
       title: 'Document access boundary',
       detail: aiAnalysis?.aiSharedDocuments.length
-        ? `${compactCount(aiAnalysis.aiSharedDocuments.length, 'selected document')} reached AI; ${compactCount(aiExcerptDocumentCount, 'redacted text excerpt')} ${aiExcerptDocumentCount === 1 ? 'was' : 'were'} sent directly${aiUrlOnlyDocumentCount ? `, and ${compactCount(aiUrlOnlyDocumentCount, 'non-text file')} used temporary URL fallback` : ''}.`
+        ? aiDocumentUsage.length
+          ? `${compactCount(aiOpenedDocumentCount, 'document')} opened by AI through temporary URL; ${compactCount(aiFallbackDocumentCount, 'document')} used fallback excerpt; ${compactCount(aiNotUsedDocumentCount, 'document')} not used.`
+          : `${compactCount(aiAnalysis.aiSharedDocuments.length, 'selected document')} received temporary AI access. LoomAI did not return per-file usage evidence.`
         : aiDocumentFiles.length
           ? `${compactCount(aiDocumentFiles.length, 'private attachment')} will stay with the project; ${compactCount(selectedAiDocumentCount, 'file')} ${selectedAiDocumentCount === 1 ? 'is' : 'are'} shared with AI temporarily.`
           : 'No documents attached. You can still create the project from the conversation and links.',
-      state: aiDocumentFiles.length > 0 && selectedAiDocumentCount === 0 ? 'attention' : 'ready',
+      state:
+        aiDocumentFiles.length > 0 && selectedAiDocumentCount === 0
+          ? 'attention'
+          : aiDocumentUsageMissing || aiNotUsedDocumentCount > 0 || aiFallbackDocumentCount > 0
+            ? 'attention'
+            : 'ready',
     },
     {
       title: 'AI validation notes',
@@ -805,6 +912,16 @@ export default function ProductOnboardingWizard() {
                             />
                           ))}
                         </Box>
+                        {aiDocumentUsage.length > 0 && (
+                          <AiDocumentUsageList usage={aiDocumentUsage} />
+                        )}
+                        {aiDocumentUsageMissing && (
+                          <Alert severity="warning" sx={{ borderRadius: 1 }}>
+                            LoomAI analyzed the brief but did not return document usage evidence.
+                            Re-run analysis or treat the uploaded file as not proven for this
+                            creation decision.
+                          </Alert>
+                        )}
                         <Box
                           sx={{
                             display: 'grid',
@@ -870,10 +987,21 @@ export default function ProductOnboardingWizard() {
                         color={selectedAiDocumentCount ? appleColors.purple : appleColors.muted}
                       />
                       {aiAnalysis && (
-                        <DotLabel
-                          label={`${aiExcerptDocumentCount} redacted text excerpts sent`}
-                          color={aiExcerptDocumentCount ? appleColors.green : appleColors.amber}
-                        />
+                        <>
+                          <DotLabel
+                            label={`${aiOpenedDocumentCount} opened through temporary URL`}
+                            color={aiOpenedDocumentCount ? appleColors.green : appleColors.amber}
+                          />
+                          {(aiFallbackDocumentCount > 0 || aiNotUsedDocumentCount > 0) && (
+                            <DotLabel
+                              label={`${aiFallbackDocumentCount} fallback, ${aiNotUsedDocumentCount} not used`}
+                              color={aiNotUsedDocumentCount ? appleColors.red : appleColors.amber}
+                            />
+                          )}
+                          {aiDocumentUsageMissing && (
+                            <DotLabel label="Document evidence missing" color={appleColors.red} />
+                          )}
+                        </>
                       )}
                       <DotLabel label="No document indexing" color={appleColors.green} />
                     </Stack>

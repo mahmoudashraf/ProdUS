@@ -191,6 +191,14 @@ export interface AiDocumentShare {
   contentStatus?: string;
 }
 
+export interface DocumentUsageEvidence {
+  fileName: string;
+  status: 'USED' | 'FALLBACK_EXCERPT_USED' | 'NOT_USED' | string;
+  accessMethod: 'TEMPORARY_URL' | 'REDACTED_EXCERPT_FALLBACK' | 'NONE' | string;
+  evidence: string[];
+  reason?: string;
+}
+
 export interface ProductCreationIntent {
   id: string;
   status: 'ANALYZING' | 'READY_FOR_ACTION' | 'CREATED' | 'EXPIRED' | 'FAILED';
@@ -213,6 +221,7 @@ export interface ProductCreationFields {
   aiCreationSummary?: string;
   assumptions: string[];
   missingEvidence: string[];
+  documentUsage: DocumentUsageEvidence[];
 }
 
 export interface AiAssistedProductAnalysisResponse {
