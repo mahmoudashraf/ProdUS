@@ -202,7 +202,8 @@ class AiAssistedProductCreationServiceTest {
                 fields.orElseThrow().documentUsage().get(0);
         assertThat(documentUsage.status()).isEqualTo("NOT_USED");
         assertThat(documentUsage.accessMethod()).isEqualTo("NONE");
-        assertThat(documentUsage.reason()).contains("Document was accessed successfully.");
+        assertThat(documentUsage.reason()).contains("did not return required owner-safe evidence");
+        assertThat(documentUsage.reason()).contains("Original LoomAI reason: Document was accessed successfully.");
     }
 
     @Test

@@ -754,12 +754,13 @@ public class AiAssistedProductCreationService {
                 List<String> evidence = textList(item, "evidence", "evidenceItems", "facts");
                 String reason = text(item, "reason", "why", "notes");
                 if (("USED".equals(status) || "FALLBACK_EXCERPT_USED".equals(status)) && evidence.isEmpty()) {
+                    String originalReason = reason;
                     status = "NOT_USED";
                     accessMethod = "NONE";
-                    reason = firstNonBlank(
-                            reason,
-                            "LoomAI did not return the required owner-safe evidence for this file."
-                    );
+                    reason = hasText(originalReason)
+                            ? "LoomAI did not return required owner-safe evidence for this file. Original LoomAI reason: "
+                                    + trim(originalReason, TEXT_LIMIT)
+                            : "LoomAI did not return the required owner-safe evidence for this file.";
                 }
                 if ("NOT_USED".equals(status) && reason.isBlank()) {
                     reason = "LoomAI did not use this file for the project creation analysis.";
