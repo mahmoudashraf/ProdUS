@@ -125,6 +125,7 @@ public class AiAssistedProductCreationService {
         ProductCreationFields fields = parsedFields
                 .map(parsed -> mergeFields(parsed, ownerProvidedFields))
                 .orElse(ownerProvidedFields);
+        fields = ensureDocumentUsage(fields, documentReferences);
         applyAnalysis(intent, fields, assistant, temporaryAccess.size());
         intent.setStatus(ProductCreationIntent.Status.READY_FOR_ACTION);
         intent = intentRepository.save(intent);
@@ -501,6 +502,59 @@ public class AiAssistedProductCreationService {
                 aiFields.missingEvidence() == null ? List.of() : aiFields.missingEvidence(),
                 aiFields.documentUsage() == null ? List.of() : aiFields.documentUsage()
         );
+    }
+
+    private ProductCreationFields ensureDocumentUsage(
+            ProductCreationFields fields,
+            List<ProjectCreationDocumentReference> documents
+    ) {
+        if (fields == null || documents == null || documents.isEmpty()) {
+            return fields;
+        }
+        List<DocumentUsageEvidence> existingUsage = fields.documentUsage() == null
+                ? List.of()
+                : fields.documentUsage();
+        List<DocumentUsageEvidence> completedUsage = new ArrayList<>(existingUsage);
+        List<String> completedMissingEvidence = new ArrayList<>(fields.missingEvidence() == null
+                ? List.of()
+                : fields.missingEvidence());
+        for (ProjectCreationDocumentReference document : documents) {
+            String fileName = trim(document.fileName(), NAME_LIMIT);
+            boolean hasUsage = completedUsage.stream()
+                    .anyMatch(usage -> sameDocumentName(usage.fileName(), fileName));
+            if (hasUsage) {
+                continue;
+            }
+            String reason = "LoomAI did not return document usage evidence for this selected file.";
+            completedUsage.add(new DocumentUsageEvidence(
+                    fileName,
+                    "NOT_USED",
+                    "NONE",
+                    List.of(),
+                    reason
+            ));
+            String missingEvidence = "Document " + fileName + " was not proven used by LoomAI.";
+            if (completedMissingEvidence.stream().noneMatch(existing -> existing.equalsIgnoreCase(missingEvidence))) {
+                completedMissingEvidence.add(missingEvidence);
+            }
+        }
+        return new ProductCreationFields(
+                fields.productName(),
+                fields.summary(),
+                fields.businessStage(),
+                fields.techStack(),
+                fields.productUrl(),
+                fields.repositoryUrl(),
+                fields.riskProfile(),
+                fields.aiCreationSummary(),
+                fields.assumptions(),
+                completedMissingEvidence,
+                completedUsage
+        );
+    }
+
+    private boolean sameDocumentName(String left, String right) {
+        return firstNonBlank(left).equalsIgnoreCase(firstNonBlank(right));
     }
 
     private boolean hasMeaningfulFields(ProductCreationFields fields) {

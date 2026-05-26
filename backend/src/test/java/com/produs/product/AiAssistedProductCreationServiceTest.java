@@ -9,10 +9,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -201,6 +203,60 @@ class AiAssistedProductCreationServiceTest {
         assertThat(documentUsage.status()).isEqualTo("NOT_USED");
         assertThat(documentUsage.accessMethod()).isEqualTo("NONE");
         assertThat(documentUsage.reason()).contains("Document was accessed successfully.");
+    }
+
+    @Test
+    void addsNotUsedEvidenceWhenLoomAiOmitsSelectedDocumentUsage() throws Exception {
+        AiAssistedProductCreationService service = new AiAssistedProductCreationService(
+                mock(ProductProfileRepository.class),
+                mock(ProductCreationIntentRepository.class),
+                mock(ProductProjectAttachmentRepository.class),
+                mock(ProductProjectAttachmentService.class),
+                mock(LoomAIIntegrationService.class),
+                mock(AuditService.class),
+                new ObjectMapper()
+        );
+        AiAssistedProductCreationService.ProductCreationFields fields =
+                new AiAssistedProductCreationService.ProductCreationFields(
+                        "Atlas Release Sentinel",
+                        "Release readiness project.",
+                        "VALIDATED",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "LoomAI analyzed owner input.",
+                        List.of(),
+                        List.of(),
+                        List.of()
+                );
+        List<LoomAIIntegrationService.ProjectCreationDocumentReference> documents = List.of(
+                new LoomAIIntegrationService.ProjectCreationDocumentReference(
+                        UUID.randomUUID(),
+                        "PROJECT_OVERVIEW.md",
+                        "text/markdown",
+                        128,
+                        "https://produs-api.example/api/product-attachments/ai-access/pdoc_test",
+                        LocalDateTime.now().plusMinutes(10),
+                        "",
+                        false,
+                        false,
+                        "temporary-url-only"
+                )
+        );
+
+        Method method = AiAssistedProductCreationService.class
+                .getDeclaredMethod("ensureDocumentUsage", AiAssistedProductCreationService.ProductCreationFields.class, List.class);
+        method.setAccessible(true);
+
+        AiAssistedProductCreationService.ProductCreationFields completed =
+                (AiAssistedProductCreationService.ProductCreationFields) method.invoke(service, fields, documents);
+
+        assertThat(completed.documentUsage()).hasSize(1);
+        assertThat(completed.documentUsage().get(0).fileName()).isEqualTo("PROJECT_OVERVIEW.md");
+        assertThat(completed.documentUsage().get(0).status()).isEqualTo("NOT_USED");
+        assertThat(completed.documentUsage().get(0).reason()).contains("did not return document usage evidence");
+        assertThat(completed.missingEvidence()).contains("Document PROJECT_OVERVIEW.md was not proven used by LoomAI.");
     }
 
     @Test
