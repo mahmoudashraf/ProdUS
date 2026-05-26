@@ -560,7 +560,7 @@ public class AiAssistedProductCreationService {
             return aiCreationSummary;
         }
         long used = documentUsage.stream()
-                .filter(usage -> "USED".equals(usage.status()) || "FALLBACK_EXCERPT_USED".equals(usage.status()))
+                .filter(usage -> "USED".equals(usage.status()))
                 .count();
         long notUsed = documentUsage.stream()
                 .filter(usage -> "NOT_USED".equals(usage.status()))
@@ -774,7 +774,7 @@ public class AiAssistedProductCreationService {
                 String accessMethod = normalizedDocumentAccessMethod(text(item, "accessMethod", "method"));
                 List<String> evidence = textList(item, "evidence", "evidenceItems", "facts");
                 String reason = text(item, "reason", "why", "notes");
-                if (("USED".equals(status) || "FALLBACK_EXCERPT_USED".equals(status)) && evidence.isEmpty()) {
+                if ("USED".equals(status) && evidence.isEmpty()) {
                     String originalReason = reason;
                     status = "NOT_USED";
                     accessMethod = "NONE";
@@ -802,7 +802,7 @@ public class AiAssistedProductCreationService {
     private String normalizedDocumentUsageStatus(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
         return switch (normalized) {
-            case "USED", "FALLBACK_EXCERPT_USED", "NOT_USED" -> normalized;
+            case "USED", "NOT_USED" -> normalized;
             default -> "NOT_USED";
         };
     }
@@ -810,7 +810,7 @@ public class AiAssistedProductCreationService {
     private String normalizedDocumentAccessMethod(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
         return switch (normalized) {
-            case "TEMPORARY_URL", "REDACTED_EXCERPT_FALLBACK", "NONE" -> normalized;
+            case "TEMPORARY_URL", "NONE" -> normalized;
             default -> "NONE";
         };
     }

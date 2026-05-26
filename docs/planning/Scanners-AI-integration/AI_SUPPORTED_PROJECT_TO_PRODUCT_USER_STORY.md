@@ -118,7 +118,7 @@ Expected UI behavior:
 - each uploaded document has a clear "Share with AI for this analysis" control
 - after consent, project creation does not require a second confirmation for each extracted field
 - AI shows extracted facts, assumptions, attachments, and links before or immediately after creation
-- AI shows document-use evidence for every owner-selected file: opened through temporary URL, fallback excerpt used, or not used with reason
+- AI shows document-use evidence for every owner-selected file: opened through temporary URL, or not used with reason
 - owner can edit the AI-created project fields normally after creation
 - AI helper appears as a Studio creation surface, not a generic chatbot floating outside context
 - vague required fields can be created as assumptions only if marked clearly and routed to follow-up
@@ -128,7 +128,7 @@ Backend responsibilities:
 - accept conversational intake, attachments, and links through ProdUS backend only
 - store uploads and links as private project/product-scoped attachment records
 - issue temporary AI access only for explicitly selected attachments during the analysis run
-- instruct LoomAI to open temporary document URLs first and use redacted excerpts only as fallback
+- instruct LoomAI to pass temporary document URLs as provider-native typed file/document URL inputs
 - require LoomAI to return per-document evidence status before treating a selected document as used
 - create and validate a short-lived project creation intent between analysis and mutation
 - authorize AI-assisted creation against current user/session, creation intent, and productization intent
@@ -147,13 +147,13 @@ Project attachment handling:
 - The owner must explicitly select which attachments are shared with AI for the current project analysis run.
 - ProdUS marks selected attachments as temporarily AI-accessible for a short TTL, normally 5-15 minutes.
 - AI access is provided through a short-lived ProdUS backend document URL that returns the selected file bytes directly with `Cache-Control: no-store`.
-- When a temporary URL is available, ProdUS does not send document text excerpts to LoomAI; LoomAI should use MCP read tool `produs.project_creation_document.read` or open the temporary URL directly, then report whether the document was used.
+- ProdUS does not send document text excerpts to LoomAI; LoomAI should pass the temporary URL to its provider adapter as a typed file/document URL input, such as OpenAI Responses API `input_file.file_url`, then report whether the document was used.
 - The temporary URL/token is invalidated after TTL, after project creation completes, or when the owner revokes AI access.
 - The document remains attached to the project/product for owner access after AI access expires. If the owner later creates a workspace, access for approved participants must be granted through the workspace flow, not by the AI creation flow.
 - No indexing is required for this flow.
 - AI must return a `documentUsage` entry for each selected file with `status`, `accessMethod`, owner-safe `evidence`, and `reason`.
-- Valid `status` values are `USED`, `FALLBACK_EXCERPT_USED`, and `NOT_USED`.
-- Valid `accessMethod` values are `TEMPORARY_URL`, `REDACTED_EXCERPT_FALLBACK`, and `NONE`.
+- Valid `status` values are `USED` and `NOT_USED`.
+- Valid `accessMethod` values are `TEMPORARY_URL` and `NONE`.
 - AI must not mark a file as `USED` unless it extracted at least one owner-safe evidence fact from the file.
 
 Recommended AI write action contract:

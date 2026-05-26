@@ -1111,9 +1111,6 @@ public class LoomAIIntegrationService {
         ));
         context.put("documents", request.documents() == null ? List.of() : request.documents().stream()
                 .map(document -> {
-                    String fallbackExcerpt = blank(document.temporaryAccessUrl())
-                            ? safeText(document.contentExcerpt(), 4_000)
-                            : "";
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("attachmentId", document.attachmentId() == null ? "" : document.attachmentId().toString());
                     item.put("fileName", safeText(document.fileName(), FIELD_LIMIT));
@@ -1121,11 +1118,9 @@ public class LoomAIIntegrationService {
                     item.put("sizeBytes", document.sizeBytes());
                     item.put("temporaryAccessUrl", document.temporaryAccessUrl());
                     item.put("expiresAt", document.expiresAt() == null ? "" : document.expiresAt().toString());
-                    item.put("fallbackRedactedExcerptIncluded", !fallbackExcerpt.isBlank());
-                    item.put("fallbackRedactedExcerptTruncated", !fallbackExcerpt.isBlank() && document.contentExcerptTruncated());
                     item.put("contentStatus", safeText(document.contentStatus(), FIELD_LIMIT));
-                    item.put("accessInstruction", "use-produs.project_creation_document.read-or-open-temporary-url-and-return-document-usage-evidence");
-                    item.put("fallbackRedactedExcerpt", fallbackExcerpt);
+                    item.put("accessInstruction", "pass-temporaryAccessUrl-as-provider-typed-file-url-input-and-return-document-usage-evidence");
+                    item.put("providerInputHint", "For OpenAI Responses API, map this URL to input_file.file_url. Do not send document text as prompt context.");
                     return item;
                 })
                 .toList());
@@ -1153,21 +1148,21 @@ public class LoomAIIntegrationService {
         return """
                 You are ProdUS project creation AI. The owner opted into AI-assisted project creation.
                 Analyze the owner input and every owner-selected temporary document. Do not index, retain, or expose document content.
-                For every selected document, use MCP tool produs.project_creation_document.read with temporaryAccessUrl if that tool is available. If not available, open and read temporaryAccessUrl directly.
-                The URL returns the document bytes directly from ProdUS with no browser credentials and no storage redirect.
-                Use fallbackRedactedExcerpt only if the temporary URL cannot be retrieved or parsed and fallbackRedactedExcerpt is not blank.
+                For every selected document, your provider adapter must pass temporaryAccessUrl as a typed file/document URL input, such as OpenAI Responses API input_file.file_url.
+                The URL returns the document bytes directly from ProdUS with no browser credentials, no custom headers, no HTML preview, and no storage redirect.
+                Do not use MCP tools to read project creation documents. Do not use prompt-injected document excerpts; ProdUS only provides file URLs for this flow.
                 Do not claim a document was used unless you extracted at least one owner-safe evidence item from the document content.
                 Do not infer file facts from the filename, owner prompt, or repository URL when document content is unavailable.
                 For every selected document, return documentUsage with fileName, status, accessMethod, evidence, and reason.
-                documentUsage.status must be one of USED, FALLBACK_EXCERPT_USED, NOT_USED.
-                documentUsage.accessMethod must be one of TEMPORARY_URL, REDACTED_EXCERPT_FALLBACK, NONE.
+                documentUsage.status must be one of USED, NOT_USED.
+                documentUsage.accessMethod must be one of TEMPORARY_URL, NONE.
                 If you cannot access or use a selected document, add a concise missingEvidence item that says which document was not analyzed and why.
                 Return the best initial project creation attributes for ProdUS to pass into a separate runtime action. Return only a strict JSON object with:
                 productName, summary, businessStage, techStack, productUrl, repositoryUrl, riskProfile, aiCreationSummary, assumptions, missingEvidence, documentUsage.
                 Use one businessStage value from IDEA, PROTOTYPE, VALIDATED, LIVE, SCALING.
                 assumptions and missingEvidence must be arrays of concise strings.
                 documentUsage.evidence must be an array of concise, non-sensitive facts. Never include secrets, tokens, credentials, or raw private content.
-                aiCreationSummary must mention whether selected documents were opened through temporary URLs, used through fallback excerpts, or not used.
+                aiCreationSummary must mention whether selected documents were opened through temporary URLs or not used.
 
                 Owner input:
                 %s
@@ -1195,9 +1190,6 @@ public class LoomAIIntegrationService {
         List<String> sections = new ArrayList<>();
         for (int index = 0; index < documents.size(); index++) {
             ProjectCreationDocumentReference document = documents.get(index);
-            String fallbackExcerpt = blank(document.temporaryAccessUrl())
-                    ? safeText(document.contentExcerpt(), 4_000)
-                    : "";
             sections.add("""
                     Document %d:
                     fileName: %s
@@ -1205,17 +1197,14 @@ public class LoomAIIntegrationService {
                     contentStatus: %s
                     temporaryAccessUrl: %s
                     expiresAt: %s
-                    instruction: Use MCP tool produs.project_creation_document.read with temporaryAccessUrl if available; otherwise open temporaryAccessUrl directly. Extract owner-safe evidence from the returned file body. Do not infer file facts from the filename. Use fallbackRedactedExcerpt only if URL access or parsing fails and fallbackRedactedExcerpt is not blank.
-                    fallbackRedactedExcerpt:
-                    %s
+                    instruction: Pass temporaryAccessUrl as a typed provider file/document URL input. For OpenAI, use input_file.file_url. Extract owner-safe evidence from the fetched file body. Do not infer file facts from the filename. If the provider cannot fetch or parse the URL, return NOT_USED with the concrete reason.
                     """.formatted(
                     index + 1,
                     safeText(document.fileName(), FIELD_LIMIT),
                     safeText(document.contentType(), FIELD_LIMIT),
                     safeText(document.contentStatus(), FIELD_LIMIT),
                     blank(document.temporaryAccessUrl()) ? "not provided" : document.temporaryAccessUrl(),
-                    document.expiresAt() == null ? "not provided" : document.expiresAt().toString(),
-                    blank(fallbackExcerpt) ? "[not supplied because temporaryAccessUrl is available]" : fallbackExcerpt
+                    document.expiresAt() == null ? "not provided" : document.expiresAt().toString()
             ).trim());
         }
         return String.join("\n\n", sections);
