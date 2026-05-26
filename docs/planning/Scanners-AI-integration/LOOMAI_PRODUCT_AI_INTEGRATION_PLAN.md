@@ -289,7 +289,7 @@ Step 1 runtime context contract:
       "sizeBytes": 12345,
       "temporaryAccessUrl": "https://produs-api.../api/product-attachments/ai-access/<token>",
       "expiresAt": "ISO-8601 timestamp",
-      "accessInstruction": "open-temporary-url-first-and-return-document-usage-evidence",
+      "accessInstruction": "use-produs.project_creation_document.read-or-open-temporary-url-and-return-document-usage-evidence",
       "fallbackRedactedExcerpt": "Only populated if ProdUS could not provide a temporary URL"
     }
   ],
@@ -317,7 +317,8 @@ LoomAI must not index, vectorize, retain, summarize for future retrieval, or exp
 
 Document handling contract:
 
-- LoomAI must try to open each `temporaryAccessUrl` first during the request window.
+- LoomAI should first call MCP tool `produs.project_creation_document.read` with `temporaryAccessUrl` when that read action is available.
+- If the read action is unavailable or cannot parse the file type, LoomAI must try to open each `temporaryAccessUrl` directly during the request window.
 - `temporaryAccessUrl` is a ProdUS backend endpoint that returns the document bytes directly with `Cache-Control: no-store`; it is not a storage redirect and does not require browser credentials.
 - `fallbackRedactedExcerpt` is only for the exceptional path where ProdUS did not provide a temporary URL or explicitly populated fallback text. In the normal path, it is blank so LoomAI must open the temporary URL or report `NOT_USED`.
 - LoomAI must return one `documentUsage` item for every selected document:
@@ -331,6 +332,16 @@ Document handling contract:
   "reason": "Temporary URL opened and parsed successfully."
 }
 ```
+
+Temporary document MCP read tool:
+
+- Tool: `produs.project_creation_document.read`
+- Mode: read
+- Confirmation required: false
+- Input: `temporaryAccessUrl` or `temporaryAccessToken`
+- Text output: `contentText`, `contentTruncated`, `fileName`, `contentType`, `contentLength`, `accessBoundary`, `retention`, `usageInstruction`
+- Binary/non-text output: `readableText=false` with a `reason`; LoomAI should use direct URL parsing if available, otherwise return `documentUsage.status=NOT_USED`.
+- Retention: use only for the current project creation analysis. Do not index or store document content.
 
 - `status`: `USED`, `FALLBACK_EXCERPT_USED`, or `NOT_USED`.
 - `accessMethod`: `TEMPORARY_URL`, `REDACTED_EXCERPT_FALLBACK`, or `NONE`.

@@ -331,7 +331,7 @@ Step 1 analysis payload:
         "sizeBytes": 12345,
         "temporaryAccessUrl": "https://produs-api-staging.../api/product-attachments/ai-access/<token>",
         "expiresAt": "2026-05-25T12:34:56",
-        "accessInstruction": "open-temporary-url-first-and-return-document-usage-evidence",
+        "accessInstruction": "use-produs.project_creation_document.read-or-open-temporary-url-and-return-document-usage-evidence",
         "fallbackRedactedExcerpt": "Only populated if ProdUS could not provide a temporary URL"
       }
     ],
@@ -359,7 +359,8 @@ LoomAI requirements for this project-creation path:
 
 - Treat `temporaryAccessUrl` documents as analysis-only transient inputs.
 - Do not index, vectorize, retain, or expose project-creation document content.
-- Fetch/open every temporary document URL during the request window only. The URL is a ProdUS backend endpoint that returns the document bytes directly with `Cache-Control: no-store`; it is not a redirect and does not require browser credentials.
+- Preferred path: call MCP tool `produs.project_creation_document.read` with `temporaryAccessUrl` to read text project-creation documents through the authenticated ProdUS MCP gateway.
+- Fallback path: fetch/open every temporary document URL during the request window only. The URL is a ProdUS backend endpoint that returns the document bytes directly with `Cache-Control: no-store`; it is not a redirect and does not require browser credentials.
 - Use `fallbackRedactedExcerpt` only when ProdUS did not provide a temporary URL or explicitly populated fallback text. In the normal path, this field is blank so LoomAI must open the temporary URL or report `NOT_USED`.
 - Return a strict JSON object in `answer` or `safeSummary` with `productName`, `summary`, `businessStage`, `techStack`, `productUrl`, `repositoryUrl`, `riskProfile`, `aiCreationSummary`, `assumptions`, `missingEvidence`, and `documentUsage`.
 - Return one `documentUsage` item per owner-selected document:
@@ -373,6 +374,16 @@ LoomAI requirements for this project-creation path:
   "reason": "Temporary URL opened and parsed successfully."
 }
 ```
+
+Temporary document MCP read tool:
+
+- Name: `produs.project_creation_document.read`
+- Mode: `read`
+- Confirmation required: `false`
+- Inputs: `temporaryAccessUrl` or `temporaryAccessToken`
+- Output for readable text documents: `status`, `fileName`, `contentType`, `contentLength`, `readableText`, `contentText`, `contentTruncated`, `accessBoundary`, `retention`, `usageInstruction`
+- Output for binary/non-text documents: `readableText=false` and a `reason`; LoomAI should then either open the temporary URL directly if it can parse that file type, or return `documentUsage.status=NOT_USED`.
+- Scope: project creation analysis only. Do not retain, index, or reuse `contentText`.
 
 - `status` must be `USED`, `FALLBACK_EXCERPT_USED`, or `NOT_USED`.
 - `accessMethod` must be `TEMPORARY_URL`, `REDACTED_EXCERPT_FALLBACK`, or `NONE`.

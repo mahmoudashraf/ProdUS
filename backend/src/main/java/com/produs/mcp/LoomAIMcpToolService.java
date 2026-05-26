@@ -16,6 +16,7 @@ import com.produs.packages.PackageInstanceRepository;
 import com.produs.packages.PackageModule;
 import com.produs.packages.PackageModuleRepository;
 import com.produs.product.AiAssistedProductCreationService;
+import com.produs.product.ProductProjectAttachmentService;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
 import com.produs.scanner.NormalizedFinding;
@@ -52,6 +53,7 @@ public class LoomAIMcpToolService {
 
     private static final int DEFAULT_LIMIT = 10;
     private static final int MAX_LIMIT = 25;
+    private static final int MAX_TEMPORARY_DOCUMENT_TEXT = 80_000;
     private static final int TEXT_LIMIT = 600;
 
     private final ServiceCategoryRepository categoryRepository;
@@ -69,6 +71,7 @@ public class LoomAIMcpToolService {
     private final NormalizedFindingRepository findingRepository;
     private final ScannerEvidenceItemRepository evidenceRepository;
     private final AiAssistedProductCreationService aiAssistedProductCreationService;
+    private final ProductProjectAttachmentService productProjectAttachmentService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -79,6 +82,7 @@ public class LoomAIMcpToolService {
             case "produs.product.list" -> productList(args);
             case "produs.package.inspect" -> packageInspect(args);
             case "produs.workspace.inspect" -> workspaceInspect(args);
+            case "produs.project_creation_document.read" -> projectCreationDocumentRead(args);
             case "produs.productization_project.create" -> aiAssistedProductCreationService.createFromMcpAction(args);
             case "produs.scan.status" -> scanStatus(args);
             case "produs.finding.inspect" -> findingInspect(args);
@@ -86,6 +90,42 @@ public class LoomAIMcpToolService {
             case "produs.milestone.review_evidence" -> milestoneReviewEvidence(args);
             default -> error("UNSUPPORTED_TOOL", "Tool is not supported by the ProdUS MCP read adapter: " + safe(toolName));
         };
+    }
+
+    private Map<String, Object> projectCreationDocumentRead(Map<String, Object> args) {
+        String token = temporaryDocumentToken(args);
+        if (!hasText(token)) {
+            return error("MISSING_TEMPORARY_DOCUMENT_TOKEN", "temporaryAccessToken or temporaryAccessUrl is required.");
+        }
+        try {
+            ProductProjectAttachmentService.TemporaryAiDocumentDownload document =
+                    productProjectAttachmentService.createAiAccessDocumentDownload(token);
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("status", "READ");
+            response.put("fileName", safe(document.fileName()));
+            response.put("contentType", safe(document.contentType()));
+            response.put("contentLength", document.contentLength());
+            response.put("accessBoundary", "project-creation-analysis-only");
+            response.put("retention", "do-not-store-document-content");
+
+            if (!isReadableTextDocument(document.fileName(), document.contentType())) {
+                response.put("readableText", false);
+                response.put("contentText", "");
+                response.put("contentTruncated", false);
+                response.put("reason", "Temporary document content type is not directly readable as text through the ProdUS MCP adapter.");
+                return response;
+            }
+
+            String content = new String(document.bytes(), java.nio.charset.StandardCharsets.UTF_8);
+            boolean truncated = content.length() > MAX_TEMPORARY_DOCUMENT_TEXT;
+            response.put("readableText", true);
+            response.put("contentText", truncated ? content.substring(0, MAX_TEMPORARY_DOCUMENT_TEXT) : content);
+            response.put("contentTruncated", truncated);
+            response.put("usageInstruction", "Use contentText only for this project-creation analysis and return owner-safe documentUsage evidence.");
+            return response;
+        } catch (RuntimeException exception) {
+            return error("TEMPORARY_DOCUMENT_READ_FAILED", safe(exception.getMessage()));
+        }
     }
 
     public Map<String, Object> toMcpResult(Map<String, Object> payload) {
@@ -709,6 +749,51 @@ public class LoomAIMcpToolService {
             }
         }
         return null;
+    }
+
+    private String temporaryDocumentToken(Map<String, Object> args) {
+        String token = textArg(args, "temporaryAccessToken", "accessToken", "token");
+        if (hasText(token)) {
+            return token;
+        }
+        String url = textArg(args, "temporaryAccessUrl", "url");
+        if (!hasText(url)) {
+            return null;
+        }
+        String marker = "/api/product-attachments/ai-access/";
+        int markerIndex = url.indexOf(marker);
+        if (markerIndex < 0) {
+            return null;
+        }
+        String tail = url.substring(markerIndex + marker.length());
+        int queryIndex = tail.indexOf('?');
+        int hashIndex = tail.indexOf('#');
+        int endIndex = Stream.of(queryIndex, hashIndex)
+                .filter(index -> index >= 0)
+                .min(Integer::compareTo)
+                .orElse(tail.length());
+        String rawToken = tail.substring(0, endIndex);
+        return java.net.URLDecoder.decode(rawToken, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private boolean isReadableTextDocument(String fileName, String contentType) {
+        String normalizedType = normalize(contentType);
+        if (normalizedType.startsWith("text/")
+                || normalizedType.contains("json")
+                || normalizedType.contains("markdown")
+                || normalizedType.contains("xml")
+                || normalizedType.contains("yaml")
+                || normalizedType.contains("csv")) {
+            return true;
+        }
+        String normalizedName = normalize(fileName);
+        return normalizedName.endsWith(".md")
+                || normalizedName.endsWith(".markdown")
+                || normalizedName.endsWith(".txt")
+                || normalizedName.endsWith(".json")
+                || normalizedName.endsWith(".csv")
+                || normalizedName.endsWith(".yaml")
+                || normalizedName.endsWith(".yml");
     }
 
     private int limit(Map<String, Object> args) {

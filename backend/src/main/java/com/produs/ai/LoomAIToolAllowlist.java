@@ -13,6 +13,7 @@ public final class LoomAIToolAllowlist {
                 read("produs.product.list", "List products visible to the current ProdUS user."),
                 read("produs.package.inspect", "Inspect an authorized productization package."),
                 read("produs.workspace.inspect", "Inspect an authorized project workspace."),
+                read("produs.project_creation_document.read", "Read an owner-selected temporary project creation document during its short-lived AI access window."),
                 mutation("produs.productization_project.create", "Create the owner-approved initial productization project from an active AI project creation intent.", false),
                 mutation("produs.requirement.submit", "Submit a productization requirement after explicit user confirmation."),
                 mutation("produs.package.build_from_requirement", "Build a package from a confirmed requirement and catalog rules."),

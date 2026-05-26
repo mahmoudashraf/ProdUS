@@ -51,9 +51,10 @@ class LoomAIMcpAuthTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"jsonrpc":"2.0","id":"tools","method":"tools/list","params":{}}
-                                """))
+                """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.catalog.search')]").exists());
+                .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.catalog.search')]").exists())
+                .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.project_creation_document.read')]").exists());
 
         mockMvc.perform(post("/mcp")
                         .header("X-MCP-API-KEY", "test-mcp-secret")
