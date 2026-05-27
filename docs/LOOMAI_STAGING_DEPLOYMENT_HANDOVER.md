@@ -294,6 +294,8 @@ Content-Type: multipart/form-data
 
 ProdUS project creation uses a two-step LoomAI flow. Step 1 is runtime analysis through `POST /api/chat/me/query-once`. Step 2 is project creation through a governed runtime action named `produs.productization_project.create`. This is scoped to project creation only; it does not create packages, workspaces, team selections, invitations, or participants.
 
+LoomAI runtime support status as of 2026-05-27: implemented for both `/api/chat/me/query-once` and `/api/chat/me/query`. ProdUS should still use `/query-once` for project creation because the selected files are one-time analysis inputs and should not create chat history. Runtime extracts `context.documents[].temporaryAccessUrl`, validates it as a safe short-lived HTTPS URL, redacts it from stored/debug context, and passes it to the configured provider through the transient provider file-input contract.
+
 ProdUS-side implementation status:
 
 - Backend endpoint `POST /api/products/ai-assisted/analyze` creates a short-lived creation intent, stores private attachments, grants owner-selected temporary AI document access, calls `/api/chat/me/query-once`, and returns a `runtimeActionPayload`.
@@ -325,14 +327,15 @@ Step 1 analysis payload:
     },
     "documents": [
       {
+        "documentId": "<uuid>",
         "attachmentId": "<uuid>",
         "fileName": "brief.pdf",
         "contentType": "application/pdf",
         "sizeBytes": 12345,
         "temporaryAccessUrl": "https://produs-api-staging.../api/product-attachments/ai-access/<token>",
-        "expiresAt": "2026-05-25T12:34:56",
+        "expiresAt": "2026-05-25T12:34:56Z",
         "accessInstruction": "pass-temporaryAccessUrl-as-provider-typed-file-url-input-and-return-document-usage-evidence",
-        "providerInputHint": "For OpenAI Responses API, map this URL to input_file.file_url. Do not send document text as prompt context."
+        "providerInputHint": "typed-file-url"
       }
     ],
     "outputContract": {
@@ -355,14 +358,17 @@ Step 1 analysis payload:
 }
 ```
 
-LoomAI requirements for this project-creation path:
+LoomAI runtime behavior for this project-creation path:
 
 - Treat `temporaryAccessUrl` documents as analysis-only transient inputs.
 - Do not index, vectorize, retain, or expose project-creation document content.
 - Pass every selected `temporaryAccessUrl` to the configured model/provider as a typed file/document URL input, not as plain prompt text.
-- For OpenAI Responses API, map each URL to `input_file.file_url`; equivalent provider document URL inputs are acceptable for other providers.
 - Fetch/open every temporary document URL during the request window only. The URL is a ProdUS backend endpoint that returns the document bytes directly with `Cache-Control: no-store`; it is not a redirect and does not require browser credentials, custom headers, or cookies.
 - ProdUS does not send document text or redacted excerpts for this flow.
+- Runtime accepts at most 8 transient document URLs per request.
+- Runtime rejects declared file sizes over 50 MB.
+- `expiresAt`, when supplied, must be an ISO-8601 instant with timezone, must not be expired, and must be no more than 24 hours in the future.
+- Runtime should be configured with `ai.fabric.runtime.transient-file-url.allowed-hosts=produs-api-staging.46.224.145.148.sslip.io` for staging so only ProdUS temporary file hosts are accepted.
 - Return a strict JSON object in `answer` or `safeSummary` with `productName`, `summary`, `businessStage`, `techStack`, `productUrl`, `repositoryUrl`, `riskProfile`, `aiCreationSummary`, `assumptions`, `missingEvidence`, and `documentUsage`.
 - Return one `documentUsage` item per owner-selected document:
 
@@ -381,6 +387,28 @@ LoomAI requirements for this project-creation path:
 - Do not claim `USED` unless the runtime extracted at least one owner-safe evidence item from the file.
 - If a file is not used, `reason` must explain whether URL retrieval failed, parsing failed, access expired, or the file was irrelevant.
 - Keep `/query-once` non-persistent: no chat conversation, no memory write, no document retention.
+
+Provider support matrix:
+
+| Provider | Temporary document support |
+|---|---|
+| OpenAI | Native Responses `input_file.file_url` for PDF, text-like, and Office-style files; native `input_image.image_url` for supported images. |
+| Azure OpenAI | Responses input path; PDFs are fetched transiently and passed as `file_data`; supported images use image URL inputs. Other types fail closed. |
+| Anthropic | Native URL blocks for PDFs and supported images only. Other types fail closed. |
+| Gemini | Runtime fetches approved HTTPS URLs transiently and sends text, PDF, image, audio, and video as provider `inlineData`. |
+| Cohere | Runtime fetches text-like files and PDFs transiently, extracts readable text, and sends it through Cohere `documents`. Unsupported files fail closed. |
+
+Fail-closed means LoomAI returns `documentUsage.status=NOT_USED`, `accessMethod=NONE`, empty evidence, and a provider/type reason. ProdUS must show the file as not analyzed instead of claiming it was used.
+
+ProdUS adaptation requirements:
+
+- Include `documentId` in addition to any ProdUS-local `attachmentId`; LoomAI uses `documentId` in transient input descriptors and `documentUsage`.
+- Use direct HTTPS byte-serving URLs with no redirect, cookie, or custom-header requirement.
+- Do not send raw document text, storage URLs, Supabase tokens, repository tokens, or object storage credentials.
+- Do not send `temporaryAccessUrl` to the Step 2 mutation. Step 2 receives only owner-approved creation fields and attachment ids.
+- Mark an attachment `USED` only when LoomAI returns `documentUsage.status=USED` with owner-safe evidence for that attachment.
+- Treat `NOT_USED` as a normal, honest result for unsupported file types or expired URLs.
+- For best current coverage, prefer PDF/text-like files when the configured provider is not OpenAI or Gemini; Office-style files are currently best supported by OpenAI.
 
 Step 2 runtime action configuration:
 
