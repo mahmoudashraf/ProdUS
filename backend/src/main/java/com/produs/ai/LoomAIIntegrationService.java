@@ -67,6 +67,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
@@ -1118,7 +1119,7 @@ public class LoomAIIntegrationService {
                     item.put("contentType", safeText(document.contentType(), FIELD_LIMIT));
                     item.put("sizeBytes", document.sizeBytes());
                     item.put("temporaryAccessUrl", document.temporaryAccessUrl());
-                    item.put("expiresAt", document.expiresAt() == null ? "" : document.expiresAt().toString());
+                    item.put("expiresAt", instantText(document.expiresAt()));
                     item.put("contentStatus", safeText(document.contentStatus(), FIELD_LIMIT));
                     item.put("accessInstruction", "pass-temporaryAccessUrl-as-provider-typed-file-url-input-and-return-document-usage-evidence");
                     item.put("providerInputHint", "For OpenAI Responses API, map this URL to input_file.file_url. Do not send document text as prompt context.");
@@ -1207,10 +1208,17 @@ public class LoomAIIntegrationService {
                     safeText(document.contentType(), FIELD_LIMIT),
                     safeText(document.contentStatus(), FIELD_LIMIT),
                     blank(document.temporaryAccessUrl()) ? "not provided" : document.temporaryAccessUrl(),
-                    document.expiresAt() == null ? "not provided" : document.expiresAt().toString()
+                    blank(instantText(document.expiresAt())) ? "not provided" : instantText(document.expiresAt())
             ).trim());
         }
         return String.join("\n\n", sections);
+    }
+
+    private String instantText(LocalDateTime value) {
+        if (value == null) {
+            return "";
+        }
+        return value.atZone(ZoneId.systemDefault()).toInstant().toString();
     }
 
     private Map<String, Object> explainOnlyContext(Map<String, Object> context) {
