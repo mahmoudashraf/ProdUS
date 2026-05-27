@@ -151,7 +151,7 @@ Project attachment handling:
 - The temporary URL/token is invalidated after TTL, after project creation completes, or when the owner revokes AI access.
 - The document remains attached to the project/product for owner access after AI access expires. If the owner later creates a workspace, access for approved participants must be granted through the workspace flow, not by the AI creation flow.
 - No indexing is required for this flow.
-- AI must return a `documentUsage` entry for each selected file with `status`, `accessMethod`, owner-safe `evidence`, and `reason`.
+- AI must return a `documentUsage` entry for each selected file with `documentId`, `status`, `accessMethod`, owner-safe `evidence`, and `reason`.
 - Valid `status` values are `USED` and `NOT_USED`.
 - Valid `accessMethod` values are `TEMPORARY_URL` and `NONE`.
 - AI must not mark a file as `USED` unless it extracted at least one owner-safe evidence fact from the file.

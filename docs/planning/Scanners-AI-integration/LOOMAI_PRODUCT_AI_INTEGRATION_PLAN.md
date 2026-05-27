@@ -283,6 +283,7 @@ Step 1 runtime context contract:
   },
   "documents": [
     {
+      "documentId": "uuid",
       "attachmentId": "uuid",
       "fileName": "brief.pdf",
       "contentType": "application/pdf",
@@ -325,6 +326,7 @@ Document handling contract:
 
 ```json
 {
+  "documentId": "4c9a0d29-3c77-4e20-a48a-5aeea5f6422a",
   "fileName": "brief.pdf",
   "status": "USED",
   "accessMethod": "TEMPORARY_URL",
@@ -333,6 +335,7 @@ Document handling contract:
 }
 ```
 
+- `documentId`: stable ProdUS analysis identifier for the selected attachment. LoomAI must echo it in `documentUsage` so ProdUS can fail closed per file instead of matching by filename.
 - `status`: `USED` or `NOT_USED`.
 - `accessMethod`: `TEMPORARY_URL` or `NONE`.
 - LoomAI must not claim `USED` without at least one evidence fact from the file.

@@ -181,20 +181,20 @@ export interface ProductProjectAttachment extends BaseRecord {
 }
 
 export interface AiDocumentShare {
+  documentId: string;
   attachmentId: string;
   fileName: string;
   contentType: string;
   sizeBytes: number;
   expiresAt?: string;
-  contentExcerptIncluded?: boolean;
-  contentExcerptTruncated?: boolean;
   contentStatus?: string;
 }
 
 export interface DocumentUsageEvidence {
+  documentId?: string;
   fileName: string;
-  status: 'USED' | 'FALLBACK_EXCERPT_USED' | 'NOT_USED' | string;
-  accessMethod: 'TEMPORARY_URL' | 'REDACTED_EXCERPT_FALLBACK' | 'NONE' | string;
+  status: 'USED' | 'NOT_USED' | string;
+  accessMethod: 'TEMPORARY_URL' | 'NONE' | string;
   evidence: string[];
   reason?: string;
 }

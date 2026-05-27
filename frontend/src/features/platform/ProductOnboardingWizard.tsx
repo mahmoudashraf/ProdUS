@@ -296,9 +296,6 @@ const documentUsageMeta = (status?: string, accessMethod?: string) => {
   if (normalizedStatus === 'USED' && normalizedMethod === 'TEMPORARY_URL') {
     return { label: 'Opened by AI', color: appleColors.green };
   }
-  if (normalizedStatus === 'FALLBACK_EXCERPT_USED') {
-    return { label: 'Fallback used', color: appleColors.amber };
-  }
   if (normalizedStatus === 'USED') {
     return { label: 'Used', color: appleColors.green };
   }
@@ -332,7 +329,7 @@ function AiDocumentUsageList({
             const evidence = item.evidence ?? [];
             return (
               <Box
-                key={`${item.fileName}-${index}`}
+                key={`${item.documentId || item.fileName}-${index}`}
                 sx={{
                   p: 1,
                   borderRadius: 1,
@@ -504,9 +501,6 @@ export default function ProductOnboardingWizard() {
   const aiOpenedDocumentCount = aiDocumentUsage.filter(
     item => item.status === 'USED' && item.accessMethod === 'TEMPORARY_URL'
   ).length;
-  const aiFallbackDocumentCount = aiDocumentUsage.filter(
-    item => item.status === 'FALLBACK_EXCERPT_USED'
-  ).length;
   const aiNotUsedDocumentCount = aiDocumentUsage.filter(item => item.status === 'NOT_USED').length;
   const aiDocumentUsageMissing =
     Boolean(aiAnalysis?.aiSharedDocuments.length) && aiDocumentUsage.length === 0;
@@ -555,7 +549,7 @@ export default function ProductOnboardingWizard() {
       title: 'Document access boundary',
       detail: aiAnalysis?.aiSharedDocuments.length
         ? aiDocumentUsage.length
-          ? `${compactCount(aiOpenedDocumentCount, 'document')} opened by AI through temporary URL; ${compactCount(aiFallbackDocumentCount, 'document')} used fallback excerpt; ${compactCount(aiNotUsedDocumentCount, 'document')} not used.`
+          ? `${compactCount(aiOpenedDocumentCount, 'document')} opened by AI through temporary URL; ${compactCount(aiNotUsedDocumentCount, 'document')} not used.`
           : `${compactCount(aiAnalysis.aiSharedDocuments.length, 'selected document')} received temporary AI access. LoomAI did not return per-file usage evidence.`
         : aiDocumentFiles.length
           ? `${compactCount(aiDocumentFiles.length, 'private attachment')} will stay with the project; ${compactCount(selectedAiDocumentCount, 'file')} ${selectedAiDocumentCount === 1 ? 'is' : 'are'} shared with AI temporarily.`
@@ -563,7 +557,7 @@ export default function ProductOnboardingWizard() {
       state:
         aiDocumentFiles.length > 0 && selectedAiDocumentCount === 0
           ? 'attention'
-          : aiDocumentUsageMissing || aiNotUsedDocumentCount > 0 || aiFallbackDocumentCount > 0
+          : aiDocumentUsageMissing || aiNotUsedDocumentCount > 0
             ? 'attention'
             : 'ready',
     },
@@ -992,10 +986,10 @@ export default function ProductOnboardingWizard() {
                             label={`${aiOpenedDocumentCount} opened through temporary URL`}
                             color={aiOpenedDocumentCount ? appleColors.green : appleColors.amber}
                           />
-                          {(aiFallbackDocumentCount > 0 || aiNotUsedDocumentCount > 0) && (
+                          {aiNotUsedDocumentCount > 0 && (
                             <DotLabel
-                              label={`${aiFallbackDocumentCount} fallback, ${aiNotUsedDocumentCount} not used`}
-                              color={aiNotUsedDocumentCount ? appleColors.red : appleColors.amber}
+                              label={`${aiNotUsedDocumentCount} not used`}
+                              color={appleColors.red}
                             />
                           )}
                           {aiDocumentUsageMissing && (

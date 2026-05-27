@@ -1112,6 +1112,7 @@ public class LoomAIIntegrationService {
         context.put("documents", request.documents() == null ? List.of() : request.documents().stream()
                 .map(document -> {
                     Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("documentId", safeText(document.documentId(), FIELD_LIMIT));
                     item.put("attachmentId", document.attachmentId() == null ? "" : document.attachmentId().toString());
                     item.put("fileName", safeText(document.fileName(), FIELD_LIMIT));
                     item.put("contentType", safeText(document.contentType(), FIELD_LIMIT));
@@ -1153,7 +1154,7 @@ public class LoomAIIntegrationService {
                 Do not use MCP tools to read project creation documents. Do not use prompt-injected document excerpts; ProdUS only provides file URLs for this flow.
                 Do not claim a document was used unless you extracted at least one owner-safe evidence item from the document content.
                 Do not infer file facts from the filename, owner prompt, or repository URL when document content is unavailable.
-                For every selected document, return documentUsage with fileName, status, accessMethod, evidence, and reason.
+                For every selected document, return documentUsage with documentId, fileName, status, accessMethod, evidence, and reason.
                 documentUsage.status must be one of USED, NOT_USED.
                 documentUsage.accessMethod must be one of TEMPORARY_URL, NONE.
                 If you cannot access or use a selected document, add a concise missingEvidence item that says which document was not analyzed and why.
@@ -1192,6 +1193,7 @@ public class LoomAIIntegrationService {
             ProjectCreationDocumentReference document = documents.get(index);
             sections.add("""
                     Document %d:
+                    documentId: %s
                     fileName: %s
                     contentType: %s
                     contentStatus: %s
@@ -1200,6 +1202,7 @@ public class LoomAIIntegrationService {
                     instruction: Pass temporaryAccessUrl as a typed provider file/document URL input. For OpenAI, use input_file.file_url. Extract owner-safe evidence from the fetched file body. Do not infer file facts from the filename. If the provider cannot fetch or parse the URL, return NOT_USED with the concrete reason.
                     """.formatted(
                     index + 1,
+                    safeText(document.documentId(), FIELD_LIMIT),
                     safeText(document.fileName(), FIELD_LIMIT),
                     safeText(document.contentType(), FIELD_LIMIT),
                     safeText(document.contentStatus(), FIELD_LIMIT),
@@ -2184,15 +2187,13 @@ public class LoomAIIntegrationService {
     ) {}
 
     public record ProjectCreationDocumentReference(
+            String documentId,
             UUID attachmentId,
             String fileName,
             String contentType,
             long sizeBytes,
             String temporaryAccessUrl,
             LocalDateTime expiresAt,
-            String contentExcerpt,
-            boolean contentExcerptIncluded,
-            boolean contentExcerptTruncated,
             String contentStatus
     ) {}
 
