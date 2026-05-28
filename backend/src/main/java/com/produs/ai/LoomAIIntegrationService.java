@@ -230,7 +230,7 @@ public class LoomAIIntegrationService {
             AssistantQueryRequest assistantRequest = new AssistantQueryRequest(
                     conversationId,
                     projectCreationPrompt(request),
-                    "support_assistant",
+                    "support_deep",
                     "product_intake_analysis",
                     null
             );

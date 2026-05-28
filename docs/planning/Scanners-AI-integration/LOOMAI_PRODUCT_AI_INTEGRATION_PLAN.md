@@ -261,7 +261,7 @@ ProdUS analysis behavior:
 - Store uploaded files as private product-project attachments.
 - Create a short-lived `projectCreationIntent`.
 - Generate short-lived ProdUS token URLs only for files selected in `aiSharedFileIndexes`.
-- Call LoomAI runtime `POST /api/chat/me/query-once` from the backend with canonical `query`, `conversationId`, `mode=support_assistant`, `position=product_intake_analysis`, and neutral owner-intake `context`.
+- Call LoomAI runtime `POST /api/chat/me/query-once` from the backend with canonical `query`, `conversationId`, `mode=support_deep`, `position=product_intake_analysis`, and neutral owner-intake `context`. `support_deep` is action-disabled and is required for this analysis-only step.
 - Persist analysis metadata against the creation intent, including LoomAI `providerRequestId`, selected AI attachment count, consent token hash, expiry, and idempotency seed.
 - Return analyzed creation attributes to the UI.
 
