@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -38,6 +39,9 @@ public class ProductProfileController {
 
     private final ProductProfileRepository productProfileRepository;
     private final AiAssistedProductCreationService aiAssistedProductCreationService;
+
+    @Value("${app.public-api-base-url:}")
+    private String publicApiBaseUrl;
 
     @GetMapping
     public List<ProductProfileResponse> list(@AuthenticationPrincipal User owner) {
@@ -167,17 +171,66 @@ public class ProductProfileController {
         throw new AccessDeniedException("Product profile belongs to another owner");
     }
 
-    private String apiBaseUrl(HttpServletRequest request) {
-        String forwardedProto = request.getHeader("X-Forwarded-Proto");
-        String forwardedHost = request.getHeader("X-Forwarded-Host");
-        if (forwardedProto != null && !forwardedProto.isBlank() && forwardedHost != null && !forwardedHost.isBlank()) {
-            return forwardedProto.split(",", 2)[0].trim() + "://" + forwardedHost.split(",", 2)[0].trim();
+    String apiBaseUrl(HttpServletRequest request) {
+        String configuredBaseUrl = normalizeBaseUrl(publicApiBaseUrl);
+        if (!configuredBaseUrl.isBlank()) {
+            return configuredBaseUrl;
         }
-        String scheme = request.getScheme();
-        String host = request.getServerName();
+
+        String forwardedHost = firstHeaderValue(request.getHeader("X-Forwarded-Host"));
+        String hostHeader = firstHeaderValue(request.getHeader("Host"));
+        boolean hostCameFromHeader = !forwardedHost.isBlank() || !hostHeader.isBlank();
+        String host = firstNonBlank(forwardedHost, hostHeader, request.getServerName());
+        String scheme = firstNonBlank(firstHeaderValue(request.getHeader("X-Forwarded-Proto")), request.getScheme());
+
+        if ("http".equalsIgnoreCase(scheme) && isPublicHost(host)) {
+            scheme = "https";
+        }
+
+        boolean hostHasPort = host.contains(":");
         int port = request.getServerPort();
-        boolean defaultPort = ("http".equalsIgnoreCase(scheme) && port == 80) || ("https".equalsIgnoreCase(scheme) && port == 443);
-        return scheme + "://" + host + (defaultPort ? "" : ":" + port);
+        boolean defaultPort = ("http".equalsIgnoreCase(scheme) && port == 80)
+                || ("https".equalsIgnoreCase(scheme) && port == 443);
+        return scheme + "://" + host + (hostCameFromHeader || hostHasPort || defaultPort ? "" : ":" + port);
+    }
+
+    private String firstHeaderValue(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value.split(",", 2)[0].trim();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
+    private String normalizeBaseUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String normalized = value.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    private boolean isPublicHost(String host) {
+        if (host == null || host.isBlank()) {
+            return false;
+        }
+        String normalized = host.toLowerCase();
+        return !normalized.startsWith("localhost")
+                && !normalized.startsWith("127.")
+                && !normalized.startsWith("0.0.0.0")
+                && !normalized.startsWith("backend")
+                && !normalized.endsWith(".local");
     }
 
     public record ProductProfileRequest(

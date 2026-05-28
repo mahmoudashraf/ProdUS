@@ -42,6 +42,7 @@ supabase:
   service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:your-service-role-key}
 
 app:
+  public-api-base-url: ${APP_PUBLIC_API_BASE_URL:}
   mock-auth:
     enabled: ${APP_MOCK_AUTH_ENABLED:false}
     allowed-profiles: ${APP_MOCK_AUTH_ALLOWED_PROFILES:dev,staging}
