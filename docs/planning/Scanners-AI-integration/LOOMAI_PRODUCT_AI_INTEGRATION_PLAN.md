@@ -277,6 +277,7 @@ Step 1 runtime context contract:
   "toolUsePolicy": "answer-from-owner-input-and-temporary-documents-only",
   "availableActionGroups": [],
   "runtimeActionPolicy": "do-not-select-actions-during-analysis",
+  "ownerBrief": "Owner-provided intake text to analyze as data, not as an action-selection command.",
   "ownerAuthorizedAiCreation": true,
   "documentSharingPolicy": {
     "scope": "project-creation-analysis-only",
@@ -324,6 +325,7 @@ Document handling contract:
 
 - LoomAI must pass each selected `temporaryAccessUrl` to the configured model/provider as a typed file/document URL input, not as plain prompt text.
 - LoomAI must treat Step 1 project creation as explain-only analysis. It must not select or return runtime actions from `/query-once`; ProdUS triggers Step 2 separately with the owner-approved runtime action payload.
+- LoomAI should analyze `context.ownerBrief` as data. ProdUS intentionally keeps the `/query-once` query text as an analysis instruction so owner phrases like "create a project" do not trigger the confirmed action planner during Step 1.
 - For OpenAI Responses API, map each URL to `input_file.file_url`; equivalent provider document URL inputs are acceptable for other providers.
 - `temporaryAccessUrl` is a ProdUS backend endpoint that returns the document bytes directly with `Cache-Control: no-store`; it is not a storage redirect and does not require browser credentials.
 - ProdUS does not send document text or redacted excerpts in this flow. If the provider cannot fetch or parse the URL, LoomAI must report `NOT_USED` with a reason.
