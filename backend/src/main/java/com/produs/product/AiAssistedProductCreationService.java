@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.security.MessageDigest;
@@ -47,12 +48,12 @@ public class AiAssistedProductCreationService {
     private final LoomAIIntegrationService loomAIIntegrationService;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${app.product-creation.intent-ttl-minutes:30}")
     private long creationIntentTtlMinutes;
 
-    @Transactional
     public AiAssistedProductAnalysisResponse analyze(
             User owner,
             AiAssistedProductCreationRequest request,
@@ -65,6 +66,68 @@ public class AiAssistedProductCreationService {
         }
 
         String consentToken = createToken("pcint");
+        AnalysisStart start = transactionTemplate.execute(status ->
+                startAnalysis(owner, request, files, aiSharedFileIndexes, apiBaseUrl, consentToken)
+        );
+        if (start == null) {
+            throw new IllegalStateException("Project creation analysis could not be started");
+        }
+
+        AssistantQueryResponse assistant = loomAIIntegrationService.projectCreation(owner, new ProjectCreationAssistantRequest(
+                start.intentId(),
+                request.ownerMessage(),
+                request.businessStage() == null ? "" : request.businessStage().name(),
+                request.techStack(),
+                request.productUrl(),
+                request.repositoryUrl(),
+                request.knownRisks(),
+                start.documentReferences()
+        ));
+
+        ProductCreationFields ownerProvidedFields = deterministicFields(request);
+        Optional<ProductCreationFields> parsedFields = parseFields(assistant).filter(this::hasMeaningfulFields);
+        ProductCreationFields fields = parsedFields
+                .map(parsed -> mergeFields(parsed, ownerProvidedFields))
+                .orElse(ownerProvidedFields);
+        ProductCreationFields finalFields = ensureDocumentUsage(fields, start.documentReferences());
+
+        ProductCreationIntent intent = transactionTemplate.execute(status ->
+                completeAnalysis(start.intentId(), finalFields, assistant, start.temporaryAccess().size())
+        );
+        if (intent == null) {
+            throw new IllegalStateException("Project creation analysis could not be completed");
+        }
+
+        return new AiAssistedProductAnalysisResponse(
+                ProductCreationIntentResponse.from(intent, consentToken),
+                finalFields,
+                start.attachments(),
+                start.documentReferences().stream()
+                        .map(document -> new AiDocumentShareResponse(
+                                document.documentId(),
+                                document.attachmentId(),
+                                document.fileName(),
+                                document.contentType(),
+                                document.sizeBytes(),
+                                document.expiresAt(),
+                                document.contentStatus()
+                        ))
+                        .toList(),
+                assistant,
+                parsedFields.isPresent(),
+                assistant.fallbackReason(),
+                projectCreationActionPayload(intent, consentToken, finalFields, start.attachments(), start.temporaryAccess())
+        );
+    }
+
+    private AnalysisStart startAnalysis(
+            User owner,
+            AiAssistedProductCreationRequest request,
+            List<MultipartFile> files,
+            Set<Integer> aiSharedFileIndexes,
+            String apiBaseUrl,
+            String consentToken
+    ) {
         ProductCreationIntent intent = new ProductCreationIntent();
         intent.setOwner(owner);
         intent.setStatus(ProductCreationIntent.Status.ANALYZING);
@@ -86,48 +149,25 @@ public class AiAssistedProductCreationService {
                 .map(attachment -> attachmentService.grantTemporaryAiAccess(attachment, apiBaseUrl))
                 .toList();
         List<ProjectCreationDocumentReference> documentReferences = projectCreationDocumentReferences(temporaryAccess);
-
-        AssistantQueryResponse assistant = loomAIIntegrationService.projectCreation(owner, new ProjectCreationAssistantRequest(
+        return new AnalysisStart(
                 intent.getId(),
-                request.ownerMessage(),
-                request.businessStage() == null ? "" : request.businessStage().name(),
-                request.techStack(),
-                request.productUrl(),
-                request.repositoryUrl(),
-                request.knownRisks(),
-                documentReferences
-        ));
-
-        ProductCreationFields ownerProvidedFields = deterministicFields(request);
-        Optional<ProductCreationFields> parsedFields = parseFields(assistant).filter(this::hasMeaningfulFields);
-        ProductCreationFields fields = parsedFields
-                .map(parsed -> mergeFields(parsed, ownerProvidedFields))
-                .orElse(ownerProvidedFields);
-        fields = ensureDocumentUsage(fields, documentReferences);
-        applyAnalysis(intent, fields, assistant, temporaryAccess.size());
-        intent.setStatus(ProductCreationIntent.Status.READY_FOR_ACTION);
-        intent = intentRepository.save(intent);
-
-        return new AiAssistedProductAnalysisResponse(
-                ProductCreationIntentResponse.from(intent, consentToken),
-                fields,
                 attachments.stream().map(ProductProjectAttachmentResponse::from).toList(),
-                documentReferences.stream()
-                        .map(document -> new AiDocumentShareResponse(
-                                document.documentId(),
-                                document.attachmentId(),
-                                document.fileName(),
-                                document.contentType(),
-                                document.sizeBytes(),
-                                document.expiresAt(),
-                                document.contentStatus()
-                        ))
-                        .toList(),
-                assistant,
-                parsedFields.isPresent(),
-                assistant.fallbackReason(),
-                projectCreationActionPayload(intent, consentToken, fields, attachments, temporaryAccess)
+                temporaryAccess,
+                documentReferences
         );
+    }
+
+    private ProductCreationIntent completeAnalysis(
+            UUID intentId,
+            ProductCreationFields fields,
+            AssistantQueryResponse assistant,
+            int temporaryAccessCount
+    ) {
+        ProductCreationIntent intent = intentRepository.findById(intentId)
+                .orElseThrow(() -> new IllegalArgumentException("Project creation intent not found"));
+        applyAnalysis(intent, fields, assistant, temporaryAccessCount);
+        intent.setStatus(ProductCreationIntent.Status.READY_FOR_ACTION);
+        return intentRepository.save(intent);
     }
 
     private List<ProjectCreationDocumentReference> projectCreationDocumentReferences(
@@ -347,7 +387,7 @@ public class AiAssistedProductCreationService {
             ProductCreationIntent intent,
             String consentToken,
             ProductCreationFields fields,
-            List<ProductProjectAttachment> attachments,
+            List<ProductProjectAttachmentResponse> attachments,
             List<ProductProjectAttachmentService.TemporaryAiDocumentAccess> temporaryAccess
     ) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -365,10 +405,17 @@ public class AiAssistedProductCreationService {
         payload.put("aiCreationSummary", intent.getAiCreationSummary());
         payload.put("assumptions", fields.assumptions());
         payload.put("missingEvidence", fields.missingEvidence());
-        payload.put("sourceAttachmentIds", attachments.stream().map(attachment -> attachment.getId().toString()).toList());
+        payload.put("sourceAttachmentIds", attachments.stream().map(attachment -> attachment.id().toString()).toList());
         payload.put("aiAccessibleAttachmentIds", temporaryAccess.stream().map(access -> access.attachmentId().toString()).toList());
         return payload;
     }
+
+    private record AnalysisStart(
+            UUID intentId,
+            List<ProductProjectAttachmentResponse> attachments,
+            List<ProductProjectAttachmentService.TemporaryAiDocumentAccess> temporaryAccess,
+            List<ProjectCreationDocumentReference> documentReferences
+    ) {}
 
     private ProductCreationActionResponse actionResponse(
             ProductCreationIntent intent,

@@ -38,12 +38,24 @@ public class SecurityAuditFilter extends OncePerRequestFilter {
                         status,
                         MDC.get("requestId"),
                         request.getMethod(),
-                        request.getRequestURI(),
+                        auditPath(request),
                         actor(request),
                         request.getRemoteAddr()
                 );
             }
         }
+    }
+
+    private String auditPath(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        if (path == null) {
+            return "";
+        }
+        String aiAccessPrefix = "/api/product-attachments/ai-access/";
+        if (path.startsWith(aiAccessPrefix)) {
+            return aiAccessPrefix + "[redacted]";
+        }
+        return path;
     }
 
     private String actor(HttpServletRequest request) {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.ai.LoomAIIntegrationService;
 import com.produs.service.AuditService;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
@@ -26,7 +27,8 @@ class AiAssistedProductCreationServiceTest {
                 mock(ProductProjectAttachmentService.class),
                 mock(LoomAIIntegrationService.class),
                 mock(AuditService.class),
-                new ObjectMapper()
+                new ObjectMapper(),
+                mock(TransactionTemplate.class)
         );
         LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(
                 "LOOMAI",
@@ -96,7 +98,8 @@ class AiAssistedProductCreationServiceTest {
                 mock(ProductProjectAttachmentService.class),
                 mock(LoomAIIntegrationService.class),
                 mock(AuditService.class),
-                new ObjectMapper()
+                new ObjectMapper(),
+                mock(TransactionTemplate.class)
         );
         LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(
                 "LOOMAI",
@@ -155,7 +158,8 @@ class AiAssistedProductCreationServiceTest {
                 mock(ProductProjectAttachmentService.class),
                 mock(LoomAIIntegrationService.class),
                 mock(AuditService.class),
-                new ObjectMapper()
+                new ObjectMapper(),
+                mock(TransactionTemplate.class)
         );
         LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(
                 "LOOMAI",
@@ -225,7 +229,8 @@ class AiAssistedProductCreationServiceTest {
                 mock(ProductProjectAttachmentService.class),
                 mock(LoomAIIntegrationService.class),
                 mock(AuditService.class),
-                new ObjectMapper()
+                new ObjectMapper(),
+                mock(TransactionTemplate.class)
         );
         AiAssistedProductCreationService.ProductCreationFields fields =
                 new AiAssistedProductCreationService.ProductCreationFields(
@@ -279,7 +284,8 @@ class AiAssistedProductCreationServiceTest {
                 mock(ProductProjectAttachmentService.class),
                 mock(LoomAIIntegrationService.class),
                 mock(AuditService.class),
-                new ObjectMapper()
+                new ObjectMapper(),
+                mock(TransactionTemplate.class)
         );
         AiAssistedProductCreationService.ProductCreationFields partialAiFields =
                 new AiAssistedProductCreationService.ProductCreationFields(
