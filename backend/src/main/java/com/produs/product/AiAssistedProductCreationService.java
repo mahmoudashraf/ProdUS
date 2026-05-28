@@ -533,17 +533,17 @@ public class AiAssistedProductCreationService {
             }
             JsonNode node = objectMapper.valueToTree(providedParameters);
             return Optional.of(new ProductCreationFields(
-                    text(node, "productName", "name"),
-                    text(node, "summary", "productSummary"),
+                    text(node, "productName", "draftName", "name"),
+                    text(node, "summary", "outcomeSummary", "productSummary"),
                     text(node, "businessStage", "stage"),
-                    text(node, "techStack"),
+                    text(node, "techStack", "stack"),
                     text(node, "productUrl"),
                     text(node, "repositoryUrl", "repoUrl"),
-                    text(node, "riskProfile", "risks"),
-                    text(node, "aiCreationSummary", "creationSummary"),
+                    text(node, "riskProfile", "riskNotes", "risks"),
+                    text(node, "aiCreationSummary", "analysisSummary", "creationSummary"),
                     textList(node, "assumptions"),
                     textList(node, "missingEvidence", "missing_evidence"),
-                    documentUsageList(node, "documentUsage", "document_usage")
+                    documentUsageList(node, "documentUsage", "document_usage", "documentUse")
             ));
         }
         return Optional.empty();
@@ -569,17 +569,17 @@ public class AiAssistedProductCreationService {
                 return Optional.empty();
             }
             return Optional.of(new ProductCreationFields(
-                    text(node, "productName", "name"),
-                    text(node, "summary", "productSummary"),
+                    text(node, "productName", "draftName", "name"),
+                    text(node, "summary", "outcomeSummary", "productSummary"),
                     text(node, "businessStage", "stage"),
-                    text(node, "techStack"),
+                    text(node, "techStack", "stack"),
                     text(node, "productUrl"),
                     text(node, "repositoryUrl", "repoUrl"),
-                    text(node, "riskProfile", "risks"),
-                    text(node, "aiCreationSummary", "creationSummary"),
+                    text(node, "riskProfile", "riskNotes", "risks"),
+                    text(node, "aiCreationSummary", "analysisSummary", "creationSummary"),
                     textList(node, "assumptions"),
                     textList(node, "missingEvidence", "missing_evidence"),
-                    documentUsageList(node, "documentUsage", "document_usage")
+                    documentUsageList(node, "documentUsage", "document_usage", "documentUse")
             ));
         } catch (Exception ignored) {
             return Optional.empty();

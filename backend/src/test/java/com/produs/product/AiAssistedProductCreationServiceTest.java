@@ -147,6 +147,76 @@ class AiAssistedProductCreationServiceTest {
     }
 
     @Test
+    void parsesNeutralOwnerIntakeAnalysisFields() throws Exception {
+        AiAssistedProductCreationService service = new AiAssistedProductCreationService(
+                mock(ProductProfileRepository.class),
+                mock(ProductCreationIntentRepository.class),
+                mock(ProductProjectAttachmentRepository.class),
+                mock(ProductProjectAttachmentService.class),
+                mock(LoomAIIntegrationService.class),
+                mock(AuditService.class),
+                new ObjectMapper()
+        );
+        LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(
+                "LOOMAI",
+                "LIVE",
+                true,
+                "INFORMATION_PROVIDED",
+                "",
+                """
+                        {
+                          "draftName": "Matchly Evidence Router",
+                          "outcomeSummary": "Routes owner evidence into a production-readiness workspace.",
+                          "stage": "PROTOTYPE",
+                          "stack": "Next.js 15, Spring Boot 3, PostgreSQL",
+                          "productUrl": "https://produs-staging.46.224.145.148.sslip.io/",
+                          "repositoryUrl": "https://github.com/mahmoudashraf/ProdUS",
+                          "riskNotes": "CI evidence and deployment runbook are missing.",
+                          "analysisSummary": "Temporary document URL was opened and used for intake analysis.",
+                          "assumptions": ["Owner wants production-readiness workflow support."],
+                          "missingEvidence": [],
+                          "documentUsage": [
+                            {
+                              "documentId": "doc-project-overview",
+                              "fileName": "PROJECT_OVERVIEW.md",
+                              "status": "USED",
+                              "accessMethod": "TEMPORARY_URL",
+                              "evidence": ["The document names Next.js 15 and Spring Boot 3."],
+                              "reason": "Temporary URL opened and parsed successfully."
+                            }
+                          ]
+                        }
+                        """,
+                "conversation-1",
+                0.0,
+                List.of(),
+                List.of(),
+                List.of(),
+                "",
+                "rag-test"
+        );
+
+        Method parser = AiAssistedProductCreationService.class
+                .getDeclaredMethod("parseFields", LoomAIIntegrationService.AssistantQueryResponse.class);
+        parser.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        Optional<AiAssistedProductCreationService.ProductCreationFields> fields =
+                (Optional<AiAssistedProductCreationService.ProductCreationFields>) parser.invoke(service, response);
+
+        assertThat(fields).isPresent();
+        assertThat(fields.orElseThrow().productName()).isEqualTo("Matchly Evidence Router");
+        assertThat(fields.orElseThrow().summary()).contains("production-readiness workspace");
+        assertThat(fields.orElseThrow().businessStage()).isEqualTo("PROTOTYPE");
+        assertThat(fields.orElseThrow().techStack()).contains("Spring Boot 3");
+        assertThat(fields.orElseThrow().riskProfile()).contains("deployment runbook");
+        assertThat(fields.orElseThrow().aiCreationSummary()).contains("Temporary document URL");
+        assertThat(fields.orElseThrow().documentUsage().get(0).status()).isEqualTo("USED");
+        assertThat(fields.orElseThrow().documentUsage().get(0).evidence())
+                .containsExactly("The document names Next.js 15 and Spring Boot 3.");
+    }
+
+    @Test
     void addsNotUsedEvidenceWhenLoomAiOmitsSelectedDocumentUsage() throws Exception {
         AiAssistedProductCreationService service = new AiAssistedProductCreationService(
                 mock(ProductProfileRepository.class),

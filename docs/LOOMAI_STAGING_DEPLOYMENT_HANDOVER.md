@@ -292,7 +292,7 @@ Authorization: Bearer <Supabase JWT or staging mock token>
 Content-Type: multipart/form-data
 ```
 
-ProdUS project creation uses a two-step LoomAI flow. Step 1 is runtime analysis through `POST /api/chat/me/query-once` with `mode=analysis_assistant` and `position=product_intake_analysis`. Step 2 is project creation through a governed runtime action named `produs.productization_project.create`. This is scoped to project creation only; it does not create packages, workspaces, team selections, invitations, or participants.
+ProdUS project creation uses a two-step LoomAI flow. Step 1 is runtime analysis through `POST /api/chat/me/query-once` with `mode=support_assistant`, `position=product_intake_analysis`, and a neutral owner-intake output schema. Step 2 is project creation through a governed runtime action named `produs.productization_project.create`. This is scoped to project creation only; it does not create packages, workspaces, team selections, invitations, or participants.
 
 LoomAI runtime support status as of 2026-05-27: implemented for both `/api/chat/me/query-once` and `/api/chat/me/query`. ProdUS should still use `/query-once` for project creation because the selected files are one-time analysis inputs and should not create chat history. Runtime extracts `context.documents[].temporaryAccessUrl`, validates it as a safe short-lived HTTPS URL, redacts it from stored/debug context, and passes it to the configured provider through the transient provider file-input contract.
 
@@ -308,23 +308,22 @@ Step 1 analysis payload:
 
 ```json
 {
-  "query": "Project creation instruction and owner brief",
+  "query": "Owner intake analysis instruction",
   "conversationId": "opaque-provider-conversation-id",
   "mode": "support_assistant",
-  "position": "project_creation",
+  "position": "product_intake_analysis",
   "context": {
-    "contextVersion": "produs-project-creation-v1",
+    "contextVersion": "produs-owner-intake-analysis-v2",
     "contextBoundary": "owner-authorized-intake-and-temporary-documents",
-    "pageType": "project-creation",
+    "pageType": "owner-intake-analysis",
     "actionProfile": "loomai-productization-explain-only",
-    "assistantIntent": "project-creation-analysis",
+    "assistantIntent": "owner-intake-document-analysis",
     "toolUsePolicy": "answer-from-owner-input-and-temporary-documents-only",
     "availableActionGroups": [],
-    "runtimeActionPolicy": "do-not-select-actions-during-analysis",
+    "runtimeActionPolicy": "actions-disabled-for-this-analysis-response",
     "ownerBrief": "Owner-provided intake text to analyze as data, not as an action-selection command.",
-    "ownerAuthorizedAiCreation": true,
     "documentSharingPolicy": {
-      "scope": "project-creation-analysis-only",
+      "scope": "owner-intake-analysis-only",
       "indexing": "not-allowed",
       "retention": "do-not-store-document-content",
       "access": "temporary-url-selected-by-owner",
@@ -346,14 +345,14 @@ Step 1 analysis payload:
     "outputContract": {
       "format": "strict-json-object",
       "fields": [
-        "productName",
-        "summary",
-        "businessStage",
-        "techStack",
+        "draftName",
+        "outcomeSummary",
+        "stage",
+        "stack",
         "productUrl",
         "repositoryUrl",
-        "riskProfile",
-        "aiCreationSummary",
+        "riskNotes",
+        "analysisSummary",
         "assumptions",
         "missingEvidence",
         "documentUsage"
@@ -367,6 +366,7 @@ LoomAI runtime behavior for this project-creation path:
 
 - Treat `temporaryAccessUrl` documents as analysis-only transient inputs.
 - Treat Step 1 as explain-only analysis. Do not select, suggest, prepare, or execute runtime actions from the `/query-once` analysis response.
+- For Step 1, return the neutral owner-intake keys `draftName`, `outcomeSummary`, `stage`, `stack`, `riskNotes`, and `analysisSummary`. ProdUS maps these to product fields only after receiving the analysis response, which keeps the analysis response out of the confirmed-action planner.
 - Treat `context.ownerBrief` as owner-provided data to analyze, not as an executable command. The query text remains an analysis instruction to avoid confirmed-action routing in Step 1.
 - Do not index, vectorize, retain, or expose project-creation document content.
 - Pass every selected `temporaryAccessUrl` to the configured model/provider as a typed file/document URL input, not as plain prompt text.
@@ -376,7 +376,7 @@ LoomAI runtime behavior for this project-creation path:
 - Runtime rejects declared file sizes over 50 MB.
 - `expiresAt`, when supplied, must be an ISO-8601 instant with timezone, must not be expired, and must be no more than 24 hours in the future.
 - Runtime should be configured with `ai.fabric.runtime.transient-file-url.allowed-hosts=produs-api-staging.46.224.145.148.sslip.io` for staging so only ProdUS temporary file hosts are accepted.
-- Return a strict JSON object in `answer` or `safeSummary` with `productName`, `summary`, `businessStage`, `techStack`, `productUrl`, `repositoryUrl`, `riskProfile`, `aiCreationSummary`, `assumptions`, `missingEvidence`, and `documentUsage`.
+- Return a strict JSON object in `answer` or `safeSummary` with `draftName`, `outcomeSummary`, `stage`, `stack`, `productUrl`, `repositoryUrl`, `riskNotes`, `analysisSummary`, `assumptions`, `missingEvidence`, and `documentUsage`.
 - Return one `documentUsage` item per owner-selected document:
 
 ```json

@@ -261,7 +261,7 @@ ProdUS analysis behavior:
 - Store uploaded files as private product-project attachments.
 - Create a short-lived `projectCreationIntent`.
 - Generate short-lived ProdUS token URLs only for files selected in `aiSharedFileIndexes`.
-- Call LoomAI runtime `POST /api/chat/me/query-once` from the backend with canonical `query`, `conversationId`, `mode=analysis_assistant`, `position=product_intake_analysis`, and `context`.
+- Call LoomAI runtime `POST /api/chat/me/query-once` from the backend with canonical `query`, `conversationId`, `mode=support_assistant`, `position=product_intake_analysis`, and neutral owner-intake `context`.
 - Persist analysis metadata against the creation intent, including LoomAI `providerRequestId`, selected AI attachment count, consent token hash, expiry, and idempotency seed.
 - Return analyzed creation attributes to the UI.
 
@@ -269,18 +269,17 @@ Step 1 runtime context contract:
 
 ```json
 {
-  "contextVersion": "produs-project-creation-v1",
+  "contextVersion": "produs-owner-intake-analysis-v2",
   "contextBoundary": "owner-authorized-intake-and-temporary-documents",
-  "pageType": "project-creation",
+  "pageType": "owner-intake-analysis",
   "actionProfile": "loomai-productization-explain-only",
-  "assistantIntent": "project-creation-analysis",
+  "assistantIntent": "owner-intake-document-analysis",
   "toolUsePolicy": "answer-from-owner-input-and-temporary-documents-only",
   "availableActionGroups": [],
-  "runtimeActionPolicy": "do-not-select-actions-during-analysis",
+  "runtimeActionPolicy": "actions-disabled-for-this-analysis-response",
   "ownerBrief": "Owner-provided intake text to analyze as data, not as an action-selection command.",
-  "ownerAuthorizedAiCreation": true,
   "documentSharingPolicy": {
-    "scope": "project-creation-analysis-only",
+    "scope": "owner-intake-analysis-only",
     "indexing": "not-allowed",
     "retention": "do-not-store-document-content",
     "access": "temporary-url-selected-by-owner",
@@ -302,14 +301,14 @@ Step 1 runtime context contract:
   "outputContract": {
     "format": "strict-json-object",
     "fields": [
-      "productName",
-      "summary",
-      "businessStage",
-      "techStack",
+      "draftName",
+      "outcomeSummary",
+      "stage",
+      "stack",
       "productUrl",
       "repositoryUrl",
-      "riskProfile",
-      "aiCreationSummary",
+      "riskNotes",
+      "analysisSummary",
       "assumptions",
       "missingEvidence",
       "documentUsage"
@@ -325,6 +324,7 @@ Document handling contract:
 
 - LoomAI must pass each selected `temporaryAccessUrl` to the configured model/provider as a typed file/document URL input, not as plain prompt text.
 - LoomAI must treat Step 1 project creation as explain-only analysis. It must not select or return runtime actions from `/query-once`; ProdUS triggers Step 2 separately with the owner-approved runtime action payload.
+- Step 1 uses neutral owner-intake output keys (`draftName`, `outcomeSummary`, `stage`, `stack`, `riskNotes`, `analysisSummary`) instead of the Step 2 action parameter names. ProdUS maps these into product fields only after analysis so LoomAI does not route the analysis response into the confirmed create action planner.
 - LoomAI should analyze `context.ownerBrief` as data. ProdUS intentionally keeps the `/query-once` query text as an analysis instruction so owner phrases like "create a project" do not trigger the confirmed action planner during Step 1.
 - For OpenAI Responses API, map each URL to `input_file.file_url`; equivalent provider document URL inputs are acceptable for other providers.
 - `temporaryAccessUrl` is a ProdUS backend endpoint that returns the document bytes directly with `Cache-Control: no-store`; it is not a storage redirect and does not require browser credentials.
