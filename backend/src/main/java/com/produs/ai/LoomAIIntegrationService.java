@@ -230,8 +230,8 @@ public class LoomAIIntegrationService {
             AssistantQueryRequest assistantRequest = new AssistantQueryRequest(
                     conversationId,
                     projectCreationPrompt(request),
-                    "support_assistant",
-                    "project_creation",
+                    "analysis_assistant",
+                    "product_intake_analysis",
                     null
             );
             ProviderJsonResponse response = postJson(
