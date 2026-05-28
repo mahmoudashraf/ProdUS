@@ -1094,7 +1094,11 @@ public class LoomAIIntegrationService {
         context.put("contextVersion", "produs-project-creation-v1");
         context.put("contextBoundary", "owner-authorized-intake-and-temporary-documents");
         context.put("pageType", "project-creation");
-        context.put("actionProfile", "project-creation-analysis-only");
+        context.put("actionProfile", "loomai-productization-explain-only");
+        context.put("assistantIntent", "project-creation-analysis");
+        context.put("toolUsePolicy", "answer-from-owner-input-and-temporary-documents-only");
+        context.put("availableActionGroups", List.of());
+        context.put("runtimeActionPolicy", "do-not-select-actions-during-analysis");
         context.put("actorRole", user.getRole().name());
         context.put("ownerAuthorizedAiCreation", true);
         context.put("productId", request.productId() == null ? "" : request.productId().toString());
@@ -1149,6 +1153,8 @@ public class LoomAIIntegrationService {
     private String projectCreationPrompt(ProjectCreationAssistantRequest request) {
         return """
                 You are ProdUS project creation AI. The owner opted into AI-assisted project creation.
+                This is Step 1 analysis only. Do not select, suggest, prepare, or execute runtime actions in this response.
+                ProdUS will run Step 2 project creation separately after the owner reviews these attributes.
                 Analyze the owner input and every owner-selected temporary document. Do not index, retain, or expose document content.
                 For every selected document, your provider adapter must pass temporaryAccessUrl as a typed file/document URL input, such as OpenAI Responses API input_file.file_url.
                 The URL returns the document bytes directly from ProdUS with no browser credentials, no custom headers, no HTML preview, and no storage redirect.

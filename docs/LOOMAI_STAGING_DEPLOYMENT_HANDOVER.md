@@ -316,7 +316,11 @@ Step 1 analysis payload:
     "contextVersion": "produs-project-creation-v1",
     "contextBoundary": "owner-authorized-intake-and-temporary-documents",
     "pageType": "project-creation",
-    "actionProfile": "project-creation-analysis-only",
+    "actionProfile": "loomai-productization-explain-only",
+    "assistantIntent": "project-creation-analysis",
+    "toolUsePolicy": "answer-from-owner-input-and-temporary-documents-only",
+    "availableActionGroups": [],
+    "runtimeActionPolicy": "do-not-select-actions-during-analysis",
     "ownerAuthorizedAiCreation": true,
     "documentSharingPolicy": {
       "scope": "project-creation-analysis-only",
@@ -361,6 +365,7 @@ Step 1 analysis payload:
 LoomAI runtime behavior for this project-creation path:
 
 - Treat `temporaryAccessUrl` documents as analysis-only transient inputs.
+- Treat Step 1 as explain-only analysis. Do not select, suggest, prepare, or execute runtime actions from the `/query-once` analysis response.
 - Do not index, vectorize, retain, or expose project-creation document content.
 - Pass every selected `temporaryAccessUrl` to the configured model/provider as a typed file/document URL input, not as plain prompt text.
 - Fetch/open every temporary document URL during the request window only. The URL is a ProdUS backend endpoint that returns the document bytes directly with `Cache-Control: no-store`; it is not a redirect and does not require browser credentials, custom headers, or cookies.
