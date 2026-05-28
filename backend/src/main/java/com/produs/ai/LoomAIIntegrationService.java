@@ -1152,9 +1152,9 @@ public class LoomAIIntegrationService {
 
     private String projectCreationPrompt(ProjectCreationAssistantRequest request) {
         return """
-                You are ProdUS project creation AI. The owner opted into AI-assisted project creation.
+                You are ProdUS owner-intake analysis AI. The owner opted into AI-assisted intake analysis.
                 This is Step 1 analysis only. Do not select, suggest, prepare, or execute runtime actions in this response.
-                ProdUS will run Step 2 project creation separately after the owner reviews these attributes.
+                ProdUS backend will handle any later save separately after the owner reviews these fields.
                 Analyze the owner input and every owner-selected temporary document. Do not index, retain, or expose document content.
                 For every selected document, your provider adapter must pass temporaryAccessUrl as a typed file/document URL input, such as OpenAI Responses API input_file.file_url.
                 The URL returns the document bytes directly from ProdUS with no browser credentials, no custom headers, no HTML preview, and no storage redirect.
@@ -1165,7 +1165,7 @@ public class LoomAIIntegrationService {
                 documentUsage.status must be one of USED, NOT_USED.
                 documentUsage.accessMethod must be one of TEMPORARY_URL, NONE.
                 If you cannot access or use a selected document, add a concise missingEvidence item that says which document was not analyzed and why.
-                Return the best initial project creation attributes for ProdUS to pass into a separate runtime action. Return only a strict JSON object with:
+                Return the best initial product profile fields for owner review. Return only a strict JSON object with:
                 productName, summary, businessStage, techStack, productUrl, repositoryUrl, riskProfile, aiCreationSummary, assumptions, missingEvidence, documentUsage.
                 Use one businessStage value from IDEA, PROTOTYPE, VALIDATED, LIVE, SCALING.
                 assumptions and missingEvidence must be arrays of concise strings.
