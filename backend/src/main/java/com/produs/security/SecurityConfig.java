@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/expert-profiles", "/api/expert-profiles/{id}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/ai/loomai/knowledge-export").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/product-attachments/ai-access/**").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/api/product-attachments/ai-access/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/scanner/connectors/github/callback").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/scanner/connectors/gitlab/callback").permitAll()
 
@@ -91,7 +92,7 @@ public class SecurityConfig {
                 .map(String::trim)
                 .filter(origin -> !origin.isBlank())
                 .toList());
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of(
                 "Authorization",
                 "Content-Type",
