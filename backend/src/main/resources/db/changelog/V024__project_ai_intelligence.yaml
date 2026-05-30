@@ -1,0 +1,145 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2400
+      author: produs
+      changes:
+        - createTable:
+            tableName: product_project_intelligence
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: creation_intent_id, type: UUID }
+              - column: { name: analysis_provider, type: VARCHAR(80) }
+              - column: { name: analysis_provider_request_id, type: VARCHAR(255) }
+              - column: { name: analysis_schema_version, type: VARCHAR(120), defaultValue: produs-project-analysis-v1, constraints: { nullable: false } }
+              - column: { name: analysis_json, type: TEXT, constraints: { nullable: false } }
+              - column: { name: owner_approved_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: created_by_ai, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: product_project_intelligence
+            columnNames: product_profile_id
+            constraintName: uk_product_project_intelligence_product
+        - addForeignKeyConstraint:
+            baseTableName: product_project_intelligence
+            baseColumnNames: product_profile_id
+            constraintName: fk_product_project_intelligence_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: product_project_intelligence
+            baseColumnNames: creation_intent_id
+            constraintName: fk_product_project_intelligence_intent
+            referencedTableName: product_creation_intents
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_project_intelligence
+            indexName: idx_product_project_intelligence_provider_request
+            columns:
+              - column: { name: analysis_provider_request_id }
+
+  - changeSet:
+      id: 2401
+      author: produs
+      changes:
+        - createTable:
+            tableName: product_service_recommendations
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: service_module_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: module_code, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: priority, type: VARCHAR(50), defaultValue: SHOULD, constraints: { nullable: false } }
+              - column: { name: sequence_number, type: INT, constraints: { nullable: false } }
+              - column: { name: reason, type: TEXT }
+              - column: { name: evidence_basis_json, type: TEXT }
+              - column: { name: expected_outcome, type: TEXT }
+              - column: { name: confidence, type: DOUBLE }
+              - column: { name: status, type: VARCHAR(50), defaultValue: RECOMMENDED, constraints: { nullable: false } }
+              - column: { name: created_by_ai, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: product_service_recommendations
+            baseColumnNames: product_profile_id
+            constraintName: fk_product_service_recommendations_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: product_service_recommendations
+            baseColumnNames: service_module_id
+            constraintName: fk_product_service_recommendations_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_service_recommendations
+            indexName: idx_product_service_recommendations_product_sequence
+            columns:
+              - column: { name: product_profile_id }
+              - column: { name: sequence_number }
+        - createIndex:
+            tableName: product_service_recommendations
+            indexName: idx_product_service_recommendations_module
+            columns:
+              - column: { name: service_module_id }
+
+  - changeSet:
+      id: 2402
+      author: produs
+      changes:
+        - createTable:
+            tableName: product_scanner_recommendations
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: scanner_focus_area, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: source, type: VARCHAR(80), defaultValue: AI_PROJECT_ANALYSIS, constraints: { nullable: false } }
+              - column: { name: reason, type: TEXT }
+              - column: { name: recommended_checks_json, type: TEXT }
+              - column: { name: status, type: VARCHAR(50), defaultValue: SUGGESTED, constraints: { nullable: false } }
+              - column: { name: created_by_ai, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: product_scanner_recommendations
+            baseColumnNames: product_profile_id
+            constraintName: fk_product_scanner_recommendations_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_scanner_recommendations
+            indexName: idx_product_scanner_recommendations_product
+            columns:
+              - column: { name: product_profile_id }
+
+  - changeSet:
+      id: 2403
+      author: produs
+      changes:
+        - createTable:
+            tableName: product_readiness_tasks
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: source, type: VARCHAR(80), defaultValue: AI_PROJECT_ANALYSIS, constraints: { nullable: false } }
+              - column: { name: source_analysis_field, type: VARCHAR(120) }
+              - column: { name: priority, type: VARCHAR(50), defaultValue: MEDIUM, constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(50), defaultValue: OPEN, constraints: { nullable: false } }
+              - column: { name: created_by_ai, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addForeignKeyConstraint:
+            baseTableName: product_readiness_tasks
+            baseColumnNames: product_profile_id
+            constraintName: fk_product_readiness_tasks_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_readiness_tasks
+            indexName: idx_product_readiness_tasks_product_status
+            columns:
+              - column: { name: product_profile_id }
+              - column: { name: status }

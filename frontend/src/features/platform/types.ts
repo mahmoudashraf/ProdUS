@@ -199,6 +199,25 @@ export interface DocumentUsageEvidence {
   reason?: string;
 }
 
+export interface ServiceModuleRecommendation {
+  moduleCode: string;
+  moduleName?: string;
+  categorySlug?: string;
+  priority?: 'MUST' | 'SHOULD' | 'COULD' | 'LATER' | string;
+  sequence?: number;
+  reason?: string;
+  evidenceBasis?: string[];
+  expectedOutcome?: string;
+  confidence?: number;
+  accepted?: boolean;
+}
+
+export interface MissingCatalogCoverage {
+  need: string;
+  reason?: string;
+  suggestedCatalogAction?: string;
+}
+
 export interface ProductCreationIntent {
   id: string;
   status: 'ANALYZING' | 'READY_FOR_ACTION' | 'CREATED' | 'EXPIRED' | 'FAILED';
@@ -226,6 +245,8 @@ export interface ProductCreationFields {
   businessOutcomes?: string[];
   readinessGoals?: string[];
   recommendedServices?: string[];
+  recommendedServiceModules?: ServiceModuleRecommendation[];
+  missingCatalogCoverage?: MissingCatalogCoverage[];
   scannerFocusAreas?: string[];
   suggestedNextSteps?: string[];
   sourceInsights?: string[];
@@ -251,6 +272,10 @@ export interface ProductCreationActionResponse {
   attachments: ProductProjectAttachment[];
   auditEventId?: string;
   idempotentReplay: boolean;
+  projectIntelligenceId?: string;
+  createdServiceRecommendations: number;
+  createdScannerRecommendations: number;
+  createdReadinessTasks: number;
 }
 
 export interface ScanSource extends BaseRecord {

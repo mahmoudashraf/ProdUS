@@ -7,6 +7,8 @@ import com.produs.ai.LoomAIIntegrationService.AssistantQueryResponse;
 import com.produs.ai.LoomAIIntegrationService.ProjectCreationAssistantRequest;
 import com.produs.ai.LoomAIIntegrationService.ProjectCreationDocumentReference;
 import com.produs.audit.AuditEvent;
+import com.produs.catalog.ServiceModule;
+import com.produs.catalog.ServiceModuleRepository;
 import com.produs.dto.PlatformDtos.ProductProfileResponse;
 import com.produs.entity.User;
 import com.produs.service.AuditService;
@@ -23,6 +25,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,8 +47,13 @@ public class AiAssistedProductCreationService {
     private final ProductProfileRepository productRepository;
     private final ProductCreationIntentRepository intentRepository;
     private final ProductProjectAttachmentRepository attachmentRepository;
+    private final ProductProjectIntelligenceRepository intelligenceRepository;
+    private final ProductServiceRecommendationRepository serviceRecommendationRepository;
+    private final ProductScannerRecommendationRepository scannerRecommendationRepository;
+    private final ProductReadinessTaskRepository readinessTaskRepository;
     private final ProductProjectAttachmentService attachmentService;
     private final LoomAIIntegrationService loomAIIntegrationService;
+    private final ServiceModuleRepository serviceModuleRepository;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
@@ -239,6 +247,11 @@ public class AiAssistedProductCreationService {
             attachmentRepository.save(attachment);
         }
 
+        ProductProjectIntelligence intelligence = persistProjectIntelligence(intent, saved, request);
+        int serviceRecommendationCount = persistServiceRecommendations(saved, request.recommendedServiceModules());
+        int scannerRecommendationCount = persistScannerRecommendations(saved, request.scannerFocusAreas());
+        int readinessTaskCount = persistReadinessTasks(saved, request);
+
         intent.setProductProfile(saved);
         intent.setStatus(ProductCreationIntent.Status.CREATED);
         intent.setCreatedProductAt(LocalDateTime.now());
@@ -260,11 +273,11 @@ public class AiAssistedProductCreationService {
                 "PRODUCT_PROFILE",
                 saved.getId(),
                 AuditEvent.RiskLevel.MEDIUM,
-                "AI project creation action executed via ProdUS runtime action; intent=%s idempotencyKey=%s providerRequestId=%s"
-                        .formatted(intent.getId(), intent.getIdempotencyKey(), nullToEmpty(saved.getAiProviderRequestId()))
+                "AI project creation action executed via ProdUS runtime action; intent=%s idempotencyKey=%s providerRequestId=%s serviceRecommendations=%d scannerRecommendations=%d readinessTasks=%d"
+                        .formatted(intent.getId(), intent.getIdempotencyKey(), nullToEmpty(saved.getAiProviderRequestId()), serviceRecommendationCount, scannerRecommendationCount, readinessTaskCount)
         );
 
-        return actionResponse(intent, saved, audit.getId(), true);
+        return actionResponse(intent, saved, audit.getId(), true, intelligence.getId(), serviceRecommendationCount, scannerRecommendationCount, readinessTaskCount);
     }
 
     @Transactional
@@ -295,6 +308,10 @@ public class AiAssistedProductCreationService {
             payload.put("aiProviderRequestId", response.product().aiProviderRequestId());
             payload.put("attachmentCount", response.attachments().size());
             payload.put("aiSourceAttachmentCount", response.product().aiSourceAttachmentCount());
+            payload.put("projectIntelligenceId", response.projectIntelligenceId() == null ? "" : response.projectIntelligenceId().toString());
+            payload.put("serviceRecommendationCount", response.createdServiceRecommendations());
+            payload.put("scannerRecommendationCount", response.createdScannerRecommendations());
+            payload.put("readinessTaskCount", response.createdReadinessTasks());
             payload.put("auditEventId", response.auditEventId() == null ? "" : response.auditEventId().toString());
             payload.put("idempotencyKey", response.intent().idempotencyKey());
             payload.put("idempotentReplay", response.idempotentReplay());
@@ -393,6 +410,7 @@ public class AiAssistedProductCreationService {
         addListPart(parts, "Outcomes", fields.businessOutcomes());
         addListPart(parts, "Readiness goals", fields.readinessGoals());
         addListPart(parts, "Recommended services", fields.recommendedServices());
+        addListPart(parts, "Catalog service modules", serviceModuleRecommendationLabels(fields.recommendedServiceModules()));
         addListPart(parts, "Scanner focus", fields.scannerFocusAreas());
         addListPart(parts, "Next steps", fields.suggestedNextSteps());
         addListPart(parts, "Source insights", fields.sourceInsights());
@@ -410,6 +428,7 @@ public class AiAssistedProductCreationService {
         addListPart(parts, "Outcomes", request.businessOutcomes());
         addListPart(parts, "Readiness goals", request.readinessGoals());
         addListPart(parts, "Recommended services", request.recommendedServices());
+        addListPart(parts, "Catalog service modules", serviceModuleRecommendationLabels(request.recommendedServiceModules()));
         addListPart(parts, "Scanner focus", request.scannerFocusAreas());
         addListPart(parts, "Next steps", request.suggestedNextSteps());
         addListPart(parts, "Source insights", request.sourceInsights());
@@ -432,6 +451,15 @@ public class AiAssistedProductCreationService {
         if (!cleaned.isEmpty()) {
             parts.add(label + ": " + String.join("; ", cleaned));
         }
+    }
+
+    private List<String> serviceModuleRecommendationLabels(List<ServiceModuleRecommendation> recommendations) {
+        return listOrEmpty(recommendations).stream()
+                .filter(ServiceModuleRecommendation::acceptedOrDefault)
+                .map(recommendation -> firstNonBlank(recommendation.moduleName(), recommendation.moduleCode()))
+                .filter(value -> !value.isBlank())
+                .limit(6)
+                .toList();
     }
 
     private Map<String, Object> projectCreationActionPayload(
@@ -461,6 +489,8 @@ public class AiAssistedProductCreationService {
         payload.put("businessOutcomes", fields.businessOutcomes());
         payload.put("readinessGoals", fields.readinessGoals());
         payload.put("recommendedServices", fields.recommendedServices());
+        payload.put("recommendedServiceModules", fields.recommendedServiceModules());
+        payload.put("missingCatalogCoverage", fields.missingCatalogCoverage());
         payload.put("scannerFocusAreas", fields.scannerFocusAreas());
         payload.put("suggestedNextSteps", fields.suggestedNextSteps());
         payload.put("sourceInsights", fields.sourceInsights());
@@ -478,11 +508,214 @@ public class AiAssistedProductCreationService {
             List<ProjectCreationDocumentReference> documentReferences
     ) {}
 
+    private ProductProjectIntelligence persistProjectIntelligence(
+            ProductCreationIntent intent,
+            ProductProfile product,
+            ProductCreationActionRequest request
+    ) {
+        ProductProjectIntelligence intelligence = new ProductProjectIntelligence();
+        intelligence.setProductProfile(product);
+        intelligence.setCreationIntent(intent);
+        intelligence.setAnalysisProvider("LOOMAI");
+        intelligence.setAnalysisProviderRequestId(firstNonBlank(request.analysisProviderRequestId(), intent.getAnalysisProviderRequestId()));
+        intelligence.setAnalysisSchemaVersion("produs-project-analysis-v1");
+        intelligence.setAnalysisJson(writeAnalysisJson(request));
+        intelligence.setOwnerApprovedAt(LocalDateTime.now());
+        intelligence.setCreatedByAi(true);
+        return intelligenceRepository.save(intelligence);
+    }
+
+    private int persistServiceRecommendations(
+            ProductProfile product,
+            List<ServiceModuleRecommendation> recommendations
+    ) {
+        List<ServiceModuleRecommendation> selected = listOrEmpty(recommendations).stream()
+                .filter(recommendation -> recommendation != null && recommendation.acceptedOrDefault())
+                .sorted(Comparator.comparingInt(ServiceModuleRecommendation::sequenceOrDefault))
+                .limit(12)
+                .toList();
+        int sequence = 0;
+        for (ServiceModuleRecommendation recommendation : selected) {
+            ServiceModule module = resolveServiceModule(recommendation.moduleCode());
+            sequence++;
+            ProductServiceRecommendation entity = new ProductServiceRecommendation();
+            entity.setProductProfile(product);
+            entity.setServiceModule(module);
+            entity.setModuleCode(moduleCode(module));
+            entity.setPriority(normalizePriority(recommendation.priority()));
+            entity.setSequenceNumber(sequence);
+            entity.setReason(trim(recommendation.reason(), TEXT_LIMIT));
+            entity.setExpectedOutcome(trim(recommendation.expectedOutcome(), TEXT_LIMIT));
+            entity.setEvidenceBasisJson(writeStringList(recommendation.evidenceBasis()));
+            entity.setConfidence(normalizeConfidence(recommendation.confidence()));
+            entity.setStatus(ProductServiceRecommendation.Status.RECOMMENDED);
+            entity.setCreatedByAi(true);
+            serviceRecommendationRepository.save(entity);
+        }
+        return selected.size();
+    }
+
+    private int persistScannerRecommendations(ProductProfile product, List<String> scannerFocusAreas) {
+        List<String> focusAreas = listOrEmpty(scannerFocusAreas).stream()
+                .map(value -> trim(value, 255))
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .limit(8)
+                .toList();
+        for (String focusArea : focusAreas) {
+            ProductScannerRecommendation recommendation = new ProductScannerRecommendation();
+            recommendation.setProductProfile(product);
+            recommendation.setScannerFocusArea(focusArea);
+            recommendation.setSource("AI_PROJECT_ANALYSIS");
+            recommendation.setReason("Created from owner-approved AI project analysis.");
+            recommendation.setRecommendedChecksJson(writeStringList(List.of(focusArea)));
+            recommendation.setStatus(ProductScannerRecommendation.Status.SUGGESTED);
+            recommendation.setCreatedByAi(true);
+            scannerRecommendationRepository.save(recommendation);
+        }
+        return focusAreas.size();
+    }
+
+    private int persistReadinessTasks(ProductProfile product, ProductCreationActionRequest request) {
+        List<ReadinessTaskSeed> seeds = new ArrayList<>();
+        listOrEmpty(request.readinessGoals()).stream()
+                .map(value -> trim(value, 255))
+                .filter(value -> !value.isBlank())
+                .limit(6)
+                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Readiness goal recommended by AI project analysis.", "readinessGoals", "HIGH")));
+        listOrEmpty(request.suggestedNextSteps()).stream()
+                .map(value -> trim(value, 255))
+                .filter(value -> !value.isBlank())
+                .limit(6)
+                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Suggested next step from owner-approved AI analysis.", "suggestedNextSteps", "MEDIUM")));
+        listOrEmpty(request.missingEvidence()).stream()
+                .map(value -> trim(value, 255))
+                .filter(value -> !value.isBlank())
+                .limit(6)
+                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Evidence gap captured during AI project analysis.", "missingEvidence", "HIGH")));
+
+        List<ReadinessTaskSeed> uniqueSeeds = seeds.stream()
+                .filter(seed -> hasText(seed.title()))
+                .collect(java.util.stream.Collectors.toMap(
+                        seed -> seed.title().toLowerCase(Locale.ROOT),
+                        seed -> seed,
+                        (existing, duplicate) -> existing,
+                        LinkedHashMap::new
+                ))
+                .values()
+                .stream()
+                .limit(12)
+                .toList();
+        for (ReadinessTaskSeed seed : uniqueSeeds) {
+            ProductReadinessTask task = new ProductReadinessTask();
+            task.setProductProfile(product);
+            task.setTitle(seed.title());
+            task.setDescription(seed.description());
+            task.setSource("AI_PROJECT_ANALYSIS");
+            task.setSourceAnalysisField(seed.sourceAnalysisField());
+            task.setPriority(seed.priority());
+            task.setStatus(ProductReadinessTask.Status.OPEN);
+            task.setCreatedByAi(true);
+            readinessTaskRepository.save(task);
+        }
+        return uniqueSeeds.size();
+    }
+
+    private record ReadinessTaskSeed(String title, String description, String sourceAnalysisField, String priority) {}
+
+    private ServiceModule resolveServiceModule(String moduleCode) {
+        String code = firstNonBlank(moduleCode).trim();
+        if (code.isBlank()) {
+            throw new IllegalArgumentException("AI service recommendation is missing moduleCode");
+        }
+        return serviceModuleRepository.findByStableCode(code)
+                .or(() -> serviceModuleRepository.findBySlug(code))
+                .orElseThrow(() -> new IllegalArgumentException("Recommended service module is not available: " + code));
+    }
+
+    private String moduleCode(ServiceModule module) {
+        return firstNonBlank(module.getStableCode(), module.getSlug(), module.getId() == null ? "" : module.getId().toString());
+    }
+
+    private String normalizePriority(String priority) {
+        String normalized = firstNonBlank(priority, "SHOULD").trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "MUST", "SHOULD", "COULD", "LATER" -> normalized;
+            default -> "SHOULD";
+        };
+    }
+
+    private Double normalizeConfidence(Double confidence) {
+        if (confidence == null || confidence.isNaN() || confidence.isInfinite()) {
+            return null;
+        }
+        return Math.max(0.0, Math.min(1.0, confidence));
+    }
+
+    private String writeAnalysisJson(ProductCreationActionRequest request) {
+        Map<String, Object> analysis = new LinkedHashMap<>();
+        analysis.put("productName", request.productName());
+        analysis.put("summary", request.summary());
+        analysis.put("projectDescription", request.projectDescription());
+        analysis.put("businessProblem", request.businessProblem());
+        analysis.put("targetUsers", request.targetUsers());
+        analysis.put("businessStage", request.businessStage());
+        analysis.put("techStack", request.techStack());
+        analysis.put("productUrl", request.productUrl());
+        analysis.put("repositoryUrl", request.repositoryUrl());
+        analysis.put("riskProfile", request.riskProfile());
+        analysis.put("aiCreationSummary", request.aiCreationSummary());
+        analysis.put("coreCapabilities", listOrEmpty(request.coreCapabilities()));
+        analysis.put("businessOutcomes", listOrEmpty(request.businessOutcomes()));
+        analysis.put("readinessGoals", listOrEmpty(request.readinessGoals()));
+        analysis.put("recommendedServices", listOrEmpty(request.recommendedServices()));
+        analysis.put("recommendedServiceModules", listOrEmpty(request.recommendedServiceModules()));
+        analysis.put("missingCatalogCoverage", listOrEmpty(request.missingCatalogCoverage()));
+        analysis.put("scannerFocusAreas", listOrEmpty(request.scannerFocusAreas()));
+        analysis.put("suggestedNextSteps", listOrEmpty(request.suggestedNextSteps()));
+        analysis.put("sourceInsights", listOrEmpty(request.sourceInsights()));
+        analysis.put("assumptions", listOrEmpty(request.assumptions()));
+        analysis.put("missingEvidence", listOrEmpty(request.missingEvidence()));
+        try {
+            return objectMapper.writeValueAsString(analysis);
+        } catch (Exception exception) {
+            return "{}";
+        }
+    }
+
     private ProductCreationActionResponse actionResponse(
             ProductCreationIntent intent,
             ProductProfile product,
             UUID auditEventId,
             boolean createdNow
+    ) {
+        UUID intelligenceId = intelligenceRepository.findByProductProfileId(product.getId())
+                .map(ProductProjectIntelligence::getId)
+                .orElse(null);
+        int serviceRecommendationCount = serviceRecommendationRepository.findByProductProfileIdOrderBySequenceNumberAscCreatedAtAsc(product.getId()).size();
+        int scannerRecommendationCount = scannerRecommendationRepository.findByProductProfileIdOrderByCreatedAtAsc(product.getId()).size();
+        int readinessTaskCount = readinessTaskRepository.findByProductProfileIdOrderByCreatedAtAsc(product.getId()).size();
+        return actionResponse(
+                intent,
+                product,
+                auditEventId,
+                createdNow,
+                intelligenceId,
+                serviceRecommendationCount,
+                scannerRecommendationCount,
+                readinessTaskCount
+        );
+    }
+
+    private ProductCreationActionResponse actionResponse(
+            ProductCreationIntent intent,
+            ProductProfile product,
+            UUID auditEventId,
+            boolean createdNow,
+            UUID projectIntelligenceId,
+            int createdServiceRecommendations,
+            int createdScannerRecommendations,
+            int createdReadinessTasks
     ) {
         List<ProductProjectAttachmentResponse> attachments = attachmentRepository.findByCreationIntentIdOrderByCreatedAtDesc(intent.getId()).stream()
                 .map(ProductProjectAttachmentResponse::from)
@@ -492,7 +725,11 @@ public class AiAssistedProductCreationService {
                 ProductCreationIntentResponse.from(intent, null),
                 attachments,
                 auditEventId,
-                !createdNow
+                !createdNow,
+                projectIntelligenceId,
+                createdServiceRecommendations,
+                createdScannerRecommendations,
+                createdReadinessTasks
         );
     }
 
@@ -528,6 +765,8 @@ public class AiAssistedProductCreationService {
                 mergeList(aiFields.businessOutcomes(), ownerProvidedFields.businessOutcomes()),
                 mergeList(aiFields.readinessGoals(), ownerProvidedFields.readinessGoals()),
                 mergeList(aiFields.recommendedServices(), ownerProvidedFields.recommendedServices()),
+                mergeServiceModuleRecommendations(aiFields.recommendedServiceModules(), ownerProvidedFields.recommendedServiceModules()),
+                mergeMissingCatalogCoverage(aiFields.missingCatalogCoverage(), ownerProvidedFields.missingCatalogCoverage()),
                 mergeList(aiFields.scannerFocusAreas(), ownerProvidedFields.scannerFocusAreas()),
                 mergeList(aiFields.suggestedNextSteps(), ownerProvidedFields.suggestedNextSteps()),
                 mergeList(sourceInsights(aiFields), ownerProvidedFields.sourceInsights()),
@@ -589,6 +828,8 @@ public class AiAssistedProductCreationService {
                 fields.businessOutcomes(),
                 fields.readinessGoals(),
                 fields.recommendedServices(),
+                fields.recommendedServiceModules(),
+                fields.missingCatalogCoverage(),
                 fields.scannerFocusAreas(),
                 fields.suggestedNextSteps(),
                 fields.sourceInsights(),
@@ -644,6 +885,8 @@ public class AiAssistedProductCreationService {
                         || !listOrEmpty(fields.businessOutcomes()).isEmpty()
                         || !listOrEmpty(fields.readinessGoals()).isEmpty()
                         || !listOrEmpty(fields.recommendedServices()).isEmpty()
+                        || !listOrEmpty(fields.recommendedServiceModules()).isEmpty()
+                        || !listOrEmpty(fields.missingCatalogCoverage()).isEmpty()
                         || !listOrEmpty(fields.scannerFocusAreas()).isEmpty()
                         || !listOrEmpty(fields.suggestedNextSteps()).isEmpty()
                         || !listOrEmpty(fields.sourceInsights()).isEmpty()
@@ -659,6 +902,22 @@ public class AiAssistedProductCreationService {
 
     private List<String> mergeList(List<String> preferred, List<String> fallback) {
         List<String> values = listOrEmpty(preferred);
+        return values.isEmpty() ? listOrEmpty(fallback) : values;
+    }
+
+    private List<ServiceModuleRecommendation> mergeServiceModuleRecommendations(
+            List<ServiceModuleRecommendation> preferred,
+            List<ServiceModuleRecommendation> fallback
+    ) {
+        List<ServiceModuleRecommendation> values = listOrEmpty(preferred);
+        return values.isEmpty() ? listOrEmpty(fallback) : values;
+    }
+
+    private List<MissingCatalogCoverage> mergeMissingCatalogCoverage(
+            List<MissingCatalogCoverage> preferred,
+            List<MissingCatalogCoverage> fallback
+    ) {
+        List<MissingCatalogCoverage> values = listOrEmpty(preferred);
         return values.isEmpty() ? listOrEmpty(fallback) : values;
     }
 
@@ -708,6 +967,8 @@ public class AiAssistedProductCreationService {
                     textList(node, "businessOutcomes", "outcomes"),
                     textList(node, "readinessGoals", "productionReadinessGoals"),
                     textList(node, "recommendedServices", "serviceRecommendations", "lifecycleServices"),
+                    serviceModuleRecommendationList(node, "recommendedServiceModules", "catalogServiceRecommendations"),
+                    missingCatalogCoverageList(node, "missingCatalogCoverage", "unmatchedServiceNeeds"),
                     textList(node, "scannerFocusAreas", "scannerPlan", "scanFocus"),
                     textList(node, "suggestedNextSteps", "nextSteps"),
                     textList(node, "sourceInsights", "linkInsights", "resourceInsights"),
@@ -754,6 +1015,8 @@ public class AiAssistedProductCreationService {
                     textList(node, "businessOutcomes", "outcomes"),
                     textList(node, "readinessGoals", "productionReadinessGoals"),
                     textList(node, "recommendedServices", "serviceRecommendations", "lifecycleServices"),
+                    serviceModuleRecommendationList(node, "recommendedServiceModules", "catalogServiceRecommendations"),
+                    missingCatalogCoverageList(node, "missingCatalogCoverage", "unmatchedServiceNeeds"),
                     textList(node, "scannerFocusAreas", "scannerPlan", "scanFocus"),
                     textList(node, "suggestedNextSteps", "nextSteps"),
                     textList(node, "sourceInsights", "linkInsights", "resourceInsights"),
@@ -803,6 +1066,8 @@ public class AiAssistedProductCreationService {
                 List.of(),
                 List.of(),
                 List.of("Run product diagnosis, scanner evidence collection, and service selection after project creation."),
+                List.of(),
+                List.of(),
                 List.of(),
                 List.of("Run code, security, dependency, database, deployment, and evidence readiness checks after project creation."),
                 List.of("Create the productization workspace and run the first diagnosis."),
@@ -912,6 +1177,118 @@ public class AiAssistedProductCreationService {
         return List.of();
     }
 
+    private List<ServiceModuleRecommendation> serviceModuleRecommendationList(JsonNode node, String... fields) {
+        for (String field : fields) {
+            JsonNode value = node.path(field);
+            if (!value.isArray()) {
+                continue;
+            }
+            List<ServiceModuleRecommendation> result = new ArrayList<>();
+            value.forEach(item -> {
+                if (!item.isObject()) {
+                    return;
+                }
+                String moduleCode = text(item, "moduleCode", "stableCode", "slug", "code");
+                if (!hasText(moduleCode)) {
+                    return;
+                }
+                result.add(new ServiceModuleRecommendation(
+                        trim(moduleCode, 255),
+                        trim(text(item, "moduleName", "name"), 255),
+                        trim(text(item, "categorySlug", "category"), 255),
+                        normalizePriority(text(item, "priority")),
+                        intValue(item.path("sequence"), result.size() + 1),
+                        trim(text(item, "reason", "rationale"), TEXT_LIMIT),
+                        textList(item, "evidenceBasis", "evidence", "signals"),
+                        trim(text(item, "expectedOutcome", "outcome"), TEXT_LIMIT),
+                        doubleValue(item.path("confidence")),
+                        booleanValue(item.path("accepted"), true)
+                ));
+            });
+            return result;
+        }
+        return List.of();
+    }
+
+    private List<MissingCatalogCoverage> missingCatalogCoverageList(JsonNode node, String... fields) {
+        for (String field : fields) {
+            JsonNode value = node.path(field);
+            if (!value.isArray()) {
+                continue;
+            }
+            List<MissingCatalogCoverage> result = new ArrayList<>();
+            value.forEach(item -> {
+                if (item.isTextual() && !item.asText().isBlank()) {
+                    result.add(new MissingCatalogCoverage(trim(item.asText(), 500), "", ""));
+                    return;
+                }
+                if (!item.isObject()) {
+                    return;
+                }
+                result.add(new MissingCatalogCoverage(
+                        trim(text(item, "need", "capability", "gap"), 500),
+                        trim(text(item, "reason", "why"), 500),
+                        trim(text(item, "suggestedCatalogAction", "catalogAction", "action"), 500)
+                ));
+            });
+            return result;
+        }
+        return List.of();
+    }
+
+    private int intValue(JsonNode node, int fallback) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return fallback;
+        }
+        if (node.canConvertToInt()) {
+            return node.asInt(fallback);
+        }
+        if (node.isTextual()) {
+            try {
+                return Integer.parseInt(node.asText().trim());
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private Double doubleValue(JsonNode node) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+        if (node.isNumber()) {
+            return normalizeConfidence(node.asDouble());
+        }
+        if (node.isTextual()) {
+            try {
+                return normalizeConfidence(Double.parseDouble(node.asText().trim()));
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private boolean booleanValue(JsonNode node, boolean fallback) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return fallback;
+        }
+        if (node.isBoolean()) {
+            return node.asBoolean(fallback);
+        }
+        if (node.isTextual()) {
+            String normalized = node.asText().trim().toLowerCase(Locale.ROOT);
+            if ("true".equals(normalized) || "yes".equals(normalized)) {
+                return true;
+            }
+            if ("false".equals(normalized) || "no".equals(normalized)) {
+                return false;
+            }
+        }
+        return fallback;
+    }
+
     private String normalizedDocumentUsageStatus(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
         return switch (normalized) {
@@ -1006,6 +1383,8 @@ public class AiAssistedProductCreationService {
             List<String> businessOutcomes,
             List<String> readinessGoals,
             List<String> recommendedServices,
+            List<ServiceModuleRecommendation> recommendedServiceModules,
+            List<MissingCatalogCoverage> missingCatalogCoverage,
             List<String> scannerFocusAreas,
             List<String> suggestedNextSteps,
             List<String> sourceInsights,
@@ -1021,6 +1400,33 @@ public class AiAssistedProductCreationService {
             String accessMethod,
             List<String> evidence,
             String reason
+    ) {}
+
+    public record ServiceModuleRecommendation(
+            String moduleCode,
+            String moduleName,
+            String categorySlug,
+            String priority,
+            Integer sequence,
+            String reason,
+            List<String> evidenceBasis,
+            String expectedOutcome,
+            Double confidence,
+            Boolean accepted
+    ) {
+        boolean acceptedOrDefault() {
+            return accepted == null || accepted;
+        }
+
+        int sequenceOrDefault() {
+            return sequence == null || sequence < 1 ? 999 : sequence;
+        }
+    }
+
+    public record MissingCatalogCoverage(
+            String need,
+            String reason,
+            String suggestedCatalogAction
     ) {}
 
     public record AiAssistedProductAnalysisResponse(
@@ -1039,7 +1445,11 @@ public class AiAssistedProductCreationService {
             ProductCreationIntentResponse intent,
             List<ProductProjectAttachmentResponse> attachments,
             UUID auditEventId,
-            boolean idempotentReplay
+            boolean idempotentReplay,
+            UUID projectIntelligenceId,
+            int createdServiceRecommendations,
+            int createdScannerRecommendations,
+            int createdReadinessTasks
     ) {}
 
     public record ProductCreationIntentResponse(
@@ -1120,6 +1530,8 @@ public class AiAssistedProductCreationService {
             List<String> businessOutcomes,
             List<String> readinessGoals,
             List<String> recommendedServices,
+            List<ServiceModuleRecommendation> recommendedServiceModules,
+            List<MissingCatalogCoverage> missingCatalogCoverage,
             List<String> scannerFocusAreas,
             List<String> suggestedNextSteps,
             List<String> sourceInsights,
@@ -1150,6 +1562,8 @@ public class AiAssistedProductCreationService {
                     stringList(value.get("businessOutcomes")),
                     stringList(value.get("readinessGoals")),
                     stringList(value.get("recommendedServices")),
+                    serviceModuleRecommendationList(value.get("recommendedServiceModules")),
+                    missingCatalogCoverageList(value.get("missingCatalogCoverage")),
                     stringList(value.get("scannerFocusAreas")),
                     stringList(value.get("suggestedNextSteps")),
                     stringList(value.get("sourceInsights")),
@@ -1191,6 +1605,113 @@ public class AiAssistedProductCreationService {
                     .filter(value -> !value.isBlank())
                     .map(UUID::fromString)
                     .toList();
+        }
+
+        @SuppressWarnings("unchecked")
+        private static List<ServiceModuleRecommendation> serviceModuleRecommendationList(Object raw) {
+            if (!(raw instanceof List<?> values)) {
+                return List.of();
+            }
+            List<ServiceModuleRecommendation> result = new ArrayList<>();
+            for (Object value : values) {
+                if (!(value instanceof Map<?, ?> item)) {
+                    continue;
+                }
+                String moduleCode = firstString(item, "moduleCode", "stableCode", "slug", "code");
+                if (moduleCode.isBlank()) {
+                    continue;
+                }
+                result.add(new ServiceModuleRecommendation(
+                        moduleCode,
+                        firstString(item, "moduleName", "name"),
+                        firstString(item, "categorySlug", "category"),
+                        firstString(item, "priority"),
+                        integer(item.get("sequence")),
+                        firstString(item, "reason", "rationale"),
+                        stringList(item.get("evidenceBasis")),
+                        firstString(item, "expectedOutcome", "outcome"),
+                        decimal(item.get("confidence")),
+                        bool(item.get("accepted"), true)
+                ));
+            }
+            return result;
+        }
+
+        private static List<MissingCatalogCoverage> missingCatalogCoverageList(Object raw) {
+            if (!(raw instanceof List<?> values)) {
+                return List.of();
+            }
+            List<MissingCatalogCoverage> result = new ArrayList<>();
+            for (Object value : values) {
+                if (value instanceof String text && !text.isBlank()) {
+                    result.add(new MissingCatalogCoverage(text, "", ""));
+                    continue;
+                }
+                if (!(value instanceof Map<?, ?> item)) {
+                    continue;
+                }
+                result.add(new MissingCatalogCoverage(
+                        firstString(item, "need", "capability", "gap"),
+                        firstString(item, "reason", "why"),
+                        firstString(item, "suggestedCatalogAction", "catalogAction", "action")
+                ));
+            }
+            return result;
+        }
+
+        private static String firstString(Map<?, ?> item, String... keys) {
+            for (String key : keys) {
+                Object value = item.get(key);
+                String text = string(value);
+                if (!text.isBlank()) {
+                    return text;
+                }
+            }
+            return "";
+        }
+
+        private static Integer integer(Object raw) {
+            if (raw instanceof Number number) {
+                return number.intValue();
+            }
+            String value = string(raw);
+            if (value.isBlank()) {
+                return null;
+            }
+            try {
+                return Integer.parseInt(value);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+
+        private static Double decimal(Object raw) {
+            if (raw instanceof Number number) {
+                return number.doubleValue();
+            }
+            String value = string(raw);
+            if (value.isBlank()) {
+                return null;
+            }
+            try {
+                return Double.parseDouble(value);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+
+        private static Boolean bool(Object raw, boolean fallback) {
+            if (raw instanceof Boolean value) {
+                return value;
+            }
+            String value = string(raw).toLowerCase(Locale.ROOT);
+            if ("true".equals(value) || "yes".equals(value)) {
+                return true;
+            }
+            if ("false".equals(value) || "no".equals(value)) {
+                return false;
+            }
+            return fallback;
         }
     }
 }

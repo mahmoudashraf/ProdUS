@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import {
   AutoAwesomeOutlined,
   ArrowForwardOutlined,
+  ArrowDownwardOutlined,
+  ArrowUpwardOutlined,
   ChatBubbleOutlineOutlined,
   CheckCircleOutlineOutlined,
   CloudUploadOutlined,
@@ -47,6 +49,7 @@ import {
 import {
   AssistantQueryResponse,
   AiAssistedProductAnalysisResponse,
+  ServiceModuleRecommendation,
   ProductCreationActionResponse,
   ProductProfile,
   ProductizationCart,
@@ -429,6 +432,149 @@ function AiReviewList({
   );
 }
 
+const servicePriorityColor = (priority?: string) => {
+  const normalized = (priority ?? '').toUpperCase();
+  if (normalized === 'MUST') return appleColors.red;
+  if (normalized === 'SHOULD') return appleColors.blue;
+  if (normalized === 'COULD') return appleColors.green;
+  return appleColors.muted;
+};
+
+function AiServicePlanReview({
+  recommendations,
+  selectedCodes,
+  onToggle,
+  onMove,
+}: {
+  recommendations: ServiceModuleRecommendation[];
+  selectedCodes: string[];
+  onToggle: (moduleCode: string) => void;
+  onMove: (moduleCode: string, direction: -1 | 1) => void;
+}) {
+  if (!recommendations.length) {
+    return (
+      <AiReviewList
+        title="AI selected lifecycle services"
+        items={[]}
+        empty="No catalog-backed services returned."
+        accent={appleColors.amber}
+      />
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        p: 1.2,
+        borderRadius: 1,
+        border: '1px solid #dfe7f5',
+        background: 'linear-gradient(145deg, #ffffff, #fbfbff)',
+      }}
+    >
+      <Stack spacing={1}>
+        <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 950 }}>
+              AI selected lifecycle services
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Included services are persisted when you create the project.
+            </Typography>
+          </Box>
+          <DotLabel
+            label={`${selectedCodes.length}/${recommendations.length} included`}
+            color={selectedCodes.length ? appleColors.green : appleColors.amber}
+          />
+        </Stack>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+            gap: 1,
+          }}
+        >
+          {recommendations.map((recommendation, index) => {
+            const moduleCode = recommendation.moduleCode;
+            const selected = selectedCodes.includes(moduleCode);
+            const accent = servicePriorityColor(recommendation.priority);
+            return (
+              <Box
+                key={`${moduleCode}-${index}`}
+                sx={{
+                  p: 1.1,
+                  borderRadius: 1,
+                  border: `1px solid ${selected ? `${accent}36` : '#e4e9f3'}`,
+                  bgcolor: selected ? `${accent}07` : '#f8fafc',
+                  minWidth: 0,
+                }}
+              >
+                <Stack spacing={0.85}>
+                  <Stack direction="row" spacing={0.8} alignItems="flex-start">
+                    <Checkbox
+                      checked={selected}
+                      onChange={() => onToggle(moduleCode)}
+                      sx={{ p: 0.2, mt: -0.2 }}
+                    />
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 950 }} noWrap>
+                        {recommendation.moduleName || moduleCode}
+                      </Typography>
+                      <Stack direction="row" spacing={0.6} sx={{ flexWrap: 'wrap', mt: 0.5 }}>
+                        <DotLabel label={moduleCode} color={accent} />
+                        {recommendation.categorySlug && (
+                          <DotLabel label={formatLabel(recommendation.categorySlug)} color={appleColors.cyan} />
+                        )}
+                        <DotLabel label={recommendation.priority || 'SHOULD'} color={accent} />
+                      </Stack>
+                    </Box>
+                    <Stack direction="row" spacing={0.3}>
+                      <Button
+                        variant="text"
+                        disabled={index === 0}
+                        onClick={() => onMove(moduleCode, -1)}
+                        sx={{ minWidth: 34, width: 34, height: 34, p: 0 }}
+                        aria-label={`Move ${recommendation.moduleName || moduleCode} earlier`}
+                      >
+                        <ArrowUpwardOutlined sx={{ fontSize: 17 }} />
+                      </Button>
+                      <Button
+                        variant="text"
+                        disabled={index === recommendations.length - 1}
+                        onClick={() => onMove(moduleCode, 1)}
+                        sx={{ minWidth: 34, width: 34, height: 34, p: 0 }}
+                        aria-label={`Move ${recommendation.moduleName || moduleCode} later`}
+                      >
+                        <ArrowDownwardOutlined sx={{ fontSize: 17 }} />
+                      </Button>
+                    </Stack>
+                  </Stack>
+                  {recommendation.reason && (
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+                      {recommendation.reason}
+                    </Typography>
+                  )}
+                  {recommendation.expectedOutcome && (
+                    <Typography variant="caption" sx={{ color: appleColors.green, fontWeight: 800 }}>
+                      {recommendation.expectedOutcome}
+                    </Typography>
+                  )}
+                  {recommendation.evidenceBasis?.length ? (
+                    <Stack spacing={0.35}>
+                      {recommendation.evidenceBasis.slice(0, 2).map(item => (
+                        <DotLabel key={item} label={item} color={appleColors.purple} />
+                      ))}
+                    </Stack>
+                  ) : null}
+                </Stack>
+              </Box>
+            );
+          })}
+        </Box>
+      </Stack>
+    </Box>
+  );
+}
+
 const documentUsageMeta = (status?: string, accessMethod?: string) => {
   const normalizedStatus = (status ?? '').toUpperCase();
   const normalizedMethod = (accessMethod ?? '').toUpperCase();
@@ -705,6 +851,10 @@ export default function ProductOnboardingWizard() {
     Array<{ file: File; shareWithAi: boolean }>
   >([]);
   const [aiAnalysis, setAiAnalysis] = useState<AiAssistedProductAnalysisResponse | null>(null);
+  const [reviewedServiceRecommendations, setReviewedServiceRecommendations] = useState<
+    ServiceModuleRecommendation[]
+  >([]);
+  const [selectedServiceCodes, setSelectedServiceCodes] = useState<string[]>([]);
   const [analysisChatInput, setAnalysisChatInput] = useState('');
   const [analysisChatMessages, setAnalysisChatMessages] = useState<AnalysisChatMessage[]>([]);
   const form = useAdvancedForm<ProductProfilePayload>({
@@ -714,6 +864,12 @@ export default function ProductOnboardingWizard() {
       summary: [{ type: 'required', message: 'Product summary is required' }],
     },
   });
+
+  const resetAiAnalysis = () => {
+    setAiAnalysis(null);
+    setReviewedServiceRecommendations([]);
+    setSelectedServiceCodes([]);
+  };
 
   const createProduct = useMutation({
     mutationFn: async () => {
@@ -761,6 +917,15 @@ export default function ProductOnboardingWizard() {
     },
     onSuccess: response => {
       setAiAnalysis(response);
+      const recommendations = [...(response.analysis.recommendedServiceModules ?? [])].sort(
+        (left, right) => (left.sequence ?? 999) - (right.sequence ?? 999)
+      );
+      setReviewedServiceRecommendations(recommendations);
+      setSelectedServiceCodes(
+        recommendations
+          .filter(recommendation => recommendation.accepted !== false)
+          .map(recommendation => recommendation.moduleCode)
+      );
       setAnalysisChatMessages([]);
       setAnalysisChatInput('');
       form.setValue('name', response.analysis.productName || form.values.name);
@@ -799,6 +964,12 @@ export default function ProductOnboardingWizard() {
         businessOutcomes: aiAnalysis.analysis.businessOutcomes ?? [],
         readinessGoals: aiAnalysis.analysis.readinessGoals ?? [],
         recommendedServices: aiAnalysis.analysis.recommendedServices ?? [],
+        recommendedServiceModules: reviewedServiceRecommendations.map((recommendation, index) => ({
+          ...recommendation,
+          sequence: index + 1,
+          accepted: selectedServiceCodes.includes(recommendation.moduleCode),
+        })),
+        missingCatalogCoverage: aiAnalysis.analysis.missingCatalogCoverage ?? [],
         scannerFocusAreas: aiAnalysis.analysis.scannerFocusAreas ?? [],
         suggestedNextSteps: aiAnalysis.analysis.suggestedNextSteps ?? [],
         sourceInsights: aiAnalysis.analysis.sourceInsights ?? [],
@@ -853,6 +1024,16 @@ export default function ProductOnboardingWizard() {
         businessOutcomes: cleanList(analysis?.businessOutcomes),
         readinessGoals: cleanList(analysis?.readinessGoals),
         recommendedServices: cleanList(analysis?.recommendedServices),
+        recommendedServiceModules: reviewedServiceRecommendations.slice(0, 8).map((recommendation, index) => ({
+          moduleCode: recommendation.moduleCode,
+          moduleName: recommendation.moduleName,
+          categorySlug: recommendation.categorySlug,
+          priority: recommendation.priority,
+          sequence: index + 1,
+          includedByOwner: selectedServiceCodes.includes(recommendation.moduleCode),
+          reason: recommendation.reason,
+        })),
+        missingCatalogCoverage: (analysis?.missingCatalogCoverage ?? []).slice(0, 5),
         scannerFocusAreas: cleanList(analysis?.scannerFocusAreas),
         suggestedNextSteps: cleanList(analysis?.suggestedNextSteps),
         sourceInsights: cleanList(analysis?.sourceInsights),
@@ -943,6 +1124,32 @@ export default function ProductOnboardingWizard() {
     askAnalysisChat.mutate(question);
   };
 
+  const toggleServiceRecommendation = (moduleCode: string) => {
+    setSelectedServiceCodes(current =>
+      current.includes(moduleCode)
+        ? current.filter(code => code !== moduleCode)
+        : [...current, moduleCode]
+    );
+  };
+
+  const moveServiceRecommendation = (moduleCode: string, direction: -1 | 1) => {
+    setReviewedServiceRecommendations(current => {
+      const index = current.findIndex(item => item.moduleCode === moduleCode);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= current.length) {
+        return current;
+      }
+      const next = [...current];
+      const [item] = next.splice(index, 1);
+      if (!item) return current;
+      next.splice(target, 0, item);
+      return next.map((recommendation, orderIndex) => ({
+        ...recommendation,
+        sequence: orderIndex + 1,
+      }));
+    });
+  };
+
   const submit = form.handleSubmit(() => createProduct.mutate());
   const selectedAiDocumentCount = aiDocumentFiles.filter(item => item.shareWithAi).length;
   const aiDocumentUsage = aiAnalysis?.analysis.documentUsage ?? [];
@@ -964,6 +1171,8 @@ export default function ProductOnboardingWizard() {
         'The AI project creation action was rejected.'
       )
     : '';
+  const selectedAiServiceCount = selectedServiceCodes.length;
+  const missingCatalogCoverage = aiAnalysis?.analysis.missingCatalogCoverage ?? [];
   const aiValidationItems: Array<{
     title: string;
     detail: string;
@@ -1008,6 +1217,15 @@ export default function ProductOnboardingWizard() {
           : aiDocumentUsageMissing || aiNotUsedDocumentCount > 0
             ? 'attention'
             : 'ready',
+    },
+    {
+      title: 'Service plan seed',
+      detail: aiAnalysis
+        ? reviewedServiceRecommendations.length
+          ? `${compactCount(selectedAiServiceCount, 'catalog service')} selected for persistence from ${compactCount(reviewedServiceRecommendations.length, 'AI recommendation')}.`
+          : 'No catalog-backed service module was returned. You can still create and add services later.'
+        : 'AI service recommendations appear after analysis.',
+      state: aiAnalysis ? (reviewedServiceRecommendations.length && selectedAiServiceCount === 0 ? 'attention' : 'ready') : 'blocked',
     },
     {
       title: 'AI validation notes',
@@ -1156,7 +1374,7 @@ export default function ProductOnboardingWizard() {
                     value={aiBrief}
                     onChange={event => {
                       setAiBrief(event.target.value);
-                      setAiAnalysis(null);
+                      resetAiAnalysis();
                     }}
                     multiline
                     minRows={5}
@@ -1238,7 +1456,7 @@ export default function ProductOnboardingWizard() {
                               shareWithAi: true,
                             }));
                             setAiDocumentFiles(current => [...current, ...files]);
-                            setAiAnalysis(null);
+                            resetAiAnalysis();
                             event.target.value = '';
                           }}
                         />
@@ -1288,7 +1506,7 @@ export default function ProductOnboardingWizard() {
                                           : doc
                                       )
                                     );
-                                    setAiAnalysis(null);
+                                    resetAiAnalysis();
                                   }}
                                 />
                               }
@@ -1305,7 +1523,7 @@ export default function ProductOnboardingWizard() {
                                 setAiDocumentFiles(current =>
                                   current.filter((_, docIndex) => docIndex !== index)
                                 );
-                                setAiAnalysis(null);
+                                resetAiAnalysis();
                               }}
                               sx={{ minHeight: 34, minWidth: 72 }}
                             >
@@ -1399,12 +1617,6 @@ export default function ProductOnboardingWizard() {
                             accent={appleColors.blue}
                           />
                           <AiReviewList
-                            title="Recommended service path"
-                            items={aiAnalysis.analysis.recommendedServices ?? []}
-                            empty="No service recommendations returned."
-                            accent={appleColors.amber}
-                          />
-                          <AiReviewList
                             title="Scanner focus"
                             items={aiAnalysis.analysis.scannerFocusAreas ?? []}
                             empty="No scanner focus returned."
@@ -1417,6 +1629,44 @@ export default function ProductOnboardingWizard() {
                             accent={appleColors.cyan}
                           />
                         </Box>
+                        <AiServicePlanReview
+                          recommendations={reviewedServiceRecommendations}
+                          selectedCodes={selectedServiceCodes}
+                          onToggle={toggleServiceRecommendation}
+                          onMove={moveServiceRecommendation}
+                        />
+                        {missingCatalogCoverage.length > 0 && (
+                          <Box
+                            sx={{
+                              p: 1.2,
+                              borderRadius: 1,
+                              border: `1px solid ${appleColors.amber}28`,
+                              bgcolor: `${appleColors.amber}08`,
+                            }}
+                          >
+                            <Typography variant="caption" sx={{ fontWeight: 950 }}>
+                              Catalog coverage gaps
+                            </Typography>
+                            <Stack spacing={0.5} sx={{ mt: 0.75 }}>
+                              {missingCatalogCoverage.slice(0, 4).map(item => (
+                                <Typography
+                                  key={`${item.need}-${item.reason}`}
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ display: 'block', lineHeight: 1.5 }}
+                                >
+                                  <Box component="strong" sx={{ color: appleColors.ink }}>
+                                    {item.need}
+                                  </Box>
+                                  {item.reason ? ` - ${item.reason}` : ''}
+                                  {item.suggestedCatalogAction
+                                    ? ` (${item.suggestedCatalogAction})`
+                                    : ''}
+                                </Typography>
+                              ))}
+                            </Stack>
+                          </Box>
+                        )}
                         <AiReviewList
                           title="Suggested next steps"
                           items={aiAnalysis.analysis.suggestedNextSteps ?? []}
@@ -1504,10 +1754,10 @@ export default function ProductOnboardingWizard() {
                             color={aiOpenedDocumentCount ? appleColors.green : appleColors.amber}
                           />
                           {aiNotUsedDocumentCount > 0 && (
-                            <DotLabel
-                              label={`${aiNotUsedDocumentCount} not used`}
-                              color={appleColors.red}
-                            />
+                          <DotLabel
+                            label={`${aiNotUsedDocumentCount} not used`}
+                            color={appleColors.red}
+                          />
                           )}
                           {aiDocumentUsageMissing && (
                             <DotLabel label="Document evidence missing" color={appleColors.red} />
@@ -1515,6 +1765,12 @@ export default function ProductOnboardingWizard() {
                         </>
                       )}
                       <DotLabel label="No document indexing" color={appleColors.green} />
+                      {aiAnalysis && (
+                        <DotLabel
+                          label={`${selectedAiServiceCount} service modules selected`}
+                          color={selectedAiServiceCount ? appleColors.green : appleColors.amber}
+                        />
+                      )}
                     </Stack>
                     <Box
                       sx={{

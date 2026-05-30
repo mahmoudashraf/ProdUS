@@ -45,3 +45,5 @@ databaseChangeLog:
       file: db/changelog/V022__ai_project_creation_attachments.yaml
   - include:
       file: db/changelog/V023__ai_project_creation_intents.yaml
+  - include:
+      file: db/changelog/V024__project_ai_intelligence.yaml

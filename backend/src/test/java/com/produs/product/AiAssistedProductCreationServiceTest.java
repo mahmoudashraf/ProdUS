@@ -2,6 +2,7 @@ package com.produs.product;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.ai.LoomAIIntegrationService;
+import com.produs.catalog.ServiceModuleRepository;
 import com.produs.service.AuditService;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -20,16 +21,7 @@ class AiAssistedProductCreationServiceTest {
 
     @Test
     void parsesProjectCreationFieldsFromLoomAiActionParameters() throws Exception {
-        AiAssistedProductCreationService service = new AiAssistedProductCreationService(
-                mock(ProductProfileRepository.class),
-                mock(ProductCreationIntentRepository.class),
-                mock(ProductProjectAttachmentRepository.class),
-                mock(ProductProjectAttachmentService.class),
-                mock(LoomAIIntegrationService.class),
-                mock(AuditService.class),
-                new ObjectMapper(),
-                mock(TransactionTemplate.class)
-        );
+        AiAssistedProductCreationService service = service();
         LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(
                 "LOOMAI",
                 "LIVE",
@@ -91,16 +83,7 @@ class AiAssistedProductCreationServiceTest {
 
     @Test
     void downgradesClaimedDocumentUsageWhenEvidenceIsMissing() throws Exception {
-        AiAssistedProductCreationService service = new AiAssistedProductCreationService(
-                mock(ProductProfileRepository.class),
-                mock(ProductCreationIntentRepository.class),
-                mock(ProductProjectAttachmentRepository.class),
-                mock(ProductProjectAttachmentService.class),
-                mock(LoomAIIntegrationService.class),
-                mock(AuditService.class),
-                new ObjectMapper(),
-                mock(TransactionTemplate.class)
-        );
+        AiAssistedProductCreationService service = service();
         LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(
                 "LOOMAI",
                 "LIVE",
@@ -151,16 +134,7 @@ class AiAssistedProductCreationServiceTest {
 
     @Test
     void parsesNeutralOwnerIntakeAnalysisFields() throws Exception {
-        AiAssistedProductCreationService service = new AiAssistedProductCreationService(
-                mock(ProductProfileRepository.class),
-                mock(ProductCreationIntentRepository.class),
-                mock(ProductProjectAttachmentRepository.class),
-                mock(ProductProjectAttachmentService.class),
-                mock(LoomAIIntegrationService.class),
-                mock(AuditService.class),
-                new ObjectMapper(),
-                mock(TransactionTemplate.class)
-        );
+        AiAssistedProductCreationService service = service();
         LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(
                 "LOOMAI",
                 "LIVE",
@@ -222,16 +196,7 @@ class AiAssistedProductCreationServiceTest {
 
     @Test
     void addsNotUsedEvidenceWhenLoomAiOmitsSelectedDocumentUsage() throws Exception {
-        AiAssistedProductCreationService service = new AiAssistedProductCreationService(
-                mock(ProductProfileRepository.class),
-                mock(ProductCreationIntentRepository.class),
-                mock(ProductProjectAttachmentRepository.class),
-                mock(ProductProjectAttachmentService.class),
-                mock(LoomAIIntegrationService.class),
-                mock(AuditService.class),
-                new ObjectMapper(),
-                mock(TransactionTemplate.class)
-        );
+        AiAssistedProductCreationService service = service();
         AiAssistedProductCreationService.ProductCreationFields fields =
                 new AiAssistedProductCreationService.ProductCreationFields(
                         "Atlas Release Sentinel",
@@ -249,6 +214,8 @@ class AiAssistedProductCreationServiceTest {
                         List.of("Confident launch decision"),
                         List.of("Evidence-backed launch gate"),
                         List.of("Launch Readiness"),
+                        List.of(),
+                        List.of(),
                         List.of("Security and deployment checks"),
                         List.of("Create the workspace"),
                         List.of("Owner brief names launch readiness"),
@@ -287,16 +254,7 @@ class AiAssistedProductCreationServiceTest {
 
     @Test
     void mergesPartialLoomAiFieldsWithOwnerProvidedIntake() throws Exception {
-        AiAssistedProductCreationService service = new AiAssistedProductCreationService(
-                mock(ProductProfileRepository.class),
-                mock(ProductCreationIntentRepository.class),
-                mock(ProductProjectAttachmentRepository.class),
-                mock(ProductProjectAttachmentService.class),
-                mock(LoomAIIntegrationService.class),
-                mock(AuditService.class),
-                new ObjectMapper(),
-                mock(TransactionTemplate.class)
-        );
+        AiAssistedProductCreationService service = service();
         AiAssistedProductCreationService.ProductCreationFields partialAiFields =
                 new AiAssistedProductCreationService.ProductCreationFields(
                         "ProdUS",
@@ -314,6 +272,8 @@ class AiAssistedProductCreationServiceTest {
                         List.of("Clear owner decision"),
                         List.of(),
                         List.of("Validation"),
+                        List.of(),
+                        List.of(),
                         List.of(),
                         List.of(),
                         List.of("AI read the owner brief"),
@@ -338,6 +298,8 @@ class AiAssistedProductCreationServiceTest {
                         List.of("Fallback outcome"),
                         List.of("Fallback readiness"),
                         List.of("Fallback service"),
+                        List.of(),
+                        List.of(),
                         List.of("Fallback scanner"),
                         List.of("Fallback next step"),
                         List.of("Fallback source"),
@@ -372,5 +334,23 @@ class AiAssistedProductCreationServiceTest {
         assertThat(fields.assumptions()).isEmpty();
         assertThat(fields.missingEvidence()).isEmpty();
         assertThat(fields.documentUsage()).isEmpty();
+    }
+
+    private AiAssistedProductCreationService service() {
+        return new AiAssistedProductCreationService(
+                mock(ProductProfileRepository.class),
+                mock(ProductCreationIntentRepository.class),
+                mock(ProductProjectAttachmentRepository.class),
+                mock(ProductProjectIntelligenceRepository.class),
+                mock(ProductServiceRecommendationRepository.class),
+                mock(ProductScannerRecommendationRepository.class),
+                mock(ProductReadinessTaskRepository.class),
+                mock(ProductProjectAttachmentService.class),
+                mock(LoomAIIntegrationService.class),
+                mock(ServiceModuleRepository.class),
+                mock(AuditService.class),
+                new ObjectMapper(),
+                mock(TransactionTemplate.class)
+        );
     }
 }

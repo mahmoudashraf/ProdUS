@@ -140,6 +140,8 @@ public class ProductProfileController {
                 request.businessOutcomes(),
                 request.readinessGoals(),
                 request.recommendedServices(),
+                request.recommendedServiceModules(),
+                request.missingCatalogCoverage(),
                 request.scannerFocusAreas(),
                 request.suggestedNextSteps(),
                 request.sourceInsights(),
