@@ -276,6 +276,8 @@ export interface ProductCreationActionResponse {
   createdServiceRecommendations: number;
   createdScannerRecommendations: number;
   createdReadinessTasks: number;
+  createdCartServiceItems?: number;
+  createdScanSourceId?: string;
 }
 
 export interface ScanSource extends BaseRecord {

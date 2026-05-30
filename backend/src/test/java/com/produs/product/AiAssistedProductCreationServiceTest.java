@@ -2,7 +2,9 @@ package com.produs.product;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.ai.LoomAIIntegrationService;
+import com.produs.cart.ProductizationCartService;
 import com.produs.catalog.ServiceModuleRepository;
+import com.produs.scanner.ScanSourceRepository;
 import com.produs.service.AuditService;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -348,6 +350,8 @@ class AiAssistedProductCreationServiceTest {
                 mock(ProductProjectAttachmentService.class),
                 mock(LoomAIIntegrationService.class),
                 mock(ServiceModuleRepository.class),
+                mock(ProductizationCartService.class),
+                mock(ScanSourceRepository.class),
                 mock(AuditService.class),
                 new ObjectMapper(),
                 mock(TransactionTemplate.class)

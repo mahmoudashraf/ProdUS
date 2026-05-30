@@ -19,6 +19,7 @@ import com.produs.packages.PackageModule;
 import com.produs.packages.PackageModuleRepository;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
+import com.produs.product.AiAssistedProductCreationService.ServiceModuleRecommendation;
 import com.produs.shortlist.TeamShortlist;
 import com.produs.shortlist.TeamShortlistRepository;
 import com.produs.teams.Team;
@@ -43,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -148,6 +150,51 @@ public class ProductizationCartService {
             cart.setBusinessGoal(firstNonBlank(template.getOutcomeSummary(), template.getDescription(), "Build a production-ready service plan from the selected package template."));
         }
         return cartRepository.save(cart);
+    }
+
+    @Transactional
+    public int seedAiAssistedServices(
+            User owner,
+            ProductProfile product,
+            String businessGoal,
+            List<ServiceModuleRecommendation> recommendations
+    ) {
+        if (product == null || recommendations == null || recommendations.isEmpty()) {
+            return 0;
+        }
+        requireProductOwner(owner, product);
+        List<ServiceModuleRecommendation> selected = recommendations.stream()
+                .filter(this::acceptedAiRecommendation)
+                .sorted(Comparator.comparingInt(this::aiRecommendationSequence))
+                .limit(12)
+                .toList();
+        if (selected.isEmpty()) {
+            return 0;
+        }
+
+        ProductizationCart cart = new ProductizationCart();
+        cart.setOwner(owner);
+        cart.setProductProfile(product);
+        cart.setTitle(product.getName() + " AI service plan");
+        cart.setBusinessGoal(firstNonBlank(
+                businessGoal,
+                product.getSummary(),
+                "Move " + product.getName() + " toward production readiness from the owner-approved AI analysis."
+        ));
+        cart = cartRepository.save(cart);
+
+        int order = 1;
+        int seeded = 0;
+        Set<UUID> seen = new LinkedHashSet<>();
+        for (ServiceModuleRecommendation recommendation : selected) {
+            ServiceModule module = resolveAiRecommendedModule(recommendation);
+            if (!seen.add(module.getId())) {
+                continue;
+            }
+            upsertServiceItem(cart, module, aiServiceSelectionNote(recommendation), order++, true);
+            seeded++;
+        }
+        return seeded;
     }
 
     @Transactional
@@ -442,6 +489,37 @@ public class ProductizationCartService {
                 .filter(order -> order != null && order > 0)
                 .max(Comparator.naturalOrder())
                 .orElse(0) + 1;
+    }
+
+    private boolean acceptedAiRecommendation(ServiceModuleRecommendation recommendation) {
+        return recommendation != null && (recommendation.accepted() == null || recommendation.accepted());
+    }
+
+    private int aiRecommendationSequence(ServiceModuleRecommendation recommendation) {
+        return recommendation.sequence() == null || recommendation.sequence() < 1 ? 999 : recommendation.sequence();
+    }
+
+    private ServiceModule resolveAiRecommendedModule(ServiceModuleRecommendation recommendation) {
+        String code = firstNonBlank(recommendation.moduleCode()).trim();
+        if (code.isBlank()) {
+            throw new IllegalArgumentException("AI service recommendation is missing moduleCode");
+        }
+        return serviceModuleRepository.findByStableCode(code)
+                .or(() -> serviceModuleRepository.findBySlug(code))
+                .orElseThrow(() -> new IllegalArgumentException("Recommended service module is not available: " + code));
+    }
+
+    private String aiServiceSelectionNote(ServiceModuleRecommendation recommendation) {
+        String priority = firstNonBlank(recommendation.priority(), "SHOULD")
+                .trim()
+                .toUpperCase(Locale.ROOT)
+                .replace('_', ' ');
+        String reason = firstNonBlank(
+                recommendation.reason(),
+                recommendation.expectedOutcome(),
+                "Selected from owner-approved AI project analysis."
+        );
+        return ("AI-selected during project creation (" + priority + "). " + reason).trim();
     }
 
     private String buildTemplateNote(PackageTemplate template, PackageTemplateModule templateModule) {

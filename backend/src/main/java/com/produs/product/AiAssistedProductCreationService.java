@@ -7,10 +7,13 @@ import com.produs.ai.LoomAIIntegrationService.AssistantQueryResponse;
 import com.produs.ai.LoomAIIntegrationService.ProjectCreationAssistantRequest;
 import com.produs.ai.LoomAIIntegrationService.ProjectCreationDocumentReference;
 import com.produs.audit.AuditEvent;
+import com.produs.cart.ProductizationCartService;
 import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
 import com.produs.dto.PlatformDtos.ProductProfileResponse;
 import com.produs.entity.User;
+import com.produs.scanner.ScanSource;
+import com.produs.scanner.ScanSourceRepository;
 import com.produs.service.AuditService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,6 +57,8 @@ public class AiAssistedProductCreationService {
     private final ProductProjectAttachmentService attachmentService;
     private final LoomAIIntegrationService loomAIIntegrationService;
     private final ServiceModuleRepository serviceModuleRepository;
+    private final ProductizationCartService productizationCartService;
+    private final ScanSourceRepository scanSourceRepository;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
@@ -249,8 +254,15 @@ public class AiAssistedProductCreationService {
 
         ProductProjectIntelligence intelligence = persistProjectIntelligence(intent, saved, request);
         int serviceRecommendationCount = persistServiceRecommendations(saved, request.recommendedServiceModules());
+        int cartServiceItemCount = productizationCartService.seedAiAssistedServices(
+                intent.getOwner(),
+                saved,
+                firstNonBlank(request.projectDescription(), request.summary(), request.aiCreationSummary()),
+                request.recommendedServiceModules()
+        );
         int scannerRecommendationCount = persistScannerRecommendations(saved, request.scannerFocusAreas());
         int readinessTaskCount = persistReadinessTasks(saved, request);
+        UUID scanSourceId = seedRepositoryScanSource(saved, request);
 
         intent.setProductProfile(saved);
         intent.setStatus(ProductCreationIntent.Status.CREATED);
@@ -273,11 +285,11 @@ public class AiAssistedProductCreationService {
                 "PRODUCT_PROFILE",
                 saved.getId(),
                 AuditEvent.RiskLevel.MEDIUM,
-                "AI project creation action executed via ProdUS runtime action; intent=%s idempotencyKey=%s providerRequestId=%s serviceRecommendations=%d scannerRecommendations=%d readinessTasks=%d"
-                        .formatted(intent.getId(), intent.getIdempotencyKey(), nullToEmpty(saved.getAiProviderRequestId()), serviceRecommendationCount, scannerRecommendationCount, readinessTaskCount)
+                "AI project creation action executed via ProdUS runtime action; intent=%s idempotencyKey=%s providerRequestId=%s serviceRecommendations=%d cartServices=%d scannerRecommendations=%d readinessTasks=%d scanSource=%s"
+                        .formatted(intent.getId(), intent.getIdempotencyKey(), nullToEmpty(saved.getAiProviderRequestId()), serviceRecommendationCount, cartServiceItemCount, scannerRecommendationCount, readinessTaskCount, scanSourceId == null ? "" : scanSourceId)
         );
 
-        return actionResponse(intent, saved, audit.getId(), true, intelligence.getId(), serviceRecommendationCount, scannerRecommendationCount, readinessTaskCount);
+        return actionResponse(intent, saved, audit.getId(), true, intelligence.getId(), serviceRecommendationCount, scannerRecommendationCount, readinessTaskCount, cartServiceItemCount, scanSourceId);
     }
 
     @Transactional
@@ -312,6 +324,8 @@ public class AiAssistedProductCreationService {
             payload.put("serviceRecommendationCount", response.createdServiceRecommendations());
             payload.put("scannerRecommendationCount", response.createdScannerRecommendations());
             payload.put("readinessTaskCount", response.createdReadinessTasks());
+            payload.put("cartServiceItemCount", response.createdCartServiceItems());
+            payload.put("scanSourceId", response.createdScanSourceId() == null ? "" : response.createdScanSourceId().toString());
             payload.put("auditEventId", response.auditEventId() == null ? "" : response.auditEventId().toString());
             payload.put("idempotencyKey", response.intent().idempotencyKey());
             payload.put("idempotentReplay", response.idempotentReplay());
@@ -621,6 +635,103 @@ public class AiAssistedProductCreationService {
         return uniqueSeeds.size();
     }
 
+    private UUID seedRepositoryScanSource(ProductProfile product, ProductCreationActionRequest request) {
+        String repositoryUrl = firstNonBlank(trim(request.repositoryUrl(), 500), product.getRepositoryUrl());
+        if (repositoryUrl.isBlank()) {
+            return null;
+        }
+        String repositoryFullName = repositoryFullName(repositoryUrl);
+        Optional<ScanSource> existing = scanSourceRepository.findByProductProfileIdOrderByCreatedAtDesc(product.getId()).stream()
+                .filter(source -> sameRepositorySource(source, repositoryUrl, repositoryFullName))
+                .findFirst();
+        if (existing.isPresent()) {
+            return existing.get().getId();
+        }
+
+        ScanSource source = new ScanSource();
+        source.setOwner(product.getOwner());
+        source.setProductProfile(product);
+        source.setProviderType(repositoryProvider(repositoryUrl));
+        source.setDisplayName(repositoryDisplayName(repositoryFullName, repositoryUrl));
+        source.setExternalReference(repositoryUrl);
+        source.setExternalRepositoryFullName(repositoryFullName.isBlank() ? null : repositoryFullName);
+        source.setDefaultBranch("main");
+        source.setAuthorizationStatus(ScanSource.AuthorizationStatus.AUTHORIZED);
+        source.setScopeNote("Owner-approved repository captured during AI project creation. Connect the provider app if private repository access is required; this source is ready for governed scanner setup.");
+        source.setCreatedBy(product.getOwner());
+        return scanSourceRepository.save(source).getId();
+    }
+
+    private boolean sameRepositorySource(ScanSource source, String repositoryUrl, String repositoryFullName) {
+        if (source == null) {
+            return false;
+        }
+        if (hasText(repositoryFullName) && hasText(source.getExternalRepositoryFullName())
+                && repositoryFullName.equalsIgnoreCase(source.getExternalRepositoryFullName())) {
+            return true;
+        }
+        return normalizeRepositoryUrl(repositoryUrl).equals(normalizeRepositoryUrl(source.getExternalReference()));
+    }
+
+    private ScanSource.ProviderType repositoryProvider(String repositoryUrl) {
+        String normalized = firstNonBlank(repositoryUrl).toLowerCase(Locale.ROOT);
+        if (normalized.contains("github.com")) {
+            return ScanSource.ProviderType.GITHUB;
+        }
+        if (normalized.contains("gitlab.com")) {
+            return ScanSource.ProviderType.GITLAB;
+        }
+        return ScanSource.ProviderType.EXTERNAL_TOOL;
+    }
+
+    private String repositoryDisplayName(String repositoryFullName, String repositoryUrl) {
+        if (hasText(repositoryFullName)) {
+            return repositoryFullName + " repository";
+        }
+        String normalized = normalizeRepositoryUrl(repositoryUrl);
+        if (normalized.isBlank()) {
+            return "AI project repository";
+        }
+        int slash = normalized.lastIndexOf('/');
+        return slash >= 0 && slash < normalized.length() - 1
+                ? normalized.substring(slash + 1) + " repository"
+                : "AI project repository";
+    }
+
+    private String repositoryFullName(String repositoryUrl) {
+        String value = firstNonBlank(repositoryUrl).trim();
+        if (value.isBlank()) {
+            return "";
+        }
+        String normalized = value
+                .replace("git@github.com:", "https://github.com/")
+                .replace("git@gitlab.com:", "https://gitlab.com/");
+        int marker = normalized.indexOf("github.com/");
+        if (marker < 0) {
+            marker = normalized.indexOf("gitlab.com/");
+        }
+        if (marker < 0) {
+            return "";
+        }
+        String path = normalized.substring(normalized.indexOf('/', marker) + 1)
+                .replaceAll("[?#].*$", "")
+                .replaceAll("\\.git$", "")
+                .replaceAll("/+$", "");
+        String[] parts = path.split("/");
+        if (parts.length < 2 || parts[0].isBlank() || parts[1].isBlank()) {
+            return "";
+        }
+        return parts[0] + "/" + parts[1];
+    }
+
+    private String normalizeRepositoryUrl(String repositoryUrl) {
+        return firstNonBlank(repositoryUrl)
+                .trim()
+                .replaceAll("\\.git$", "")
+                .replaceAll("/+$", "")
+                .toLowerCase(Locale.ROOT);
+    }
+
     private record ReadinessTaskSeed(String title, String description, String sourceAnalysisField, String priority) {}
 
     private ServiceModule resolveServiceModule(String moduleCode) {
@@ -703,7 +814,9 @@ public class AiAssistedProductCreationService {
                 intelligenceId,
                 serviceRecommendationCount,
                 scannerRecommendationCount,
-                readinessTaskCount
+                readinessTaskCount,
+                0,
+                null
         );
     }
 
@@ -715,7 +828,9 @@ public class AiAssistedProductCreationService {
             UUID projectIntelligenceId,
             int createdServiceRecommendations,
             int createdScannerRecommendations,
-            int createdReadinessTasks
+            int createdReadinessTasks,
+            int createdCartServiceItems,
+            UUID createdScanSourceId
     ) {
         List<ProductProjectAttachmentResponse> attachments = attachmentRepository.findByCreationIntentIdOrderByCreatedAtDesc(intent.getId()).stream()
                 .map(ProductProjectAttachmentResponse::from)
@@ -729,7 +844,9 @@ public class AiAssistedProductCreationService {
                 projectIntelligenceId,
                 createdServiceRecommendations,
                 createdScannerRecommendations,
-                createdReadinessTasks
+                createdReadinessTasks,
+                createdCartServiceItems,
+                createdScanSourceId
         );
     }
 
@@ -1449,7 +1566,9 @@ public class AiAssistedProductCreationService {
             UUID projectIntelligenceId,
             int createdServiceRecommendations,
             int createdScannerRecommendations,
-            int createdReadinessTasks
+            int createdReadinessTasks,
+            int createdCartServiceItems,
+            UUID createdScanSourceId
     ) {}
 
     public record ProductCreationIntentResponse(
