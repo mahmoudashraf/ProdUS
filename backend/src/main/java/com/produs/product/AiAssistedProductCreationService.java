@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -102,7 +103,8 @@ public class AiAssistedProductCreationService {
         ProductCreationFields fields = parsedFields
                 .map(parsed -> mergeFields(parsed, ownerProvidedFields))
                 .orElse(ownerProvidedFields);
-        ProductCreationFields finalFields = ensureDocumentUsage(fields, start.documentReferences());
+        ProductCreationFields creationReadyFields = ensureCreationReadyPlan(fields, request);
+        ProductCreationFields finalFields = ensureDocumentUsage(creationReadyFields, start.documentReferences());
 
         ProductCreationIntent intent = transactionTemplate.execute(status ->
                 completeAnalysis(start.intentId(), finalFields, assistant, start.temporaryAccess().size())
@@ -891,6 +893,135 @@ public class AiAssistedProductCreationService {
                 listOrEmpty(aiFields.missingEvidence()),
                 listOrEmpty(aiFields.documentUsage())
         );
+    }
+
+    private ProductCreationFields ensureCreationReadyPlan(
+            ProductCreationFields fields,
+            AiAssistedProductCreationRequest request
+    ) {
+        if (fields == null || request == null) {
+            return fields;
+        }
+        List<ServiceModuleRecommendation> selectedModules = topUpServiceRecommendations(
+                fields.recommendedServiceModules(),
+                deterministicServiceModuleRecommendations(request),
+                hasText(request.repositoryUrl()) ? 5 : 3
+        );
+        List<String> recommendedServices = mergeTextValues(
+                fields.recommendedServices(),
+                selectedModules.stream()
+                        .map(recommendation -> firstNonBlank(recommendation.moduleName(), recommendation.moduleCode()))
+                        .toList()
+        );
+        List<String> scannerFocusAreas = mergeTextValues(fields.scannerFocusAreas(), deterministicScannerFocusAreas(request));
+        List<String> suggestedNextSteps = mergeTextValues(
+                fields.suggestedNextSteps(),
+                List.of(
+                        "Review the AI-selected lifecycle services and remove any service that is not part of the owner-approved scope.",
+                        hasText(request.repositoryUrl())
+                                ? "Use the prefilled repository source to run the first scanner evidence pass."
+                                : "Add a repository source before running scanner evidence collection.",
+                        "Convert the service plan into a governed workspace when the owner is ready to involve delivery talent."
+                )
+        );
+        return new ProductCreationFields(
+                fields.productName(),
+                fields.summary(),
+                fields.projectDescription(),
+                fields.businessProblem(),
+                fields.targetUsers(),
+                fields.businessStage(),
+                fields.techStack(),
+                fields.productUrl(),
+                fields.repositoryUrl(),
+                fields.riskProfile(),
+                fields.aiCreationSummary(),
+                fields.coreCapabilities(),
+                fields.businessOutcomes(),
+                fields.readinessGoals(),
+                recommendedServices,
+                selectedModules,
+                fields.missingCatalogCoverage(),
+                scannerFocusAreas,
+                suggestedNextSteps,
+                fields.sourceInsights(),
+                fields.assumptions(),
+                fields.missingEvidence(),
+                fields.documentUsage()
+        );
+    }
+
+    private List<ServiceModuleRecommendation> topUpServiceRecommendations(
+            List<ServiceModuleRecommendation> current,
+            List<ServiceModuleRecommendation> baseline,
+            int minimumCount
+    ) {
+        List<ServiceModuleRecommendation> merged = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (ServiceModuleRecommendation recommendation : listOrEmpty(current)) {
+            String key = serviceRecommendationKey(recommendation);
+            if (key.isBlank() || !seen.add(key)) {
+                continue;
+            }
+            merged.add(recommendation);
+        }
+        for (ServiceModuleRecommendation recommendation : listOrEmpty(baseline)) {
+            if (merged.size() >= Math.max(minimumCount, 1)) {
+                break;
+            }
+            String key = serviceRecommendationKey(recommendation);
+            if (key.isBlank() || !seen.add(key)) {
+                continue;
+            }
+            merged.add(recommendation);
+        }
+        if (merged.isEmpty()) {
+            return List.of();
+        }
+        List<ServiceModuleRecommendation> sequenced = new ArrayList<>();
+        for (int index = 0; index < merged.size(); index++) {
+            ServiceModuleRecommendation recommendation = merged.get(index);
+            sequenced.add(new ServiceModuleRecommendation(
+                    recommendation.moduleCode(),
+                    recommendation.moduleName(),
+                    recommendation.categorySlug(),
+                    recommendation.priority(),
+                    index + 1,
+                    recommendation.reason(),
+                    recommendation.evidenceBasis(),
+                    recommendation.expectedOutcome(),
+                    recommendation.confidence(),
+                    recommendation.accepted()
+            ));
+        }
+        return sequenced;
+    }
+
+    private String serviceRecommendationKey(ServiceModuleRecommendation recommendation) {
+        if (recommendation == null) {
+            return "";
+        }
+        return firstNonBlank(recommendation.moduleCode(), recommendation.moduleName())
+                .trim()
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private List<String> mergeTextValues(List<String> preferred, List<String> fallback) {
+        List<String> merged = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (String value : listOrEmpty(preferred)) {
+            String trimmed = trim(value, TEXT_LIMIT);
+            if (!trimmed.isBlank() && seen.add(trimmed.toLowerCase(Locale.ROOT))) {
+                merged.add(trimmed);
+            }
+        }
+        for (String value : listOrEmpty(fallback)) {
+            String trimmed = trim(value, TEXT_LIMIT);
+            if (!trimmed.isBlank() && seen.add(trimmed.toLowerCase(Locale.ROOT))) {
+                merged.add(trimmed);
+            }
+        }
+        return merged.stream().limit(10).toList();
     }
 
     private ProductCreationFields ensureDocumentUsage(
