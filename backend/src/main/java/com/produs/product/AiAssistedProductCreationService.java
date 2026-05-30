@@ -1168,6 +1168,12 @@ public class AiAssistedProductCreationService {
     }
 
     private ProductCreationFields deterministicFields(AiAssistedProductCreationRequest request) {
+        List<ServiceModuleRecommendation> serviceModules = deterministicServiceModuleRecommendations(request);
+        List<String> recommendedServices = serviceModules.stream()
+                .map(recommendation -> firstNonBlank(recommendation.moduleName(), recommendation.moduleCode()))
+                .filter(value -> !value.isBlank())
+                .toList();
+        List<String> scannerFocusAreas = deterministicScannerFocusAreas(request);
         return new ProductCreationFields(
                 firstNonBlank(request.productName(), firstLine(request.ownerMessage()), "AI-created product " + LocalDateTime.now().toLocalDate()),
                 trim(request.ownerMessage(), TEXT_LIMIT),
@@ -1183,17 +1189,172 @@ public class AiAssistedProductCreationService {
                 List.of(),
                 List.of(),
                 List.of("Run product diagnosis, scanner evidence collection, and service selection after project creation."),
+                recommendedServices,
+                serviceModules,
                 List.of(),
-                List.of(),
-                List.of(),
-                List.of("Run code, security, dependency, database, deployment, and evidence readiness checks after project creation."),
+                scannerFocusAreas,
                 List.of("Create the productization workspace and run the first diagnosis."),
-                List.of(),
+                deterministicSourceInsights(request),
                 List.of("ProdUS used owner-provided intake because AI analysis was unavailable."),
                 List.of("Run diagnosis and scanner evidence collection after project creation."),
                 List.of()
         );
     }
+
+    private List<ServiceModuleRecommendation> deterministicServiceModuleRecommendations(AiAssistedProductCreationRequest request) {
+        String needText = normalizeText(String.join(" ",
+                firstNonBlank(request.ownerMessage()),
+                firstNonBlank(request.productName()),
+                firstNonBlank(request.techStack()),
+                firstNonBlank(request.knownRisks()),
+                firstNonBlank(request.productUrl()),
+                firstNonBlank(request.repositoryUrl())
+        ));
+        boolean hasRepo = hasText(request.repositoryUrl());
+        boolean asksTesting = containsAny(needText, "test", "testing", "qa", "quality", "coverage", "e2e", "smoke");
+        boolean asksSecurity = containsAny(needText, "security", "secret", "auth", "credential", "vulnerability");
+        boolean asksDeployment = containsAny(needText, "deploy", "deployment", "staging", "production", "release", "ci", "cd");
+        boolean asksDatabase = containsAny(needText, "database", "postgres", "schema", "migration", "data");
+
+        List<DeterministicServiceSeed> seeds = new ArrayList<>();
+        addDeterministicSeed(seeds, "validation.product_readiness", "MUST",
+                "Owner asked for a production-readiness productization project.",
+                "Evidence-backed product diagnosis and service sequencing.");
+        if (hasRepo) {
+            addDeterministicSeed(seeds, "validation.codebase", "MUST",
+                    "Repository URL was provided during project creation.",
+                    "Codebase risks are visible before delivery teams scope implementation.");
+            addDeterministicSeed(seeds, "security.secrets_scan", asksSecurity ? "MUST" : "SHOULD",
+                    "Repository-backed productization should check for exposed credentials and unsafe configuration.",
+                    "Secret exposure risk is surfaced before production access is granted.");
+            addDeterministicSeed(seeds, "security.dependency_review", "SHOULD",
+                    "Repository-backed productization should inspect dependency and supply-chain risk.",
+                    "Dependency risk is visible and mapped to patch or acceptance decisions.");
+        }
+        if (asksDeployment || hasRepo) {
+            addDeterministicSeed(seeds, "cloud.staging_setup", "SHOULD",
+                    "The owner wants the project ready to connect the repo and start governed scanning.",
+                    "A staging or scanner-ready environment path is available for evidence collection.");
+            addDeterministicSeed(seeds, "cloud.cicd_setup", "SHOULD",
+                    "Repository scanning and repeatable production readiness need CI/CD evidence.",
+                    "Build, test, and deployment checks can gate production decisions.");
+        }
+        if (asksTesting || asksDeployment || hasRepo) {
+            addDeterministicSeed(seeds, "quality.test_strategy", "SHOULD",
+                    "Production readiness needs explicit test scope and evidence gates.",
+                    "The owner knows which critical flows and checks prove release confidence.");
+            if (asksTesting) {
+                addDeterministicSeed(seeds, "quality.e2e_testing", "COULD",
+                        "The owner input mentions testing or quality validation.",
+                        "Critical user journeys can be verified end to end before launch.");
+            }
+        }
+        if (asksDatabase) {
+            addDeterministicSeed(seeds, "db.review", "SHOULD",
+                    "The owner input or repository context references database or data readiness.",
+                    "Schema, migration, integrity, and query risks are reviewed before productization.");
+        }
+        addDeterministicSeed(seeds, "launch.readiness_review", "SHOULD",
+                "Production-level productization should end with an owner-readable launch decision.",
+                "Launch-critical blockers, evidence, and approvals are visible.");
+
+        List<ServiceModuleRecommendation> recommendations = new ArrayList<>();
+        int sequence = 0;
+        for (DeterministicServiceSeed seed : seeds) {
+            Optional<ServiceModule> module = findServiceModule(seed.moduleCode());
+            if (module.isEmpty()) {
+                continue;
+            }
+            sequence++;
+            ServiceModule serviceModule = module.get();
+            recommendations.add(new ServiceModuleRecommendation(
+                    moduleCode(serviceModule),
+                    serviceModule.getName(),
+                    serviceModule.getCategory() == null ? "" : serviceModule.getCategory().getSlug(),
+                    seed.priority(),
+                    sequence,
+                    seed.reason(),
+                    List.of("Owner intake", hasRepo ? "Repository URL provided" : "Owner-provided project context"),
+                    firstNonBlank(serviceModule.getOwnerOutcome(), seed.expectedOutcome()),
+                    0.72,
+                    true
+            ));
+            if (recommendations.size() >= 6) {
+                break;
+            }
+        }
+        return recommendations;
+    }
+
+    private List<String> deterministicScannerFocusAreas(AiAssistedProductCreationRequest request) {
+        List<String> focusAreas = new ArrayList<>();
+        focusAreas.add("Codebase structure, build health, and maintainability readiness");
+        focusAreas.add("Secrets, dependency, and API security posture");
+        if (hasText(request.repositoryUrl())) {
+            focusAreas.add("Repository-connected scanner setup and CI evidence import");
+        }
+        if (containsAny(normalizeText(firstNonBlank(request.techStack(), request.ownerMessage())), "postgres", "database", "schema", "migration")) {
+            focusAreas.add("Database schema, migration, integrity, and query readiness");
+        }
+        focusAreas.add("Deployment, staging, monitoring, and rollback readiness");
+        focusAreas.add("Critical flow testing and release acceptance evidence");
+        return focusAreas.stream().distinct().limit(6).toList();
+    }
+
+    private List<String> deterministicSourceInsights(AiAssistedProductCreationRequest request) {
+        List<String> insights = new ArrayList<>();
+        if (hasText(request.repositoryUrl())) {
+            insights.add("Owner provided repository URL: " + trim(request.repositoryUrl(), 180));
+        }
+        if (hasText(request.productUrl())) {
+            insights.add("Owner provided product URL: " + trim(request.productUrl(), 180));
+        }
+        if (hasText(request.techStack())) {
+            insights.add("Owner identified tech stack: " + trim(request.techStack(), 180));
+        }
+        return insights;
+    }
+
+    private Optional<ServiceModule> findServiceModule(String moduleCode) {
+        if (!hasText(moduleCode)) {
+            return Optional.empty();
+        }
+        Optional<ServiceModule> byStableCode = Optional.ofNullable(serviceModuleRepository.findByStableCode(moduleCode))
+                .orElse(Optional.empty());
+        return byStableCode.isPresent()
+                ? byStableCode
+                : Optional.ofNullable(serviceModuleRepository.findBySlug(moduleCode)).orElse(Optional.empty());
+    }
+
+    private void addDeterministicSeed(
+            List<DeterministicServiceSeed> seeds,
+            String moduleCode,
+            String priority,
+            String reason,
+            String expectedOutcome
+    ) {
+        if (seeds.stream().noneMatch(seed -> seed.moduleCode().equals(moduleCode))) {
+            seeds.add(new DeterministicServiceSeed(moduleCode, priority, reason, expectedOutcome));
+        }
+    }
+
+    private boolean containsAny(String text, String... values) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        for (String value : values) {
+            if (text.contains(value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
+    }
+
+    private record DeterministicServiceSeed(String moduleCode, String priority, String reason, String expectedOutcome) {}
 
     private String initialName(ProductCreationIntent intent) {
         String candidate = firstNonBlank(intent.getProductName(), firstLine(intent.getOwnerMessage()), "AI-created product " + LocalDateTime.now().toLocalDate());
