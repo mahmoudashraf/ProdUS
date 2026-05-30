@@ -726,3 +726,74 @@ This change is complete when:
 4. Should AI analysis automatically select testing pack modules?
 
    Recommended: AI can recommend testing catalog modules with evidence, but owner must approve inclusion before creation.
+
+## 15. LoomAI Confirmed-Action Manifest Update Request
+
+This section is the shareable contract note for LoomAI. It is not a blocker for the current ProdUS UI path because ProdUS sends the create payload to its own backend and the current MCP schema accepts additional properties. It should still be reflected in LoomAI's confirmed-action manifest examples before LoomAI tightens schema validation or relies on generated operator documentation.
+
+### Requested LoomAI Update
+
+Please update the confirmed-action manifest/examples for `produs_productization_project_create` / `produs.productization_project.create` to document these optional owner-approved fields:
+
+- `recommendedServiceModules`
+- `missingCatalogCoverage`
+
+ProdUS now uses these fields to turn AI project analysis into concrete productization setup after the owner clicks Create Project.
+
+### Payload Additions
+
+```json
+{
+  "recommendedServiceModules": [
+    {
+      "moduleCode": "launch.readiness_review",
+      "moduleName": "Launch readiness",
+      "categorySlug": "launch-readiness",
+      "priority": "MUST",
+      "sequence": 1,
+      "reason": "Owner needs evidence-backed production readiness before launch.",
+      "evidenceBasis": "Owner brief, repository URL, selected documents, public product URL, or explicit assumption.",
+      "expectedOutcome": "Owner has a concrete readiness decision path with required proof.",
+      "confidence": 0.9,
+      "accepted": true
+    }
+  ],
+  "missingCatalogCoverage": [
+    {
+      "need": "Capability requested by the owner that does not map to a current ProdUS service module.",
+      "reason": "Why the current catalog does not have an exact fit.",
+      "suggestedCatalogAction": "Catalog module or template to consider adding later."
+    }
+  ]
+}
+```
+
+### Field Rules
+
+- `recommendedServiceModules[].moduleCode` must be one of the module codes returned by ProdUS in `context.serviceCatalogSnapshot.candidateModules`.
+- LoomAI should not invent service names or module codes.
+- If the owner needs something outside the supplied catalog snapshot, put it in `missingCatalogCoverage` instead of `recommendedServiceModules`.
+- `priority` must be one of `MUST`, `SHOULD`, `COULD`, or `LATER`.
+- `sequence` starts at `1` and represents the owner-reviewed service plan order.
+- `confidence` must be a number from `0` to `1`.
+- `accepted` is controlled by ProdUS owner review UI; omitted values should be treated as owner-review required, not automatically accepted.
+
+### ProdUS Backend Behavior
+
+When the owner approves project creation, ProdUS:
+
+- validates each accepted `recommendedServiceModules[].moduleCode` against the live service catalog;
+- rejects invalid accepted module codes fail-closed;
+- persists the complete owner-approved analysis as `ProductProjectIntelligence`;
+- persists accepted modules as `ProductServiceRecommendation` records linked to the created product;
+- persists scanner focus areas as `ProductScannerRecommendation` records;
+- persists readiness goals, suggested next steps, and missing evidence as `ProductReadinessTask` records;
+- does not persist temporary document URLs or raw private document content.
+
+### Current Compatibility
+
+Current status:
+
+- ProdUS backend accepts these fields through the existing action payload path.
+- ProdUS MCP schema currently allows additional properties, so this is not blocking.
+- Manifest/example alignment is recommended so future strict schema validation does not drop or reject these fields.

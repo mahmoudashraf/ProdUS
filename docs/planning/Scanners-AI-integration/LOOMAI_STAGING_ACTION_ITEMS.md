@@ -493,14 +493,71 @@ Actions:
 - Verify answers can cite or ground against service and package records.
 - Confirm unsafe private records are not indexed.
 
-### 4.4 Keep Mutations Deferred
+### 4.4 Keep Additional Mutations Deferred
 
 Owner: LoomAI
 
 Actions:
 
-- Keep current deployment read-only for ProdUS actions.
-- Do not import mutation tools until ProdUS provides confirmed-action UX and audit proof.
+- Keep all additional ProdUS mutation tools deferred.
+- Treat `produs_productization_project_create` as the only approved bounded confirmed write action for now.
+- Do not import new mutation tools until ProdUS provides confirmed-action UX, authorization, idempotency, and audit proof for each action.
+
+### 4.5 Update Project Creation Confirmed-Action Examples
+
+Owner: LoomAI
+
+Status: requested by ProdUS after the 2026-05-30 AI project-analysis creation enhancement.
+
+Priority: recommended, not blocking.
+
+Context:
+
+- ProdUS has one bounded confirmed write action already configured: `produs_productization_project_create`, mapped to MCP tool `produs.productization_project.create`.
+- ProdUS now enriches the owner-approved action payload with catalog-backed service recommendations and catalog gap notes.
+- The current ProdUS MCP schema accepts additional properties, so the live flow works now.
+- LoomAI should still update the confirmed-action manifest examples before future strict schema validation or operator-generated documentation relies on the older payload shape.
+
+Fields to document:
+
+```json
+{
+  "recommendedServiceModules": [
+    {
+      "moduleCode": "launch.readiness_review",
+      "moduleName": "Launch readiness",
+      "categorySlug": "launch-readiness",
+      "priority": "MUST",
+      "sequence": 1,
+      "reason": "Owner needs evidence-backed production readiness before launch.",
+      "evidenceBasis": "Owner brief, repository URL, selected documents, public product URL, or explicit assumption.",
+      "expectedOutcome": "Owner has a concrete readiness decision path with required proof.",
+      "confidence": 0.9,
+      "accepted": true
+    }
+  ],
+  "missingCatalogCoverage": [
+    {
+      "need": "Capability requested by the owner that does not map to a current ProdUS service module.",
+      "reason": "Why the current catalog does not have an exact fit.",
+      "suggestedCatalogAction": "Catalog module or template to consider adding later."
+    }
+  ]
+}
+```
+
+ProdUS validation behavior:
+
+- `recommendedServiceModules[].moduleCode` must resolve to a live ProdUS service module.
+- Accepted invalid module codes fail closed.
+- Owner review controls `accepted`; LoomAI should not treat missing `accepted` as approval.
+- Values in `missingCatalogCoverage` are advisory and must not create catalog records automatically.
+
+Acceptance:
+
+- LoomAI manifest/examples for `produs_productization_project_create` include `recommendedServiceModules` and `missingCatalogCoverage`.
+- LoomAI docs state that ProdUS validates and persists these fields only after owner-approved project creation.
+- LoomAI docs state that current live compatibility is non-blocking because ProdUS accepts additional MCP properties.
 
 ## 5. Evidence To Share After ProdUS Runs It
 
