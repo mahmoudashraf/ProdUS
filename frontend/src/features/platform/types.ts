@@ -213,12 +213,22 @@ export interface ProductCreationIntent {
 export interface ProductCreationFields {
   productName: string;
   summary: string;
+  projectDescription?: string;
+  businessProblem?: string;
+  targetUsers?: string;
   businessStage: ProductProfile['businessStage'];
   techStack?: string;
   productUrl?: string;
   repositoryUrl?: string;
   riskProfile?: string;
   aiCreationSummary?: string;
+  coreCapabilities?: string[];
+  businessOutcomes?: string[];
+  readinessGoals?: string[];
+  recommendedServices?: string[];
+  scannerFocusAreas?: string[];
+  suggestedNextSteps?: string[];
+  sourceInsights?: string[];
   assumptions: string[];
   missingEvidence: string[];
   documentUsage: DocumentUsageEvidence[];

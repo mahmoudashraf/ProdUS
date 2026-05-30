@@ -209,7 +209,7 @@ public class AiAssistedProductCreationService {
         ProductProfile product = new ProductProfile();
         product.setOwner(intent.getOwner());
         product.setName(firstNonBlank(trim(request.productName(), NAME_LIMIT), intent.getProductName(), initialName(intent)));
-        product.setSummary(firstNonBlank(trim(request.summary(), TEXT_LIMIT), intent.getSummary(), intent.getOwnerMessage()));
+        product.setSummary(firstNonBlank(trim(request.summary(), TEXT_LIMIT), trim(request.projectDescription(), TEXT_LIMIT), intent.getSummary(), intent.getOwnerMessage()));
         product.setBusinessStage(parseStage(firstNonBlank(request.businessStage(), intent.getBusinessStage() == null ? "" : intent.getBusinessStage().name()))
                 .orElse(ProductProfile.BusinessStage.PROTOTYPE));
         product.setTechStack(firstNonBlank(trim(request.techStack(), TEXT_LIMIT), intent.getTechStack()));
@@ -219,7 +219,7 @@ public class AiAssistedProductCreationService {
         product.setCreationMode(ProductProfile.CreationMode.AI_ASSISTED);
         product.setCreatedByAi(true);
         product.setAiProviderRequestId(firstNonBlank(request.analysisProviderRequestId(), intent.getAnalysisProviderRequestId()));
-        product.setAiCreationSummary(firstNonBlank(trim(request.aiCreationSummary(), TEXT_LIMIT), intent.getAiCreationSummary()));
+        product.setAiCreationSummary(firstNonBlank(enrichedActionCreationSummary(request), intent.getAiCreationSummary()));
 
         List<ProductProjectAttachment> attachments = attachmentRepository.findByCreationIntentIdOrderByCreatedAtDesc(intent.getId());
         Set<UUID> aiAccessibleIds = request.aiAccessibleAttachmentIds() == null
@@ -368,7 +368,7 @@ public class AiAssistedProductCreationService {
             int temporaryAccessCount
     ) {
         intent.setProductName(firstNonBlank(trim(fields.productName(), NAME_LIMIT), intent.getProductName(), initialName(intent)));
-        intent.setSummary(firstNonBlank(trim(fields.summary(), TEXT_LIMIT), intent.getSummary(), intent.getOwnerMessage()));
+        intent.setSummary(firstNonBlank(trim(fields.summary(), TEXT_LIMIT), trim(fields.projectDescription(), TEXT_LIMIT), intent.getSummary(), intent.getOwnerMessage()));
         intent.setBusinessStage(parseStage(fields.businessStage()).orElseGet(() ->
                 intent.getBusinessStage() == null ? ProductProfile.BusinessStage.PROTOTYPE : intent.getBusinessStage()));
         intent.setTechStack(firstNonBlank(trim(fields.techStack(), TEXT_LIMIT), intent.getTechStack()));
@@ -377,10 +377,61 @@ public class AiAssistedProductCreationService {
         intent.setRiskProfile(firstNonBlank(trim(fields.riskProfile(), TEXT_LIMIT), intent.getRiskProfile()));
         intent.setAnalysisProviderRequestId(assistant.providerRequestId());
         intent.setAiSourceAttachmentCount(temporaryAccessCount);
-        intent.setAiCreationSummary(trim(firstNonBlank(fields.aiCreationSummary(), assistant.safeSummary(), assistant.answer()), TEXT_LIMIT));
+        intent.setAiCreationSummary(enrichedAnalysisSummary(fields, assistant));
         intent.setAssumptions(writeStringList(fields.assumptions()));
         intent.setMissingEvidence(writeStringList(fields.missingEvidence()));
         intent.setAnalysisFallbackReason(assistant.fallbackReason());
+    }
+
+    private String enrichedAnalysisSummary(ProductCreationFields fields, AssistantQueryResponse assistant) {
+        List<String> parts = new ArrayList<>();
+        addTextPart(parts, "Analysis", firstNonBlank(fields.aiCreationSummary(), assistant.safeSummary(), assistant.answer()));
+        addTextPart(parts, "Project", fields.projectDescription());
+        addTextPart(parts, "Problem", fields.businessProblem());
+        addTextPart(parts, "Users", fields.targetUsers());
+        addListPart(parts, "Capabilities", fields.coreCapabilities());
+        addListPart(parts, "Outcomes", fields.businessOutcomes());
+        addListPart(parts, "Readiness goals", fields.readinessGoals());
+        addListPart(parts, "Recommended services", fields.recommendedServices());
+        addListPart(parts, "Scanner focus", fields.scannerFocusAreas());
+        addListPart(parts, "Next steps", fields.suggestedNextSteps());
+        addListPart(parts, "Source insights", fields.sourceInsights());
+        String summary = String.join("\n", parts);
+        return trim(firstNonBlank(summary, fields.aiCreationSummary(), assistant.safeSummary(), assistant.answer()), TEXT_LIMIT);
+    }
+
+    private String enrichedActionCreationSummary(ProductCreationActionRequest request) {
+        List<String> parts = new ArrayList<>();
+        addTextPart(parts, "Analysis", request.aiCreationSummary());
+        addTextPart(parts, "Project", request.projectDescription());
+        addTextPart(parts, "Problem", request.businessProblem());
+        addTextPart(parts, "Users", request.targetUsers());
+        addListPart(parts, "Capabilities", request.coreCapabilities());
+        addListPart(parts, "Outcomes", request.businessOutcomes());
+        addListPart(parts, "Readiness goals", request.readinessGoals());
+        addListPart(parts, "Recommended services", request.recommendedServices());
+        addListPart(parts, "Scanner focus", request.scannerFocusAreas());
+        addListPart(parts, "Next steps", request.suggestedNextSteps());
+        addListPart(parts, "Source insights", request.sourceInsights());
+        return trim(String.join("\n", parts), TEXT_LIMIT);
+    }
+
+    private void addTextPart(List<String> parts, String label, String value) {
+        String text = trim(value, TEXT_LIMIT);
+        if (!text.isBlank()) {
+            parts.add(label + ": " + text);
+        }
+    }
+
+    private void addListPart(List<String> parts, String label, List<String> values) {
+        List<String> cleaned = listOrEmpty(values).stream()
+                .map(value -> trim(value, 260))
+                .filter(value -> !value.isBlank())
+                .limit(6)
+                .toList();
+        if (!cleaned.isEmpty()) {
+            parts.add(label + ": " + String.join("; ", cleaned));
+        }
     }
 
     private Map<String, Object> projectCreationActionPayload(
@@ -403,6 +454,16 @@ public class AiAssistedProductCreationService {
         payload.put("repositoryUrl", intent.getRepositoryUrl());
         payload.put("riskProfile", intent.getRiskProfile());
         payload.put("aiCreationSummary", intent.getAiCreationSummary());
+        payload.put("projectDescription", fields.projectDescription());
+        payload.put("businessProblem", fields.businessProblem());
+        payload.put("targetUsers", fields.targetUsers());
+        payload.put("coreCapabilities", fields.coreCapabilities());
+        payload.put("businessOutcomes", fields.businessOutcomes());
+        payload.put("readinessGoals", fields.readinessGoals());
+        payload.put("recommendedServices", fields.recommendedServices());
+        payload.put("scannerFocusAreas", fields.scannerFocusAreas());
+        payload.put("suggestedNextSteps", fields.suggestedNextSteps());
+        payload.put("sourceInsights", fields.sourceInsights());
         payload.put("assumptions", fields.assumptions());
         payload.put("missingEvidence", fields.missingEvidence());
         payload.put("sourceAttachmentIds", attachments.stream().map(attachment -> attachment.id().toString()).toList());
@@ -451,6 +512,9 @@ public class AiAssistedProductCreationService {
         return new ProductCreationFields(
                 firstNonBlank(aiFields.productName(), ownerProvidedFields.productName()),
                 firstNonBlank(aiFields.summary(), ownerProvidedFields.summary()),
+                firstNonBlank(aiFields.projectDescription(), ownerProvidedFields.projectDescription()),
+                firstNonBlank(aiFields.businessProblem(), ownerProvidedFields.businessProblem()),
+                firstNonBlank(aiFields.targetUsers(), ownerProvidedFields.targetUsers()),
                 firstNonBlank(aiFields.businessStage(), ownerProvidedFields.businessStage()),
                 firstNonBlank(aiFields.techStack(), ownerProvidedFields.techStack()),
                 firstNonBlank(aiFields.productUrl(), ownerProvidedFields.productUrl()),
@@ -460,9 +524,16 @@ public class AiAssistedProductCreationService {
                         aiFields.aiCreationSummary(),
                         "LoomAI analyzed the owner intake and produced the initial project attributes. ProdUS completed any missing required fields from owner-provided inputs."
                 ),
-                aiFields.assumptions() == null ? List.of() : aiFields.assumptions(),
-                aiFields.missingEvidence() == null ? List.of() : aiFields.missingEvidence(),
-                aiFields.documentUsage() == null ? List.of() : aiFields.documentUsage()
+                mergeList(aiFields.coreCapabilities(), ownerProvidedFields.coreCapabilities()),
+                mergeList(aiFields.businessOutcomes(), ownerProvidedFields.businessOutcomes()),
+                mergeList(aiFields.readinessGoals(), ownerProvidedFields.readinessGoals()),
+                mergeList(aiFields.recommendedServices(), ownerProvidedFields.recommendedServices()),
+                mergeList(aiFields.scannerFocusAreas(), ownerProvidedFields.scannerFocusAreas()),
+                mergeList(aiFields.suggestedNextSteps(), ownerProvidedFields.suggestedNextSteps()),
+                mergeList(aiFields.sourceInsights(), ownerProvidedFields.sourceInsights()),
+                listOrEmpty(aiFields.assumptions()),
+                listOrEmpty(aiFields.missingEvidence()),
+                listOrEmpty(aiFields.documentUsage())
         );
     }
 
@@ -505,12 +576,22 @@ public class AiAssistedProductCreationService {
         return new ProductCreationFields(
                 fields.productName(),
                 fields.summary(),
+                fields.projectDescription(),
+                fields.businessProblem(),
+                fields.targetUsers(),
                 fields.businessStage(),
                 fields.techStack(),
                 fields.productUrl(),
                 fields.repositoryUrl(),
                 fields.riskProfile(),
                 documentAwareCreationSummary(fields.aiCreationSummary(), completedUsage),
+                fields.coreCapabilities(),
+                fields.businessOutcomes(),
+                fields.readinessGoals(),
+                fields.recommendedServices(),
+                fields.scannerFocusAreas(),
+                fields.suggestedNextSteps(),
+                fields.sourceInsights(),
                 fields.assumptions(),
                 completedMissingEvidence,
                 completedUsage
@@ -550,16 +631,35 @@ public class AiAssistedProductCreationService {
         return fields != null && (
                 hasText(fields.productName())
                         || hasText(fields.summary())
+                        || hasText(fields.projectDescription())
+                        || hasText(fields.businessProblem())
+                        || hasText(fields.targetUsers())
                         || hasText(fields.businessStage())
                         || hasText(fields.techStack())
                         || hasText(fields.productUrl())
                         || hasText(fields.repositoryUrl())
                         || hasText(fields.riskProfile())
                         || hasText(fields.aiCreationSummary())
+                        || !listOrEmpty(fields.coreCapabilities()).isEmpty()
+                        || !listOrEmpty(fields.businessOutcomes()).isEmpty()
+                        || !listOrEmpty(fields.readinessGoals()).isEmpty()
+                        || !listOrEmpty(fields.recommendedServices()).isEmpty()
+                        || !listOrEmpty(fields.scannerFocusAreas()).isEmpty()
+                        || !listOrEmpty(fields.suggestedNextSteps()).isEmpty()
+                        || !listOrEmpty(fields.sourceInsights()).isEmpty()
                         || (fields.assumptions() != null && !fields.assumptions().isEmpty())
                         || (fields.missingEvidence() != null && !fields.missingEvidence().isEmpty())
                         || (fields.documentUsage() != null && !fields.documentUsage().isEmpty())
         );
+    }
+
+    private <T> List<T> listOrEmpty(List<T> values) {
+        return values == null ? List.of() : values;
+    }
+
+    private List<String> mergeList(List<String> preferred, List<String> fallback) {
+        List<String> values = listOrEmpty(preferred);
+        return values.isEmpty() ? listOrEmpty(fallback) : values;
     }
 
     private boolean hasText(String value) {
@@ -582,12 +682,22 @@ public class AiAssistedProductCreationService {
             return Optional.of(new ProductCreationFields(
                     text(node, "productName", "draftName", "name"),
                     text(node, "summary", "outcomeSummary", "productSummary"),
+                    text(node, "projectDescription", "projectOverview", "description"),
+                    text(node, "businessProblem", "problemStatement"),
+                    text(node, "targetUsers", "audience", "users"),
                     text(node, "businessStage", "stage"),
                     text(node, "techStack", "stack"),
                     text(node, "productUrl"),
                     text(node, "repositoryUrl", "repoUrl"),
                     text(node, "riskProfile", "riskNotes", "risks"),
                     text(node, "aiCreationSummary", "analysisSummary", "creationSummary"),
+                    textList(node, "coreCapabilities", "capabilities", "keyFeatures"),
+                    textList(node, "businessOutcomes", "outcomes"),
+                    textList(node, "readinessGoals", "productionReadinessGoals"),
+                    textList(node, "recommendedServices", "serviceRecommendations", "lifecycleServices"),
+                    textList(node, "scannerFocusAreas", "scannerPlan", "scanFocus"),
+                    textList(node, "suggestedNextSteps", "nextSteps"),
+                    textList(node, "sourceInsights", "linkInsights", "resourceInsights"),
                     textList(node, "assumptions"),
                     textList(node, "missingEvidence", "missing_evidence"),
                     documentUsageList(node, "documentUsage", "document_usage", "documentUse")
@@ -618,12 +728,22 @@ public class AiAssistedProductCreationService {
             return Optional.of(new ProductCreationFields(
                     text(node, "productName", "draftName", "name"),
                     text(node, "summary", "outcomeSummary", "productSummary"),
+                    text(node, "projectDescription", "projectOverview", "description"),
+                    text(node, "businessProblem", "problemStatement"),
+                    text(node, "targetUsers", "audience", "users"),
                     text(node, "businessStage", "stage"),
                     text(node, "techStack", "stack"),
                     text(node, "productUrl"),
                     text(node, "repositoryUrl", "repoUrl"),
                     text(node, "riskProfile", "riskNotes", "risks"),
                     text(node, "aiCreationSummary", "analysisSummary", "creationSummary"),
+                    textList(node, "coreCapabilities", "capabilities", "keyFeatures"),
+                    textList(node, "businessOutcomes", "outcomes"),
+                    textList(node, "readinessGoals", "productionReadinessGoals"),
+                    textList(node, "recommendedServices", "serviceRecommendations", "lifecycleServices"),
+                    textList(node, "scannerFocusAreas", "scannerPlan", "scanFocus"),
+                    textList(node, "suggestedNextSteps", "nextSteps"),
+                    textList(node, "sourceInsights", "linkInsights", "resourceInsights"),
                     textList(node, "assumptions"),
                     textList(node, "missingEvidence", "missing_evidence"),
                     documentUsageList(node, "documentUsage", "document_usage", "documentUse")
@@ -658,12 +778,22 @@ public class AiAssistedProductCreationService {
         return new ProductCreationFields(
                 firstNonBlank(request.productName(), firstLine(request.ownerMessage()), "AI-created product " + LocalDateTime.now().toLocalDate()),
                 trim(request.ownerMessage(), TEXT_LIMIT),
+                trim(request.ownerMessage(), TEXT_LIMIT),
+                "",
+                "",
                 request.businessStage() == null ? ProductProfile.BusinessStage.PROTOTYPE.name() : request.businessStage().name(),
                 request.techStack(),
                 request.productUrl(),
                 request.repositoryUrl(),
                 request.knownRisks(),
                 "Analysis prepared from owner-approved AI project intake. LoomAI response was unavailable or did not return the strict project analysis JSON contract.",
+                List.of(),
+                List.of(),
+                List.of("Run product diagnosis, scanner evidence collection, and service selection after project creation."),
+                List.of(),
+                List.of("Run code, security, dependency, database, deployment, and evidence readiness checks after project creation."),
+                List.of("Create the productization workspace and run the first diagnosis."),
+                List.of(),
                 List.of("ProdUS used owner-provided intake because AI analysis was unavailable."),
                 List.of("Run diagnosis and scanner evidence collection after project creation."),
                 List.of()
@@ -850,12 +980,22 @@ public class AiAssistedProductCreationService {
     public record ProductCreationFields(
             String productName,
             String summary,
+            String projectDescription,
+            String businessProblem,
+            String targetUsers,
             String businessStage,
             String techStack,
             String productUrl,
             String repositoryUrl,
             String riskProfile,
             String aiCreationSummary,
+            List<String> coreCapabilities,
+            List<String> businessOutcomes,
+            List<String> readinessGoals,
+            List<String> recommendedServices,
+            List<String> scannerFocusAreas,
+            List<String> suggestedNextSteps,
+            List<String> sourceInsights,
             List<String> assumptions,
             List<String> missingEvidence,
             List<DocumentUsageEvidence> documentUsage
@@ -954,12 +1094,22 @@ public class AiAssistedProductCreationService {
             String analysisProviderRequestId,
             String productName,
             String summary,
+            String projectDescription,
+            String businessProblem,
+            String targetUsers,
             String businessStage,
             String techStack,
             String productUrl,
             String repositoryUrl,
             String riskProfile,
             String aiCreationSummary,
+            List<String> coreCapabilities,
+            List<String> businessOutcomes,
+            List<String> readinessGoals,
+            List<String> recommendedServices,
+            List<String> scannerFocusAreas,
+            List<String> suggestedNextSteps,
+            List<String> sourceInsights,
             List<String> assumptions,
             List<String> missingEvidence,
             List<UUID> sourceAttachmentIds,
@@ -974,12 +1124,22 @@ public class AiAssistedProductCreationService {
                     string(value.get("analysisProviderRequestId")),
                     string(value.get("productName")),
                     string(value.get("summary")),
+                    string(value.get("projectDescription")),
+                    string(value.get("businessProblem")),
+                    string(value.get("targetUsers")),
                     string(value.get("businessStage")),
                     string(value.get("techStack")),
                     string(value.get("productUrl")),
                     string(value.get("repositoryUrl")),
                     string(value.get("riskProfile")),
                     string(value.get("aiCreationSummary")),
+                    stringList(value.get("coreCapabilities")),
+                    stringList(value.get("businessOutcomes")),
+                    stringList(value.get("readinessGoals")),
+                    stringList(value.get("recommendedServices")),
+                    stringList(value.get("scannerFocusAreas")),
+                    stringList(value.get("suggestedNextSteps")),
+                    stringList(value.get("sourceInsights")),
                     stringList(value.get("assumptions")),
                     stringList(value.get("missingEvidence")),
                     uuidList(value.get("sourceAttachmentIds")),

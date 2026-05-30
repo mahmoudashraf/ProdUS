@@ -471,6 +471,16 @@ export default function ProductOnboardingWizard() {
         repositoryUrl: form.values.repositoryUrl || aiAnalysis.analysis.repositoryUrl,
         riskProfile: form.values.riskProfile || aiAnalysis.analysis.riskProfile,
         aiCreationSummary: aiAnalysis.analysis.aiCreationSummary,
+        projectDescription: aiAnalysis.analysis.projectDescription,
+        businessProblem: aiAnalysis.analysis.businessProblem,
+        targetUsers: aiAnalysis.analysis.targetUsers,
+        coreCapabilities: aiAnalysis.analysis.coreCapabilities ?? [],
+        businessOutcomes: aiAnalysis.analysis.businessOutcomes ?? [],
+        readinessGoals: aiAnalysis.analysis.readinessGoals ?? [],
+        recommendedServices: aiAnalysis.analysis.recommendedServices ?? [],
+        scannerFocusAreas: aiAnalysis.analysis.scannerFocusAreas ?? [],
+        suggestedNextSteps: aiAnalysis.analysis.suggestedNextSteps ?? [],
+        sourceInsights: aiAnalysis.analysis.sourceInsights ?? [],
         assumptions: aiAnalysis.analysis.assumptions,
         missingEvidence: aiAnalysis.analysis.missingEvidence,
       };
@@ -606,6 +616,25 @@ export default function ProductOnboardingWizard() {
           source: 'AI',
           accent: appleColors.blue,
           wide: true,
+        },
+        {
+          label: 'Project understanding',
+          value: aiAnalysis.analysis.projectDescription,
+          source: aiAnalysis.analysis.projectDescription ? 'AI' : 'Needs input',
+          accent: appleColors.purple,
+          wide: true,
+        },
+        {
+          label: 'Business problem',
+          value: aiAnalysis.analysis.businessProblem,
+          source: aiAnalysis.analysis.businessProblem ? 'AI' : 'Needs input',
+          accent: appleColors.amber,
+        },
+        {
+          label: 'Target users',
+          value: aiAnalysis.analysis.targetUsers,
+          source: aiAnalysis.analysis.targetUsers ? 'AI' : 'Needs input',
+          accent: appleColors.cyan,
         },
         {
           label: 'Tech stack',
@@ -906,6 +935,56 @@ export default function ProductOnboardingWizard() {
                             />
                           ))}
                         </Box>
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', xl: 'repeat(3, 1fr)' },
+                            gap: 1,
+                          }}
+                        >
+                          <AiReviewList
+                            title="Core capabilities"
+                            items={aiAnalysis.analysis.coreCapabilities ?? []}
+                            empty="No capabilities extracted yet."
+                            accent={appleColors.purple}
+                          />
+                          <AiReviewList
+                            title="Business outcomes"
+                            items={aiAnalysis.analysis.businessOutcomes ?? []}
+                            empty="No outcomes extracted yet."
+                            accent={appleColors.green}
+                          />
+                          <AiReviewList
+                            title="Readiness goals"
+                            items={aiAnalysis.analysis.readinessGoals ?? []}
+                            empty="No readiness goals extracted yet."
+                            accent={appleColors.blue}
+                          />
+                          <AiReviewList
+                            title="Recommended service path"
+                            items={aiAnalysis.analysis.recommendedServices ?? []}
+                            empty="No service recommendations returned."
+                            accent={appleColors.amber}
+                          />
+                          <AiReviewList
+                            title="Scanner focus"
+                            items={aiAnalysis.analysis.scannerFocusAreas ?? []}
+                            empty="No scanner focus returned."
+                            accent={appleColors.red}
+                          />
+                          <AiReviewList
+                            title="Source insights"
+                            items={aiAnalysis.analysis.sourceInsights ?? []}
+                            empty="No source insights returned."
+                            accent={appleColors.cyan}
+                          />
+                        </Box>
+                        <AiReviewList
+                          title="Suggested next steps"
+                          items={aiAnalysis.analysis.suggestedNextSteps ?? []}
+                          empty="No next steps returned."
+                          accent={appleColors.green}
+                        />
                         {aiDocumentUsage.length > 0 && (
                           <AiDocumentUsageList usage={aiDocumentUsage} />
                         )}
