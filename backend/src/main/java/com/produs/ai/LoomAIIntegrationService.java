@@ -77,6 +77,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -115,6 +116,9 @@ public class LoomAIIntegrationService {
     private static final int KNOWLEDGE_CONTENT_LIMIT = 4_000;
     private static final int DEFAULT_KNOWLEDGE_EXPORT_LIMIT = 100;
     private static final int MAX_KNOWLEDGE_EXPORT_LIMIT = 250;
+    private static final int PAGE_CONTEXT_DEPTH_LIMIT = 4;
+    private static final int PAGE_CONTEXT_ENTRY_LIMIT = 48;
+    private static final int PAGE_CONTEXT_LIST_LIMIT = 12;
     private static final String DATA_SYNC_SCOPE = "data-sync:upsert";
     private static final String SAFE_KNOWLEDGE_SYSTEM_SUBJECT = "system:produs-safe-knowledge-sync";
     private static final String SAFE_KNOWLEDGE_EXPORT_VERSION = "produs-safe-knowledge-v1";
@@ -1015,6 +1019,17 @@ public class LoomAIIntegrationService {
         if (context == null) {
             return safe;
         }
+        if ("owner-project-ai-analysis".equals(context.pageType())) {
+            safe.put("actionProfile", "loomai-productization-explain-only");
+            safe.put("availableActionGroups", List.of());
+            safe.put("assistantIntent", "project-analysis-follow-up-chat");
+            safe.put("runtimeActionPolicy", "actions-disabled-for-analysis-chat");
+            safe.put("toolUsePolicy", "answer-from-current-page-analysis-and-safe-indexed-knowledge");
+        }
+        Map<String, Object> pageContext = safePageContext(context.pageContext(), 0);
+        if (!pageContext.isEmpty()) {
+            safe.put("pageContext", pageContext);
+        }
         ProductProfile scopedProduct = null;
         PackageInstance scopedPackage = null;
         ProjectWorkspace scopedWorkspace = null;
@@ -1097,6 +1112,75 @@ public class LoomAIIntegrationService {
             safe.put("scannerSummary", scannerSummary(scopedProduct, scopedWorkspace));
         }
         return safe;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> safePageContext(Map<String, Object> source, int depth) {
+        Map<String, Object> safe = new LinkedHashMap<>();
+        if (source == null || source.isEmpty() || depth > PAGE_CONTEXT_DEPTH_LIMIT) {
+            return safe;
+        }
+        int count = 0;
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            if (count >= PAGE_CONTEXT_ENTRY_LIMIT) {
+                safe.put("truncated", true);
+                break;
+            }
+            String key = safePageContextKey(entry.getKey());
+            if (key == null) {
+                continue;
+            }
+            Object value = safePageContextValue(entry.getValue(), depth + 1);
+            if (value != null) {
+                safe.put(key, value);
+                count++;
+            }
+        }
+        return safe;
+    }
+
+    private String safePageContextKey(String key) {
+        if (key == null || key.isBlank()) {
+            return null;
+        }
+        String normalized = key.trim();
+        String lower = normalized.toLowerCase(Locale.ROOT);
+        if (lower.contains("secret")
+                || lower.contains("token")
+                || lower.contains("password")
+                || lower.contains("authorization")
+                || lower.contains("credential")
+                || lower.contains("privatekey")
+                || lower.contains("temporaryaccessurl")) {
+            return null;
+        }
+        return safePublicText(normalized, 80);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object safePageContextValue(Object value, int depth) {
+        if (value == null || depth > PAGE_CONTEXT_DEPTH_LIMIT) {
+            return null;
+        }
+        if (value instanceof String text) {
+            return safePublicText(text, SUMMARY_LIMIT);
+        }
+        if (value instanceof Number || value instanceof Boolean) {
+            return value;
+        }
+        if (value instanceof Map<?, ?> source) {
+            Map<String, Object> typed = new LinkedHashMap<>();
+            source.forEach((key, nestedValue) -> typed.put(String.valueOf(key), nestedValue));
+            return safePageContext(typed, depth);
+        }
+        if (value instanceof List<?> source) {
+            return source.stream()
+                    .limit(PAGE_CONTEXT_LIST_LIMIT)
+                    .map(item -> safePageContextValue(item, depth + 1))
+                    .filter(Objects::nonNull)
+                    .toList();
+        }
+        return safePublicText(String.valueOf(value), FIELD_LIMIT);
     }
 
     private Map<String, Object> projectCreationContext(User user, ProjectCreationAssistantRequest request) {
@@ -2470,7 +2554,8 @@ public class LoomAIIntegrationService {
             UUID packageId,
             UUID workspaceId,
             UUID milestoneId,
-            UUID findingId
+            UUID findingId,
+            Map<String, Object> pageContext
     ) {}
 
     public record AssistantSessionRequest(AssistantContextRequest context) {}

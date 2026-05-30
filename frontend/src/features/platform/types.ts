@@ -1038,6 +1038,7 @@ export interface AssistantContext {
   workspaceId?: string | undefined;
   milestoneId?: string | undefined;
   findingId?: string | undefined;
+  pageContext?: Record<string, unknown> | undefined;
 }
 
 export interface AssistantSuggestionsResponse {
