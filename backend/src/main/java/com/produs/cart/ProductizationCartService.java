@@ -11,6 +11,7 @@ import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
 import com.produs.dto.PlatformDtos.CatalogRuleEvaluationResponse;
 import com.produs.entity.User;
+import com.produs.exception.CatalogDependencyBlockedException;
 import com.produs.experts.ExpertProfile;
 import com.produs.experts.ExpertProfileRepository;
 import com.produs.packages.PackageInstance;
@@ -268,7 +269,7 @@ public class ProductizationCartService {
                 cart.getBusinessGoal()
         );
         if (evaluation.blockerCount() > 0) {
-            throw new IllegalArgumentException("Resolve required catalog services before starting a project: " + blockerSummary(evaluation));
+            throw new CatalogDependencyBlockedException(evaluation);
         }
 
         PackageInstance packageInstance = new PackageInstance();

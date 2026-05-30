@@ -103,6 +103,7 @@ import {
   ScannerConnectorInstallation,
   ScannerEvidenceItem,
   SignedArtifactResponse,
+  CatalogRuleItem,
 } from './types';
 
 interface ProductProfilePayload {
@@ -1421,6 +1422,11 @@ export default function OwnerProductizationWorkspace({
   const cartServiceItems = cart.data?.serviceItems || [];
   const cartTalentItems = cart.data?.talentItems || [];
   const cartServiceIds = new Set(cartServiceItems.map((item) => item.serviceModule.id));
+  const cartBlockers = cart.data?.catalogEvaluation?.blockerCount || 0;
+  const cartBlockingRecommendations = (cart.data?.catalogEvaluation?.recommendations || []).filter(
+    (item) => item.severity === 'BLOCKER' && !item.alreadySelected
+  );
+  const canStartProjectWorkspace = !!selectedProduct && cartServiceItems.length > 0 && cartBlockers === 0;
   const suggestedTeams = (teams.data || []).slice(0, 3);
   const suggestedExperts = (experts.data || []).filter((expert) => expert.active).slice(0, 3);
   const health = productHealth(selectedProduct, selectedPackage, packageModules.data);
@@ -1491,7 +1497,13 @@ export default function OwnerProductizationWorkspace({
       return typeof requirementId === 'string' || buildTargetRequirementId ? '' : 'Submit a product brief before building a package.';
     }
     if (name.includes('workspace.create')) {
-      return (cart.data?.serviceItems || []).length ? '' : 'Add at least one lifecycle service to the draft cart first.';
+      if (!(cart.data?.serviceItems || []).length) {
+        return 'Add at least one lifecycle service to the draft cart first.';
+      }
+      if (cartBlockers > 0) {
+        return `Add required catalog services first: ${cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`;
+      }
+      return '';
     }
     if (name.includes('scan.start')) {
       return hostedScanBlockedReason;
@@ -1512,6 +1524,9 @@ export default function OwnerProductizationWorkspace({
     }
     if (name.includes('workspace.create')) {
       if (!(cart.data?.serviceItems || []).length) throw new Error('Add lifecycle services to the draft cart before creating a workspace.');
+      if (cartBlockers > 0) {
+        throw new Error(`Add required catalog services first: ${cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`);
+      }
       await convertCart.mutateAsync();
       return;
     }
@@ -1613,6 +1628,22 @@ export default function OwnerProductizationWorkspace({
     addServiceToCart.mutate({
       serviceModuleId: serviceModule.id,
       notes: categoryName ? `Owner selected from ${categoryName}.` : 'Owner selected from lifecycle services.',
+    });
+  };
+
+  const addCatalogGuardService = (item: CatalogRuleItem) => {
+    if (!selectedProduct?.id) return;
+    const businessGoal = `Add ${item.recommendedModule.name} to ${selectedProduct.name} so the project workspace has the required catalog dependency before kickoff.`;
+    if (cart.data?.productProfile?.id !== selectedProduct.id) {
+      updateCart.mutate({
+        productProfileId: selectedProduct.id,
+        title: `${selectedProduct.name} productization plan`,
+        businessGoal,
+      });
+    }
+    addServiceToCart.mutate({
+      serviceModuleId: item.recommendedModule.id,
+      notes: `Added from AI catalog guard (${formatLabel(item.source)}). ${item.reason || ''}`.trim(),
     });
   };
 
@@ -3311,6 +3342,7 @@ export default function OwnerProductizationWorkspace({
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                   <PastelChip label={`${cart.data?.serviceItems.length || 0} services`} accent={appleColors.purple} />
                   <PastelChip label={`${cart.data?.talentItems.length || 0} teams / experts`} accent={appleColors.cyan} bg="#e4f9fd" />
+                  {cartBlockers > 0 && <PastelChip label={`${cartBlockers} required services missing`} accent={appleColors.red} bg="#fff1f2" />}
                 </Stack>
               </Box>
 
@@ -3352,6 +3384,47 @@ export default function OwnerProductizationWorkspace({
                 </Typography>
               )}
 
+              {cartBlockingRecommendations.length > 0 && (
+                <Surface sx={{ boxShadow: 'none', bgcolor: '#fff7ed', borderColor: '#fed7aa' }}>
+                  <Stack spacing={1}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <AutoAwesomeOutlined sx={{ color: appleColors.amber }} />
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 900 }}>
+                          AI guard found required services before workspace start
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Add these catalog dependencies so milestones include release automation and operational evidence.
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    {cartBlockingRecommendations.map((item) => (
+                      <Box
+                        key={item.recommendedModule.id}
+                        sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr auto' }, gap: 1, alignItems: 'center' }}
+                      >
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 900 }}>{item.recommendedModule.name}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {item.reason || item.recommendedModule.ownerOutcome || item.recommendedModule.description}
+                          </Typography>
+                        </Box>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<AddShoppingCartOutlined />}
+                          disabled={addServiceToCart.isPending}
+                          onClick={() => addCatalogGuardService(item)}
+                          sx={{ minHeight: 36 }}
+                        >
+                          Add
+                        </Button>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Surface>
+              )}
+
               {(cart.data?.talentItems || []).length ? (
                 <Stack spacing={0.75}>
                   {(cart.data?.talentItems || []).map((item) => (
@@ -3391,12 +3464,20 @@ export default function OwnerProductizationWorkspace({
               <Button
                 variant="contained"
                 startIcon={<RocketLaunchOutlined />}
-                disabled={!selectedProduct || !(cart.data?.serviceItems || []).length || convertCart.isPending}
+                disabled={!canStartProjectWorkspace || convertCart.isPending}
                 onClick={() => convertCart.mutate()}
                 sx={{ minHeight: 44 }}
               >
                 {convertCart.isPending ? 'Creating...' : 'Start Project Workspace'}
               </Button>
+              {!selectedProduct && <DotLabel label="Select a product before starting" color={appleColors.amber} />}
+              {selectedProduct && !cartServiceItems.length && <DotLabel label="Add at least one lifecycle service" color={appleColors.amber} />}
+              {selectedProduct && cartServiceItems.length > 0 && cartBlockers > 0 && (
+                <DotLabel
+                  label={`Add required services first: ${cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}`}
+                  color={appleColors.red}
+                />
+              )}
               {(selectedWorkspace || cart.data?.convertedWorkspace) && (
                 <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>
                   Open Project Workspace

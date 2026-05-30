@@ -37,6 +37,7 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import { PackageTemplate, ProductProfile, ProductizationCart, ProductizationCartConvertResponse, ProjectWorkspace } from './types';
+import type { CatalogRuleItem } from './types';
 
 interface CartUpdatePayload {
   productProfileId?: string;
@@ -124,6 +125,9 @@ export default function DraftProjectCartPage() {
   const serviceCount = currentCart?.serviceItems.length || 0;
   const talentCount = currentCart?.talentItems.length || 0;
   const blockers = currentCart?.catalogEvaluation?.blockerCount || 0;
+  const blockingRecommendations = (currentCart?.catalogEvaluation?.recommendations || []).filter(
+    (item) => item.severity === 'BLOCKER' && !item.alreadySelected
+  );
   const canStartWorkspace = !!product && !hasPlaceholderProduct && serviceCount > 0 && blockers === 0;
   const score = readinessScore(currentCart);
   const cartServiceIds = new Set((currentCart?.serviceItems || []).map((item) => item.serviceModule.id));
@@ -135,6 +139,13 @@ export default function DraftProjectCartPage() {
       productProfileId: selected.id,
       title: `${selected.name} productization draft`,
       businessGoal: selected.summary || `Move ${selected.name} toward production-ready delivery.`,
+    });
+  };
+
+  const addCatalogRecommendation = (item: CatalogRuleItem) => {
+    addRecommendedService.mutate({
+      serviceModuleId: item.recommendedModule.id,
+      notes: `Added from AI catalog guard (${formatLabel(item.source)}). ${item.reason || ''}`.trim(),
     });
   };
 
@@ -334,9 +345,14 @@ export default function DraftProjectCartPage() {
           {currentCart?.catalogEvaluation?.recommendations.length ? (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fffaf1 100%)' }}>
               <SectionTitle
-                title="Catalog Recommendations"
+                title="AI Catalog Guard"
                 action={<StatusChip label={blockers ? `${blockers} blockers` : 'Dependency aware'} color={blockers ? 'error' : 'warning'} />}
               />
+              {blockingRecommendations.length > 0 && (
+                <Alert severity="warning" sx={{ borderRadius: 1, mb: 1.5 }}>
+                  Add {blockingRecommendations.map((item) => item.recommendedModule.name).join(' and ')} before starting the workspace. These are required because the selected services need release automation and operational evidence.
+                </Alert>
+              )}
               <Stack spacing={1.25}>
                 {currentCart.catalogEvaluation.recommendations.slice(0, 5).map((item) => (
                   <Box
@@ -366,12 +382,7 @@ export default function DraftProjectCartPage() {
                       variant="contained"
                       startIcon={<AddShoppingCartOutlined />}
                       disabled={addRecommendedService.isPending}
-                      onClick={() =>
-                        addRecommendedService.mutate({
-                          serviceModuleId: item.recommendedModule.id,
-                          notes: `Added from catalog ${formatLabel(item.source)} rule.`,
-                        })
-                      }
+                      onClick={() => addCatalogRecommendation(item)}
                       sx={{ minHeight: 42, minWidth: 148 }}
                     >
                       Add service
@@ -464,7 +475,39 @@ export default function DraftProjectCartPage() {
               </Button>
               {(!product || hasPlaceholderProduct) && <DotLabel label="Select a production product first" color={appleColors.amber} />}
               {product && !serviceCount && <DotLabel label="Add at least one service" color={appleColors.amber} />}
-              {serviceCount > 0 && blockers > 0 && <DotLabel label="Add blocker dependencies before starting" color={appleColors.red} />}
+              {serviceCount > 0 && blockers > 0 && (
+                <Surface sx={{ boxShadow: 'none', bgcolor: '#fff7ed', borderColor: '#fed7aa' }}>
+                  <Stack spacing={1}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <AutoAwesomeOutlined sx={{ color: appleColors.amber }} />
+                      <Typography variant="body2" sx={{ fontWeight: 900 }}>
+                        AI guard found required services before workspace start
+                      </Typography>
+                    </Stack>
+                    {blockingRecommendations.map((item) => (
+                      <Box
+                        key={item.recommendedModule.id}
+                        sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr auto' }, gap: 1, alignItems: 'center' }}
+                      >
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 900 }}>{item.recommendedModule.name}</Typography>
+                          <Typography variant="caption" color="text.secondary">{item.reason || item.recommendedModule.ownerOutcome}</Typography>
+                        </Box>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<AddShoppingCartOutlined />}
+                          disabled={addRecommendedService.isPending}
+                          onClick={() => addCatalogRecommendation(item)}
+                          sx={{ minHeight: 36 }}
+                        >
+                          Add
+                        </Button>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Surface>
+              )}
               {(createdWorkspace || currentCart?.convertedWorkspace) && (
                 <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>
                   Open created workspace

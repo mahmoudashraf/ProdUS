@@ -78,6 +78,19 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
+    @ExceptionHandler(CatalogDependencyBlockedException.class)
+    public ProblemDetail handleCatalogDependencyBlockedException(CatalogDependencyBlockedException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage()
+        );
+        problemDetail.setType(URI.create("https://api.produs.com/errors/catalog-dependency-blocked"));
+        problemDetail.setTitle("Required Lifecycle Services Missing");
+        problemDetail.setProperty("missingServices", ex.getMissingServices());
+        problemDetail.setProperty("nextBestActions", ex.getNextBestActions());
+        return problemDetail;
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ProblemDetail handleResponseStatusException(ResponseStatusException ex) {
         String detail = ex.getReason() == null ? "Request failed" : ex.getReason();
