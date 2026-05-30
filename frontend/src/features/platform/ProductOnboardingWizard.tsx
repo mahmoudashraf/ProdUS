@@ -980,14 +980,6 @@ export default function ProductOnboardingWizard() {
         `/products/ai-assisted/intents/${aiAnalysis.intent.id}/create`,
         actionPayload
       );
-      await putJson<
-        ProductizationCart,
-        { productProfileId: string; title: string; businessGoal: string }
-      >('/productization-cart/current', {
-        productProfileId: response.product.id,
-        title: `${response.product.name} productization draft`,
-        businessGoal: response.product.summary || aiBrief,
-      });
       return response;
     },
     onSuccess: async response => {
