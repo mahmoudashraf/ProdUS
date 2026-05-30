@@ -110,8 +110,8 @@ public class LoomAIIntegrationService {
     private static final int SUMMARY_LIMIT = 480;
     private static final int FIELD_LIMIT = 220;
     private static final int LIST_LIMIT = 6;
-    private static final int MAX_PUBLIC_LINKS = 5;
-    private static final int PUBLIC_LINK_EXCERPT_LIMIT = 6_000;
+    private static final int MAX_PUBLIC_LINKS = 4;
+    private static final int PUBLIC_LINK_EXCERPT_LIMIT = 2_500;
     private static final int KNOWLEDGE_CONTENT_LIMIT = 4_000;
     private static final int DEFAULT_KNOWLEDGE_EXPORT_LIMIT = 100;
     private static final int MAX_KNOWLEDGE_EXPORT_LIMIT = 250;
@@ -1379,10 +1379,21 @@ public class LoomAIIntegrationService {
         insight.put("source", publicLinkSource(link));
         try {
             URI uri = URI.create(link);
+            String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
             insight.put("host", uri.getHost() == null ? "" : uri.getHost());
             if (!isSafePublicHttpUri(uri)) {
                 insight.put("contentStatus", "not-fetched");
                 insight.put("reason", "Link was skipped by ProdUS public-link safety rules.");
+                return insight;
+            }
+            if ("github.com".equals(host)) {
+                insight.put("contentStatus", "not-fetched");
+                insight.put("reason", "Repository URL is retained as a locator; ProdUS fetches README candidates separately.");
+                return insight;
+            }
+            if (host.endsWith(".sslip.io") && !host.startsWith("raw.")) {
+                insight.put("contentStatus", "not-fetched");
+                insight.put("reason", "Application URL is retained as a locator; page HTML is not fetched for owner intake.");
                 return insight;
             }
             HttpRequest request = HttpRequest.newBuilder(uri)
