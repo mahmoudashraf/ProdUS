@@ -510,15 +510,15 @@ public class AiAssistedProductCreationService {
             ProductCreationFields ownerProvidedFields
     ) {
         return new ProductCreationFields(
-                firstNonBlank(aiFields.productName(), ownerProvidedFields.productName()),
+                firstNonBlank(ownerProvidedFields.productName(), aiFields.productName()),
                 firstNonBlank(aiFields.summary(), ownerProvidedFields.summary()),
                 firstNonBlank(aiFields.projectDescription(), ownerProvidedFields.projectDescription()),
                 firstNonBlank(aiFields.businessProblem(), ownerProvidedFields.businessProblem()),
                 firstNonBlank(aiFields.targetUsers(), ownerProvidedFields.targetUsers()),
-                firstNonBlank(aiFields.businessStage(), ownerProvidedFields.businessStage()),
+                firstNonBlank(ownerProvidedFields.businessStage(), aiFields.businessStage()),
                 firstNonBlank(aiFields.techStack(), ownerProvidedFields.techStack()),
-                firstNonBlank(aiFields.productUrl(), ownerProvidedFields.productUrl()),
-                firstNonBlank(aiFields.repositoryUrl(), ownerProvidedFields.repositoryUrl()),
+                firstNonBlank(ownerProvidedFields.productUrl(), aiFields.productUrl()),
+                firstNonBlank(ownerProvidedFields.repositoryUrl(), aiFields.repositoryUrl()),
                 firstNonBlank(aiFields.riskProfile(), ownerProvidedFields.riskProfile()),
                 firstNonBlank(
                         aiFields.aiCreationSummary(),

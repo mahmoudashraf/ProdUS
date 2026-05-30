@@ -361,7 +361,7 @@ class AiAssistedProductCreationServiceTest {
                         ownerProvidedFields
                 );
 
-        assertThat(fields.productName()).isEqualTo("ProdUS");
+        assertThat(fields.productName()).isEqualTo("Owner fallback");
         assertThat(fields.summary()).isEqualTo("ProdUS helps owners productize prototypes.");
         assertThat(fields.businessStage()).isEqualTo("PROTOTYPE");
         assertThat(fields.techStack()).isEqualTo("Next.js, Spring Boot, PostgreSQL");
