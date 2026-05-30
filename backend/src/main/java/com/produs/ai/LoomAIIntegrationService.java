@@ -1208,6 +1208,8 @@ public class LoomAIIntegrationService {
                 coreCapabilities, businessOutcomes, readinessGoals, recommendedServices, scannerFocusAreas, suggestedNextSteps, and sourceInsights must be arrays of concise strings.
                 recommendedServices should use ProdUS lifecycle language such as validation, code rewrite, testing, security, database, cloud/devops, launch readiness, operations/support, or monitoring.
                 scannerFocusAreas should name the practical scan/review areas the project should run next.
+                sourceInsights is mandatory. Include at least one owner-safe fact for every fetched public link, prefixed with "Public link:", and at least one owner-safe fact for every USED document, prefixed with "Document:".
+                If a public link or document cannot be used, explain that in missingEvidence.
                 assumptions and missingEvidence must be arrays of concise strings.
                 documentUsage.evidence must be an array of concise, non-sensitive facts. Never include secrets, tokens, credentials, or raw private content.
                 analysisSummary must summarize the project and mention whether selected documents were opened through temporary URLs or not used.

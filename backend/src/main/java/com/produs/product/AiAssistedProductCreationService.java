@@ -530,7 +530,7 @@ public class AiAssistedProductCreationService {
                 mergeList(aiFields.recommendedServices(), ownerProvidedFields.recommendedServices()),
                 mergeList(aiFields.scannerFocusAreas(), ownerProvidedFields.scannerFocusAreas()),
                 mergeList(aiFields.suggestedNextSteps(), ownerProvidedFields.suggestedNextSteps()),
-                mergeList(aiFields.sourceInsights(), ownerProvidedFields.sourceInsights()),
+                mergeList(sourceInsights(aiFields), ownerProvidedFields.sourceInsights()),
                 listOrEmpty(aiFields.assumptions()),
                 listOrEmpty(aiFields.missingEvidence()),
                 listOrEmpty(aiFields.documentUsage())
@@ -660,6 +660,19 @@ public class AiAssistedProductCreationService {
     private List<String> mergeList(List<String> preferred, List<String> fallback) {
         List<String> values = listOrEmpty(preferred);
         return values.isEmpty() ? listOrEmpty(fallback) : values;
+    }
+
+    private List<String> sourceInsights(ProductCreationFields fields) {
+        List<String> explicit = listOrEmpty(fields.sourceInsights());
+        if (!explicit.isEmpty()) {
+            return explicit;
+        }
+        return listOrEmpty(fields.documentUsage()).stream()
+                .filter(usage -> "USED".equals(usage.status()))
+                .flatMap(usage -> listOrEmpty(usage.evidence()).stream()
+                        .map(evidence -> "Document: " + evidence))
+                .limit(6)
+                .toList();
     }
 
     private boolean hasText(String value) {
