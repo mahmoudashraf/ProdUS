@@ -2281,6 +2281,7 @@ public class LoomAIIntegrationService {
                 Use the current page analysis below as the authoritative source for questions about this project.
                 If the owner asks for project name, tech stack, selected services, document usage, missing evidence, scanner focus, or next steps, answer directly from this context before using indexed knowledge.
                 You may use read-only ProdUS actions when more catalog, product, package, workspace, scanner, finding, evidence, or milestone context is needed.
+                When you use a read-only action, combine its result with the current page analysis. Do not say a project fact is unavailable when it appears in the current page analysis below.
                 Do not create, update, invite, or mutate ProdUS records from this chat.
 
                 Current page analysis:
