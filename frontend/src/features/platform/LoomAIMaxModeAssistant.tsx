@@ -254,6 +254,14 @@ export function LoomAIMaxModeAssistant({
             defaultConversationMode: mode,
             effectiveConversationMode: mode,
             allowedConversationModes: [mode],
+            pageModeMappings: {
+              landing: mode,
+              product: mode,
+              collection: mode,
+              content: mode,
+              search: mode,
+              catalog: mode,
+            },
             welcomeMessage: description,
             requestContext: widgetContext,
             requestContextProvider: () => widgetContext,
@@ -265,6 +273,16 @@ export function LoomAIMaxModeAssistant({
             })),
           },
         });
+        const sendMessage = window.MaxMode?.sendMessage?.bind(window.MaxMode);
+        if (sendMessage && window.MaxMode) {
+          window.MaxMode.sendMessage = (message, options) =>
+            sendMessage(message, {
+              ...options,
+              mode: options?.mode ?? mode,
+              position: options?.position ?? position,
+              requestContext: options?.requestContext ?? widgetContext,
+            });
+        }
         setStatus('ready');
       } catch (unknownError) {
         if (cancelled) return;
