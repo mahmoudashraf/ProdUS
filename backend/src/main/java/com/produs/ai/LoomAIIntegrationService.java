@@ -1089,6 +1089,9 @@ public class LoomAIIntegrationService {
         Map<String, Object> pageContext = safePageContext(context.pageContext(), 0);
         if (!pageContext.isEmpty()) {
             safe.put("pageContext", pageContext);
+            if ("owner-project-ai-analysis".equals(context.pageType())) {
+                promoteProjectAnalysisContext(safe, pageContext);
+            }
         }
         ProductProfile scopedProduct = null;
         PackageInstance scopedPackage = null;
@@ -1241,6 +1244,41 @@ public class LoomAIIntegrationService {
                     .toList();
         }
         return safePublicText(String.valueOf(value), FIELD_LIMIT);
+    }
+
+    private void promoteProjectAnalysisContext(Map<String, Object> safe, Map<String, Object> pageContext) {
+        copyPageContextValue(safe, pageContext, "assistantIntent");
+        copyPageContextValue(safe, pageContext, "productName");
+        copyPageContextValue(safe, pageContext, "businessStage");
+        copyPageContextValue(safe, pageContext, "summary");
+        copyPageContextValue(safe, pageContext, "projectDescription");
+        copyPageContextValue(safe, pageContext, "businessProblem");
+        copyPageContextValue(safe, pageContext, "targetUsers");
+        copyPageContextValue(safe, pageContext, "techStack");
+        copyPageContextValue(safe, pageContext, "riskProfile");
+        copyPageContextValue(safe, pageContext, "coreCapabilities");
+        copyPageContextValue(safe, pageContext, "businessOutcomes");
+        copyPageContextValue(safe, pageContext, "readinessGoals");
+        copyPageContextValue(safe, pageContext, "recommendedServices");
+        copyPageContextValue(safe, pageContext, "recommendedServiceModules");
+        copyPageContextValue(safe, pageContext, "missingCatalogCoverage");
+        copyPageContextValue(safe, pageContext, "scannerFocusAreas");
+        copyPageContextValue(safe, pageContext, "suggestedNextSteps");
+        copyPageContextValue(safe, pageContext, "sourceInsights");
+        copyPageContextValue(safe, pageContext, "assumptions");
+        copyPageContextValue(safe, pageContext, "missingEvidence");
+        copyPageContextValue(safe, pageContext, "documentUsage");
+        copyPageContextValue(safe, pageContext, "ownerInstruction");
+        copyPageContextValue(safe, pageContext, "productUrlAvailable");
+        copyPageContextValue(safe, pageContext, "repositoryUrlAvailable");
+        safe.put("currentPageAnalysis", projectAnalysisBriefing(pageContext));
+    }
+
+    private void copyPageContextValue(Map<String, Object> target, Map<String, Object> source, String key) {
+        Object value = source.get(key);
+        if (value != null) {
+            target.put(key, value);
+        }
     }
 
     private Map<String, Object> projectCreationContext(User user, ProjectCreationAssistantRequest request) {
@@ -2182,7 +2220,7 @@ public class LoomAIIntegrationService {
     private Map<String, Object> assistantQueryPayload(AssistantQueryRequest request, Map<String, Object> context, String conversationId) {
         if (properties.isPrivateRuntimeMode() || properties.isPlatformBridgeMode()) {
             Map<String, Object> payload = runtimeChatPayload(context, conversationId);
-            payload.put("query", request.query());
+            payload.put("query", assistantQueryText(request.query(), context));
             payload.put("mode", mode(request.mode()));
             payload.put("position", position(request.position()));
             return payload;
@@ -2190,7 +2228,7 @@ public class LoomAIIntegrationService {
         return Map.of(
                 "environment", properties.getEnvironment(),
                 "conversationId", request.conversationId() == null ? "" : request.conversationId(),
-                "query", request.query(),
+                "query", assistantQueryText(request.query(), context),
                 "mode", mode(request.mode()),
                 "position", position(request.position()),
                 "context", context,
@@ -2221,6 +2259,130 @@ public class LoomAIIntegrationService {
         payload.put("position", blank(properties.getDefaultPosition()) ? "productization" : properties.getDefaultPosition());
         payload.put("context", context);
         return payload;
+    }
+
+    private String assistantQueryText(String query, Map<String, Object> context) {
+        if (!"owner-project-ai-analysis".equals(String.valueOf(context.get("pageType")))) {
+            return query;
+        }
+        String briefing = String.valueOf(context.getOrDefault("currentPageAnalysis", "")).trim();
+        if (briefing.isBlank()) {
+            Object pageContext = context.get("pageContext");
+            if (pageContext instanceof Map<?, ?> pageContextMap) {
+                Map<String, Object> typed = new LinkedHashMap<>();
+                pageContextMap.forEach((key, value) -> typed.put(String.valueOf(key), value));
+                briefing = projectAnalysisBriefing(typed);
+            }
+        }
+        if (briefing.isBlank()) {
+            return query;
+        }
+        return """
+                You are answering inside the ProdUS Create Product page after AI project analysis completed.
+                Use the current page analysis below as the authoritative source for questions about this project.
+                If the owner asks for project name, tech stack, selected services, document usage, missing evidence, scanner focus, or next steps, answer directly from this context before using indexed knowledge.
+                Do not create, update, invite, or mutate ProdUS records from this chat.
+
+                Current page analysis:
+                %s
+
+                Owner question:
+                %s
+                """.formatted(briefing, query);
+    }
+
+    private String projectAnalysisBriefing(Map<String, Object> context) {
+        List<String> lines = new ArrayList<>();
+        addBriefingLine(lines, "Project name", context.get("productName"));
+        addBriefingLine(lines, "Business stage", context.get("businessStage"));
+        addBriefingLine(lines, "Outcome summary", context.get("summary"));
+        addBriefingLine(lines, "Project description", context.get("projectDescription"));
+        addBriefingLine(lines, "Business problem", context.get("businessProblem"));
+        addBriefingLine(lines, "Target users", context.get("targetUsers"));
+        addBriefingLine(lines, "Tech stack", context.get("techStack"));
+        addBriefingLine(lines, "Risk profile", context.get("riskProfile"));
+        addBriefingLine(lines, "Core capabilities", context.get("coreCapabilities"));
+        addBriefingLine(lines, "Business outcomes", context.get("businessOutcomes"));
+        addBriefingLine(lines, "Readiness goals", context.get("readinessGoals"));
+        addBriefingLine(lines, "Recommended services", context.get("recommendedServices"));
+        addBriefingLine(lines, "Selected lifecycle service modules", serviceModuleBrief(context.get("recommendedServiceModules")));
+        addBriefingLine(lines, "Missing catalog coverage", context.get("missingCatalogCoverage"));
+        addBriefingLine(lines, "Scanner focus areas", context.get("scannerFocusAreas"));
+        addBriefingLine(lines, "Suggested next steps", context.get("suggestedNextSteps"));
+        addBriefingLine(lines, "Source insights", context.get("sourceInsights"));
+        addBriefingLine(lines, "Document usage evidence", context.get("documentUsage"));
+        addBriefingLine(lines, "Assumptions", context.get("assumptions"));
+        addBriefingLine(lines, "Missing evidence", context.get("missingEvidence"));
+        return safePublicText(String.join("\n", lines), 3_500);
+    }
+
+    private void addBriefingLine(List<String> lines, String label, Object value) {
+        String text = briefingValue(value);
+        if (!text.isBlank()) {
+            lines.add(label + ": " + text);
+        }
+    }
+
+    private String briefingValue(Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof String text) {
+            return safePublicText(text, SUMMARY_LIMIT);
+        }
+        if (value instanceof Collection<?> collection) {
+            return collection.stream()
+                    .map(this::briefingValue)
+                    .filter(text -> !text.isBlank())
+                    .limit(PAGE_CONTEXT_LIST_LIMIT)
+                    .reduce((left, right) -> left + "; " + right)
+                    .orElse("");
+        }
+        if (value instanceof Map<?, ?> map) {
+            List<String> parts = new ArrayList<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String key = String.valueOf(entry.getKey());
+                if (isContextIdentifierKey(key)) {
+                    continue;
+                }
+                String text = briefingValue(entry.getValue());
+                if (!text.isBlank()) {
+                    parts.add(key + "=" + text);
+                }
+                if (parts.size() >= 8) {
+                    break;
+                }
+            }
+            return safePublicText(String.join(", ", parts), SUMMARY_LIMIT);
+        }
+        return safePublicText(String.valueOf(value), FIELD_LIMIT);
+    }
+
+    private Object serviceModuleBrief(Object value) {
+        if (!(value instanceof Collection<?> collection)) {
+            return value;
+        }
+        return collection.stream()
+                .map(item -> {
+                    if (!(item instanceof Map<?, ?> map)) {
+                        return briefingValue(item);
+                    }
+                    String name = briefingValue(map.get("moduleName"));
+                    String category = briefingValue(map.get("categorySlug"));
+                    String priority = briefingValue(map.get("priority"));
+                    String included = briefingValue(map.get("includedByOwner"));
+                    String reason = briefingValue(map.get("reason"));
+                    return safePublicText(joinText(
+                            name.isBlank() ? briefingValue(map.get("moduleCode")) : name,
+                            category.isBlank() ? "" : "category " + category,
+                            priority.isBlank() ? "" : "priority " + priority,
+                            included.isBlank() ? "" : "included " + included,
+                            reason
+                    ), SUMMARY_LIMIT);
+                })
+                .filter(text -> !text.isBlank())
+                .limit(PAGE_CONTEXT_LIST_LIMIT)
+                .toList();
     }
 
     private String suggestionsContent(Map<String, Object> context) {
