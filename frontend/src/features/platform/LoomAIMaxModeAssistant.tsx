@@ -91,6 +91,37 @@ function withConversationContext(
   };
 }
 
+function primeWidgetConversationState(mode: string, position: string, conversationId: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const existing = JSON.parse(window.sessionStorage.getItem('maxmode_widget_state') || '{}') as Record<string, unknown>;
+    window.sessionStorage.setItem(
+      'maxmode_widget_state',
+      JSON.stringify({
+        chatMessages: Array.isArray(existing.chatMessages) ? existing.chatMessages : [],
+        attachedItems: Array.isArray(existing.attachedItems) ? existing.attachedItems : [],
+        contextDocuments: Array.isArray(existing.contextDocuments) ? existing.contextDocuments : [],
+        ...existing,
+        currentMode: mode,
+        currentPosition: position,
+        conversationId,
+      })
+    );
+  } catch {
+    window.sessionStorage.setItem(
+      'maxmode_widget_state',
+      JSON.stringify({
+        chatMessages: [],
+        attachedItems: [],
+        contextDocuments: [],
+        currentMode: mode,
+        currentPosition: position,
+        conversationId,
+      })
+    );
+  }
+}
+
 async function loadWidgetScript(src: string) {
   if (typeof window === 'undefined') return;
   if (window.MaxMode) return;
@@ -180,6 +211,7 @@ export function LoomAIMaxModeAssistant({
         const headers = await assistantHeaders();
         if (cancelled) return;
 
+        primeWidgetConversationState(mode, position, conversationId);
         window.MaxMode?.destroy();
         window.MaxMode?.init({
           integrationMode: 'backend-mediated-private-runtime',
@@ -251,11 +283,13 @@ export function LoomAIMaxModeAssistant({
 
   const openAssistant = () => {
     if (!canUseAssistant) return;
+    primeWidgetConversationState(mode, position, conversationId);
     window.MaxMode?.open();
   };
 
   const sendPrompt = (prompt: string) => {
     if (!canUseAssistant) return;
+    primeWidgetConversationState(mode, position, conversationId);
     window.MaxMode?.sendMessage(prompt, {
       open: true,
       mode,

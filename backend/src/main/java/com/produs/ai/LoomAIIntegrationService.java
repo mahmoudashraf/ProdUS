@@ -2405,29 +2405,26 @@ public class LoomAIIntegrationService {
     }
 
     private String mode(String requestedMode) {
-        if (!blank(requestedMode) && !isLegacyRuntimeMode(requestedMode)) {
-            return requestedMode;
+        if (!blank(requestedMode) && isSupportedRuntimeMode(requestedMode)) {
+            return requestedMode.trim().toLowerCase(Locale.ROOT);
         }
         return defaultRuntimeMode();
     }
 
     private String defaultRuntimeMode() {
         String configured = properties.getDefaultMode();
-        if (blank(configured) || isLegacyRuntimeMode(configured)) {
-            return "thinker";
+        if (!blank(configured) && isSupportedRuntimeMode(configured)) {
+            return configured.trim().toLowerCase(Locale.ROOT);
         }
-        return configured;
+        return "thinker";
     }
 
-    private boolean isLegacyRuntimeMode(String mode) {
+    private boolean isSupportedRuntimeMode(String mode) {
         if (blank(mode)) {
             return false;
         }
         String normalized = mode.trim().toLowerCase(Locale.ROOT);
-        return "support_assistant".equals(normalized)
-                || "support_deep".equals(normalized)
-                || "support_operator".equals(normalized)
-                || "thinker_deep".equals(normalized);
+        return "thinker".equals(normalized) || "executor".equals(normalized);
     }
 
     private String position(String requestedPosition) {
