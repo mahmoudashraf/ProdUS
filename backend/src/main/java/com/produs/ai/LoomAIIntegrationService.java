@@ -296,7 +296,10 @@ public class LoomAIIntegrationService {
                 body = response.body();
                 providerConversationId = resetConversationId;
             }
-            return assistantQueryResponse(response, providerConversationId);
+            return reinforceProjectAnalysisAnswer(
+                    assistantQueryResponse(response, providerConversationId),
+                    context
+            );
         } catch (RuntimeException exception) {
             log.warn("loomai_assistant_query_fallback reason={} detail={}",
                     exception.getClass().getSimpleName(),
@@ -2660,6 +2663,66 @@ public class LoomAIIntegrationService {
                 boolOr(body, "retryable", false),
                 response.providerRequestId()
         );
+    }
+
+    private AssistantQueryResponse reinforceProjectAnalysisAnswer(AssistantQueryResponse response, Map<String, Object> context) {
+        if (response == null || !"owner-project-ai-analysis".equals(String.valueOf(context.get("pageType")))) {
+            return response;
+        }
+        String facts = projectAnalysisResponseFacts(context, response.answer());
+        if (facts.isBlank()) {
+            return response;
+        }
+        String answer = blank(response.answer()) ? facts : response.answer().trim() + "\n\n" + facts;
+        String safeSummary = blank(response.safeSummary()) ? answer : response.safeSummary();
+        return new AssistantQueryResponse(
+                response.provider(),
+                response.mode(),
+                response.success(),
+                response.type(),
+                answer,
+                safeSummary,
+                response.conversationId(),
+                response.confidence(),
+                response.sources(),
+                response.documents(),
+                response.attachments(),
+                response.actions(),
+                response.suggestions(),
+                response.ragResponse(),
+                response.metadata(),
+                response.documentUsage(),
+                response.fallbackReason(),
+                response.errorCode(),
+                response.reason(),
+                response.retryable(),
+                response.providerRequestId()
+        );
+    }
+
+    private String projectAnalysisResponseFacts(Map<String, Object> context, String answer) {
+        List<String> facts = new ArrayList<>();
+        String normalizedAnswer = answer == null ? "" : answer.toLowerCase(Locale.ROOT);
+        addMissingAnswerFact(facts, normalizedAnswer, "Project", context.get("productName"));
+        addMissingAnswerFact(facts, normalizedAnswer, "Business stage", context.get("businessStage"));
+        addMissingAnswerFact(facts, normalizedAnswer, "Tech stack", context.get("techStack"));
+        addMissingAnswerFact(facts, normalizedAnswer, "Selected services", serviceModuleBrief(context.get("recommendedServiceModules")));
+        if (facts.isEmpty()) {
+            return "";
+        }
+        return "Current page analysis context:\n- " + String.join("\n- ", facts);
+    }
+
+    private void addMissingAnswerFact(List<String> facts, String normalizedAnswer, String label, Object value) {
+        String text = briefingValue(value);
+        if (text.isBlank()) {
+            return;
+        }
+        String firstToken = text.toLowerCase(Locale.ROOT).split("[,;\\n]", 2)[0].trim();
+        if (!firstToken.isBlank() && normalizedAnswer.contains(firstToken)) {
+            return;
+        }
+        facts.add(label + ": " + safePublicText(text, SUMMARY_LIMIT));
     }
 
     private boolean isConversationAccessDenied(JsonNode body) {
