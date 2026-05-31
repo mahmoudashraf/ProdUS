@@ -1080,11 +1080,11 @@ public class LoomAIIntegrationService {
             return safe;
         }
         if ("owner-project-ai-analysis".equals(context.pageType())) {
-            safe.put("actionProfile", "loomai-productization-explain-only");
-            safe.put("availableActionGroups", List.of());
+            safe.put("actionProfile", "loomai-productization-read");
+            safe.put("availableActionGroups", ACTION_GROUP_HINTS);
             safe.put("assistantIntent", "project-analysis-follow-up-chat");
-            safe.put("runtimeActionPolicy", "actions-disabled-for-analysis-chat");
-            safe.put("toolUsePolicy", "answer-from-current-page-analysis-and-safe-indexed-knowledge");
+            safe.put("runtimeActionPolicy", "read-only-actions-allowed-for-analysis-chat");
+            safe.put("toolUsePolicy", "answer-from-current-page-analysis-safe-indexed-knowledge-and-read-only-produs-actions");
         }
         Map<String, Object> pageContext = safePageContext(context.pageContext(), 0);
         if (!pageContext.isEmpty()) {
@@ -2281,6 +2281,7 @@ public class LoomAIIntegrationService {
                 You are answering inside the ProdUS Create Product page after AI project analysis completed.
                 Use the current page analysis below as the authoritative source for questions about this project.
                 If the owner asks for project name, tech stack, selected services, document usage, missing evidence, scanner focus, or next steps, answer directly from this context before using indexed knowledge.
+                You may use read-only ProdUS actions when more catalog, product, package, workspace, scanner, finding, evidence, or milestone context is needed.
                 Do not create, update, invite, or mutate ProdUS records from this chat.
 
                 Current page analysis:

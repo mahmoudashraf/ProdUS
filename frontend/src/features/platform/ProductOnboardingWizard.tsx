@@ -548,11 +548,11 @@ function ProjectAnalysisChatPanel({
       disabled={disabled}
       requestContext={requestContext}
       conversationId={conversationId}
-      mode="support_assistant"
+      mode="thinker_deep"
       position="product_intake_analysis"
       title="Ask about this analysis"
-      eyebrow="Fixed ProdUS AI dock"
-      description="Use the LoomAI chat dock to ask about the full project analysis, selected services, document evidence, scanner focus, and the next owner decision. Chat cannot create or mutate ProdUS records."
+      eyebrow="Thinker mode with read-only context"
+      description="Use the LoomAI chat dock to ask about the full project analysis, selected services, document evidence, scanner focus, and the next owner decision. Chat may use read-only ProdUS context but cannot create or mutate records."
       starterPrompts={analysisQuickQuestions}
     />
   );
@@ -709,8 +709,8 @@ export default function ProductOnboardingWizard() {
         pageType: 'owner-project-ai-analysis',
         pagePosition: 'product_intake_analysis',
         assistantIntent: 'project-analysis-follow-up-chat',
-        actionProfile: 'loomai-productization-explain-only',
-        runtimeActionPolicy: 'actions-disabled-for-analysis-chat',
+        actionProfile: 'loomai-productization-read',
+        runtimeActionPolicy: 'read-only-actions-allowed-for-analysis-chat',
         productCreationIntentId: aiAnalysis?.intent.id,
         analysisProviderRequestId: aiAnalysis?.intent.analysisProviderRequestId,
         productName: form.values.name || analysis?.productName,
@@ -750,7 +750,7 @@ export default function ProductOnboardingWizard() {
           })
         ),
         ownerInstruction:
-          'Answer only about this project AI analysis and the next owner decision. Do not create products, packages, workspaces, team selections, invitations, or participants from chat.',
+          'Answer about this project AI analysis and the next owner decision. You may use read-only ProdUS actions when needed. Do not create products, packages, workspaces, team selections, invitations, or participants from chat.',
       },
     };
   };
