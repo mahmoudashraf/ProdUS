@@ -7,8 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { DotLabel, appleColors } from './PlatformComponents';
 
 const WIDGET_SCRIPT_ID = 'loomai-max-mode-widget-script';
-const DEFAULT_WIDGET_SRC =
-  'https://loomai-partner-ui.46.224.145.148.sslip.io/max-mode-widget.iife.js?v=2026-04-14-opaque-shell-v1';
+const DEFAULT_WIDGET_SRC = '/api/loomai/max-mode-widget';
 
 type WidgetStatus = 'idle' | 'loading' | 'ready' | 'error';
 
