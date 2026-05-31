@@ -356,35 +356,61 @@ public class LoomAIIntegrationService {
 
     @Transactional(readOnly = true)
     public LoomAIAuthContextResponse assistantAuthContext(User user) {
-        Map<String, Object> authContext = new LinkedHashMap<>();
-        authContext.put("authenticated", user != null);
-        authContext.put("userRole", user == null ? null : user.getRole().name());
-        authContext.put("environment", properties.getEnvironment());
-        authContext.put("integrationMode", properties.getIntegrationMode());
-        authContext.put("authMode", properties.getAuthMode());
-        authContext.put("assistantQueryConfigured", configuredPath(properties.getAssistantQueryPath()));
-        authContext.put("assistantQueryOnceConfigured", configuredPath(properties.getAssistantQueryOncePath()));
-        authContext.put("assistantSuggestionsConfigured", configuredPath(properties.getAssistantSuggestionsPath()));
-        authContext.put("privateRuntimeMode", properties.isPrivateRuntimeMode());
-        authContext.put("privateRuntimeAuthConfigured", runtimeAssertionService.isConfigured());
-        if (!isConfigured()) {
+        try {
+            Map<String, Object> authContext = new LinkedHashMap<>();
+            boolean configured = isConfigured();
+            authContext.put("authenticated", user != null);
+            authContext.put("userRole", user == null || user.getRole() == null ? "" : user.getRole().name());
+            authContext.put("environment", safeConfigValue(properties.getEnvironment()));
+            authContext.put("integrationMode", safeConfigValue(properties.getIntegrationMode()));
+            authContext.put("authMode", safeConfigValue(properties.getAuthMode()));
+            authContext.put("assistantQueryConfigured", configured && !blank(properties.getAssistantQueryPath()));
+            authContext.put("assistantQueryOnceConfigured", configured && !blank(properties.getAssistantQueryOncePath()));
+            authContext.put("assistantSuggestionsConfigured", configured && !blank(properties.getAssistantSuggestionsPath()));
+            authContext.put("privateRuntimeMode", properties.isPrivateRuntimeMode());
+            authContext.put("privateRuntimeAuthConfigured", runtimeAssertionService.isConfigured());
+            if (!configured) {
+                return new LoomAIAuthContextResponse(
+                        "PRODUS_FALLBACK",
+                        "FALLBACK",
+                        false,
+                        authContext,
+                        "LOOMAI_DISABLED",
+                        null
+                );
+            }
+            return new LoomAIAuthContextResponse(
+                    "PRODUS_ASSISTANT",
+                    "LIVE",
+                    true,
+                    authContext,
+                    null,
+                    null
+            );
+        } catch (RuntimeException exception) {
+            log.warn("loomai_assistant_auth_context_fallback reason={} detail={}",
+                    exception.getClass().getSimpleName(),
+                    safeExceptionDetail(exception));
+            Map<String, Object> fallbackContext = new LinkedHashMap<>();
+            fallbackContext.put("authenticated", user != null);
+            fallbackContext.put("userRole", user == null || user.getRole() == null ? "" : user.getRole().name());
+            fallbackContext.put("environment", safeConfigValue(properties.getEnvironment()));
+            fallbackContext.put("integrationMode", safeConfigValue(properties.getIntegrationMode()));
+            fallbackContext.put("authMode", safeConfigValue(properties.getAuthMode()));
+            fallbackContext.put("assistantQueryConfigured", false);
+            fallbackContext.put("assistantQueryOnceConfigured", false);
+            fallbackContext.put("assistantSuggestionsConfigured", false);
+            fallbackContext.put("privateRuntimeMode", false);
+            fallbackContext.put("privateRuntimeAuthConfigured", false);
             return new LoomAIAuthContextResponse(
                     "PRODUS_FALLBACK",
                     "FALLBACK",
                     false,
-                    authContext,
-                    "LOOMAI_DISABLED",
+                    fallbackContext,
+                    "ASSISTANT_AUTH_CONTEXT_UNAVAILABLE",
                     null
             );
         }
-        return new LoomAIAuthContextResponse(
-                "PRODUS_ASSISTANT",
-                "LIVE",
-                true,
-                authContext,
-                null,
-                null
-        );
     }
 
     @Transactional(readOnly = true)
@@ -2420,6 +2446,10 @@ public class LoomAIIntegrationService {
             return root == null ? "unknown" : root.getClass().getSimpleName();
         }
         return message.length() > 180 ? message.substring(0, 180) : message;
+    }
+
+    private String safeConfigValue(String value) {
+        return value == null ? "" : value;
     }
 
     private String providerRequestId(HttpResponse<?> response, JsonNode body) {
