@@ -7,7 +7,6 @@ import {
   ArrowForwardOutlined,
   ArrowDownwardOutlined,
   ArrowUpwardOutlined,
-  ChatBubbleOutlineOutlined,
   CheckCircleOutlineOutlined,
   CloudUploadOutlined,
   ErrorOutlineOutlined,
@@ -16,7 +15,6 @@ import {
   PsychologyAltOutlined,
   RuleOutlined,
   SecurityOutlined,
-  SendOutlined,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -32,6 +30,7 @@ import {
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
+import { LoomAIMaxModeAssistant } from './LoomAIMaxModeAssistant';
 import { postFormData, postJson, putJson } from './api';
 import {
   DotLabel,
@@ -47,7 +46,6 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import {
-  AssistantQueryResponse,
   AiAssistedProductAnalysisResponse,
   ServiceModuleRecommendation,
   ProductCreationActionResponse,
@@ -113,18 +111,6 @@ const analysisQuickQuestions = [
 
 type ValidationState = 'ready' | 'attention' | 'blocked';
 
-type AnalysisChatMessage = {
-  id: string;
-  role: 'owner' | 'assistant';
-  content: string;
-  provider?: string;
-  mode?: 'LIVE' | 'FALLBACK';
-  providerRequestId?: string;
-  sourceCount?: number;
-  fallbackReason?: string;
-  status?: 'normal' | 'error';
-};
-
 const validationMeta: Record<
   ValidationState,
   { label: string; color: string; background: string }
@@ -150,123 +136,6 @@ const compactCount = (count: number, singular: string, plural = `${singular}s`) 
   `${count} ${count === 1 ? singular : plural}`;
 
 const cleanText = (value?: string | null) => value?.trim() ?? '';
-
-const messageId = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-const assistantAnswerText = (response?: AssistantQueryResponse) =>
-  cleanText(response?.safeSummary) || cleanText(response?.answer) || 'No assistant response was returned.';
-
-const renderAssistantInline = (text: string) => {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
-  return parts.map((part, index) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <Box component="strong" key={`${part}-${index}`} sx={{ fontWeight: 900 }}>
-          {part.slice(2, -2)}
-        </Box>
-      );
-    }
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return (
-        <Box
-          component="code"
-          key={`${part}-${index}`}
-          sx={{
-            px: 0.45,
-            py: 0.1,
-            borderRadius: 0.6,
-            bgcolor: '#eef4ff',
-            color: appleColors.ink,
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-            fontSize: '0.88em',
-          }}
-        >
-          {part.slice(1, -1)}
-        </Box>
-      );
-    }
-    return part;
-  });
-};
-
-function AssistantText({ text }: { text: string }) {
-  const lines = text.replace(/\r\n/g, '\n').split('\n');
-  const blocks: Array<{ type: 'heading' | 'paragraph' | 'list'; value: string | string[] }> = [];
-  let list: string[] = [];
-  const flushList = () => {
-    if (list.length) {
-      blocks.push({ type: 'list', value: list });
-      list = [];
-    }
-  };
-
-  lines.forEach(rawLine => {
-    const line = rawLine.trim();
-    if (!line) {
-      flushList();
-      return;
-    }
-    const heading = /^(#{2,4})\s+(.+)$/.exec(line);
-    if (heading) {
-      flushList();
-      blocks.push({ type: 'heading', value: heading[2] ?? '' });
-      return;
-    }
-    const listItem = /^[-*]\s+(.+)$/.exec(line) || /^\d+\.\s+(.+)$/.exec(line);
-    if (listItem) {
-      list.push(listItem[1] ?? '');
-      return;
-    }
-    flushList();
-    blocks.push({ type: 'paragraph', value: line });
-  });
-  flushList();
-
-  return (
-    <Stack spacing={0.75}>
-      {blocks.map((block, index) => {
-        if (block.type === 'heading') {
-          return (
-            <Typography key={`${block.type}-${index}`} variant="body2" sx={{ fontWeight: 950 }}>
-              {renderAssistantInline(String(block.value))}
-            </Typography>
-          );
-        }
-        if (block.type === 'list') {
-          return (
-            <Box
-              key={`${block.type}-${index}`}
-              component="ul"
-              sx={{
-                m: 0,
-                pl: 2,
-                display: 'grid',
-                gap: 0.45,
-                '& li::marker': { color: appleColors.purple, fontWeight: 900 },
-              }}
-            >
-              {(block.value as string[]).map((item, itemIndex) => (
-                <Box key={`${item}-${itemIndex}`} component="li">
-                  <Typography component="span" variant="body2" sx={{ lineHeight: 1.55 }}>
-                    {renderAssistantInline(item)}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          );
-        }
-        return (
-          <Typography key={`${block.type}-${index}`} variant="body2" sx={{ lineHeight: 1.6 }}>
-            {renderAssistantInline(String(block.value))}
-          </Typography>
-        );
-      })}
-    </Stack>
-  );
-}
 
 function ValidationRow({
   title,
@@ -667,179 +536,25 @@ function AiDocumentUsageList({
 
 function ProjectAnalysisChatPanel({
   disabled,
-  input,
-  messages,
-  isPending,
-  onInputChange,
-  onSend,
+  requestContext,
+  conversationId,
 }: {
   disabled: boolean;
-  input: string;
-  messages: AnalysisChatMessage[];
-  isPending: boolean;
-  onInputChange: (value: string) => void;
-  onSend: (question?: string) => void;
+  requestContext: Record<string, unknown>;
+  conversationId: string;
 }) {
   return (
-    <Box
-      sx={{
-        borderRadius: 1,
-        border: '1px solid #dfe7f5',
-        bgcolor: '#ffffff',
-        p: 1.25,
-        boxShadow: '0 12px 30px rgba(15, 23, 42, 0.045)',
-      }}
-    >
-      <Stack spacing={1.1}>
-        <Stack direction="row" spacing={0.85} alignItems="center" justifyContent="space-between">
-          <Stack direction="row" spacing={0.85} alignItems="center">
-            <Box
-              sx={{
-                width: 30,
-                height: 30,
-                borderRadius: 1,
-                display: 'grid',
-                placeItems: 'center',
-                bgcolor: '#f0efff',
-                color: appleColors.purple,
-              }}
-            >
-              <ChatBubbleOutlineOutlined sx={{ fontSize: 18 }} />
-            </Box>
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 950 }}>
-                Ask about this analysis
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Attached to product intake position
-              </Typography>
-            </Box>
-          </Stack>
-          <DotLabel label="Page chat" color={appleColors.purple} />
-        </Stack>
-
-        {messages.length === 0 ? (
-          <Box
-            sx={{
-              borderRadius: 1,
-              border: '1px solid #eef2ff',
-              bgcolor: '#fbfbff',
-              p: 1,
-            }}
-          >
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.55 }}>
-              Ask LoomAI to explain the generated project attributes, service path, evidence gaps,
-              or whether the selected document affected the analysis. This chat cannot create or
-              mutate ProdUS records.
-            </Typography>
-          </Box>
-        ) : (
-          <Stack
-            spacing={0.85}
-            sx={{
-              maxHeight: 300,
-              overflowY: 'auto',
-              pr: 0.2,
-            }}
-          >
-            {messages.map(message => {
-              const isOwner = message.role === 'owner';
-              return (
-                <Box
-                  key={message.id}
-                  sx={{
-                    alignSelf: isOwner ? 'flex-end' : 'stretch',
-                    maxWidth: isOwner ? '88%' : '100%',
-                    p: 1,
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: message.status === 'error' ? '#fecdd3' : isOwner ? '#dbeafe' : '#e7ddff',
-                    bgcolor: message.status === 'error' ? '#fff7f8' : isOwner ? '#f8fbff' : '#fbfaff',
-                  }}
-                >
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      display: 'block',
-                      mb: 0.45,
-                      fontWeight: 950,
-                      color: isOwner ? appleColors.blue : appleColors.purple,
-                    }}
-                  >
-                    {isOwner ? 'You' : 'ProdUS AI'}
-                  </Typography>
-                  <AssistantText text={message.content} />
-                  {!isOwner && (
-                    <Stack direction="row" spacing={0.65} flexWrap="wrap" useFlexGap sx={{ mt: 0.85 }}>
-                      {message.mode && (
-                        <DotLabel
-                          label={message.mode === 'LIVE' ? 'LoomAI live' : 'ProdUS fallback'}
-                          color={message.mode === 'LIVE' ? appleColors.green : appleColors.amber}
-                        />
-                      )}
-                      {message.sourceCount ? (
-                        <DotLabel label={`${message.sourceCount} sources`} color={appleColors.cyan} />
-                      ) : null}
-                      {message.providerRequestId && (
-                        <DotLabel label={`trace ${message.providerRequestId.slice(0, 8)}`} color={appleColors.purple} />
-                      )}
-                      {message.fallbackReason && (
-                        <DotLabel label={formatLabel(message.fallbackReason)} color={appleColors.amber} />
-                      )}
-                    </Stack>
-                  )}
-                </Box>
-              );
-            })}
-            {isPending && (
-              <Box sx={{ p: 1, borderRadius: 1, bgcolor: '#fbfaff', border: '1px solid #e7ddff' }}>
-                <DotLabel label="LoomAI is reading this page context" color={appleColors.purple} />
-              </Box>
-            )}
-          </Stack>
-        )}
-
-        <Stack spacing={0.75}>
-          <Stack direction="row" spacing={0.65} flexWrap="wrap" useFlexGap>
-            {analysisQuickQuestions.map(question => (
-              <Button
-                key={question}
-                size="small"
-                variant="outlined"
-                disabled={disabled || isPending}
-                onClick={() => onSend(question)}
-                sx={{ minHeight: 30, px: 1, fontSize: 12 }}
-              >
-                {question}
-              </Button>
-            ))}
-          </Stack>
-          <TextField
-            size="small"
-            fullWidth
-            value={input}
-            disabled={disabled}
-            placeholder="Ask a follow-up about this analysis..."
-            onChange={event => onInputChange(event.target.value)}
-            onKeyDown={event => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                onSend();
-              }
-            }}
-          />
-          <Button
-            variant="contained"
-            startIcon={<SendOutlined />}
-            disabled={disabled || isPending || !input.trim()}
-            onClick={() => onSend()}
-            sx={{ minHeight: 38 }}
-          >
-            {isPending ? 'Asking...' : 'Ask about analysis'}
-          </Button>
-        </Stack>
-      </Stack>
-    </Box>
+    <LoomAIMaxModeAssistant
+      disabled={disabled}
+      requestContext={requestContext}
+      conversationId={conversationId}
+      mode="support_assistant"
+      position="product_intake_analysis"
+      title="Ask about this analysis"
+      eyebrow="Fixed ProdUS AI dock"
+      description="Use the LoomAI chat dock to ask about the full project analysis, selected services, document evidence, scanner focus, and the next owner decision. Chat cannot create or mutate ProdUS records."
+      starterPrompts={analysisQuickQuestions}
+    />
   );
 }
 
@@ -855,8 +570,6 @@ export default function ProductOnboardingWizard() {
     ServiceModuleRecommendation[]
   >([]);
   const [selectedServiceCodes, setSelectedServiceCodes] = useState<string[]>([]);
-  const [analysisChatInput, setAnalysisChatInput] = useState('');
-  const [analysisChatMessages, setAnalysisChatMessages] = useState<AnalysisChatMessage[]>([]);
   const form = useAdvancedForm<ProductProfilePayload>({
     initialValues,
     validationRules: {
@@ -926,8 +639,6 @@ export default function ProductOnboardingWizard() {
           .filter(recommendation => recommendation.accepted !== false)
           .map(recommendation => recommendation.moduleCode)
       );
-      setAnalysisChatMessages([]);
-      setAnalysisChatInput('');
       form.setValue('name', response.analysis.productName || form.values.name);
       form.setValue('summary', response.analysis.summary || form.values.summary);
       form.setValue('businessStage', response.analysis.businessStage || form.values.businessStage);
@@ -1042,78 +753,6 @@ export default function ProductOnboardingWizard() {
           'Answer only about this project AI analysis and the next owner decision. Do not create products, packages, workspaces, team selections, invitations, or participants from chat.',
       },
     };
-  };
-
-  const askAnalysisChat = useMutation({
-    mutationFn: async (question: string) => {
-      if (!aiAnalysis) {
-        throw new Error('Run AI analysis before asking follow-up questions.');
-      }
-      return postJson<
-        AssistantQueryResponse,
-        {
-          conversationId: string;
-          query: string;
-          mode: string;
-          position: string;
-          context: ReturnType<typeof analysisChatContext>;
-        }
-      >('/ai/assistant/query', {
-        conversationId: `project-analysis-${aiAnalysis.intent.id}`,
-        query: question,
-        mode: 'support_assistant',
-        position: 'product_intake_analysis',
-        context: analysisChatContext(),
-      });
-    },
-    onSuccess: response => {
-      const assistantMessage: AnalysisChatMessage = {
-        id: messageId(),
-        role: 'assistant',
-        content: assistantAnswerText(response),
-        provider: response.provider,
-        mode: response.mode,
-        sourceCount: response.sources?.length ?? 0,
-        status: response.success ? 'normal' : 'error',
-      };
-      if (response.providerRequestId) {
-        assistantMessage.providerRequestId = response.providerRequestId;
-      }
-      if (response.fallbackReason) {
-        assistantMessage.fallbackReason = response.fallbackReason;
-      }
-      setAnalysisChatMessages(current => [
-        ...current,
-        assistantMessage,
-      ]);
-    },
-    onError: error => {
-      setAnalysisChatMessages(current => [
-        ...current,
-        {
-          id: messageId(),
-          role: 'assistant',
-          content: errorMessageFromUnknown(
-            error,
-            'The assistant could not answer this project-analysis question.'
-          ),
-          status: 'error',
-        },
-      ]);
-    },
-  });
-
-  const sendAnalysisChatQuestion = (questionOverride?: string) => {
-    const question = (questionOverride ?? analysisChatInput).trim();
-    if (!question || !aiAnalysis || askAnalysisChat.isPending) {
-      return;
-    }
-    setAnalysisChatMessages(current => [
-      ...current,
-      { id: messageId(), role: 'owner', content: question, status: 'normal' },
-    ]);
-    setAnalysisChatInput('');
-    askAnalysisChat.mutate(question);
   };
 
   const toggleServiceRecommendation = (moduleCode: string) => {
@@ -1830,11 +1469,8 @@ export default function ProductOnboardingWizard() {
                     )}
                     <ProjectAnalysisChatPanel
                       disabled={!aiAnalysis || aiBusy}
-                      input={analysisChatInput}
-                      messages={analysisChatMessages}
-                      isPending={askAnalysisChat.isPending}
-                      onInputChange={setAnalysisChatInput}
-                      onSend={sendAnalysisChatQuestion}
+                      requestContext={analysisChatContext()}
+                      conversationId={aiAnalysis ? `project-analysis-${aiAnalysis.intent.id}` : 'project-analysis-draft'}
                     />
                     <Button
                       variant={aiAnalysis ? 'outlined' : 'contained'}

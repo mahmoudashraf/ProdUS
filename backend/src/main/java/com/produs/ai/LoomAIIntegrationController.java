@@ -85,6 +85,11 @@ public class LoomAIIntegrationController {
         return integrationService.queryOnce(user, request);
     }
 
+    @GetMapping("/assistant/auth-context")
+    public LoomAIAuthContextResponse assistantAuthContext(@AuthenticationPrincipal User user) {
+        return integrationService.assistantAuthContext(user);
+    }
+
     @PostMapping("/assistant/suggestions")
     public AssistantSuggestionsResponse suggestions(
             @AuthenticationPrincipal User user,

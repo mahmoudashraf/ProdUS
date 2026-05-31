@@ -355,6 +355,39 @@ public class LoomAIIntegrationService {
     }
 
     @Transactional(readOnly = true)
+    public LoomAIAuthContextResponse assistantAuthContext(User user) {
+        Map<String, Object> authContext = new LinkedHashMap<>();
+        authContext.put("authenticated", user != null);
+        authContext.put("userRole", user == null ? null : user.getRole().name());
+        authContext.put("environment", properties.getEnvironment());
+        authContext.put("integrationMode", properties.getIntegrationMode());
+        authContext.put("authMode", properties.getAuthMode());
+        authContext.put("assistantQueryConfigured", configuredPath(properties.getAssistantQueryPath()));
+        authContext.put("assistantQueryOnceConfigured", configuredPath(properties.getAssistantQueryOncePath()));
+        authContext.put("assistantSuggestionsConfigured", configuredPath(properties.getAssistantSuggestionsPath()));
+        authContext.put("privateRuntimeMode", properties.isPrivateRuntimeMode());
+        authContext.put("privateRuntimeAuthConfigured", runtimeAssertionService.isConfigured());
+        if (!isConfigured()) {
+            return new LoomAIAuthContextResponse(
+                    "PRODUS_FALLBACK",
+                    "FALLBACK",
+                    false,
+                    authContext,
+                    "LOOMAI_DISABLED",
+                    null
+            );
+        }
+        return new LoomAIAuthContextResponse(
+                "PRODUS_ASSISTANT",
+                "LIVE",
+                true,
+                authContext,
+                null,
+                null
+        );
+    }
+
+    @Transactional(readOnly = true)
     public KnowledgeSyncResponse syncSafeKnowledge(User user) {
         requireAdmin(user);
         return syncSafeKnowledgeInternal("manual-admin");
@@ -2197,6 +2230,17 @@ public class LoomAIIntegrationService {
         if (!blank(requestedConversationId)) {
             return requestedConversationId;
         }
+        Object contextConversationId = context.get("conversationId");
+        if (contextConversationId instanceof String value && !blank(value)) {
+            return value;
+        }
+        Object pageContext = context.get("pageContext");
+        if (pageContext instanceof Map<?, ?> pageContextMap) {
+            Object pageConversationId = pageContextMap.get("conversationId");
+            if (pageConversationId instanceof String value && !blank(value)) {
+                return value;
+            }
+        }
         String actorRole = String.valueOf(context.getOrDefault("actorRole", "user"));
         String pageType = String.valueOf(context.getOrDefault("pageType", "productization"));
         return "produs-" + actorRole.toLowerCase() + "-" + pageType.toLowerCase();
@@ -2410,9 +2454,17 @@ public class LoomAIIntegrationService {
                 conversationId(body, fallbackConversationId),
                 normalizedConfidence(body),
                 jsonList(firstArray(body, "sources")),
+                jsonList(firstArray(body, "documents")),
+                jsonList(firstArray(body, "attachments")),
                 jsonList(firstArray(body, "actions")),
                 suggestionList(body),
+                jsonObject(firstObject(body, "ragResponse")),
+                jsonObject(firstObject(body, "metadata")),
+                jsonList(firstArray(body, "documentUsage")),
                 firstText(body.path("fallbackReason"), body.path("errorCode"), body.path("result").path("fallbackReason")),
+                firstText(body.path("errorCode"), body.path("result").path("errorCode")),
+                firstText(body.path("reason"), body.path("result").path("reason")),
+                boolOr(body, "retryable", false),
                 response.providerRequestId()
         );
     }
@@ -2467,6 +2519,19 @@ public class LoomAIIntegrationService {
             }
         }
         return objectMapper.createArrayNode();
+    }
+
+    private JsonNode firstObject(JsonNode body, String field) {
+        JsonNode[] candidates = new JsonNode[]{
+                body.path(field),
+                body.path("result").path(field)
+        };
+        for (JsonNode candidate : candidates) {
+            if (candidate.isObject()) {
+                return candidate;
+            }
+        }
+        return objectMapper.createObjectNode();
     }
 
     private List<String> suggestionList(JsonNode body) {
@@ -2583,8 +2648,16 @@ public class LoomAIIntegrationService {
                 0.0,
                 List.of(),
                 List.of(),
+                List.of(),
+                List.of(),
                 defaultSuggestionText(context),
+                Map.of(),
+                Map.of(),
+                List.of(),
                 reason,
+                reason,
+                reason,
+                false,
                 null
         );
     }
@@ -2611,6 +2684,13 @@ public class LoomAIIntegrationService {
         List<Map<String, Object>> values = new ArrayList<>();
         node.forEach(item -> values.add(objectMapper.convertValue(item, Map.class)));
         return values;
+    }
+
+    private Map<String, Object> jsonObject(JsonNode node) {
+        if (!node.isObject()) {
+            return Map.of();
+        }
+        return objectMapper.convertValue(node, Map.class);
     }
 
     private void requireAdmin(User user) {
@@ -2802,11 +2882,84 @@ public class LoomAIIntegrationService {
             String conversationId,
             double confidence,
             List<Map<String, Object>> sources,
+            List<Map<String, Object>> documents,
+            List<Map<String, Object>> attachments,
             List<Map<String, Object>> actions,
             List<String> suggestions,
+            Map<String, Object> ragResponse,
+            Map<String, Object> metadata,
+            List<Map<String, Object>> documentUsage,
             String fallbackReason,
+            String errorCode,
+            String reason,
+            boolean retryable,
             String providerRequestId
-    ) {}
+    ) {
+        public AssistantQueryResponse(
+                String provider,
+                String mode,
+                boolean success,
+                String type,
+                String answer,
+                String safeSummary,
+                String conversationId,
+                double confidence,
+                List<?> sources,
+                List<?> actions,
+                List<?> suggestions,
+                String fallbackReason,
+                String providerRequestId
+        ) {
+            this(
+                    provider,
+                    mode,
+                    success,
+                    type,
+                    answer,
+                    safeSummary,
+                    conversationId,
+                    confidence,
+                    mapList(sources),
+                    List.of(),
+                    List.of(),
+                    mapList(actions),
+                    stringList(suggestions),
+                    Map.of(),
+                    Map.of(),
+                    List.of(),
+                    fallbackReason,
+                    fallbackReason,
+                    fallbackReason,
+                    false,
+                    providerRequestId
+            );
+        }
+
+        private static List<Map<String, Object>> mapList(List<?> values) {
+            if (values == null || values.isEmpty()) {
+                return List.of();
+            }
+            List<Map<String, Object>> mapped = new ArrayList<>();
+            for (Object value : values) {
+                if (value instanceof Map<?, ?> map) {
+                    Map<String, Object> normalized = new LinkedHashMap<>();
+                    map.forEach((key, mapValue) -> normalized.put(String.valueOf(key), mapValue));
+                    mapped.add(normalized);
+                }
+            }
+            return mapped;
+        }
+
+        private static List<String> stringList(List<?> values) {
+            if (values == null || values.isEmpty()) {
+                return List.of();
+            }
+            return values.stream()
+                    .filter(Objects::nonNull)
+                    .map(String::valueOf)
+                    .toList();
+        }
+    }
 
     public record AssistantSuggestionsResponse(
             String provider,

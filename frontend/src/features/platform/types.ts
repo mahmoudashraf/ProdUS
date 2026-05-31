@@ -1087,9 +1087,17 @@ export interface AssistantQueryResponse {
   conversationId?: string;
   confidence?: number;
   sources?: Array<Record<string, unknown>>;
+  documents?: Array<Record<string, unknown>>;
+  attachments?: Array<Record<string, unknown>>;
   actions?: Array<Record<string, unknown>>;
   suggestions?: string[];
+  ragResponse?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  documentUsage?: Array<Record<string, unknown>>;
   fallbackReason?: string;
+  errorCode?: string;
+  reason?: string;
+  retryable?: boolean;
   providerRequestId?: string;
 }
 
