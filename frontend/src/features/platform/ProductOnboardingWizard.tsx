@@ -710,7 +710,6 @@ export default function ProductOnboardingWizard() {
         pagePosition: 'product_intake_analysis',
         assistantIntent: 'project-analysis-follow-up-chat',
         actionProfile: 'loomai-productization-read',
-        runtimeActionPolicy: 'read-only-actions-allowed-for-analysis-chat',
         productCreationIntentId: aiAnalysis?.intent.id,
         analysisProviderRequestId: aiAnalysis?.intent.analysisProviderRequestId,
         productName: form.values.name || analysis?.productName,

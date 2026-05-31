@@ -1083,7 +1083,6 @@ public class LoomAIIntegrationService {
             safe.put("actionProfile", "loomai-productization-read");
             safe.put("availableActionGroups", ACTION_GROUP_HINTS);
             safe.put("assistantIntent", "project-analysis-follow-up-chat");
-            safe.put("runtimeActionPolicy", "read-only-actions-allowed-for-analysis-chat");
             safe.put("toolUsePolicy", "answer-from-current-page-analysis-safe-indexed-knowledge-and-read-only-produs-actions");
         }
         Map<String, Object> pageContext = safePageContext(context.pageContext(), 0);
