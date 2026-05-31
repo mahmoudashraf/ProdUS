@@ -55,30 +55,6 @@ const nextConfig = {
       },
 
 
-  // Webpack configuration for better bundling
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    // Optimize bundle size
-    if (!dev && !isServer) {
-      config.optimization.splitChunks.cacheGroups = {
-        ...config.optimization.splitChunks.cacheGroups,
-        mui: {
-          test: /[\\/]node_modules[\\/]@mui[\\/]/,
-          name: 'mui',
-          chunks: 'all',
-          priority: 10,
-        },
-        vendor: {
-          test: /[\\/]node_modules[\\/]/,
-          name: 'vendors',
-          chunks: 'all',
-          priority: 5,
-        },
-      };
-    }
-
-    return config;
-  },
-
   // Environment variables
   env: {
     REACT_APP_VERSION: process.env.REACT_APP_VERSION,
