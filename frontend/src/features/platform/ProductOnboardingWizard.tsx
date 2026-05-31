@@ -548,7 +548,7 @@ function ProjectAnalysisChatPanel({
       disabled={disabled}
       requestContext={requestContext}
       conversationId={conversationId}
-      mode="thinker_deep"
+      mode="thinker"
       position="product_intake_analysis"
       title="Ask about this analysis"
       eyebrow="Thinker mode with read-only context"

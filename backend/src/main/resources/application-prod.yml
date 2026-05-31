@@ -111,7 +111,7 @@ loomai:
   assertion-private-key-path: ${LOOMAI_ASSERTION_PRIVATE_KEY_PATH:}
   assertion-ttl-seconds: ${LOOMAI_ASSERTION_TTL_SECONDS:300}
   assertion-scopes: "${LOOMAI_ASSERTION_SCOPES:chat:query,chat:suggestions,chat:conversations}"
-  default-mode: ${LOOMAI_DEFAULT_MODE:support_assistant}
+  default-mode: ${LOOMAI_DEFAULT_MODE:thinker}
   default-position: ${LOOMAI_DEFAULT_POSITION:productization}
   enabled: ${LOOMAI_ENABLED:false}
   environment: ${LOOMAI_ENVIRONMENT:production}

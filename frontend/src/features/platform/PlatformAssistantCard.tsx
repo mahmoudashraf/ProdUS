@@ -164,7 +164,7 @@ export default function PlatformAssistantCard({
       }>('/ai/assistant/query-once', {
         conversationId,
         query: prompt,
-        mode: 'support_assistant',
+        mode: 'thinker',
         position: 'productization',
         context,
       }),
@@ -178,7 +178,7 @@ export default function PlatformAssistantCard({
   });
 
   const result = assistantQuery.data;
-  const isLive = result?.mode === 'LIVE';
+  const isLive = Boolean(result && result.provider === 'LOOMAI' && result.mode !== 'FALLBACK');
   const pendingDisabledReason = pendingAction ? actionDisabledReason?.(pendingAction) || (!onConfirmAction ? 'Review only on this surface.' : '') : '';
 
   return (

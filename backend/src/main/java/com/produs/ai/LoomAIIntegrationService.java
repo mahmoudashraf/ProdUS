@@ -245,7 +245,7 @@ public class LoomAIIntegrationService {
             AssistantQueryRequest assistantRequest = new AssistantQueryRequest(
                     conversationId,
                     projectCreationPrompt(request, context),
-                    "support_deep",
+                    "thinker",
                     "product_intake_analysis",
                     null
             );
@@ -2257,7 +2257,7 @@ public class LoomAIIntegrationService {
     private Map<String, Object> runtimeChatPayload(Map<String, Object> context, String conversationId) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("conversationId", conversationId);
-        payload.put("mode", blank(properties.getDefaultMode()) ? "support_assistant" : properties.getDefaultMode());
+        payload.put("mode", defaultRuntimeMode());
         payload.put("position", blank(properties.getDefaultPosition()) ? "productization" : properties.getDefaultPosition());
         payload.put("context", context);
         return payload;
@@ -2405,10 +2405,29 @@ public class LoomAIIntegrationService {
     }
 
     private String mode(String requestedMode) {
-        if (!blank(requestedMode)) {
+        if (!blank(requestedMode) && !isLegacyRuntimeMode(requestedMode)) {
             return requestedMode;
         }
-        return blank(properties.getDefaultMode()) ? "support_assistant" : properties.getDefaultMode();
+        return defaultRuntimeMode();
+    }
+
+    private String defaultRuntimeMode() {
+        String configured = properties.getDefaultMode();
+        if (blank(configured) || isLegacyRuntimeMode(configured)) {
+            return "thinker";
+        }
+        return configured;
+    }
+
+    private boolean isLegacyRuntimeMode(String mode) {
+        if (blank(mode)) {
+            return false;
+        }
+        String normalized = mode.trim().toLowerCase(Locale.ROOT);
+        return "support_assistant".equals(normalized)
+                || "support_deep".equals(normalized)
+                || "support_operator".equals(normalized)
+                || "thinker_deep".equals(normalized);
     }
 
     private String position(String requestedPosition) {
@@ -2642,7 +2661,7 @@ public class LoomAIIntegrationService {
         JsonNode body = response.body();
         return new AssistantQueryResponse(
                 "LOOMAI",
-                "LIVE",
+                normalizedResponseMode(body),
                 boolOr(body, "success", true),
                 textOr(body, "type", "INFORMATION_PROVIDED"),
                 normalizedAnswer(body),
@@ -2663,6 +2682,16 @@ public class LoomAIIntegrationService {
                 boolOr(body, "retryable", false),
                 response.providerRequestId()
         );
+    }
+
+    private String normalizedResponseMode(JsonNode body) {
+        String mode = firstText(
+                body.path("mode"),
+                body.path("result").path("mode"),
+                body.path("metadata").path("orchestrationPolicy").path("mode"),
+                body.path("result").path("metadata").path("orchestrationPolicy").path("mode")
+        );
+        return blank(mode) ? "thinker" : mode;
     }
 
     private AssistantQueryResponse reinforceProjectAnalysisAnswer(AssistantQueryResponse response, Map<String, Object> context) {

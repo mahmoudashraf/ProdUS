@@ -668,7 +668,7 @@ function StudioAssistantCard({
       }>('/ai/assistant/query-once', {
         conversationId,
         query: prompt,
-        mode: 'support_assistant',
+        mode: 'thinker',
         position: 'productization',
         context,
       }),
@@ -685,7 +685,7 @@ function StudioAssistantCard({
   });
 
   const result = assistantQuery.data;
-  const isLive = result?.mode === 'LIVE';
+  const isLive = Boolean(result && result.provider === 'LOOMAI' && result.mode !== 'FALLBACK');
   const actionDisabled = pendingAction ? actionDisabledReason?.(pendingAction) || (!onConfirmAction ? 'This proposed action is displayed for review only.' : '') : '';
 
   return (
@@ -3492,8 +3492,8 @@ export default function OwnerProductizationWorkspace({
               title="AI Owner Brief"
               action={
                 <PastelChip
-                  label={assistantSuggestions.data?.mode === 'LIVE' ? 'LoomAI live' : 'ProdUS fallback'}
-                  accent={assistantSuggestions.data?.mode === 'LIVE' ? appleColors.purple : appleColors.blue}
+                  label={assistantSuggestions.data && assistantSuggestions.data.mode !== 'FALLBACK' ? 'LoomAI live' : 'ProdUS fallback'}
+                  accent={assistantSuggestions.data && assistantSuggestions.data.mode !== 'FALLBACK' ? appleColors.purple : appleColors.blue}
                 />
               }
             />

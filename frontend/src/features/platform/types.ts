@@ -1070,7 +1070,7 @@ export interface AssistantContext {
 
 export interface AssistantSuggestionsResponse {
   provider: string;
-  mode: 'LIVE' | 'FALLBACK';
+  mode: string;
   success?: boolean;
   suggestions: string[];
   fallbackReason?: string;
@@ -1079,7 +1079,7 @@ export interface AssistantSuggestionsResponse {
 
 export interface AssistantQueryResponse {
   provider: string;
-  mode: 'LIVE' | 'FALLBACK';
+  mode: string;
   success: boolean;
   type?: string;
   answer?: string;

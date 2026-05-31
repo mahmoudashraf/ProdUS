@@ -29,7 +29,7 @@ public class LoomAIProperties {
     private String assertionPrivateKeyPath = "";
     private int assertionTtlSeconds = 300;
     private String assertionScopes = "chat:query,chat:suggestions,chat:conversations";
-    private String defaultMode = "support_assistant";
+    private String defaultMode = "thinker";
     private String defaultPosition = "productization";
     private int timeoutMs = 2500;
     private String assistantSessionPath = "/api/public/chat/session";
