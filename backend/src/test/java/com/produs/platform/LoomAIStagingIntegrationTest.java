@@ -598,12 +598,13 @@ class LoomAIStagingIntegrationTest {
                     """;
             respond(exchange, 200, """
                     {
-                      "success": true,
-                      "type": "INFORMATION_PROVIDED",
+                      "success": false,
+                      "type": "CLARIFICATION_REQUIRED",
                       "answer": %s,
                       "safeSummary": %s,
                       "conversationId": "loom-intake-analysis-123",
                       "providerRequestId": "loom-intake-request",
+                      "fallbackReason": "CLARIFICATION_REQUIRED",
                       "metadata": {"requestId": "loom-intake-request"}
                     }
                     """.formatted(HTTP_OBJECT_MAPPER.writeValueAsString(strictJson), HTTP_OBJECT_MAPPER.writeValueAsString(strictJson)));

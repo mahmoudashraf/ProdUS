@@ -257,7 +257,7 @@ public class LoomAIIntegrationService {
                     user,
                     conversationId
             );
-            return assistantQueryResponse(response, conversationId);
+            return normalizeProjectCreationAnalysisCompletion(assistantQueryResponse(response, conversationId));
         } catch (RuntimeException exception) {
             log.warn("loomai_project_creation_fallback reason={} detail={}",
                     exception.getClass().getSimpleName(),
@@ -2857,6 +2857,112 @@ public class LoomAIIntegrationService {
                 boolOr(body, "retryable", false),
                 response.providerRequestId()
         );
+    }
+
+    private AssistantQueryResponse normalizeProjectCreationAnalysisCompletion(AssistantQueryResponse response) {
+        if (response == null || !clarificationLike(response)) {
+            return response;
+        }
+        JsonNode analysis = firstUsableProjectAnalysis(response.answer(), response.safeSummary());
+        if (analysis == null) {
+            return response;
+        }
+        return new AssistantQueryResponse(
+                response.provider(),
+                response.mode(),
+                true,
+                "INFORMATION_PROVIDED",
+                response.answer(),
+                response.safeSummary(),
+                response.conversationId(),
+                response.confidence(),
+                response.sources(),
+                response.documents(),
+                response.attachments(),
+                response.actions(),
+                response.suggestions(),
+                response.ragResponse(),
+                response.metadata(),
+                response.documentUsage(),
+                null,
+                null,
+                null,
+                false,
+                response.providerRequestId()
+        );
+    }
+
+    private boolean clarificationLike(AssistantQueryResponse response) {
+        return containsIgnoreCase(response.type(), "CLARIFICATION")
+                || containsIgnoreCase(response.fallbackReason(), "CLARIFICATION")
+                || containsIgnoreCase(response.errorCode(), "CLARIFICATION")
+                || containsIgnoreCase(response.reason(), "CLARIFICATION");
+    }
+
+    private boolean containsIgnoreCase(String value, String needle) {
+        return value != null
+                && needle != null
+                && value.toLowerCase(Locale.ROOT).contains(needle.toLowerCase(Locale.ROOT));
+    }
+
+    private JsonNode firstUsableProjectAnalysis(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            JsonNode parsed = parseJsonObjectFromText(value);
+            if (usableProjectCreationAnalysis(parsed)) {
+                return parsed;
+            }
+        }
+        return null;
+    }
+
+    private JsonNode parseJsonObjectFromText(String value) {
+        if (blank(value)) {
+            return null;
+        }
+        String candidate = value.trim();
+        if (candidate.startsWith("```")) {
+            int firstNewline = candidate.indexOf('\n');
+            int lastFence = candidate.lastIndexOf("```");
+            if (firstNewline >= 0 && lastFence > firstNewline) {
+                candidate = candidate.substring(firstNewline + 1, lastFence).trim();
+            }
+        }
+        if (!candidate.startsWith("{")) {
+            int firstBrace = candidate.indexOf('{');
+            int lastBrace = candidate.lastIndexOf('}');
+            if (firstBrace >= 0 && lastBrace > firstBrace) {
+                candidate = candidate.substring(firstBrace, lastBrace + 1);
+            }
+        }
+        try {
+            JsonNode parsed = objectMapper.readTree(candidate);
+            return parsed.isObject() ? parsed : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private boolean usableProjectCreationAnalysis(JsonNode analysis) {
+        if (analysis == null || !analysis.isObject()) {
+            return false;
+        }
+        boolean hasIdentity = !blank(text(analysis, "draftName"))
+                || !blank(text(analysis, "outcomeSummary"))
+                || !blank(text(analysis, "projectDescription"));
+        boolean hasActionableContent = nonEmptyArray(analysis, "recommendedServiceModules")
+                || nonEmptyArray(analysis, "scannerFocusAreas")
+                || nonEmptyArray(analysis, "suggestedNextSteps")
+                || nonEmptyArray(analysis, "sourceInsights")
+                || nonEmptyArray(analysis, "documentUsage");
+        return hasIdentity && hasActionableContent;
+    }
+
+    private boolean nonEmptyArray(JsonNode node, String fieldName) {
+        JsonNode value = node.path(fieldName);
+        return value.isArray() && value.size() > 0;
     }
 
     private String normalizedResponseMode(JsonNode body) {
