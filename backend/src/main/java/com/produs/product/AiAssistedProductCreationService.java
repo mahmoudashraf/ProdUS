@@ -1111,6 +1111,11 @@ public class AiAssistedProductCreationService {
                 completedMissingEvidence.add(missingEvidence);
             }
         }
+        List<String> sanitizedMissingEvidence = removeResolvedDocumentMissingEvidence(
+                completedMissingEvidence,
+                completedUsage,
+                documents
+        );
         return new ProductCreationFields(
                 fields.productName(),
                 fields.summary(),
@@ -1133,9 +1138,43 @@ public class AiAssistedProductCreationService {
                 fields.suggestedNextSteps(),
                 fields.sourceInsights(),
                 fields.assumptions(),
-                completedMissingEvidence,
+                sanitizedMissingEvidence,
                 completedUsage
         );
+    }
+
+    private List<String> removeResolvedDocumentMissingEvidence(
+            List<String> missingEvidence,
+            List<DocumentUsageEvidence> usage,
+            List<ProjectCreationDocumentReference> documents
+    ) {
+        if (missingEvidence == null || missingEvidence.isEmpty() || documents == null || documents.isEmpty()) {
+            return listOrEmpty(missingEvidence);
+        }
+        boolean everySelectedDocumentUsed = documents.stream().allMatch(document -> {
+            String fileName = trim(document.fileName(), NAME_LIMIT);
+            String documentId = trim(document.documentId(), NAME_LIMIT);
+            return listOrEmpty(usage).stream()
+                    .anyMatch(item -> "USED".equalsIgnoreCase(firstNonBlank(item.status()))
+                            && sameDocumentUsage(item, documentId, fileName));
+        });
+        if (!everySelectedDocumentUsed) {
+            return missingEvidence;
+        }
+        return missingEvidence.stream()
+                .filter(value -> !resolvedDocumentGap(value))
+                .toList();
+    }
+
+    private boolean resolvedDocumentGap(String value) {
+        String normalized = normalizeText(value);
+        return normalized.contains("document")
+                && (normalized.contains("not analyzed")
+                || normalized.contains("not used")
+                || normalized.contains("not proven")
+                || normalized.contains("not access")
+                || normalized.contains("could not access")
+                || normalized.contains("unavailable"));
     }
 
     private String documentAwareCreationSummary(String aiCreationSummary, List<DocumentUsageEvidence> documentUsage) {
