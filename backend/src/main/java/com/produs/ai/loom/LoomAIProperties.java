@@ -14,6 +14,10 @@ public class LoomAIProperties {
     private String environment = "local";
     private String integrationMode = "BACKEND_MEDIATED_PRIVATE_RUNTIME";
     private String authMode = "PRIVATE_RUNTIME_ASSERTION";
+    private String assignmentUrl = "";
+    private String assignmentApiKey = "";
+    private String assignmentApiKeyHeaderName = "X-PLATFORM-API-KEY";
+    private int assignmentCacheTtlSeconds = 300;
     private String baseUrl = "";
     private String apiKey = "";
     private String apiKeyHeaderName = "X-PLATFORM-API-KEY";
@@ -22,6 +26,7 @@ public class LoomAIProperties {
     private String runtimeAuthorizationHeaderName = "X-AIFABRIC-RUNTIME-AUTHORIZATION";
     private String assertionIssuer = "";
     private String assertionAudience = "";
+    private String assertionDeploymentId = "";
     private String assertionCustomerId = "produs-staging";
     private String assertionTenantId = "";
     private String assertionSigningAlgorithm = "HS256";

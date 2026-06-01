@@ -26,7 +26,8 @@ class LoomAIRuntimeAssertionServiceTest {
         LoomAIProperties properties = new LoomAIProperties();
         properties.setRuntimeApiKey("runtime-key");
         properties.setAssertionIssuer("produs-staging-backend");
-        properties.setAssertionAudience("dep-7706fafb");
+        properties.setAssertionAudience("produs-staging");
+        properties.setAssertionDeploymentId("dep-7706fafb");
         properties.setAssertionCustomerId("produs-staging");
         properties.setAssertionSigningSecret(SIGNING_SECRET);
 
@@ -45,6 +46,7 @@ class LoomAIRuntimeAssertionServiceTest {
         assertThat(payload.path("subjectType").asText()).isEqualTo("ANONYMOUS_SESSION");
         assertThat(payload.path("deploymentId").asText()).isEqualTo("dep-7706fafb");
         assertThat(payload.path("customerId").asText()).isEqualTo("produs-staging");
+        assertThat(payload.path("aud").asText()).isEqualTo("produs-staging");
         assertThat(payload.path("iat").isTextual()).isTrue();
         assertThat(payload.path("exp").isTextual()).isTrue();
         assertThat(Instant.parse(payload.path("exp").asText())).isAfter(Instant.parse(payload.path("iat").asText()));
@@ -56,7 +58,8 @@ class LoomAIRuntimeAssertionServiceTest {
         LoomAIProperties properties = new LoomAIProperties();
         properties.setRuntimeApiKey("runtime-key");
         properties.setAssertionIssuer("produs-staging-backend");
-        properties.setAssertionAudience("dep-7706fafb");
+        properties.setAssertionAudience("produs-staging");
+        properties.setAssertionDeploymentId("dep-7706fafb");
         properties.setAssertionCustomerId("produs-staging");
         properties.setAssertionSigningSecret(SIGNING_SECRET);
 
@@ -78,6 +81,8 @@ class LoomAIRuntimeAssertionServiceTest {
         assertThat(payload.path("sessionId").asText()).isEqualTo("produs-safe-knowledge-sync");
         assertThat(payload.path("subjectType").asText()).isEqualTo("SYSTEM_PROCESS");
         assertThat(payload.path("callerType").asText()).isEqualTo("SYSTEM_PROCESS");
+        assertThat(payload.path("deploymentId").asText()).isEqualTo("dep-7706fafb");
+        assertThat(payload.path("aud").asText()).isEqualTo("produs-staging");
         assertThat(payload.path("scopes").toString()).contains("data-sync:upsert");
         assertThat(payload.path("scopes").toString()).doesNotContain("chat:query");
         assertThat(payload.path("exp").isTextual()).isTrue();

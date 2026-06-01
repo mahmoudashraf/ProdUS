@@ -6,22 +6,34 @@ Audience: ProdUS backend, frontend, platform operations, MCP, scanner, and LoomA
 
 Status: staging LoomAI deployment is live and verified. ProdUS should integrate through the standardized backend-mediated private runtime contract. The Platform consumer bridge remains useful for operator smoke tests and fallback comparison, but it is not the target application path.
 
-Latest LoomAI-side status, verified 2026-05-25:
+Latest LoomAI-side status, verified 2026-06-01:
 
+- 2026-06-01 update: LoomAI rediscovered the ProdUS staging MCP server, imported `produs.catalog.export`, published `mkp-action-produs-productization-read-mcp@0.1.1`, updated the live deployment install, published deployment version `ver-37ca6cc2`, and applied it through release `rel-68c38e15`.
+- Live release verification `vrf-55a0bfc1` passed with `28 passed, 0 failed, 1 skipped`.
+- Runtime action verification now shows 10 ProdUS actions and includes `produs_catalog_export`.
+- Explicit runtime smoke passed with `mode=thinker` and `query-once`: “Use the full active service catalog export to explain what lifecycle services and testing-related packages ProdUS offers.” The runtime executed `produs_catalog_export` and returned a grounded answer.
+- The broader smoke phrase “What lifecycle services and testing-related packages does ProdUS offer?” currently returns a valid answer through `produs_catalog_search`. If ProdUS requires that exact natural wording to force the export tool, the next step is action-selection metadata tuning; both tools remain read-only and owner-safe.
+- Active runtime assignment discovery is live at `GET /api/public/consumers/produs-staging/runtime-assignment`. Use it from the ProdUS backend to discover the current runtime URL/endpoints instead of hardcoding the runtime base URL.
 - Runtime `dep-7706fafb` accepts issuer `produs-staging-backend`.
-- Runtime `dep-7706fafb` accepts audience `dep-7706fafb`.
+- Runtime `dep-7706fafb` accepts the stable consumer audience `produs-staging`; it also accepts `dep-7706fafb` as a transition audience.
+- Runtime assignment discovery now returns `privateRuntimeIssuer=produs-staging-backend`, `privateRuntimeAudience=produs-staging`, and `externalIntegrationReady=true`.
+- ProdUS should sign private runtime assertions with `aud=produs-staging`. Keep `deploymentId=dep-7706fafb` only as audit/debug metadata.
+- Deployment version `ver-e55296b1` / label `v11` was applied through release `rel-2d0807c7`; latest verification `vrf-7b9ffb3d` passed.
+- Live smoke passed for `GET /api/chat/me/auth-context` and `POST /api/chat/me/query-once` using issuer `produs-staging-backend` and audience `produs-staging`.
 - Runtime trusted backend key and HMAC private assertion signing key are configured in Coolify. Values are not stored in this document.
 - Raw runtime and MCP secret material is captured in the LoomAI private handoff under `2026-05-20 ProdUS Direct Runtime Auth Material (Private)`. Transfer those values only through the agreed secure operations channel.
 - Direct private runtime `GET /api/chat/me/auth-context` passed with a ProdUS-shaped `rpa1` assertion.
-- Direct private runtime `POST /api/chat/me/query` passed with `mode=support_assistant`, `position=productization`, and canonical `context`.
+- Direct private runtime `POST /api/chat/me/query` should use the default curated runtime pack. Use `mode=thinker` for grounded/read-only productization analysis and `mode=executor` only for governed action execution. The older `support_assistant`/`support_deep` modes belonged to the support pack and should not be used by ProdUS after this transition.
 - Direct private runtime `POST /api/chat/me/query-once` is the supported one-time answer endpoint for page helpers and smoke checks. It uses the same request/response contract as `/api/chat/me/query` and the same `chat:query` scope. Runtime treats `conversationId` as correlation only on this endpoint, skips persisted chat-memory loading, and skips conversation turn recording.
+- Runtime default curated module was applied through deployment version `ver-b0c54807` and release `rel-37d07c7c`; the release finished `APPLIED_VERIFIED` with verification `PASSED` on staging target profile `dtp-coolify-staging`.
+- Live default-mode smoke passed: `/api/chat/me/auth-context` accepted the ProdUS-shaped private assertion, `/api/chat/me/query` echoed `mode=thinker` and returned a grounded answer with a `rag-*` provider request id, `/api/chat/me/query-once` echoed `mode=thinker`, and `/api/chat/me/suggestions` returned four suggestions.
 - Runtime code deployment `jz8ntc2b03kmllnpfn43esa7` deployed commit `22fa7fb48` for the implementation smoke; follow-up deployment `kpx28b02ryukztitqvem2399` deployed commit `969f87dfb` after the status documentation update. Live smoke verified `/query-once` returns `200` without creating a chat conversation (`GET /conversations/{queryOnceConversationId}` returned `404`), while normal `/query` still persists (`GET /conversations/{queryConversationId}` returned `200`).
 - Direct private runtime `POST /api/chat/me/suggestions` passed with `content` and `maxSuggestions`.
 - Negative auth smoke passed for missing runtime API key and wrong issuer.
 - ProdUS backend `/health` and `/loomai/tool-allowlist` are reachable and tool allowlist reports `ready=true`.
-- ProdUS MCP API-key auth is enabled on staging: unauthenticated `POST /mcp tools/list` returns `401 PRODUS_MCP_AUTH_REQUIRED`; authenticated `POST /mcp tools/list` returns `200` with 18 tools after adding the bounded `produs.productization_project.create` action candidate.
+- ProdUS MCP API-key auth is enabled on staging: unauthenticated `POST /mcp tools/list` returns `401 PRODUS_MCP_AUTH_REQUIRED`; authenticated discovery through LoomAI returns `ready=true` with 19 tools after adding `produs.catalog.export` and the bounded `produs.productization_project.create` action candidate.
 - LoomAI Marketplace discovery for `produs-staging` returns `ready=true` through the managed MCP Gateway.
-- Read-only ProdUS MCP action bundle `mkp-action-produs-productization-read-mcp@0.1.0` is published, installed on `dep-7706fafb`, and applied in version `v3`.
+- Read-only ProdUS MCP action bundle `mkp-action-produs-productization-read-mcp@0.1.1` is published, installed on `dep-7706fafb`, and applied in version `v10`.
 - Confirmed project-creation action bundle `mkp-action-produs-productization-project-create-mcp@0.1.1` is published, installed on `dep-7706fafb` as `mpi-47247a04`, readiness `READY`, and live state `LIVE`.
 - Live runtime `/api/admin/actions/overview` shows 9 ProdUS actions: 8 read actions plus `produs_productization_project_create`.
 - The confirmed action maps to ProdUS MCP tool `produs.productization_project.create` on server ref `produs-staging`, schema hash `sha256:6a64c636165a0e6c92e7fefd41fad8e53132f411f2aa7d107a992c6e517867c0`, schema drift policy `DISABLE_ACTION`, and hidden backend-supplied parameters for `creationIntentId`, `consentToken`, `idempotencyKey`, and `analysisProviderRequestId`.
@@ -45,6 +57,75 @@ Current contract alignment:
 - ProdUS must not parse shopper/user-facing answer text to detect auth, access, action, or provider failures.
 - ProdUS must not expose runtime, bridge, provider, MCP, vector, or Coolify internals to the browser.
 
+Required ProdUS changes after the default-pack transition:
+
+- Keep the existing backend-mediated private runtime auth path. No browser runtime secret, Coolify token, Platform key, MCP key, or provider key should be added to ProdUS frontend code.
+- Keep the existing LoomAI base URL and endpoint paths unless LoomAI explicitly rotates the deployment. The current staging runtime base URL remains `http://dep-7706fafb.46.224.145.148.sslip.io`.
+- Use `mode=thinker` for read-only analysis, productization guidance, indexed-knowledge answers, page helpers, and project-creation analysis.
+- Use `mode=executor` only for governed action execution flows where ProdUS has intentionally prepared the action UX, authorization, consent, idempotency, and audit path.
+- Stop sending `support_assistant`, `support_deep`, `support_operator`, or `thinker_deep` for this deployment. Those are not the ProdUS default-pack contract.
+- Update ProdUS runtime smoke tests and response assertions to expect `response.mode == "thinker"` for analysis calls.
+- Keep `/api/chat/me/query` for persistent chat panels and `/api/chat/me/query-once` for one-time page helpers or one-time document analysis. Do not send a `persistConversation` flag.
+- Continue sending all product/workspace/package/finding state under canonical `context`, after ProdUS backend authorizes every referenced id.
+- Continue treating `providerRequestId` as the trace id to store on ProdUS evidence, analysis, and audit records.
+
+Information LoomAI should share with ProdUS:
+
+- Non-secret contract values in this document: deployment id, runtime base URL, supported modes, endpoint paths, issuer, audience, latest applied release, and active version.
+- Secret values only through the agreed secure operations channel: runtime API key and HMAC assertion signing secret. These are not stored in this handover.
+- No new secret rotation is required for the default-pack transition if ProdUS already has the current staging runtime API key and assertion signing secret configured.
+
+## 0. Active Runtime Assignment Discovery
+
+ProdUS should stop hardcoding the runtime URL in application code. The ProdUS backend can discover the currently assigned LoomAI runtime at startup and when the cached runtime fails health/query checks.
+
+```http
+GET https://loomai-platform-backend.46.224.145.148.sslip.io/api/public/consumers/produs-staging/runtime-assignment
+X-PLATFORM-API-KEY: <backend-only-platform-api-key>
+```
+
+Current non-secret response shape:
+
+```json
+{
+  "consumerId": "produs-staging",
+  "deploymentId": "dep-7706fafb",
+  "runtimeBaseUrl": "http://dep-7706fafb.46.224.145.148.sslip.io",
+  "runtimeAuthMode": "PRIVATE_RUNTIME_SIGNED_ASSERTION",
+  "preferredIntegrationMode": "BACKEND_MEDIATED_PRIVATE_RUNTIME",
+  "privateRuntimeIssuer": "produs-staging-backend",
+  "privateRuntimeAudience": "produs-staging",
+  "privateRuntimeAudienceMode": "CONSUMER_ID",
+  "externalIntegrationReady": true,
+  "assignmentRevision": "mw-ToWWiNFmJtuV_KllM79",
+  "cacheTtlSeconds": 300,
+  "endpoints": {
+    "chatQueryUrl": "http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/query",
+    "queryOnceUrl": "http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/query-once",
+    "suggestionsUrl": "http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/suggestions",
+    "authContextUrl": "http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/auth-context",
+    "healthUrl": "http://dep-7706fafb.46.224.145.148.sslip.io/actuator/health"
+  }
+}
+```
+
+ProdUS implementation rule:
+
+- Fetch this assignment from the ProdUS backend only. Never call it from browser code.
+- Cache for at most `cacheTtlSeconds`; refresh immediately when `assignmentRevision` changes, runtime health fails, or chat calls return repeated connection failures.
+- Use `endpoints.chatQueryUrl`, `endpoints.queryOnceUrl`, `endpoints.suggestionsUrl`, and `endpoints.authContextUrl` for direct runtime calls.
+- Treat `deploymentId` as audit/debug metadata, not as the routing source of truth.
+- Sign private assertions with `aud=produs-staging`, using the returned `privateRuntimeAudience`.
+- Keep `deploymentId=dep-7706fafb` in the assertion payload for audit/debug metadata, but do not use it as the private-runtime audience in new ProdUS code.
+
+ProdUS implementation status:
+
+- Backend code now supports `LOOMAI_ASSIGNMENT_URL` and caches the assignment response by `cacheTtlSeconds`.
+- Backend assignment discovery supports `LOOMAI_ASSIGNMENT_API_KEY` and `LOOMAI_ASSIGNMENT_API_KEY_HEADER_NAME`; if omitted it falls back to `LOOMAI_API_KEY`.
+- Backend direct runtime calls resolve assignment endpoint URLs before falling back to `LOOMAI_BASE_URL`.
+- Backend assertions now keep `aud` and `deploymentId` separate: `aud=produs-staging`, `deploymentId=dep-7706fafb`.
+- Safe knowledge sync trace/auth context also uses the resolved assignment deployment/customer/issuer values.
+
 ## 1. Live Staging Deployment
 
 | Field                      | Value                                                                                                          |
@@ -52,10 +133,12 @@ Current contract alignment:
 | Platform deployment id     | `dep-7706fafb`                                                                                                 |
 | Platform deployment name   | `ProdUS AI Enablement Staging`                                                                                 |
 | Environment                | `staging`                                                                                                      |
-| Latest applied release     | `rel-623c91a0`                                                                                                 |
+| Latest applied release     | `rel-68c38e15`                                                                                                 |
 | Runtime template           | `dev-openai-qdrant`                                                                                            |
-| Template plugin            | `mkp-template-support-desk-shell`                                                                              |
-| Installed action plugins   | `mkp-action-produs-productization-read-mcp@0.1.0`, `mkp-action-produs-productization-project-create-mcp@0.1.1` |
+| Runtime curated module     | `default`                                                                                                      |
+| Runtime supported modes    | `thinker` for analysis/read-only help, `executor` for governed actions                                         |
+| Template plugin            | Initially bootstrapped from `mkp-template-support-desk-shell`; runtime behavior is now controlled by `default` |
+| Installed action plugins   | `mkp-action-produs-productization-read-mcp@0.1.1`, `mkp-action-produs-productization-project-create-mcp@0.1.1` |
 | Installed data plugins     | `mkp-data-help-center`, `mkp-data-policy-folder`, `mkp-data-produs-safe-knowledge@0.1.1`                       |
 | Stable consumer id         | `produs-staging`                                                                                               |
 | Runtime base URL           | `http://dep-7706fafb.46.224.145.148.sslip.io`                                                                  |
@@ -106,12 +189,13 @@ AI_FABRIC_RUNTIME_PRIVATE_AUTHORIZATION_HEADER=X-AIFABRIC-RUNTIME-AUTHORIZATION
 AI_FABRIC_RUNTIME_PRIVATE_TOKEN_SCHEME=Bearer
 AI_FABRIC_RUNTIME_PRIVATE_ASSERTION_SIGNING_KEY=<deployment-scoped-hmac-signing-secret>
 AI_FABRIC_RUNTIME_AUTH_ACCEPTED_ISSUERS=<existing-issuers>,produs-staging-backend
-AI_FABRIC_RUNTIME_AUTH_ACCEPTED_AUDIENCES=<existing-audiences>,dep-7706fafb
+AI_FABRIC_RUNTIME_AUTH_ACCEPTED_AUDIENCES=<existing-audiences>,produs-staging,dep-7706fafb
 ```
 
 Rules:
 
 - Preserve any existing accepted issuers/audiences used by Platform operator smoke tests.
+- Do not add `platform-consumer-bridge` as an accepted issuer for this ProdUS runtime unless LoomAI intentionally moves ProdUS back to the Platform bridge path. Assignment discovery chooses the preferred issuer from runtime configuration, and the ProdUS direct path should report `produs-staging-backend`.
 - Do not print or commit the API key or signing secret.
 - The runtime currently supports one HMAC signing key via `AI_FABRIC_RUNTIME_PRIVATE_ASSERTION_SIGNING_KEY`.
 - A per-issuer public key registry is not live-supported yet. `LOOMAI_ASSERTION_PRIVATE_KEY_PATH` is therefore not enough by itself unless LoomAI first implements asymmetric assertion verification.
@@ -137,10 +221,14 @@ LOOMAI_ENABLED=true
 LOOMAI_ENVIRONMENT=staging
 LOOMAI_INTEGRATION_MODE=BACKEND_MEDIATED_PRIVATE_RUNTIME
 LOOMAI_AUTH_MODE=PRIVATE_RUNTIME_ASSERTION
-LOOMAI_BASE_URL=http://dep-7706fafb.46.224.145.148.sslip.io
+LOOMAI_ASSIGNMENT_URL=https://loomai-platform-backend.46.224.145.148.sslip.io/api/public/consumers/produs-staging/runtime-assignment
+LOOMAI_ASSIGNMENT_API_KEY=<backend-only platform assignment key>
+LOOMAI_ASSIGNMENT_API_KEY_HEADER_NAME=X-PLATFORM-API-KEY
+LOOMAI_BASE_URL=<fallback-only: use assignment endpoints first>
 LOOMAI_RUNTIME_API_KEY=<same value accepted by X-AIFABRIC-RUNTIME-API-KEY>
 LOOMAI_ASSERTION_ISSUER=produs-staging-backend
-LOOMAI_ASSERTION_AUDIENCE=dep-7706fafb
+LOOMAI_ASSERTION_AUDIENCE=produs-staging
+LOOMAI_ASSERTION_DEPLOYMENT_ID=dep-7706fafb
 LOOMAI_ASSERTION_SIGNING_ALGORITHM=HS256
 LOOMAI_ASSERTION_SIGNING_SECRET=<same HMAC signing secret configured on runtime>
 LOOMAI_TIMEOUT_MS=8000
@@ -150,7 +238,7 @@ LOOMAI_ASSISTANT_SUGGESTIONS_PATH=/api/chat/me/suggestions
 LOOMAI_AUTH_CONTEXT_PATH=/api/chat/me/auth-context
 ```
 
-Do not set these in frontend env. They are backend-only.
+Do not set these in frontend env. They are backend-only. Prefer the assignment endpoint over `LOOMAI_BASE_URL`; keep a fallback base URL only for break-glass local diagnostics.
 
 If direct runtime is not configured yet, keep:
 
@@ -185,7 +273,7 @@ Required assertion payload:
   "customerId": "produs-staging",
   "tenantId": "optional-tenant-or-org-id",
   "iss": "produs-staging-backend",
-  "aud": "dep-7706fafb",
+  "aud": "produs-staging",
   "exp": "2026-05-19T21:30:00Z",
   "scopes": ["chat:query", "chat:suggestions", "chat:conversations"]
 }
@@ -194,7 +282,7 @@ Required assertion payload:
 Rules:
 
 - `iss` must be in runtime `AI_FABRIC_RUNTIME_AUTH_ACCEPTED_ISSUERS`.
-- `aud` must include `dep-7706fafb` and match runtime `AI_FABRIC_RUNTIME_AUTH_ACCEPTED_AUDIENCES`.
+- `aud` must be `produs-staging` for new ProdUS direct-runtime calls and must match runtime `AI_FABRIC_RUNTIME_AUTH_ACCEPTED_AUDIENCES`.
 - `authMode` must be `PRIVATE_RUNTIME_BACKEND_MEDIATED`.
 - `callerType` must be `TRUSTED_BACKEND`.
 - Use short expiry, recommended 5 to 15 minutes.
@@ -217,7 +305,7 @@ Content-Type: application/json
 {
   "query": "What is blocking this product from launch?",
   "conversationId": "produs-ui-session-123",
-  "mode": "support_assistant",
+  "mode": "thinker",
   "position": "productization",
   "context": {
     "pageType": "owner-product-workspace",
@@ -245,7 +333,7 @@ X-AIFABRIC-RUNTIME-AUTHORIZATION: Bearer <rpa1-token>
 {
   "query": "What is blocking this product from launch?",
   "conversationId": "produs-ui-session-123",
-  "mode": "support_assistant",
+  "mode": "thinker",
   "position": "productization",
   "context": {
     "pageType": "owner-product-workspace",
@@ -292,7 +380,7 @@ Authorization: Bearer <Supabase JWT or staging mock token>
 Content-Type: multipart/form-data
 ```
 
-ProdUS project creation uses a two-step LoomAI flow. Step 1 is runtime analysis through `POST /api/chat/me/query-once` with `mode=support_deep`, `position=product_intake_analysis`, and a neutral owner-intake output schema. `support_deep` is required because it is action-disabled; the project-creation analysis response must not enter the runtime action planner. Step 2 is project creation through a governed runtime action named `produs.productization_project.create`. This is scoped to project creation only; it does not create packages, workspaces, team selections, invitations, or participants.
+ProdUS project creation uses a two-step LoomAI flow. Step 1 is runtime analysis through `POST /api/chat/me/query-once` with `mode=thinker`, `position=product_intake_analysis`, and a neutral owner-intake output schema. `thinker` is the default-pack analysis mode and does not execute mutating actions; the project-creation analysis response must not enter the runtime action planner. Step 2 is project creation through a governed runtime action named `produs.productization_project.create` and should use the action/execution contract only after ProdUS has minted an owner-approved creation intent. This is scoped to project creation only; it does not create packages, workspaces, team selections, invitations, or participants.
 
 LoomAI runtime support status as of 2026-05-27: implemented for both `/api/chat/me/query-once` and `/api/chat/me/query`. ProdUS should still use `/query-once` for project creation because the selected files are one-time analysis inputs and should not create chat history. Runtime extracts `context.documents[].temporaryAccessUrl`, validates it as a safe short-lived HTTPS URL, redacts it from stored/debug context, and passes it to the configured provider through the transient provider file-input contract.
 
@@ -310,7 +398,7 @@ Step 1 analysis payload:
 {
   "query": "Owner intake analysis instruction",
   "conversationId": "opaque-provider-conversation-id",
-  "mode": "support_deep",
+  "mode": "thinker",
   "position": "product_intake_analysis",
   "context": {
     "contextVersion": "produs-owner-intake-analysis-v2",
@@ -710,7 +798,7 @@ curl -fsS \
   --data '{
     "query": "What can you help me with?",
     "conversationId": "produs-runtime-smoke",
-    "mode": "support_assistant",
+    "mode": "thinker",
     "position": "productization",
     "context": {"pageType": "owner-product-workspace"}
   }'
@@ -1173,6 +1261,181 @@ Do not compile MCP action plugins into the deployment until discovery returns `r
 
 The ProdUS widget should be a productization assistant, not a generic platform chatbot.
 
+### LoomAI UI Integration Capability
+
+LoomAI now has two relevant UI layers:
+
+1. A reusable `MaxMode` widget bundle.
+2. A Shopify-specific storefront shell that wraps that bundle with Shopify page, cart, customer-account, and storefront event context.
+
+ProdUS should use the reusable `MaxMode` bundle through a thin ProdUS shell/wrapper. Do not reuse the Shopify shell directly. The Shopify shell is intentionally coupled to Shopify storefront behavior, while the underlying widget can be mounted by any product UI that provides the standard backend-mediated chat routes and safe page context.
+
+Supported ProdUS UI surfaces:
+
+- Full Max Mode workspace: a large overlay for productization project analysis, package planning, scanner/finding review, milestone readiness, and guided implementation decisions.
+- Fixed page assistant: a floating launcher or fixed chat box attached to the current ProdUS page, similar to the Shopify storefront assistant but powered by ProdUS context.
+- Inline one-time help: page buttons or helper panels that call a non-persistent query endpoint for suggestions, explanations, or validation.
+- Evidence/source panel: optional right-panel document/source cards when LoomAI returns safe `sources`, `documents`, `attachments`, or `documentUsage` evidence in the canonical response.
+
+Plugin-style usage model:
+
+- Treat the reusable `MaxMode` bundle as a ProdUS frontend plugin/module, not as a Shopify app extension.
+- The plugin can be mounted on any ProdUS page by loading the bundle and calling `window.MaxMode.init(...)`.
+- The same plugin supports two primary UI modes:
+  - Max Mode: full shopping/workspace-style overlay opened with `window.MaxMode.open()` or a launcher button.
+  - Fixed chat box: page-level assistant/dock enabled through launcher and host dock configuration.
+- ProdUS owns the shell adapter: page context collection, auth/session handling, route URLs, feature flags, theme, and which pages mount the plugin.
+- LoomAI owns the generic widget contract: canonical request/response rendering, attachments, source cards, debug display, action evidence, and conversation controls.
+- This is separate from Marketplace ACTION/DATA plugins. It is a frontend integration plugin/module that talks to ProdUS backend routes.
+
+Using the deployed widget script:
+
+- Current LoomAI source artifact: `Platfrom/partner-ui/public/max-mode-widget.iife.js`.
+- The Shopify bridge also carries a copied widget bundle, but ProdUS should not load Shopify bridge assets because those are packaged with Shopify-specific shell behavior.
+- For staging smoke, ProdUS may load the hosted LoomAI Partner UI static asset:
+
+```html
+<script src="https://loomai-partner-ui.46.224.145.148.sslip.io/max-mode-widget.iife.js?v=2026-04-14-opaque-shell-v1"></script>
+```
+
+- For production, prefer a pinned/self-hosted copy inside the ProdUS frontend static assets, for example:
+
+```text
+frontend/public/vendor/loomai/max-mode-widget.iife.js
+```
+
+- Do not load an unpinned `latest` script in production. Pin by version query or release hash and update intentionally.
+- If ProdUS uses a strict CSP, allow the script source only for the pinned asset origin and allow `connect-src` only to the ProdUS backend. Browser traffic still goes to ProdUS, not to LoomAI runtime.
+- On sign-out, tenant/workspace switch, or app teardown, call `window.MaxMode.destroy()` before reinitializing for a different user context.
+
+Minimal dynamic loader:
+
+```ts
+const LOOMAI_MAX_MODE_SCRIPT_ID = "loomai-max-mode-widget";
+
+export function loadLoomAIMaxModeWidget(
+  src = "/vendor/loomai/max-mode-widget.iife.js?v=2026-04-14-opaque-shell-v1"
+): Promise<void> {
+  if (window.MaxMode) {
+    return Promise.resolve();
+  }
+  const existing = document.getElementById(LOOMAI_MAX_MODE_SCRIPT_ID) as HTMLScriptElement | null;
+  if (existing) {
+    return new Promise((resolve, reject) => {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Failed to load LoomAI widget.")), { once: true });
+    });
+  }
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.id = LOOMAI_MAX_MODE_SCRIPT_ID;
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load LoomAI widget."));
+    document.head.appendChild(script);
+  });
+}
+```
+
+Mode selection:
+
+- Full Max Mode overlay: use `launcher: true`, omit `host.companionDock` or set it to `false`, and open with `window.MaxMode.open()` when the user clicks a page CTA.
+- Fixed chat box / page dock: set `host.companionDock: true`, keep `launcher: true` if ProdUS also wants a floating button, and set `position: "bottom-right"` or `"bottom-left"`.
+- Inline one-time helper: either call ProdUS `/api/ai/assistant/query-once` directly from the page UI, or initialize a page-specific widget instance with `chatQueryUrl` pointing to `/query-once` and `features.conversations: false`.
+
+The same loaded script powers all three modes; the difference is the `window.MaxMode.init(...)` config and which ProdUS backend route the shell points at.
+
+Required ProdUS widget configuration checklist:
+
+| Config area | ProdUS value / decision |
+| ----------- | ------------------------ |
+| Widget script source | Staging may use `https://loomai-partner-ui.46.224.145.148.sslip.io/max-mode-widget.iife.js?v=2026-04-14-opaque-shell-v1`; production should use a pinned self-hosted copy. |
+| Widget global | `window.MaxMode` exposed by the script. |
+| Init method | `window.MaxMode.init(config)` after the script is loaded. |
+| Teardown method | `window.MaxMode.destroy()` on sign-out, tenant switch, workspace switch, or app unmount. |
+| Integration mode | `backend-mediated-private-runtime`. |
+| Browser auth | Normal ProdUS app session only. Prefer HttpOnly cookie plus `fetchCredentials: "include"`. |
+| Runtime auth | Never in browser. ProdUS backend signs private-runtime assertions. |
+| Chat base URL | `/api/ai/assistant` or the ProdUS-owned equivalent. |
+| Persistent chat route | `POST /api/ai/assistant/query`. |
+| One-time helper route | `POST /api/ai/assistant/query-once`. |
+| Suggestions route | `POST /api/ai/assistant/suggestions`. |
+| Auth/status route | `GET /api/ai/assistant/auth-context` or a ProdUS status wrapper. |
+| Conversation routes | Enable only when persistent chat is desired: `GET /api/ai/assistant/conversations` and `GET /api/ai/assistant/conversations/{conversationId}`. |
+| Max Mode overlay | `launcher: true`, `host.companionDock: false`, open with `window.MaxMode.open()`. |
+| Fixed chat box | `host.companionDock: true`, `position: "bottom-right"` or `"bottom-left"`. |
+| Inline query-once UI | Prefer a direct ProdUS page component calling `/query-once`; use widget only when a chat-like shell is desired. |
+| Cart feature | `features.cart: false` unless ProdUS intentionally models a cart-like workflow. |
+| Debug feature | `features.debug: false` for normal users; enable only for admin/operator surfaces. |
+| Conversations feature | `features.conversations: true` for persistent panels, `false` for query-once helpers. |
+| Quick actions | `features.quickActions: true` only when ProdUS provides safe prompt/action starters. |
+| Assistant label | ProdUS-owned copy, for example `ProdUS AI`. |
+| Theme | ProdUS-owned theme values: `primaryColor`, `borderRadius`, optional `darkMode`, optional `fontFamily`. |
+| Request context provider | ProdUS-owned function returning safe page state and object IDs only. |
+
+Recommended `requestContextProvider` output shape:
+
+```json
+{
+  "pageType": "owner-product-workspace",
+  "productId": "prod-123",
+  "workspaceId": "ws-456",
+  "packageId": "pkg-789",
+  "milestoneId": "ms-001",
+  "findingId": "finding-002",
+  "scannerRunId": "scan-003",
+  "selectedAttachmentIds": ["attachment-004"]
+}
+```
+
+ProdUS backend must authorize every ID before it forwards context to LoomAI. The frontend must not send raw scanner logs, private object storage URLs, tokens, credentials, repository content, private messages, or unbounded object JSON.
+
+ProdUS backend route mapping:
+
+| ProdUS browser route | Backend action | LoomAI runtime path |
+| -------------------- | -------------- | ------------------- |
+| `POST /api/ai/assistant/query` | Authorize context, sign assertion, call runtime persistent chat. | `LOOMAI_ASSISTANT_QUERY_PATH=/api/chat/me/query` |
+| `POST /api/ai/assistant/query-once` | Authorize context, sign assertion, call runtime one-time query. | `LOOMAI_ASSISTANT_QUERY_ONCE_PATH=/api/chat/me/query-once` |
+| `POST /api/ai/assistant/suggestions` | Authorize context, sign assertion, call runtime suggestions. | `LOOMAI_ASSISTANT_SUGGESTIONS_PATH=/api/chat/me/suggestions` |
+| `GET /api/ai/assistant/auth-context` | Return ProdUS-safe status and/or probe runtime auth. | `LOOMAI_AUTH_CONTEXT_PATH=/api/chat/me/auth-context` |
+| `GET /api/ai/assistant/conversations*` | Optional persistent-history wrapper. | Runtime conversation routes only if ProdUS enables persistent chat. |
+
+Canonical response fields ProdUS should preserve for the widget:
+
+- `success`
+- `type`
+- `answer`
+- `safeSummary`
+- `conversationId`
+- `mode`
+- `position`
+- `sources`
+- `ragResponse`
+- `actions`
+- `suggestions`
+- `fallbackReason`
+- `providerRequestId`
+- `metadata`
+- `documentUsage`
+
+ProdUS-owned implementation decisions still required:
+
+- Where to host the pinned widget bundle in production.
+- Which pages mount Max Mode, fixed chat box, or direct query-once helpers.
+- Whether conversations are enabled for each page.
+- Which roles can see debug evidence.
+- Final CSP `script-src` and `connect-src` entries.
+- Final theme and assistant copy.
+
+Recommended posture:
+
+- Browser calls ProdUS backend only.
+- ProdUS backend calls LoomAI runtime with private-runtime assertions.
+- ProdUS frontend sends only page type, stable object IDs, and user intent.
+- ProdUS backend authorizes those IDs and enriches them into compact safe summaries before sending to LoomAI.
+- ProdUS frontend never receives LoomAI runtime API keys, Platform keys, MCP credentials, Coolify credentials, object storage credentials, assertion signing keys, or raw private URLs.
+
 Mount points:
 
 - owner product workspace
@@ -1205,6 +1468,151 @@ backend/src/main/java/com/produs/ai/LoomAIIntegrationController.java
 backend/src/main/java/com/produs/ai/LoomAIIntegrationService.java
 backend/src/main/java/com/produs/ai/loom/LoomAIProperties.java
 ```
+
+### Widget Contract For ProdUS
+
+ProdUS should expose its own backend routes and map them to the LoomAI canonical runtime contract. Suggested browser-facing routes:
+
+```text
+POST /api/ai/assistant/query
+POST /api/ai/assistant/query-once
+POST /api/ai/assistant/suggestions
+GET  /api/ai/assistant/auth-context
+GET  /api/ai/assistant/shell-config
+GET  /api/ai/assistant/conversations
+GET  /api/ai/assistant/conversations/{conversationId}
+```
+
+Auth path to use:
+
+- Browser to ProdUS: use the normal ProdUS authenticated app session. Prefer HttpOnly session cookies with `fetchCredentials: "include"`. A ProdUS frontend session token is acceptable only if it is already part of the ProdUS app auth model.
+- ProdUS backend to LoomAI runtime: use `BACKEND_MEDIATED_PRIVATE_RUNTIME` with `PRIVATE_RUNTIME_ASSERTION`.
+- Current staging assertion format: `rpa1` HMAC signed by the ProdUS backend and verified by the LoomAI runtime.
+- Future production hardening path: migrate to asymmetric private-runtime assertions after LoomAI's runtime key registry is enabled.
+- Do not use `PUBLIC_ANONYMOUS`, public browser runtime auth, Shopify storefront auth, Partner Portal max-widget auth paths, or direct browser-to-runtime calls for ProdUS production surfaces.
+- Platform-mediated calls are an operator fallback/control-plane path, not the preferred ProdUS application path.
+
+Persistent chat panels should use `/query` and conversation routes. Inline suggestions and one-shot page helpers should use `/query-once` and must not create or update stored chat turns.
+
+The canonical request sent from ProdUS backend to LoomAI should remain:
+
+```json
+{
+  "query": "Summarize this scanner finding and propose the next step.",
+  "conversationId": "produs-conv-123",
+  "mode": "thinker",
+  "position": "owner-product-workspace",
+  "context": {
+    "pageType": "owner-product-workspace",
+    "productId": "prod-123",
+    "workspaceId": "ws-456",
+    "findingId": "finding-789"
+  }
+}
+```
+
+ProdUS may include `attachments` when the user explicitly attaches safe objects or short-lived document URLs. Short-lived URLs must be passed as transient provider file inputs, not copied into prompt text, not indexed, and not retained in chat history or application logs.
+
+### MaxMode Initialization Sketch
+
+ProdUS can mount the reusable widget from its frontend bundle or an approved static asset copy. The exact asset path can be changed by ProdUS, but the integration shape should stay backend-mediated:
+
+```html
+<script src="/assets/max-mode-widget.iife.js"></script>
+<script>
+  window.MaxMode.init({
+    integrationMode: "backend-mediated-private-runtime",
+    launcher: true,
+    position: "bottom-right",
+    apiConfig: {
+      chatBaseUrl: "/api/ai/assistant",
+      fetchCredentials: "include",
+      probeShellConfigOnOpen: false,
+      runtimeRoutes: {
+        chatQueryUrl: "/api/ai/assistant/query",
+        suggestionsUrl: "/api/ai/assistant/suggestions",
+        authContextUrl: "/api/ai/assistant/auth-context",
+        conversationsUrl: "/api/ai/assistant/conversations",
+        conversationItemUrlTemplate: "/api/ai/assistant/conversations/{conversationId}"
+      },
+      runtimeAuth: {
+        probeAuthContextOnOpen: false
+      }
+    },
+    features: {
+      cart: false,
+      debug: false,
+      conversations: true,
+      quickActions: true
+    },
+    theme: {
+      primaryColor: "#6366f1",
+      borderRadius: "10px"
+    },
+    host: {
+      experience: "produs-productization-workspace",
+      assistantLabel: "ProdUS AI",
+      welcomeMessage: "Ask about productization, scanner findings, packages, milestones, or launch readiness.",
+      requestContext: {
+        pageType: "owner-product-workspace"
+      },
+      requestContextProvider: function () {
+        return window.ProdUSAIContext && window.ProdUSAIContext.current
+          ? window.ProdUSAIContext.current()
+          : {};
+      }
+    }
+  });
+</script>
+```
+
+If ProdUS uses HttpOnly cookies, keep `fetchCredentials: "include"` and do not send an `Authorization` header from the browser. If ProdUS uses a frontend session token, add only a ProdUS session token header to calls to ProdUS backend; never expose LoomAI runtime secrets.
+
+### Source And Debug Display
+
+The widget can show retrieved documents, source cards, attached objects, and action evidence only if ProdUS preserves the canonical response fields from LoomAI.
+
+ProdUS should render:
+
+- `answer` or normalized display text for the user-visible response.
+- `sources` / `documents` / `attachments` as safe evidence cards.
+- `documentUsage` for temporary-file analysis evidence.
+- `actions` / `actionEvidence` for action execution outcomes.
+- `errorCode`, `reason`, and `retryable` for machine-controlled UI states.
+
+ProdUS should not parse English answer text to infer success or failure. Debug panels should be enabled only for admin/operator contexts and should show sanitized request, response, retrieval, and action evidence without secrets or raw private URLs.
+
+### What Is Generalized Today
+
+Already reusable:
+
+- The `window.MaxMode` widget API with `init`, `open`, `close`, `toggle`, `sendMessage`, `attachItem`, `attachProduct`, and `destroy`.
+- Fixed launcher / overlay behavior.
+- Theme options such as primary color, dark mode, and border radius.
+- Backend-mediated route configuration.
+- Attachments and source/evidence display when the backend response includes canonical fields.
+- Persistent conversation mode and one-time query mode when ProdUS provides separate routes.
+
+Not reusable as-is:
+
+- Shopify cart/customer-account context collection.
+- Shopify page-mode mappings.
+- Shopify storefront bootstrap.
+- Shopify customer OAuth prompts.
+- Shopify-specific product/card actions.
+
+ProdUS should implement its own small adapter for current page state, selected productization objects, package/workspace/milestone/finding IDs, and safe attachments.
+
+### UI Acceptance Checklist
+
+- Widget loads without Shopify globals.
+- Browser network calls go only to ProdUS `/api/ai/assistant/*` routes.
+- Persistent panels use `/query`; inline one-shot helpers use `/query-once`.
+- ProdUS backend authorizes every object ID before forwarding context to LoomAI.
+- Normal users do not see LoomAI, MCP, vector, runtime, provider, or Coolify terminology.
+- Admin/operator debug mode shows sanitized retrieval/action evidence only.
+- Source/document cards appear when LoomAI returns safe canonical evidence.
+- The UI degrades to ProdUS fallback when LoomAI is disabled or unreachable.
 
 ## 15. Release Gates For Calling This Complete
 

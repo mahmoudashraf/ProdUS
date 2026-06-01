@@ -143,6 +143,10 @@ aws:
     presigned-url-duration: 900
 
 loomai:
+  assignment-url: ${LOOMAI_ASSIGNMENT_URL:}
+  assignment-api-key: ${LOOMAI_ASSIGNMENT_API_KEY:}
+  assignment-api-key-header-name: ${LOOMAI_ASSIGNMENT_API_KEY_HEADER_NAME:X-PLATFORM-API-KEY}
+  assignment-cache-ttl-seconds: ${LOOMAI_ASSIGNMENT_CACHE_TTL_SECONDS:300}
   base-url: ${LOOMAI_BASE_URL:}
   api-key: ${LOOMAI_API_KEY:}
   integration-mode: ${LOOMAI_INTEGRATION_MODE:BACKEND_MEDIATED_PRIVATE_RUNTIME}
@@ -153,6 +157,7 @@ loomai:
   runtime-authorization-header-name: ${LOOMAI_RUNTIME_AUTHORIZATION_HEADER_NAME:${LOOMAI_ASSERTION_AUTHORIZATION_HEADER:X-AIFABRIC-RUNTIME-AUTHORIZATION}}
   assertion-issuer: ${LOOMAI_ASSERTION_ISSUER:}
   assertion-audience: ${LOOMAI_ASSERTION_AUDIENCE:}
+  assertion-deployment-id: ${LOOMAI_ASSERTION_DEPLOYMENT_ID:}
   assertion-customer-id: ${LOOMAI_ASSERTION_CUSTOMER_ID:produs-staging}
   assertion-tenant-id: ${LOOMAI_ASSERTION_TENANT_ID:}
   assertion-signing-algorithm: ${LOOMAI_ASSERTION_SIGNING_ALGORITHM:HS256}

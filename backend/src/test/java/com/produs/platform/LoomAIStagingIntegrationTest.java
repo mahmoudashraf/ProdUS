@@ -122,11 +122,15 @@ class LoomAIStagingIntegrationTest {
         registry.add("loomai.auth-mode", () -> "PRIVATE_RUNTIME_ASSERTION");
         registry.add("loomai.runtime-api-key", () -> "test-runtime-api-key");
         registry.add("loomai.assertion-issuer", () -> "produs-staging-backend");
-        registry.add("loomai.assertion-audience", () -> "dep-7706fafb");
+        registry.add("loomai.assertion-audience", () -> "produs-staging");
+        registry.add("loomai.assertion-deployment-id", () -> "dep-7706fafb");
         registry.add("loomai.assertion-signing-secret", () -> "test-loomai-private-runtime-secret-32");
         registry.add("loomai.safe-knowledge-export-token", () -> "test-safe-knowledge-export-token");
         registry.add("loomai.timeout-ms", () -> "1000");
         registry.add("loomai.base-url", () -> "http://127.0.0.1:" + server.getAddress().getPort());
+        registry.add("loomai.assignment-url", () -> "http://127.0.0.1:" + server.getAddress().getPort()
+                + "/api/public/consumers/produs-staging/runtime-assignment");
+        registry.add("loomai.assignment-api-key", () -> "test-platform-assignment-key");
     }
 
     @AfterAll
@@ -336,6 +340,33 @@ class LoomAIStagingIntegrationTest {
             return;
         }
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/api/public/consumers/produs-staging/runtime-assignment", exchange -> {
+            if (!"test-platform-assignment-key".equals(exchange.getRequestHeaders().getFirst("X-PLATFORM-API-KEY"))) {
+                respond(exchange, 401, "{\"error\":\"assignment key required\"}");
+                return;
+            }
+            int port = server.getAddress().getPort();
+            respond(exchange, 200, """
+                    {
+                      "consumerId": "produs-staging",
+                      "deploymentId": "dep-7706fafb",
+                      "runtimeBaseUrl": "http://127.0.0.1:%d",
+                      "runtimeAuthMode": "PRIVATE_RUNTIME_SIGNED_ASSERTION",
+                      "preferredIntegrationMode": "BACKEND_MEDIATED_PRIVATE_RUNTIME",
+                      "privateRuntimeIssuer": "produs-staging-backend",
+                      "privateRuntimeAudience": "produs-staging",
+                      "externalIntegrationReady": true,
+                      "assignmentRevision": "test-assignment-revision",
+                      "cacheTtlSeconds": 60,
+                      "endpoints": {
+                        "chatQueryUrl": "http://127.0.0.1:%d/api/chat/me/query",
+                        "queryOnceUrl": "http://127.0.0.1:%d/api/chat/me/query-once",
+                        "suggestionsUrl": "http://127.0.0.1:%d/api/chat/me/suggestions",
+                        "authContextUrl": "http://127.0.0.1:%d/api/chat/me/auth-context"
+                      }
+                    }
+                    """.formatted(port, port, port, port, port));
+        });
         server.createContext("/api/public/chat/session", exchange -> respond(exchange, 200, "{\"sessionId\":\"loom-session-123\"}"));
         server.createContext("/api/chat/me/auth-context", exchange -> {
             if (!privateRuntimeAuthorized(exchange)) {
@@ -503,7 +534,7 @@ class LoomAIStagingIntegrationTest {
             String payload = new String(Base64.getUrlDecoder().decode(segments[1]), StandardCharsets.UTF_8);
             return MessageDigest.isEqual(expectedSignature, actualSignature)
                     && payload.contains("\"iss\":\"produs-staging-backend\"")
-                    && payload.contains("\"aud\":\"dep-7706fafb\"")
+                    && payload.contains("\"aud\":\"produs-staging\"")
                     && payload.contains("\"deploymentId\":\"dep-7706fafb\"")
                     && payload.contains("\"customerId\":\"produs-staging\"")
                     && payload.contains("\"authMode\":\"PRIVATE_RUNTIME_BACKEND_MEDIATED\"")

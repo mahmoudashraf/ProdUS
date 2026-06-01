@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.ai.loom.LoomAIProperties;
 import com.produs.ai.loom.LoomAIRuntimeAssertionService;
+import com.produs.ai.loom.LoomAIRuntimeAssertionService.RuntimeAssertionContext;
 import com.produs.catalog.AICapabilityConfig;
 import com.produs.catalog.AICapabilityConfigRepository;
 import com.produs.catalog.CatalogTemplateDefinition;
@@ -157,6 +158,7 @@ public class LoomAIIntegrationService {
     private final TeamRepository teamRepository;
     private final TeamCapabilityRepository teamCapabilityRepository;
     private final ExpertProfileRepository expertProfileRepository;
+    private volatile RuntimeAssignmentCache runtimeAssignmentCache;
     private final HttpClient publicLinkHttpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(2))
             .followRedirects(HttpClient.Redirect.NORMAL)
@@ -766,14 +768,15 @@ public class LoomAIIntegrationService {
             int totalRecordCount
     ) {
         String requestId = "produs-safe-knowledge-sync-" + UUID.randomUUID();
+        RuntimeAssertionContext runtimeContext = runtimeAssertionContext(activeRuntimeAssignmentOrNull());
         Map<String, Object> authContext = new LinkedHashMap<>();
         authContext.put("subjectId", SAFE_KNOWLEDGE_SYSTEM_SUBJECT);
         authContext.put("subjectType", "SYSTEM_PROCESS");
         authContext.put("authMode", "PRIVATE_RUNTIME_BACKEND_MEDIATED");
         authContext.put("callerType", "SYSTEM_PROCESS");
-        authContext.put("deploymentId", properties.getAssertionAudience());
-        authContext.put("customerId", properties.getAssertionCustomerId());
-        authContext.put("issuer", properties.getAssertionIssuer());
+        authContext.put("deploymentId", runtimeContext.deploymentId());
+        authContext.put("customerId", runtimeContext.customerId());
+        authContext.put("issuer", runtimeContext.issuer());
         authContext.put("grantedScopes", List.of(DATA_SYNC_SCOPE));
 
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -2512,18 +2515,161 @@ public class LoomAIIntegrationService {
         return postJson(path, payload, ProviderAuthSubject.user(user, conversationId));
     }
 
+    private RuntimeEndpoint runtimeEndpoint(String path) {
+        RuntimeAssignment assignment = activeRuntimeAssignmentOrNull();
+        return new RuntimeEndpoint(runtimeUrl(path, assignment), runtimeAssertionContext(assignment));
+    }
+
+    private RuntimeAssignment activeRuntimeAssignmentOrNull() {
+        if (blank(properties.getAssignmentUrl())) {
+            return null;
+        }
+        long now = System.currentTimeMillis();
+        RuntimeAssignmentCache cache = runtimeAssignmentCache;
+        if (cache != null && cache.expiresAtEpochMs() > now) {
+            return cache.assignment();
+        }
+        try {
+            RuntimeAssignment assignment = fetchRuntimeAssignment();
+            long ttlMs = Math.max(15, assignment.cacheTtlSeconds()) * 1_000L;
+            runtimeAssignmentCache = new RuntimeAssignmentCache(assignment, now + ttlMs);
+            return assignment;
+        } catch (RuntimeException exception) {
+            if (blank(properties.getBaseUrl())) {
+                throw exception;
+            }
+            log.warn("loomai_runtime_assignment_fallback reason={}", exception.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    private RuntimeAssignment fetchRuntimeAssignment() {
+        try {
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                    .uri(URI.create(properties.getAssignmentUrl().trim()))
+                    .timeout(Duration.ofMillis(effectiveTimeoutMs()))
+                    .header("Accept", "application/json")
+                    .GET();
+            String assignmentApiKey = firstConfigValue(properties.getAssignmentApiKey(), properties.getApiKey());
+            if (!blank(assignmentApiKey)) {
+                requestBuilder.header(
+                        blank(properties.getAssignmentApiKeyHeaderName())
+                                ? "X-PLATFORM-API-KEY"
+                                : properties.getAssignmentApiKeyHeaderName(),
+                        assignmentApiKey
+                );
+            }
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofMillis(effectiveTimeoutMs()))
+                    .build();
+            HttpResponse<String> response = client.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() > 299) {
+                throw new IllegalStateException("LoomAI assignment HTTP " + response.statusCode());
+            }
+            JsonNode body = response.body() == null || response.body().isBlank()
+                    ? objectMapper.createObjectNode()
+                    : objectMapper.readTree(response.body());
+            if (body.has("externalIntegrationReady") && !body.path("externalIntegrationReady").asBoolean(false)) {
+                throw new IllegalStateException("LoomAI assignment is not external-ready");
+            }
+            Map<String, String> endpoints = new LinkedHashMap<>();
+            JsonNode endpointNode = body.path("endpoints");
+            if (endpointNode.isObject()) {
+                endpointNode.fields().forEachRemaining(entry -> {
+                    if (entry.getValue().isTextual() && !entry.getValue().asText().isBlank()) {
+                        endpoints.put(entry.getKey(), entry.getValue().asText().trim());
+                    }
+                });
+            }
+            String runtimeBaseUrl = text(body, "runtimeBaseUrl");
+            return new RuntimeAssignment(
+                    runtimeBaseUrl,
+                    firstConfigValue(text(body, "deploymentId"), properties.getAssertionDeploymentId(), properties.getAssertionAudience()),
+                    firstConfigValue(text(body, "consumerId"), properties.getAssertionCustomerId()),
+                    firstConfigValue(text(body, "privateRuntimeIssuer"), properties.getAssertionIssuer()),
+                    firstConfigValue(text(body, "privateRuntimeAudience"), properties.getAssertionAudience()),
+                    text(body, "assignmentRevision"),
+                    Math.max(15, intValue(body, "cacheTtlSeconds", properties.getAssignmentCacheTtlSeconds())),
+                    endpoints
+            );
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("LoomAI assignment request interrupted", interruptedException);
+        } catch (Exception exception) {
+            throw new IllegalStateException("LoomAI assignment request failed", exception);
+        }
+    }
+
+    private String runtimeUrl(String path, RuntimeAssignment assignment) {
+        if (!blank(path) && (path.startsWith("http://") || path.startsWith("https://"))) {
+            return path.trim();
+        }
+        if (assignment != null) {
+            String endpointUrl = assignment.endpoints().get(endpointKey(path));
+            if (!blank(endpointUrl)) {
+                return endpointUrl;
+            }
+            if (!blank(assignment.runtimeBaseUrl())) {
+                return normalizedUrl(assignment.runtimeBaseUrl()) + normalizedPath(path);
+            }
+        }
+        return normalizedBaseUrl() + normalizedPath(path);
+    }
+
+    private String endpointKey(String path) {
+        String normalized = normalizedPath(path);
+        if (samePath(normalized, properties.getAssistantQueryPath())) {
+            return "chatQueryUrl";
+        }
+        if (samePath(normalized, properties.getAssistantQueryOncePath())) {
+            return "queryOnceUrl";
+        }
+        if (samePath(normalized, properties.getAssistantSuggestionsPath())) {
+            return "suggestionsUrl";
+        }
+        if (samePath(normalized, properties.getAuthContextPath())) {
+            return "authContextUrl";
+        }
+        if (samePath(normalized, properties.getDataSyncBatchPath())) {
+            return "dataSyncBatchUrl";
+        }
+        if (samePath(normalized, properties.getDataSyncDeletePath())) {
+            return "dataSyncDeleteUrl";
+        }
+        return normalized;
+    }
+
+    private boolean samePath(String left, String right) {
+        return normalizedPath(left).equals(normalizedPath(right));
+    }
+
+    private RuntimeAssertionContext runtimeAssertionContext(RuntimeAssignment assignment) {
+        return new RuntimeAssertionContext(
+                firstConfigValue(assignment == null ? null : assignment.issuer(), properties.getAssertionIssuer()),
+                firstConfigValue(assignment == null ? null : assignment.audience(), properties.getAssertionAudience()),
+                firstConfigValue(
+                        assignment == null ? null : assignment.deploymentId(),
+                        properties.getAssertionDeploymentId(),
+                        properties.getAssertionAudience()
+                ),
+                firstConfigValue(assignment == null ? null : assignment.consumerId(), properties.getAssertionCustomerId()),
+                properties.getAssertionTenantId()
+        );
+    }
+
     private ProviderJsonResponse postJson(String path, Object payload, ProviderAuthSubject authSubject) {
         if (!isConfigured()) {
             throw new IllegalStateException("LoomAI is not configured");
         }
         try {
+            RuntimeEndpoint endpoint = runtimeEndpoint(path);
             HttpRequest.Builder builder = HttpRequest.newBuilder()
-                    .uri(URI.create(normalizedBaseUrl() + normalizedPath(path)))
+                    .uri(URI.create(endpoint.url()))
                     .timeout(java.time.Duration.ofMillis(effectiveTimeoutMs()))
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)));
-            applyProviderAuth(builder, authSubject);
+            applyProviderAuth(builder, authSubject, endpoint.assertionContext());
             String requestId = MDC.get("requestId");
             if (requestId != null && !requestId.isBlank()) {
                 builder.header("X-Request-ID", requestId);
@@ -2552,12 +2698,13 @@ public class LoomAIIntegrationService {
             throw new IllegalStateException("LoomAI is not configured");
         }
         try {
+            RuntimeEndpoint endpoint = runtimeEndpoint(path);
             HttpRequest.Builder builder = HttpRequest.newBuilder()
-                    .uri(URI.create(normalizedBaseUrl() + normalizedPath(path)))
+                    .uri(URI.create(endpoint.url()))
                     .timeout(java.time.Duration.ofMillis(effectiveTimeoutMs()))
                     .header("Accept", "application/json")
                     .GET();
-            applyProviderAuth(builder, ProviderAuthSubject.user(user, conversationId));
+            applyProviderAuth(builder, ProviderAuthSubject.user(user, conversationId), endpoint.assertionContext());
             String requestId = MDC.get("requestId");
             if (requestId != null && !requestId.isBlank()) {
                 builder.header("X-Request-ID", requestId);
@@ -2581,15 +2728,29 @@ public class LoomAIIntegrationService {
         }
     }
 
-    private void applyProviderAuth(HttpRequest.Builder builder, ProviderAuthSubject authSubject) {
+    private void applyProviderAuth(
+            HttpRequest.Builder builder,
+            ProviderAuthSubject authSubject,
+            RuntimeAssertionContext runtimeAssertionContext
+    ) {
         if (properties.isPrivateRuntimeAssertionAuth()) {
             builder.header(
                     blank(properties.getRuntimeApiKeyHeaderName()) ? "X-AIFABRIC-RUNTIME-API-KEY" : properties.getRuntimeApiKeyHeaderName(),
                     properties.getRuntimeApiKey().trim()
             );
             String assertion = authSubject.system()
-                    ? runtimeAssertionService.createSystemAssertion(authSubject.subjectId(), authSubject.conversationId(), authSubject.scopes())
-                    : runtimeAssertionService.createAssertion(authSubject.user(), authSubject.conversationId(), authSubject.scopes());
+                    ? runtimeAssertionService.createSystemAssertion(
+                            authSubject.subjectId(),
+                            authSubject.conversationId(),
+                            authSubject.scopes(),
+                            runtimeAssertionContext
+                    )
+                    : runtimeAssertionService.createAssertion(
+                            authSubject.user(),
+                            authSubject.conversationId(),
+                            authSubject.scopes(),
+                            runtimeAssertionContext
+                    );
             builder.header(
                     blank(properties.getRuntimeAuthorizationHeaderName()) ? "X-AIFABRIC-RUNTIME-AUTHORIZATION" : properties.getRuntimeAuthorizationHeaderName(),
                     "Bearer " + assertion
@@ -3013,8 +3174,7 @@ public class LoomAIIntegrationService {
 
     private boolean isConfigured() {
         return properties.isEnabled()
-                && properties.getBaseUrl() != null
-                && !properties.getBaseUrl().isBlank()
+                && (!blank(properties.getBaseUrl()) || !blank(properties.getAssignmentUrl()))
                 && (!properties.isPrivateRuntimeMode() || properties.isPrivateRuntimeAssertionAuth())
                 && (!properties.isPlatformApiKeyAuth() || !blank(properties.getApiKey()))
                 && runtimeAssertionService.isConfigured();
@@ -3025,12 +3185,27 @@ public class LoomAIIntegrationService {
     }
 
     private String sanitizedBaseUrl() {
-        return isConfigured() ? normalizedBaseUrl() : null;
+        if (!isConfigured()) {
+            return null;
+        }
+        RuntimeAssignment assignment = activeRuntimeAssignmentOrNull();
+        if (assignment != null && !blank(assignment.runtimeBaseUrl())) {
+            return normalizedUrl(assignment.runtimeBaseUrl());
+        }
+        return normalizedBaseUrl();
     }
 
     private String normalizedBaseUrl() {
+        if (blank(properties.getBaseUrl())) {
+            throw new IllegalStateException("LoomAI base URL is not configured");
+        }
         String baseUrl = properties.getBaseUrl().trim();
-        return baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        return normalizedUrl(baseUrl);
+    }
+
+    private String normalizedUrl(String url) {
+        String trimmed = url == null ? "" : url.trim();
+        return trimmed.endsWith("/") ? trimmed.substring(0, trimmed.length() - 1) : trimmed;
     }
 
     private String normalizedPath(String path) {
@@ -3052,6 +3227,28 @@ public class LoomAIIntegrationService {
 
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private String text(JsonNode node, String field) {
+        JsonNode value = node == null ? null : node.path(field);
+        return value != null && value.isTextual() && !value.asText().isBlank() ? value.asText().trim() : null;
+    }
+
+    private int intValue(JsonNode node, String field, int fallback) {
+        JsonNode value = node == null ? null : node.path(field);
+        return value != null && value.canConvertToInt() ? value.asInt() : fallback;
+    }
+
+    private String firstConfigValue(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            if (!blank(value)) {
+                return value.trim();
+            }
+        }
+        return "";
     }
 
     private String safeText(String value, int maxLength) {
@@ -3094,6 +3291,21 @@ public class LoomAIIntegrationService {
     }
 
     private record ProviderJsonResponse(JsonNode body, String providerRequestId) {}
+
+    private record RuntimeEndpoint(String url, RuntimeAssertionContext assertionContext) {}
+
+    private record RuntimeAssignment(
+            String runtimeBaseUrl,
+            String deploymentId,
+            String consumerId,
+            String issuer,
+            String audience,
+            String assignmentRevision,
+            int cacheTtlSeconds,
+            Map<String, String> endpoints
+    ) {}
+
+    private record RuntimeAssignmentCache(RuntimeAssignment assignment, long expiresAtEpochMs) {}
 
     private record ProviderAuthSubject(User user, String conversationId, String subjectId, List<String> scopes, boolean system) {
         private static ProviderAuthSubject user(User user, String conversationId) {

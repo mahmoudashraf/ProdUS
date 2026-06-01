@@ -39,6 +39,15 @@ public class LoomAIRuntimeAssertionService {
     }
 
     public String createAssertion(User user, String conversationId, List<String> requestedScopes) {
+        return createAssertion(user, conversationId, requestedScopes, null);
+    }
+
+    public String createAssertion(
+            User user,
+            String conversationId,
+            List<String> requestedScopes,
+            RuntimeAssertionContext runtimeContext
+    ) {
         if (!properties.isPrivateRuntimeAssertionAuth()) {
             throw new IllegalStateException("Private runtime assertion auth is not enabled");
         }
@@ -57,7 +66,8 @@ public class LoomAIRuntimeAssertionService {
                     "TRUSTED_BACKEND",
                     sessionId,
                     scopes(requestedScopes),
-                    now
+                    now,
+                    runtimeContext
             );
 
             String payloadSegment = base64Url(objectMapper.writeValueAsBytes(payload));
@@ -69,6 +79,15 @@ public class LoomAIRuntimeAssertionService {
     }
 
     public String createSystemAssertion(String subjectId, String sessionId, List<String> requestedScopes) {
+        return createSystemAssertion(subjectId, sessionId, requestedScopes, null);
+    }
+
+    public String createSystemAssertion(
+            String subjectId,
+            String sessionId,
+            List<String> requestedScopes,
+            RuntimeAssertionContext runtimeContext
+    ) {
         if (!properties.isPrivateRuntimeAssertionAuth()) {
             throw new IllegalStateException("Private runtime assertion auth is not enabled");
         }
@@ -86,7 +105,8 @@ public class LoomAIRuntimeAssertionService {
                     "SYSTEM_PROCESS",
                     safeSessionId(sessionId, subjectId.trim()),
                     scopes(requestedScopes),
-                    now
+                    now,
+                    runtimeContext
             );
             String payloadSegment = base64Url(objectMapper.writeValueAsBytes(payload));
             String signatureSegment = base64Url(hmacSha256(payloadSegment));
@@ -96,25 +116,68 @@ public class LoomAIRuntimeAssertionService {
         }
     }
 
-    private Map<String, Object> assertionPayload(String subject, String subjectType, String callerType, String sessionId, List<String> scopes, Instant now) {
+    private Map<String, Object> assertionPayload(
+            String subject,
+            String subjectType,
+            String callerType,
+            String sessionId,
+            List<String> scopes,
+            Instant now,
+            RuntimeAssertionContext runtimeContext
+    ) {
+        RuntimeAssertionContext context = effectiveRuntimeContext(runtimeContext);
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("sub", subject);
         payload.put("subjectType", subjectType);
         payload.put("authMode", "PRIVATE_RUNTIME_BACKEND_MEDIATED");
         payload.put("callerType", callerType);
         payload.put("sessionId", sessionId);
-        payload.put("deploymentId", properties.getAssertionAudience().trim());
-        payload.put("customerId", properties.getAssertionCustomerId().trim());
-        if (!blank(properties.getAssertionTenantId())) {
-            payload.put("tenantId", properties.getAssertionTenantId().trim());
+        payload.put("deploymentId", context.deploymentId());
+        payload.put("customerId", context.customerId());
+        if (!blank(context.tenantId())) {
+            payload.put("tenantId", context.tenantId());
         }
-        payload.put("iss", properties.getAssertionIssuer().trim());
-        payload.put("aud", properties.getAssertionAudience().trim());
+        payload.put("iss", context.issuer());
+        payload.put("aud", context.audience());
         payload.put("iat", now.toString());
         payload.put("exp", now.plusSeconds(Math.max(30, properties.getAssertionTtlSeconds())).toString());
         payload.put("jti", UUID.randomUUID().toString());
         payload.put("scopes", scopes);
         return payload;
+    }
+
+    private RuntimeAssertionContext effectiveRuntimeContext(RuntimeAssertionContext runtimeContext) {
+        String issuer = firstNonBlank(runtimeContext == null ? null : runtimeContext.issuer(), properties.getAssertionIssuer());
+        String audience = firstNonBlank(runtimeContext == null ? null : runtimeContext.audience(), properties.getAssertionAudience());
+        String deploymentId = firstNonBlank(
+                runtimeContext == null ? null : runtimeContext.deploymentId(),
+                properties.getAssertionDeploymentId(),
+                audience
+        );
+        String customerId = firstNonBlank(
+                runtimeContext == null ? null : runtimeContext.customerId(),
+                properties.getAssertionCustomerId()
+        );
+        String tenantId = firstNonBlank(runtimeContext == null ? null : runtimeContext.tenantId(), properties.getAssertionTenantId());
+        return new RuntimeAssertionContext(
+                issuer == null ? "" : issuer.trim(),
+                audience == null ? "" : audience.trim(),
+                deploymentId == null ? "" : deploymentId.trim(),
+                customerId == null ? "" : customerId.trim(),
+                tenantId == null ? "" : tenantId.trim()
+        );
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (!blank(value)) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private boolean signingMaterialConfigured() {
@@ -177,4 +240,12 @@ public class LoomAIRuntimeAssertionService {
     private boolean blank(String value) {
         return value == null || value.isBlank();
     }
+
+    public record RuntimeAssertionContext(
+            String issuer,
+            String audience,
+            String deploymentId,
+            String customerId,
+            String tenantId
+    ) {}
 }
