@@ -54,6 +54,7 @@ class LoomAIMcpAuthTest {
                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.catalog.search')]").exists())
+                .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.catalog.export')]").exists())
                 .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.project_creation_document.read')]").doesNotExist());
 
         mockMvc.perform(post("/mcp")
@@ -79,6 +80,33 @@ class LoomAIMcpAuthTest {
                 .andExpect(jsonPath("$.result.isError").value(false))
                 .andExpect(jsonPath("$.result.structuredContent.status").value("OK"))
                 .andExpect(jsonPath("$.result.structuredContent.tool").value("produs.catalog.search"))
+                .andExpect(jsonPath("$.result.content[0].type").value("text"));
+
+        mockMvc.perform(post("/mcp")
+                        .header("X-MCP-API-KEY", "test-mcp-secret")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": "call-2",
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "produs.catalog.export",
+                                    "arguments": {
+                                      "includeDependencies": true,
+                                      "includePackageTemplates": true
+                                    }
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.jsonrpc").value("2.0"))
+                .andExpect(jsonPath("$.id").value("call-2"))
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.status").value("OK"))
+                .andExpect(jsonPath("$.result.structuredContent.tool").value("produs.catalog.export"))
+                .andExpect(jsonPath("$.result.structuredContent.counts.categories").exists())
+                .andExpect(jsonPath("$.result.structuredContent.counts.modules").exists())
                 .andExpect(jsonPath("$.result.content[0].type").value("text"));
     }
 }

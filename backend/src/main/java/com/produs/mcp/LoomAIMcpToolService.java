@@ -42,8 +42,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -76,6 +78,7 @@ public class LoomAIMcpToolService {
         Map<String, Object> args = arguments == null ? Map.of() : arguments;
         return switch (toolName) {
             case "produs.catalog.search" -> catalogSearch(args);
+            case "produs.catalog.export" -> catalogExport(args);
             case "produs.product.list" -> productList(args);
             case "produs.package.inspect" -> packageInspect(args);
             case "produs.workspace.inspect" -> workspaceInspect(args);
@@ -174,6 +177,79 @@ public class LoomAIMcpToolService {
                 "modules", names(modules),
                 "packageTemplates", names(templates)
         ));
+        response.put("categories", categories);
+        response.put("modules", modules);
+        response.put("dependencies", dependencies);
+        response.put("packageTemplates", templates);
+        return response;
+    }
+
+    private Map<String, Object> catalogExport(Map<String, Object> args) {
+        String categorySlug = textArg(args, "categorySlug", "category", "category_slug");
+        String layer = textArg(args, "serviceLayer", "layer", "service_layer");
+        boolean includeDependencies = boolArg(args, "includeDependencies", true);
+        boolean includePackageTemplates = boolArg(args, "includePackageTemplates", true);
+
+        Stream<ServiceModule> moduleStream = moduleRepository.findByActiveTrueAndVisibleTrueOrderBySortOrderAscNameAsc().stream();
+        if (hasText(categorySlug)) {
+            String normalizedCategory = normalize(categorySlug);
+            moduleStream = moduleStream.filter(module -> module.getCategory() != null
+                    && (normalize(module.getCategory().getSlug()).equals(normalizedCategory)
+                    || normalize(module.getCategory().getName()).equals(normalizedCategory)));
+        }
+        if (hasText(layer)) {
+            String normalizedLayer = normalize(layer);
+            moduleStream = moduleStream.filter(module -> normalize(module.getServiceLayer()).equals(normalizedLayer));
+        }
+        List<ServiceModule> moduleRecords = moduleStream.toList();
+        Set<UUID> moduleIds = moduleRecords.stream()
+                .map(ServiceModule::getId)
+                .collect(Collectors.toSet());
+        Set<UUID> categoryIds = moduleRecords.stream()
+                .map(ServiceModule::getCategory)
+                .filter(category -> category != null)
+                .map(ServiceCategory::getId)
+                .collect(Collectors.toSet());
+        List<Map<String, Object>> categories = categoryRepository.findByActiveTrueOrderBySortOrderAscNameAsc().stream()
+                .filter(category -> !hasText(categorySlug)
+                        || normalize(category.getSlug()).equals(normalize(categorySlug))
+                        || normalize(category.getName()).equals(normalize(categorySlug)))
+                .filter(category -> !hasText(layer) || categoryIds.contains(category.getId()))
+                .map(this::categorySummary)
+                .toList();
+        List<Map<String, Object>> modules = moduleRecords.stream()
+                .map(this::catalogModuleSummary)
+                .toList();
+
+        List<Map<String, Object>> dependencies = includeDependencies
+                ? dependencyRepository.findAll().stream()
+                .filter(dependency -> moduleIds.contains(dependency.getSourceModule().getId())
+                        && moduleIds.contains(dependency.getDependsOnModule().getId()))
+                .map(this::dependencySummary)
+                .toList()
+                : List.of();
+
+        List<Map<String, Object>> templates = includePackageTemplates
+                ? packageTemplateRepository.findByActiveTrueOrderBySortOrderAscNameAsc().stream()
+                .filter(template -> templateMatchesModules(template, moduleIds, hasText(categorySlug) || hasText(layer)))
+                .map(template -> catalogPackageTemplateSummary(template, moduleIds, hasText(categorySlug) || hasText(layer)))
+                .toList()
+                : List.of();
+
+        Map<String, Object> response = ok("produs.catalog.export");
+        Map<String, Object> filters = new LinkedHashMap<>();
+        filters.put("categorySlug", safe(categorySlug));
+        filters.put("serviceLayer", safe(layer));
+        filters.put("includeDependencies", includeDependencies);
+        filters.put("includePackageTemplates", includePackageTemplates);
+        response.put("filters", filters);
+        response.put("counts", Map.of(
+                "categories", categories.size(),
+                "modules", modules.size(),
+                "dependencies", dependencies.size(),
+                "packageTemplates", templates.size()
+        ));
+        response.put("summary", catalogSummary(categories, modules, templates));
         response.put("categories", categories);
         response.put("modules", modules);
         response.put("dependencies", dependencies);
@@ -405,6 +481,12 @@ public class LoomAIMcpToolService {
         return item;
     }
 
+    private Map<String, Object> catalogModuleSummary(ServiceModule module) {
+        Map<String, Object> item = moduleSummary(module);
+        item.put("categorySlug", module.getCategory() == null ? null : module.getCategory().getSlug());
+        return item;
+    }
+
     private Map<String, Object> dependencySummary(ServiceDependency dependency) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("sourceModule", moduleIdentity(dependency.getSourceModule()));
@@ -433,6 +515,33 @@ public class LoomAIMcpToolService {
                         "slug", module.getServiceModule().getSlug(),
                         "required", module.isRequired()
                 ))
+                .toList());
+        return item;
+    }
+
+    private Map<String, Object> catalogPackageTemplateSummary(PackageTemplate template, Set<UUID> moduleIds, boolean filtered) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("id", template.getId());
+        item.put("name", template.getName());
+        item.put("slug", template.getSlug());
+        item.put("targetProductStage", template.getTargetProductStage());
+        item.put("description", safe(template.getDescription()));
+        item.put("customerFit", safe(template.getCustomerFit()));
+        item.put("timelineRange", template.getTimelineRange());
+        item.put("budgetRange", template.getBudgetRange());
+        item.put("outcomeSummary", safe(template.getOutcomeSummary()));
+        item.put("modules", packageTemplateModuleRepository.findByTemplateIdOrderBySequenceOrderAsc(template.getId()).stream()
+                .filter(module -> !filtered || moduleIds.contains(module.getServiceModule().getId()))
+                .map(module -> {
+                    Map<String, Object> moduleItem = new LinkedHashMap<>();
+                    moduleItem.put("name", module.getServiceModule().getName());
+                    moduleItem.put("slug", module.getServiceModule().getSlug());
+                    moduleItem.put("stableCode", module.getServiceModule().getStableCode());
+                    moduleItem.put("required", module.isRequired());
+                    moduleItem.put("phaseName", safe(module.getPhaseName()));
+                    moduleItem.put("rationale", safe(module.getRationale()));
+                    return moduleItem;
+                })
                 .toList());
         return item;
     }
@@ -657,6 +766,14 @@ public class LoomAIMcpToolService {
                 .toList();
     }
 
+    private boolean templateMatchesModules(PackageTemplate template, Set<UUID> moduleIds, boolean filtered) {
+        if (!filtered) {
+            return true;
+        }
+        return packageTemplateModuleRepository.findByTemplateIdOrderBySequenceOrderAsc(template.getId()).stream()
+                .anyMatch(module -> moduleIds.contains(module.getServiceModule().getId()));
+    }
+
     private <T> Optional<T> findByIdOrName(Stream<T> stream,
                                            Map<String, Object> args,
                                            Function<T, UUID> idReader,
@@ -722,6 +839,21 @@ public class LoomAIMcpToolService {
         } catch (NumberFormatException ignored) {
             return DEFAULT_LIMIT;
         }
+    }
+
+    private boolean boolArg(Map<String, Object> args, String name, boolean defaultValue) {
+        Object raw = args.get(name);
+        if (raw == null) {
+            return defaultValue;
+        }
+        String value = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
+        if (List.of("true", "1", "yes", "y").contains(value)) {
+            return true;
+        }
+        if (List.of("false", "0", "no", "n").contains(value)) {
+            return false;
+        }
+        return defaultValue;
     }
 
     private String safe(String value) {

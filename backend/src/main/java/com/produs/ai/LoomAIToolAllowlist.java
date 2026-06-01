@@ -10,6 +10,7 @@ public final class LoomAIToolAllowlist {
     public static List<ToolDefinition> tools() {
         return List.of(
                 read("produs.catalog.search", "Search approved lifecycle service categories, modules, dependencies, and package templates."),
+                read("produs.catalog.export", "Fetch the full active ProdUS lifecycle service catalog for broad service, package, dependency, and capability questions."),
                 read("produs.product.list", "List products visible to the current ProdUS user."),
                 read("produs.package.inspect", "Inspect an authorized productization package."),
                 read("produs.workspace.inspect", "Inspect an authorized project workspace."),

@@ -176,6 +176,7 @@ class LoomAIIntegrationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ready").value(true))
                 .andExpect(jsonPath("$.profile").value("loomai-productization"))
+                .andExpect(jsonPath("$.tools[?(@.name == 'produs.catalog.export')]").exists())
                 .andExpect(jsonPath("$.tools[?(@.name == 'produs.scan.status')]").exists())
                 .andExpect(jsonPath("$.tools[?(@.name == 'produs.project_creation_document.read')]").doesNotExist())
                 .andExpect(jsonPath("$.tools[?(@.name == 'produs.team.profile.update')]").doesNotExist());
@@ -189,6 +190,7 @@ class LoomAIIntegrationControllerTest {
                 .andExpect(jsonPath("$.jsonrpc").value("2.0"))
                 .andExpect(jsonPath("$.id").value("tools"))
                 .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.catalog.search')]").exists())
+                .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.catalog.export')]").exists())
                 .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.project_creation_document.read')]").doesNotExist())
                 .andExpect(jsonPath("$.result.tools[?(@.name == 'produs.team.invite')]").doesNotExist());
     }
