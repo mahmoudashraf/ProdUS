@@ -117,6 +117,7 @@ ProdUS implementation rule:
 - Treat `deploymentId` as audit/debug metadata, not as the routing source of truth.
 - Sign private assertions with `aud=produs-staging`, using the returned `privateRuntimeAudience`.
 - Keep `deploymentId=dep-7706fafb` in the assertion payload for audit/debug metadata, but do not use it as the private-runtime audience in new ProdUS code.
+- `LOOMAI_ASSERTION_DEPLOYMENT_ID` is not required when `LOOMAI_ASSIGNMENT_URL` is configured and reachable. The backend derives `deploymentId` from assignment discovery. The env var exists only as a fallback for local/break-glass direct-runtime diagnostics without assignment discovery.
 
 ProdUS implementation status:
 
@@ -228,7 +229,6 @@ LOOMAI_BASE_URL=<fallback-only: use assignment endpoints first>
 LOOMAI_RUNTIME_API_KEY=<same value accepted by X-AIFABRIC-RUNTIME-API-KEY>
 LOOMAI_ASSERTION_ISSUER=produs-staging-backend
 LOOMAI_ASSERTION_AUDIENCE=produs-staging
-LOOMAI_ASSERTION_DEPLOYMENT_ID=dep-7706fafb
 LOOMAI_ASSERTION_SIGNING_ALGORITHM=HS256
 LOOMAI_ASSERTION_SIGNING_SECRET=<same HMAC signing secret configured on runtime>
 LOOMAI_TIMEOUT_MS=8000
@@ -238,7 +238,7 @@ LOOMAI_ASSISTANT_SUGGESTIONS_PATH=/api/chat/me/suggestions
 LOOMAI_AUTH_CONTEXT_PATH=/api/chat/me/auth-context
 ```
 
-Do not set these in frontend env. They are backend-only. Prefer the assignment endpoint over `LOOMAI_BASE_URL`; keep a fallback base URL only for break-glass local diagnostics.
+Do not set these in frontend env. They are backend-only. Prefer the assignment endpoint over `LOOMAI_BASE_URL`; keep a fallback base URL only for break-glass local diagnostics. `LOOMAI_ASSERTION_DEPLOYMENT_ID=dep-7706fafb` is optional and only needed if assignment discovery is disabled.
 
 If direct runtime is not configured yet, keep:
 
