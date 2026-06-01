@@ -105,9 +105,14 @@ public class AiAssistedProductCreationService {
                 .orElse(ownerProvidedFields);
         ProductCreationFields creationReadyFields = ensureCreationReadyPlan(fields, request);
         ProductCreationFields finalFields = ensureDocumentUsage(creationReadyFields, start.documentReferences());
+        AssistantQueryResponse finalAssistant = normalizeAssistantForUsefulAnalysis(
+                assistant,
+                finalFields,
+                parsedFields.isPresent()
+        );
 
         ProductCreationIntent intent = transactionTemplate.execute(status ->
-                completeAnalysis(start.intentId(), finalFields, assistant, start.temporaryAccess().size())
+                completeAnalysis(start.intentId(), finalFields, finalAssistant, start.temporaryAccess().size())
         );
         if (intent == null) {
             throw new IllegalStateException("Project creation analysis could not be completed");
@@ -128,9 +133,9 @@ public class AiAssistedProductCreationService {
                                 document.contentStatus()
                         ))
                         .toList(),
-                assistant,
+                finalAssistant,
                 parsedFields.isPresent(),
-                assistant.fallbackReason(),
+                finalAssistant.fallbackReason(),
                 projectCreationActionPayload(intent, consentToken, finalFields, start.attachments(), start.temporaryAccess())
         );
     }
@@ -859,6 +864,52 @@ public class AiAssistedProductCreationService {
         return parseFields(response.answer())
                 .or(() -> parseFields(response.safeSummary()))
                 .or(() -> parseFieldsFromActionParameters(response));
+    }
+
+    private AssistantQueryResponse normalizeAssistantForUsefulAnalysis(
+            AssistantQueryResponse assistant,
+            ProductCreationFields fields,
+            boolean aiFieldsParsed
+    ) {
+        if (assistant == null || !aiFieldsParsed || !clarificationLike(assistant) || !hasMeaningfulFields(fields)) {
+            return assistant;
+        }
+        return new AssistantQueryResponse(
+                assistant.provider(),
+                assistant.mode(),
+                true,
+                "INFORMATION_PROVIDED",
+                assistant.answer(),
+                assistant.safeSummary(),
+                assistant.conversationId(),
+                assistant.confidence(),
+                assistant.sources(),
+                assistant.documents(),
+                assistant.attachments(),
+                assistant.actions(),
+                assistant.suggestions(),
+                assistant.ragResponse(),
+                assistant.metadata(),
+                assistant.documentUsage(),
+                null,
+                null,
+                null,
+                false,
+                assistant.providerRequestId()
+        );
+    }
+
+    private boolean clarificationLike(AssistantQueryResponse assistant) {
+        return containsIgnoreCase(assistant.type(), "CLARIFICATION")
+                || containsIgnoreCase(assistant.fallbackReason(), "CLARIFICATION")
+                || containsIgnoreCase(assistant.errorCode(), "CLARIFICATION")
+                || containsIgnoreCase(assistant.reason(), "CLARIFICATION");
+    }
+
+    private boolean containsIgnoreCase(String value, String needle) {
+        return value != null
+                && needle != null
+                && value.toLowerCase(Locale.ROOT).contains(needle.toLowerCase(Locale.ROOT));
     }
 
     private ProductCreationFields mergeFields(
