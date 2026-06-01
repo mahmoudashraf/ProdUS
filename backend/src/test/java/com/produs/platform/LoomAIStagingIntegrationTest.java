@@ -18,6 +18,7 @@ import com.produs.packages.PackageInstanceRepository;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
 import com.produs.repository.UserRepository;
+import com.produs.service.S3Service;
 import com.produs.teams.Team;
 import com.produs.teams.TeamRepository;
 import com.produs.workspace.ProjectWorkspace;
@@ -28,11 +29,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.annotation.DirtiesContext;
@@ -49,6 +53,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.crypto.Mac;
@@ -56,8 +61,13 @@ import javax.crypto.spec.SecretKeySpec;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItems;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -70,6 +80,7 @@ class LoomAIStagingIntegrationTest {
 
     private static HttpServer server;
     private static final AtomicInteger conversationAccessDeniedAttempts = new AtomicInteger();
+    private static final ObjectMapper HTTP_OBJECT_MAPPER = new ObjectMapper();
 
     @Autowired
     private MockMvc mockMvc;
@@ -112,6 +123,20 @@ class LoomAIStagingIntegrationTest {
 
     @Autowired
     private WorkspaceParticipantRepository participantRepository;
+
+    @MockBean
+    private S3Service s3Service;
+
+    @BeforeEach
+    void mockObjectStorage() {
+        when(s3Service.generateFileKey(anyString(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0, String.class) + "/" + UUID.randomUUID() + ".txt");
+        when(s3Service.uploadFile(anyString(), any(byte[].class), anyString()))
+                .thenAnswer(invocation -> "https://storage.produs.test/produs/" + invocation.getArgument(0, String.class));
+        when(s3Service.generatePresignedDownloadUrl(anyString()))
+                .thenAnswer(invocation -> "https://storage.produs.test/signed/" + invocation.getArgument(0, String.class));
+        doNothing().when(s3Service).deleteFile(anyString());
+    }
 
     @DynamicPropertySource
     static void loomAIProperties(DynamicPropertyRegistry registry) throws IOException {
@@ -335,6 +360,44 @@ class LoomAIStagingIntegrationTest {
                 )));
     }
 
+    @Test
+    void productAiAnalysisUsesCompletionOrientedIntakeContract() throws Exception {
+        User owner = saveUser("loom-intake-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        saveCatalogRecord();
+
+        MockMultipartFile brief = new MockMultipartFile(
+                "files",
+                "project-overview.md",
+                "text/markdown",
+                """
+                        # Inventory Launch Desk
+
+                        A prototype product for owners who need launch-readiness, API security, and scanner-backed
+                        production evidence before onboarding external customers.
+                        """.getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/api/products/ai-assisted/analyze")
+                        .file(brief)
+                        .param("ownerMessage", "Inventory Launch Desk needs production readiness analysis and service recommendations.")
+                        .param("productName", "Inventory Launch Desk")
+                        .param("businessStage", "PROTOTYPE")
+                        .param("techStack", "Spring Boot, PostgreSQL, Next.js")
+                        .param("repositoryUrl", "https://github.com/example/inventory-launch-desk")
+                        .param("aiSharedFileIndexes", "0")
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aiApplied").value(true))
+                .andExpect(jsonPath("$.assistant.success").value(true))
+                .andExpect(jsonPath("$.assistant.type").value("INFORMATION_PROVIDED"))
+                .andExpect(jsonPath("$.assistant.fallbackReason").doesNotExist())
+                .andExpect(jsonPath("$.analysis.productName").value("Inventory Launch Desk"))
+                .andExpect(jsonPath("$.analysis.techStack").value("Spring Boot, PostgreSQL, Next.js"))
+                .andExpect(jsonPath("$.analysis.recommendedServiceModules[0].moduleCode").value("security.api_review"))
+                .andExpect(jsonPath("$.analysis.documentUsage[0].status").value("USED"))
+                .andExpect(jsonPath("$.analysis.documentUsage[0].accessMethod").value("TEMPORARY_URL"));
+    }
+
     private static void ensureServer() throws IOException {
         if (server != null) {
             return;
@@ -473,6 +536,79 @@ class LoomAIStagingIntegrationTest {
             respond(exchange, 400, "{\"error\":\"private runtime conversation id must be scoped by ProdUS\"}");
             return;
         }
+        if (requestBody.contains("\"pageType\":\"owner-intake-analysis\"")) {
+            if (!requestBody.contains("\"contextVersion\":\"produs-owner-intake-analysis-v5\"")
+                    || !requestBody.contains("\"actionProfile\":\"loomai-productization-intake-analysis\"")
+                    || !requestBody.contains("\"runtimeActionPolicy\":\"analysis-only-no-mutations-no-confirmed-actions\"")
+                    || !requestBody.contains("Do not return CLARIFICATION_REQUIRED")
+                    || !requestBody.contains("missingOptionalDataPolicy")
+                    || !requestBody.contains("\"temporaryAccessUrl\"")
+                    || !requestBody.contains("\"mode\":\"thinker\"")
+                    || requestBody.contains("\"allowedActions\"")) {
+                respond(exchange, 400, "{\"error\":\"completion-oriented intake analysis contract is required\"}");
+                return;
+            }
+            String strictJson = """
+                    {
+                      "draftName": "Inventory Launch Desk",
+                      "outcomeSummary": "Prepare Inventory Launch Desk for production readiness with scanner-backed evidence.",
+                      "projectDescription": "Inventory Launch Desk helps product owners understand launch-readiness gaps before onboarding external customers. Production-ready means API security, operational evidence, and scanner-backed readiness are visible before workspace creation.",
+                      "businessProblem": "The owner needs a credible production-readiness path before launch.",
+                      "targetUsers": "Product owners and delivery leads",
+                      "stage": "PROTOTYPE",
+                      "stack": "Spring Boot, PostgreSQL, Next.js",
+                      "productUrl": "",
+                      "repositoryUrl": "https://github.com/example/inventory-launch-desk",
+                      "riskNotes": "API security and launch evidence need review.",
+                      "analysisSummary": "Owner intake, repository URL, catalog snapshot, and the selected temporary document were used to produce project creation attributes.",
+                      "coreCapabilities": ["Production-readiness analysis", "Scanner-backed evidence review"],
+                      "businessOutcomes": ["Owner understands launch blockers"],
+                      "readinessGoals": ["Confirm API security controls", "Create scanner-backed launch evidence"],
+                      "recommendedServices": ["API security review"],
+                      "recommendedServiceModules": [
+                        {
+                          "moduleCode": "security.api_review",
+                          "moduleName": "API Security Review",
+                          "categorySlug": "security",
+                          "priority": "MUST",
+                          "sequence": 1,
+                          "reason": "Repository-backed productization should verify API auth, authorization, rate limits, and secret handling.",
+                          "evidenceBasis": "Owner input and selected document both mention production readiness and external customer launch.",
+                          "expectedOutcome": "Owners understand and reduce API launch risk.",
+                          "confidence": 0.86
+                        }
+                      ],
+                      "missingCatalogCoverage": [],
+                      "scannerFocusAreas": ["API security", "Secrets handling", "Launch evidence"],
+                      "suggestedNextSteps": ["Review the recommended service path", "Create the project when the owner accepts the analysis"],
+                      "sourceInsights": ["Document: project-overview.md describes a prototype needing scanner-backed production evidence."],
+                      "assumptions": ["External customer onboarding increases launch-readiness risk."],
+                      "missingEvidence": [],
+                      "documentUsage": [
+                        {
+                          "documentId": "doc-0",
+                          "fileName": "project-overview.md",
+                          "status": "USED",
+                          "accessMethod": "TEMPORARY_URL",
+                          "evidence": ["The document mentions scanner-backed production evidence."],
+                          "reason": "Temporary URL content was opened and used for intake analysis."
+                        }
+                      ]
+                    }
+                    """;
+            respond(exchange, 200, """
+                    {
+                      "success": true,
+                      "type": "INFORMATION_PROVIDED",
+                      "answer": %s,
+                      "safeSummary": %s,
+                      "conversationId": "loom-intake-analysis-123",
+                      "providerRequestId": "loom-intake-request",
+                      "metadata": {"requestId": "loom-intake-request"}
+                    }
+                    """.formatted(HTTP_OBJECT_MAPPER.writeValueAsString(strictJson), HTTP_OBJECT_MAPPER.writeValueAsString(strictJson)));
+            return;
+        }
         boolean expectedActionHint = persistent
                 ? requestBody.contains("\"actionProfile\":\"loomai-productization-read\"")
                 : requestBody.contains("\"actionProfile\":\"loomai-productization-explain-only\"")
@@ -603,11 +739,18 @@ class LoomAIStagingIntegrationTest {
     }
 
     private ServiceModule saveCatalogRecord() {
-        ServiceCategory category = new ServiceCategory();
-        category.setName("Security");
-        category.setSlug("security");
-        category.setDescription("Security review and production hardening.");
-        category = categoryRepository.save(category);
+        return moduleRepository.findByStableCode("security.api_review")
+                .orElseGet(() -> createCatalogRecord());
+    }
+
+    private ServiceModule createCatalogRecord() {
+        ServiceCategory category = categoryRepository.findBySlug("security").orElseGet(() -> {
+            ServiceCategory created = new ServiceCategory();
+            created.setName("Security");
+            created.setSlug("security");
+            created.setDescription("Security review and production hardening.");
+            return categoryRepository.save(created);
+        });
 
         ServiceModule module = new ServiceModule();
         module.setCategory(category);

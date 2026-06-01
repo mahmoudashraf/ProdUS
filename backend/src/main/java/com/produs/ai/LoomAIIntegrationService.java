@@ -1289,14 +1289,19 @@ public class LoomAIIntegrationService {
     private Map<String, Object> projectCreationContext(User user, ProjectCreationAssistantRequest request) {
         Map<String, Object> context = new LinkedHashMap<>();
         List<Map<String, Object>> publicLinkInsights = publicLinkInsights(request);
-        context.put("contextVersion", "produs-owner-intake-analysis-v4");
+        context.put("contextVersion", "produs-owner-intake-analysis-v5");
         context.put("contextBoundary", "owner-authorized-intake-and-temporary-documents");
         context.put("pageType", "owner-intake-analysis");
-        context.put("actionProfile", "loomai-productization-explain-only");
+        context.put("actionProfile", "loomai-productization-intake-analysis");
         context.put("assistantIntent", "owner-intake-document-analysis");
-        context.put("toolUsePolicy", "answer-from-owner-input-temporary-documents-and-safe-public-link-insights");
-        context.put("availableActionGroups", List.of());
-        context.put("runtimeActionPolicy", "actions-disabled-for-this-analysis-response");
+        context.put("toolUsePolicy", "complete-structured-intake-analysis-from-owner-input-temporary-documents-public-link-insights-and-catalog-snapshot");
+        context.put("completionPolicy", Map.of(
+                "cleanSuccessWhen", "owner intent plus product name or repo/product/document signal exists",
+                "clarificationPolicy", "do-not-ask-clarifying-questions-for-optional-gaps; use assumptions and missingEvidence",
+                "minimumUsefulOutput", "project attributes, service recommendations, scanner focus, source insights, document usage"
+        ));
+        context.put("availableActionGroups", List.of("read-only-catalog-grounding"));
+        context.put("runtimeActionPolicy", "analysis-only-no-mutations-no-confirmed-actions");
         context.put("actorRole", user.getRole().name());
         context.put("ownerBrief", safeText(request.ownerMessage(), 4_000));
         context.put("productId", request.productId() == null ? "" : request.productId().toString());
@@ -1339,6 +1344,8 @@ public class LoomAIIntegrationService {
                 .toList());
         context.put("outputContract", Map.of(
                 "format", "strict-json-object",
+                "completionExpectation", "return a completed structured analysis when minimum owner intent is present; do not return a clarification response just because optional details are missing",
+                "missingOptionalDataPolicy", "represent gaps in assumptions or missingEvidence instead of asking a follow-up question",
                 "fields", List.of(
                         "draftName",
                         "outcomeSummary",
@@ -1546,6 +1553,11 @@ public class LoomAIIntegrationService {
                 This response is analysis only. Do not select, suggest, prepare, or execute any runtime action.
                 Do not return actions, tools, action candidates, missing action parameters, or confirmation prompts.
                 ProdUS backend will handle any later persistence separately after the owner reviews these fields.
+                Return a completed structured analysis when the owner provided enough intent to describe what they want to productize.
+                Do not return CLARIFICATION_REQUIRED, a clarification question, or a "needs more input" answer just because optional fields are missing.
+                Optional gaps belong in assumptions or missingEvidence. Use explicit assumptions for uncertain details and keep moving.
+                Only ask for clarification when there is no owner intent, no product name, no repository/product URL, and no usable selected document.
+                In successful intake analysis, set the response posture as information-provided/complete and put all useful data in the strict JSON object.
                 The result is used to create the initial ProductProfile, seed owner review notes, suggest a first service path, and define scanner focus areas.
                 Be concrete and useful. Avoid generic statements such as "results pending owner review" when owner input, public links, or selected documents contain usable project facts.
                 Analyze the owner input and every owner-selected temporary document. Do not index, retain, or expose document content.
@@ -1583,6 +1595,11 @@ public class LoomAIIntegrationService {
                 assumptions and missingEvidence must be arrays of concise strings.
                 documentUsage.evidence must be an array of concise, non-sensitive facts. Never include secrets, tokens, credentials, or raw private content.
                 analysisSummary must summarize the project and mention whether selected documents were opened through temporary URLs or not used.
+                Required output quality bar:
+                - draftName must be a usable product/project name, not a generic placeholder.
+                - projectDescription, businessProblem, targetUsers, stack, recommendedServiceModules, scannerFocusAreas, suggestedNextSteps, and sourceInsights should be filled when owner input, public links, repository facts, or selected documents provide enough evidence.
+                - recommendedServiceModules should include 3-6 catalog modules when a repository URL or production-readiness goal exists.
+                - If stack is inferred from public links or documents, state it in stack and cite the source in sourceInsights or assumptions.
                 Optional product URL: %s
                 Optional repository URL: %s
                 Optional tech stack hint: %s
