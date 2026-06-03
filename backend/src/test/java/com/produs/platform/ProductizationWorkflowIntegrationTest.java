@@ -147,7 +147,14 @@ class ProductizationWorkflowIntegrationTest {
                 .andReturn();
 
         JsonNode body = objectMapper.readTree(analysisResult.getResponse().getContentAsString());
-        JsonNode actionPayload = body.path("runtimeActionPayload");
+        ObjectNode actionPayload = (ObjectNode) body.path("runtimeActionPayload").deepCopy();
+        ObjectNode documentUsage = actionPayload.putArray("documentUsage").addObject();
+        documentUsage.put("documentId", body.path("attachments").get(0).path("id").asText());
+        documentUsage.put("fileName", "inventory-readiness.md");
+        documentUsage.put("status", "USED");
+        documentUsage.put("accessMethod", "TEMPORARY_URL");
+        documentUsage.putArray("evidence")
+                .add("Temporary access opened the inventory readiness document for creation analysis.");
         MvcResult actionResult = mockMvc.perform(post("/mcp")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(

@@ -38,6 +38,29 @@ class AiAssistedProductCreationServiceTest {
     }
 
     @Test
+    void actionRequestParsesDocumentUsageForCreationGuard() {
+        AiAssistedProductCreationService.ProductCreationActionRequest request =
+                AiAssistedProductCreationService.ProductCreationActionRequest.from(Map.of(
+                        "analysisMode", "FULL_WITH_AI_OPPORTUNITIES",
+                        "documentUsage", List.of(Map.of(
+                                "documentId", "doc-project-overview",
+                                "fileName", "PROJECT_OVERVIEW.md",
+                                "status", "USED",
+                                "accessMethod", "TEMPORARY_URL",
+                                "evidence", List.of("Document identifies Spring Boot and PostgreSQL."),
+                                "reason", "Temporary URL opened and parsed."
+                        ))
+                ));
+
+        assertThat(request.documentUsage()).hasSize(1);
+        assertThat(request.documentUsage().get(0).documentId()).isEqualTo("doc-project-overview");
+        assertThat(request.documentUsage().get(0).status()).isEqualTo("USED");
+        assertThat(request.documentUsage().get(0).accessMethod()).isEqualTo("TEMPORARY_URL");
+        assertThat(request.documentUsage().get(0).evidence())
+                .containsExactly("Document identifies Spring Boot and PostgreSQL.");
+    }
+
+    @Test
     void parsesProjectCreationFieldsFromLoomAiActionParameters() throws Exception {
         AiAssistedProductCreationService service = service();
         LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(

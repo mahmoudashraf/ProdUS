@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 import static com.produs.dto.PlatformDtos.toProductProfileResponse;
 
@@ -438,6 +439,7 @@ public class AiAssistedProductCreationService {
                 .orElseThrow(() -> new IllegalArgumentException("Business stage is required for AI project creation action"));
         validateAttachmentOwnership(intent, request.sourceAttachmentIds());
         validateAttachmentOwnership(intent, request.aiAccessibleAttachmentIds());
+        validateSelectedDocumentUsage(intent, request);
     }
 
     private void validateAttachmentOwnership(ProductCreationIntent intent, List<UUID> attachmentIds) {
@@ -454,6 +456,62 @@ public class AiAssistedProductCreationService {
                     "This action payload references documents from another analysis. Use the latest AI analysis result."
             );
         }
+    }
+
+    private void validateSelectedDocumentUsage(ProductCreationIntent intent, ProductCreationActionRequest request) {
+        List<UUID> aiAccessibleAttachmentIds = listOrEmpty(request.aiAccessibleAttachmentIds());
+        if (aiAccessibleAttachmentIds.isEmpty()) {
+            return;
+        }
+        Map<UUID, ProductProjectAttachment> attachmentById = attachmentRepository
+                .findByCreationIntentIdOrderByCreatedAtDesc(intent.getId())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        ProductProjectAttachment::getId,
+                        Function.identity(),
+                        (left, right) -> left
+                ));
+        List<DocumentUsageEvidence> documentUsage = listOrEmpty(request.documentUsage());
+        List<String> unprovenFiles = new ArrayList<>();
+        for (UUID attachmentId : aiAccessibleAttachmentIds) {
+            ProductProjectAttachment attachment = attachmentById.get(attachmentId);
+            String fileName = attachment == null ? attachmentId.toString() : attachment.getFileName();
+            boolean provenUsed = documentUsage.stream()
+                    .anyMatch(usage -> documentUsageProvesSelectedFile(usage, attachmentId, fileName));
+            if (!provenUsed) {
+                unprovenFiles.add(firstNonBlank(fileName, attachmentId.toString()));
+            }
+        }
+        if (!unprovenFiles.isEmpty()) {
+            throw projectCreationActionRejected(
+                    "AI_DOCUMENT_USAGE_NOT_PROVEN",
+                    "LoomAI did not prove it used the selected document "
+                            + quoteList(unprovenFiles)
+                            + ". Re-run analysis after LoomAI document access is available, or unshare the file from AI for this creation decision."
+            );
+        }
+    }
+
+    private boolean documentUsageProvesSelectedFile(DocumentUsageEvidence usage, UUID attachmentId, String fileName) {
+        if (usage == null
+                || !"USED".equalsIgnoreCase(firstNonBlank(usage.status()))
+                || !"TEMPORARY_URL".equalsIgnoreCase(firstNonBlank(usage.accessMethod()))
+                || listOrEmpty(usage.evidence()).isEmpty()) {
+            return false;
+        }
+        String id = attachmentId == null ? "" : attachmentId.toString();
+        if (hasText(id) && hasText(usage.documentId()) && usage.documentId().equalsIgnoreCase(id)) {
+            return true;
+        }
+        return hasText(fileName) && hasText(usage.fileName()) && usage.fileName().equalsIgnoreCase(fileName);
+    }
+
+    private String quoteList(List<String> values) {
+        return listOrEmpty(values).stream()
+                .filter(value -> value != null && !value.isBlank())
+                .limit(3)
+                .map(value -> "\"" + trim(value, NAME_LIMIT) + "\"")
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 
     private ProjectCreationActionException projectCreationActionRejected(String errorCode, String message) {
@@ -590,6 +648,7 @@ public class AiAssistedProductCreationService {
         payload.put("sourceInsights", fields.sourceInsights());
         payload.put("assumptions", fields.assumptions());
         payload.put("missingEvidence", fields.missingEvidence());
+        payload.put("documentUsage", fields.documentUsage());
         payload.put("aiOpportunityReport", aiOpportunityReport);
         payload.put("loomaiIntegrationOverview", loomAIIntegrationOverview);
         payload.put("sourceAttachmentIds", attachments.stream().map(attachment -> attachment.id().toString()).toList());
@@ -870,6 +929,7 @@ public class AiAssistedProductCreationService {
         analysis.put("sourceInsights", listOrEmpty(request.sourceInsights()));
         analysis.put("assumptions", listOrEmpty(request.assumptions()));
         analysis.put("missingEvidence", listOrEmpty(request.missingEvidence()));
+        analysis.put("documentUsage", listOrEmpty(request.documentUsage()));
         analysis.put("aiOpportunityReport", request.aiOpportunityReport());
         analysis.put("loomaiIntegrationOverview", request.loomaiIntegrationOverview());
         try {
@@ -2686,6 +2746,7 @@ public class AiAssistedProductCreationService {
             List<String> sourceInsights,
             List<String> assumptions,
             List<String> missingEvidence,
+            List<DocumentUsageEvidence> documentUsage,
             AiOpportunityReport aiOpportunityReport,
             LoomAIIntegrationOverview loomaiIntegrationOverview,
             List<UUID> sourceAttachmentIds,
@@ -2721,6 +2782,7 @@ public class AiAssistedProductCreationService {
                     stringList(value.get("sourceInsights")),
                     stringList(value.get("assumptions")),
                     stringList(value.get("missingEvidence")),
+                    documentUsageEvidenceList(value.get("documentUsage")),
                     aiOpportunityReport(value.get("aiOpportunityReport")),
                     loomAIIntegrationOverview(value.get("loomaiIntegrationOverview")),
                     uuidList(value.get("sourceAttachmentIds")),
@@ -2734,6 +2796,24 @@ public class AiAssistedProductCreationService {
 
         private static AnalysisMode analysisMode(Object raw) {
             return AnalysisMode.from(string(raw));
+        }
+
+        private static List<DocumentUsageEvidence> documentUsageEvidenceList(Object raw) {
+            if (!(raw instanceof List<?> items)) {
+                return List.of();
+            }
+            return items.stream()
+                    .filter(Map.class::isInstance)
+                    .map(Map.class::cast)
+                    .map(item -> new DocumentUsageEvidence(
+                            firstString(item, "documentId", "document_id", "id"),
+                            firstString(item, "fileName", "filename", "name"),
+                            firstString(item, "status", "usageStatus"),
+                            firstString(item, "accessMethod", "method"),
+                            stringList(item.get("evidence")),
+                            firstString(item, "reason", "why", "notes")
+                    ))
+                    .toList();
         }
 
         private static AiOpportunityReport aiOpportunityReport(Object raw) {

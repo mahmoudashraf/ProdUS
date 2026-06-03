@@ -885,6 +885,7 @@ export default function ProductOnboardingWizard() {
         sourceInsights: aiAnalysis.analysis.sourceInsights ?? [],
         assumptions: aiAnalysis.analysis.assumptions,
         missingEvidence: aiAnalysis.analysis.missingEvidence,
+        documentUsage: aiAnalysis.analysis.documentUsage ?? [],
         aiOpportunityReport: aiAnalysis.aiOpportunityReport,
         loomaiIntegrationOverview: aiAnalysis.loomaiIntegrationOverview,
       };
@@ -1017,6 +1018,14 @@ export default function ProductOnboardingWizard() {
   const aiNotUsedDocumentCount = aiDocumentUsage.filter(item => item.status === 'NOT_USED').length;
   const aiDocumentUsageMissing =
     Boolean(aiAnalysis?.aiSharedDocuments.length) && aiDocumentUsage.length === 0;
+  const aiSharedDocumentCount = aiAnalysis?.aiSharedDocuments.length ?? 0;
+  const aiDocumentProofBlocked =
+    aiSharedDocumentCount > 0
+    && (
+      aiDocumentUsageMissing
+      || aiNotUsedDocumentCount > 0
+      || aiOpenedDocumentCount < aiSharedDocumentCount
+    );
   const aiBusy = analyzeProductWithAI.isPending || createProductFromAIAction.isPending;
   const productNameReady = form.values.name.trim().length > 0;
   const productSummaryReady = form.values.summary.trim().length > 0;
@@ -1088,8 +1097,8 @@ export default function ProductOnboardingWizard() {
       state:
         aiDocumentFiles.length > 0 && selectedAiDocumentCount === 0
           ? 'attention'
-          : aiDocumentUsageMissing || aiNotUsedDocumentCount > 0
-            ? 'attention'
+          : aiDocumentProofBlocked
+            ? 'blocked'
             : 'ready',
     },
     {
@@ -1199,7 +1208,7 @@ export default function ProductOnboardingWizard() {
         },
       ]
     : [];
-  const canCreateWithAi = Boolean(aiAnalysis) && productNameReady && productSummaryReady && !aiBusy;
+  const canCreateWithAi = Boolean(aiAnalysis) && productNameReady && productSummaryReady && !aiDocumentProofBlocked && !aiBusy;
 
   return (
     <>
@@ -1801,6 +1810,13 @@ export default function ProductOnboardingWizard() {
                       requestContext={analysisChatContext()}
                       conversationId={aiAnalysis ? `project-analysis-${aiAnalysis.intent.id}` : 'project-analysis-draft'}
                     />
+                    {aiDocumentProofBlocked && (
+                      <Alert severity="warning" sx={{ borderRadius: 1 }}>
+                        LoomAI did not prove it opened every AI-shared document. Re-run
+                        analysis after document access is available, or unshare the file
+                        from AI before creating this project.
+                      </Alert>
+                    )}
                     <Button
                       variant={aiAnalysis ? 'outlined' : 'contained'}
                       size="large"

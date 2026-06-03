@@ -151,6 +151,7 @@ public class ProductProfileController {
                 request.sourceInsights(),
                 request.assumptions(),
                 request.missingEvidence(),
+                request.documentUsage(),
                 request.aiOpportunityReport(),
                 request.loomaiIntegrationOverview(),
                 request.sourceAttachmentIds(),
