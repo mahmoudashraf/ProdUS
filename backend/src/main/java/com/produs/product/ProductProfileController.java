@@ -2,6 +2,7 @@ package com.produs.product;
 
 import com.produs.product.AiAssistedProductCreationService.AiAssistedProductCreationRequest;
 import com.produs.product.AiAssistedProductCreationService.AiAssistedProductAnalysisResponse;
+import com.produs.product.AiAssistedProductCreationService.AnalysisMode;
 import com.produs.product.AiAssistedProductCreationService.ProductCreationActionRequest;
 import com.produs.product.AiAssistedProductCreationService.ProductCreationActionResponse;
 import com.produs.dto.PlatformDtos.ProductProfileResponse;
@@ -84,6 +85,7 @@ public class ProductProfileController {
             @RequestParam(required = false) String productUrl,
             @RequestParam(required = false) String repositoryUrl,
             @RequestParam(required = false) String knownRisks,
+            @RequestParam(required = false) String analysisMode,
             @RequestParam(required = false) List<MultipartFile> files,
             @RequestParam(required = false) List<Integer> aiSharedFileIndexes,
             HttpServletRequest servletRequest
@@ -100,7 +102,8 @@ public class ProductProfileController {
                         techStack,
                         productUrl,
                         repositoryUrl,
-                        knownRisks
+                        knownRisks,
+                        AnalysisMode.from(analysisMode)
                 ),
                 files,
                 selectedDocumentIndexes,
@@ -121,6 +124,7 @@ public class ProductProfileController {
             throw new AccessDeniedException("Project creation intent path does not match action payload");
         }
         ProductCreationActionRequest actionRequest = new ProductCreationActionRequest(
+                request.analysisModeOrDefault(),
                 intentId,
                 request.consentToken(),
                 request.idempotencyKey(),
@@ -147,6 +151,8 @@ public class ProductProfileController {
                 request.sourceInsights(),
                 request.assumptions(),
                 request.missingEvidence(),
+                request.aiOpportunityReport(),
+                request.loomaiIntegrationOverview(),
                 request.sourceAttachmentIds(),
                 request.aiAccessibleAttachmentIds()
         );

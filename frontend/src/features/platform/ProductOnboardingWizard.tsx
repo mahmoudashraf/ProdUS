@@ -47,6 +47,9 @@ import {
 } from './PlatformComponents';
 import {
   AiAssistedProductAnalysisResponse,
+  AiOpportunityReport,
+  LoomAIIntegrationOverview,
+  ProductAnalysisMode,
   ServiceModuleRecommendation,
   ProductCreationActionResponse,
   ProductProfile,
@@ -107,6 +110,26 @@ const analysisQuickQuestions = [
   'Which service should I add first?',
   'What evidence is missing before I create the project?',
   'Did AI use my document and what did it learn?',
+];
+
+const analysisModeOptions: Array<{
+  mode: ProductAnalysisMode;
+  title: string;
+  detail: string;
+  accent: string;
+}> = [
+  {
+    mode: 'FULL_WITH_AI_OPPORTUNITIES',
+    title: 'Full analysis',
+    detail: 'Project intelligence, service plan, scanner focus, AI opportunities, and LoomAI integration path.',
+    accent: appleColors.purple,
+  },
+  {
+    mode: 'AI_OPPORTUNITIES',
+    title: 'AI integration only',
+    detail: 'Evaluate AI opportunities and the LoomAI implementation overview without the full readiness analysis.',
+    accent: appleColors.cyan,
+  },
 ];
 
 type ValidationState = 'ready' | 'attention' | 'blocked';
@@ -460,6 +483,163 @@ function AiServicePlanReview({
   );
 }
 
+function AiOpportunityPanel({
+  report,
+}: {
+  report: AiOpportunityReport | undefined;
+}) {
+  if (!report) return null;
+  const useCases = report.useCases ?? [];
+  const score = Math.round((report.opportunityScore ?? 0) * 100);
+  return (
+    <Box
+      sx={{
+        p: 1.4,
+        borderRadius: 1,
+        border: `1px solid ${appleColors.purple}24`,
+        background: 'linear-gradient(145deg, #ffffff 0%, #f7f4ff 100%)',
+      }}
+    >
+      <Stack spacing={1.2}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 950 }}>
+              AI integration opportunities
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+              {report.summary || 'LoomAI mapped where AI can add useful productization support.'}
+            </Typography>
+          </Box>
+          <DotLabel
+            label={report.live ? `LoomAI ${score || 'ready'}%` : `Prepared ${score || 'ready'}%`}
+            color={report.live ? appleColors.green : appleColors.amber}
+          />
+        </Stack>
+        {report.strategicRationale && (
+          <Typography variant="caption" sx={{ color: appleColors.ink, fontWeight: 800, lineHeight: 1.55 }}>
+            {report.strategicRationale}
+          </Typography>
+        )}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+            gap: 1,
+          }}
+        >
+          {useCases.slice(0, 6).map(useCase => (
+            <Box
+              key={useCase.title}
+              sx={{
+                p: 1,
+                borderRadius: 1,
+                border: '1px solid #e8ddff',
+                bgcolor: '#fff',
+                minWidth: 0,
+              }}
+            >
+              <Stack spacing={0.7}>
+                <Stack direction="row" justifyContent="space-between" spacing={1}>
+                  <Typography variant="body2" sx={{ fontWeight: 950, lineHeight: 1.25 }}>
+                    {useCase.title}
+                  </Typography>
+                  <DotLabel label={useCase.priority || 'SHOULD'} color={servicePriorityColor(useCase.priority)} />
+                </Stack>
+                {useCase.workflow && (
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.45 }}>
+                    {useCase.workflow}
+                  </Typography>
+                )}
+                {useCase.userValue && (
+                  <Typography variant="caption" sx={{ color: appleColors.green, fontWeight: 800, lineHeight: 1.45 }}>
+                    {useCase.userValue}
+                  </Typography>
+                )}
+                {useCase.loomaiCapability && (
+                  <DotLabel label={useCase.loomaiCapability} color={appleColors.purple} />
+                )}
+              </Stack>
+            </Box>
+          ))}
+        </Box>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+            gap: 1,
+          }}
+        >
+          <AiReviewList
+            title="Opportunity next steps"
+            items={report.suggestedNextSteps ?? []}
+            empty="No AI opportunity next steps returned."
+            accent={appleColors.purple}
+          />
+          <AiReviewList
+            title="Opportunity evidence"
+            items={report.sourceInsights ?? []}
+            empty="No opportunity evidence returned."
+            accent={appleColors.cyan}
+          />
+        </Box>
+      </Stack>
+    </Box>
+  );
+}
+
+function LoomAIOverviewPanel({
+  overview,
+}: {
+  overview: LoomAIIntegrationOverview | undefined;
+}) {
+  if (!overview) return null;
+  return (
+    <Box
+      sx={{
+        p: 1.4,
+        borderRadius: 1,
+        border: `1px solid ${appleColors.cyan}24`,
+        background: 'linear-gradient(145deg, #ffffff 0%, #f0fdff 100%)',
+      }}
+    >
+      <Stack spacing={1.1}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 950 }}>
+              LoomAI implementation path
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+              {overview.summary || 'LoomAI can support diagnosis, service planning, scanner summaries, and owner decisions.'}
+            </Typography>
+          </Box>
+          <DotLabel label={overview.live ? 'LoomAI live' : 'Prepared'} color={overview.live ? appleColors.green : appleColors.amber} />
+        </Stack>
+        {overview.recommendedStartingPoint && (
+          <Box sx={{ p: 1, borderRadius: 1, bgcolor: '#fff', border: '1px solid #d9f3f8' }}>
+            <Typography variant="caption" sx={{ fontWeight: 950 }}>
+              Recommended start
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.4, fontWeight: 800, lineHeight: 1.45 }}>
+              {overview.recommendedStartingPoint}
+            </Typography>
+          </Box>
+        )}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+            gap: 1,
+          }}
+        >
+          <AiReviewList title="Capabilities" items={overview.capabilities ?? []} empty="No capabilities returned." accent={appleColors.purple} />
+          <AiReviewList title="Implementation steps" items={overview.implementationSteps ?? []} empty="No implementation steps returned." accent={appleColors.green} />
+          <AiReviewList title="Owner decisions" items={overview.ownerDecisions ?? []} empty="No owner decisions returned." accent={appleColors.amber} />
+        </Box>
+      </Stack>
+    </Box>
+  );
+}
+
 const documentUsageMeta = (status?: string, accessMethod?: string) => {
   const normalizedStatus = (status ?? '').toUpperCase();
   const normalizedMethod = (accessMethod ?? '').toUpperCase();
@@ -582,6 +762,7 @@ export default function ProductOnboardingWizard() {
     Array<{ file: File; shareWithAi: boolean }>
   >([]);
   const [aiAnalysis, setAiAnalysis] = useState<AiAssistedProductAnalysisResponse | null>(null);
+  const [analysisMode, setAnalysisMode] = useState<ProductAnalysisMode>('FULL_WITH_AI_OPPORTUNITIES');
   const [reviewedServiceRecommendations, setReviewedServiceRecommendations] = useState<
     ServiceModuleRecommendation[]
   >([]);
@@ -627,6 +808,7 @@ export default function ProductOnboardingWizard() {
     mutationFn: async () => {
       const payload = new FormData();
       payload.append('ownerMessage', aiBrief);
+      payload.append('analysisMode', analysisMode);
       if (form.values.name) payload.append('productName', form.values.name);
       if (form.values.businessStage) payload.append('businessStage', form.values.businessStage);
       if (form.values.techStack) payload.append('techStack', form.values.techStack);
@@ -672,6 +854,7 @@ export default function ProductOnboardingWizard() {
       }
       const actionPayload: Record<string, unknown> = {
         ...aiAnalysis.runtimeActionPayload,
+        analysisMode: aiAnalysis.analysisMode,
         creationIntentId: aiAnalysis.intent.id,
         consentToken: aiAnalysis.intent.consentToken,
         idempotencyKey: aiAnalysis.intent.idempotencyKey,
@@ -702,6 +885,8 @@ export default function ProductOnboardingWizard() {
         sourceInsights: aiAnalysis.analysis.sourceInsights ?? [],
         assumptions: aiAnalysis.analysis.assumptions,
         missingEvidence: aiAnalysis.analysis.missingEvidence,
+        aiOpportunityReport: aiAnalysis.aiOpportunityReport,
+        loomaiIntegrationOverview: aiAnalysis.loomaiIntegrationOverview,
       };
       const response = await postJson<ProductCreationActionResponse, Record<string, unknown>>(
         `/products/ai-assisted/intents/${aiAnalysis.intent.id}/create`,
@@ -757,6 +942,33 @@ export default function ProductOnboardingWizard() {
         sourceInsights: cleanList(analysis?.sourceInsights),
         assumptions: cleanList(analysis?.assumptions),
         missingEvidence: cleanList(analysis?.missingEvidence),
+        aiOpportunityReport: aiAnalysis?.aiOpportunityReport
+          ? {
+              status: aiAnalysis.aiOpportunityReport.status,
+              summary: aiAnalysis.aiOpportunityReport.summary,
+              opportunityScore: aiAnalysis.aiOpportunityReport.opportunityScore,
+              strategicRationale: aiAnalysis.aiOpportunityReport.strategicRationale,
+              useCases: (aiAnalysis.aiOpportunityReport.useCases ?? []).slice(0, 6).map(useCase => ({
+                title: useCase.title,
+                workflow: useCase.workflow,
+                userValue: useCase.userValue,
+                businessValue: useCase.businessValue,
+                loomaiCapability: useCase.loomaiCapability,
+                priority: useCase.priority,
+              })),
+              suggestedNextSteps: cleanList(aiAnalysis.aiOpportunityReport.suggestedNextSteps),
+            }
+          : undefined,
+        loomaiIntegrationOverview: aiAnalysis?.loomaiIntegrationOverview
+          ? {
+              summary: aiAnalysis.loomaiIntegrationOverview.summary,
+              recommendedStartingPoint: aiAnalysis.loomaiIntegrationOverview.recommendedStartingPoint,
+              capabilities: cleanList(aiAnalysis.loomaiIntegrationOverview.capabilities),
+              implementationSteps: cleanList(aiAnalysis.loomaiIntegrationOverview.implementationSteps),
+              ownerDecisions: cleanList(aiAnalysis.loomaiIntegrationOverview.ownerDecisions),
+              risks: cleanList(aiAnalysis.loomaiIntegrationOverview.risks),
+            }
+          : undefined,
         documentUsage: cleanList(
           analysis?.documentUsage?.map(item => {
             const evidence = item.evidence?.length ? ` Evidence: ${item.evidence.slice(0, 2).join('; ')}` : '';
@@ -822,6 +1034,8 @@ export default function ProductOnboardingWizard() {
     : '';
   const selectedAiServiceCount = selectedServiceCodes.length;
   const missingCatalogCoverage = aiAnalysis?.analysis.missingCatalogCoverage ?? [];
+  const aiOpportunityCount = aiAnalysis?.aiOpportunityReport?.useCases?.length ?? 0;
+  const fullAnalysisMode = analysisMode === 'FULL_WITH_AI_OPPORTUNITIES';
   const aiValidationItems: Array<{
     title: string;
     detail: string;
@@ -842,6 +1056,17 @@ export default function ProductOnboardingWizard() {
           : `Fallback analysis is available${aiAnalysis.fallbackReason ? `: ${aiAnalysis.fallbackReason}` : '.'}`
         : 'Run AI analysis to extract project fields, assumptions, missing evidence, and action payload.',
       state: aiAnalysis ? (aiAnalysis.aiApplied ? 'ready' : 'attention') : 'blocked',
+    },
+    {
+      title: 'AI opportunities',
+      detail: aiAnalysis
+        ? aiAnalysis.aiOpportunityReport
+          ? `${compactCount(aiOpportunityCount, 'AI use case')} found and added to project creation context.`
+          : 'AI opportunities were requested, but no AI opportunity report was returned.'
+        : fullAnalysisMode
+          ? 'Full analysis will include AI opportunities and LoomAI integration guidance.'
+          : 'AI integration-only mode will focus on opportunities and the LoomAI implementation overview.',
+      state: aiAnalysis ? (aiAnalysis.aiOpportunityReport ? 'ready' : 'attention') : 'blocked',
     },
     {
       title: 'Required creation fields',
@@ -1018,6 +1243,62 @@ export default function ProductOnboardingWizard() {
                 }}
               >
                 <Stack spacing={1.5}>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                      gap: 1,
+                    }}
+                  >
+                    {analysisModeOptions.map(option => {
+                      const selected = analysisMode === option.mode;
+                      return (
+                        <Button
+                          key={option.mode}
+                          variant="outlined"
+                          onClick={() => {
+                            setAnalysisMode(option.mode);
+                            resetAiAnalysis();
+                          }}
+                          sx={{
+                            justifyContent: 'flex-start',
+                            textAlign: 'left',
+                            alignItems: 'stretch',
+                            minHeight: 92,
+                            p: 1.25,
+                            borderRadius: 1,
+                            borderColor: selected ? option.accent : '#dfe7f5',
+                            borderWidth: selected ? 2 : 1,
+                            bgcolor: selected ? `${option.accent}08` : '#fff',
+                            color: appleColors.ink,
+                            '&:hover': {
+                              borderColor: option.accent,
+                              bgcolor: `${option.accent}0f`,
+                            },
+                          }}
+                        >
+                          <Stack spacing={0.5} sx={{ width: '100%' }}>
+                            <Stack direction="row" spacing={0.8} alignItems="center">
+                              <DotLabel
+                                label={selected ? 'Selected' : 'Available'}
+                                color={selected ? option.accent : appleColors.muted}
+                              />
+                              <Typography variant="body2" sx={{ fontWeight: 950 }}>
+                                {option.title}
+                              </Typography>
+                            </Stack>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ lineHeight: 1.45, whiteSpace: 'normal' }}
+                            >
+                              {option.detail}
+                            </Typography>
+                          </Stack>
+                        </Button>
+                      );
+                    })}
+                  </Box>
                   <TextField
                     label="Tell ProdUS what you want to productize"
                     value={aiBrief}
@@ -1284,6 +1565,8 @@ export default function ProductOnboardingWizard() {
                           onToggle={toggleServiceRecommendation}
                           onMove={moveServiceRecommendation}
                         />
+                        <AiOpportunityPanel report={aiAnalysis.aiOpportunityReport} />
+                        <LoomAIOverviewPanel overview={aiAnalysis.loomaiIntegrationOverview} />
                         {missingCatalogCoverage.length > 0 && (
                           <Box
                             sx={{
@@ -1420,6 +1703,26 @@ export default function ProductOnboardingWizard() {
                           color={selectedAiServiceCount ? appleColors.green : appleColors.amber}
                         />
                       )}
+                      <DotLabel
+                        label={
+                          fullAnalysisMode
+                            ? aiAnalysis?.aiOpportunityReport
+                              ? `${aiOpportunityCount} AI opportunities`
+                              : 'Full analysis + AI'
+                            : aiAnalysis?.aiOpportunityReport
+                              ? `${aiOpportunityCount} AI opportunities`
+                              : 'AI integration only'
+                        }
+                        color={
+                          fullAnalysisMode
+                            ? aiAnalysis?.aiOpportunityReport
+                              ? appleColors.green
+                              : appleColors.purple
+                            : aiAnalysis?.aiOpportunityReport
+                              ? appleColors.green
+                              : appleColors.cyan
+                        }
+                      />
                     </Stack>
                     <Box
                       sx={{
@@ -1509,8 +1812,10 @@ export default function ProductOnboardingWizard() {
                       {analyzeProductWithAI.isPending
                         ? 'Analyzing...'
                         : aiAnalysis
-                          ? 'Re-run AI Analysis'
-                          : 'Analyze with AI'}
+                          ? `Re-run ${fullAnalysisMode ? 'Full' : 'AI Integration'} Analysis`
+                          : fullAnalysisMode
+                            ? 'Run Full AI Analysis'
+                            : 'Run AI Integration Analysis'}
                     </Button>
                     <Button
                       variant="contained"

@@ -33,6 +33,8 @@ import com.produs.packages.PackageModule;
 import com.produs.packages.PackageModuleRepository;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
+import com.produs.product.AiAssistedProductCreationService.AiOpportunityReport;
+import com.produs.product.AiAssistedProductCreationService.ProductCreationFields;
 import com.produs.scanner.NormalizedFinding;
 import com.produs.scanner.NormalizedFindingRepository;
 import com.produs.scanner.ScanRun;
@@ -260,6 +262,80 @@ public class LoomAIIntegrationService {
             return normalizeProjectCreationAnalysisCompletion(assistantQueryResponse(response, conversationId));
         } catch (RuntimeException exception) {
             log.warn("loomai_project_creation_fallback reason={} detail={}",
+                    exception.getClass().getSimpleName(),
+                    safeExceptionDetail(exception));
+            return fallbackAnswer("LOOMAI_UNAVAILABLE", context);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public AssistantQueryResponse aiOpportunities(User user, AiOpportunityAssistantRequest request) {
+        if (request == null || request.ownerMessage() == null || request.ownerMessage().isBlank()) {
+            throw new IllegalArgumentException("AI opportunity prompt is required");
+        }
+        Map<String, Object> context = aiOpportunityContext(user, request);
+        if (!isConfigured()) {
+            return fallbackAnswer("LOOMAI_DISABLED", context);
+        }
+        try {
+            String conversationId = providerConversationId(
+                    "ai-opportunities-" + (request.productId() == null ? UUID.randomUUID() : request.productId()),
+                    user,
+                    true
+            );
+            AssistantQueryRequest assistantRequest = new AssistantQueryRequest(
+                    conversationId,
+                    aiOpportunityPrompt(request, context),
+                    "thinker",
+                    "product_ai_opportunities",
+                    null
+            );
+            ProviderJsonResponse response = postJson(
+                    properties.getAssistantQueryOncePath(),
+                    assistantQueryPayload(assistantRequest, context, conversationId),
+                    user,
+                    conversationId
+            );
+            return assistantQueryResponse(response, conversationId);
+        } catch (RuntimeException exception) {
+            log.warn("loomai_ai_opportunities_fallback reason={} detail={}",
+                    exception.getClass().getSimpleName(),
+                    safeExceptionDetail(exception));
+            return fallbackAnswer("LOOMAI_UNAVAILABLE", context);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public AssistantQueryResponse loomAIIntegrationOverview(User user, LoomAIOverviewAssistantRequest request) {
+        if (request == null || request.ownerMessage() == null || request.ownerMessage().isBlank()) {
+            throw new IllegalArgumentException("LoomAI overview prompt is required");
+        }
+        Map<String, Object> context = loomAIOverviewContext(user, request);
+        if (!isConfigured()) {
+            return fallbackAnswer("LOOMAI_DISABLED", context);
+        }
+        try {
+            String conversationId = providerConversationId(
+                    "loomai-overview-" + (request.productId() == null ? UUID.randomUUID() : request.productId()),
+                    user,
+                    true
+            );
+            AssistantQueryRequest assistantRequest = new AssistantQueryRequest(
+                    conversationId,
+                    loomAIOverviewPrompt(request, context),
+                    "thinker",
+                    "loomai_integration_overview",
+                    null
+            );
+            ProviderJsonResponse response = postJson(
+                    properties.getAssistantQueryOncePath(),
+                    assistantQueryPayload(assistantRequest, context, conversationId),
+                    user,
+                    conversationId
+            );
+            return assistantQueryResponse(response, conversationId);
+        } catch (RuntimeException exception) {
+            log.warn("loomai_overview_fallback reason={} detail={}",
                     exception.getClass().getSimpleName(),
                     safeExceptionDetail(exception));
             return fallbackAnswer("LOOMAI_UNAVAILABLE", context);
@@ -1380,6 +1456,127 @@ public class LoomAIIntegrationService {
         return context;
     }
 
+    private Map<String, Object> aiOpportunityContext(User user, AiOpportunityAssistantRequest request) {
+        ProjectCreationAssistantRequest projectRequest = new ProjectCreationAssistantRequest(
+                request.productId(),
+                request.ownerMessage(),
+                request.businessStage(),
+                request.techStack(),
+                request.productUrl(),
+                request.repositoryUrl(),
+                request.knownRisks(),
+                request.documents()
+        );
+        Map<String, Object> context = projectCreationContext(user, projectRequest);
+        context.put("contextVersion", "produs-ai-opportunities-v1");
+        context.put("pageType", "owner-ai-opportunity-analysis");
+        context.put("pagePosition", "product_ai_opportunities");
+        context.put("assistantIntent", "identify-owner-useful-ai-opportunities");
+        context.put("actionProfile", "loomai-productization-ai-opportunity-analysis");
+        context.put("runtimeActionPolicy", "analysis-only-no-mutations-no-confirmed-actions");
+        context.put("recommendedAiService", "LoomAI");
+        context.put("aiServicePolicy", Map.of(
+                "recommendedProvider", "LoomAI",
+                "scope", "product/project/scanner/service-plan assistance",
+                "excludedFlows", List.of("team invitations", "team creation", "participant access grants", "owner approvals"),
+                "implementationPath", "backend-mediated private runtime with ProdUS authorization"
+        ));
+        context.put("projectAnalysis", projectFieldsContext(request.projectAnalysis()));
+        context.put("outputContract", Map.of(
+                "format", "strict-json-object",
+                "fields", List.of(
+                        "status",
+                        "summary",
+                        "opportunityScore",
+                        "confidence",
+                        "strategicRationale",
+                        "useCases",
+                        "recommendedServices",
+                        "recommendedServiceModules",
+                        "scannerFocusAreas",
+                        "suggestedNextSteps",
+                        "sourceInsights",
+                        "assumptions",
+                        "missingEvidence"
+                ),
+                "useCaseFields", List.of("title", "workflow", "userValue", "businessValue", "loomaiCapability", "integrationPattern", "priority", "confidence", "evidenceBasis", "recommendedServiceModules"),
+                "catalogRule", "recommendedServiceModules must use moduleCode values from serviceCatalogSnapshot.candidateModules only"
+        ));
+        return context;
+    }
+
+    private Map<String, Object> loomAIOverviewContext(User user, LoomAIOverviewAssistantRequest request) {
+        Map<String, Object> context = aiOpportunityContext(user, new AiOpportunityAssistantRequest(
+                request.productId(),
+                request.ownerMessage(),
+                request.businessStage(),
+                request.techStack(),
+                request.productUrl(),
+                request.repositoryUrl(),
+                request.knownRisks(),
+                request.documents(),
+                request.projectAnalysis()
+        ));
+        context.put("contextVersion", "produs-loomai-integration-overview-v1");
+        context.put("pageType", "owner-loomai-integration-overview");
+        context.put("pagePosition", "loomai_integration_overview");
+        context.put("assistantIntent", "explain-how-loomai-supports-this-project");
+        context.put("aiOpportunityReport", request.aiOpportunityReport());
+        context.put("outputContract", Map.of(
+                "format", "strict-json-object",
+                "fields", List.of("summary", "recommendedStartingPoint", "capabilities", "implementationSteps", "ownerDecisions", "risks", "sourceInsights", "recommendedServiceModules"),
+                "catalogRule", "recommendedServiceModules must use moduleCode values from serviceCatalogSnapshot.candidateModules only"
+        ));
+        return context;
+    }
+
+    private Map<String, Object> projectFieldsContext(ProductCreationFields fields) {
+        if (fields == null) {
+            return Map.of();
+        }
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("productName", safeText(fields.productName(), FIELD_LIMIT));
+        context.put("summary", safeText(fields.summary(), SUMMARY_LIMIT));
+        context.put("projectDescription", safeText(fields.projectDescription(), SUMMARY_LIMIT));
+        context.put("businessProblem", safeText(fields.businessProblem(), SUMMARY_LIMIT));
+        context.put("targetUsers", safeText(fields.targetUsers(), SUMMARY_LIMIT));
+        context.put("businessStage", safeText(fields.businessStage(), FIELD_LIMIT));
+        context.put("techStack", safeText(fields.techStack(), FIELD_LIMIT));
+        context.put("productUrl", safeText(fields.productUrl(), FIELD_LIMIT));
+        context.put("repositoryUrl", safeText(fields.repositoryUrl(), FIELD_LIMIT));
+        context.put("coreCapabilities", limitedStrings(fields.coreCapabilities(), LIST_LIMIT));
+        context.put("businessOutcomes", limitedStrings(fields.businessOutcomes(), LIST_LIMIT));
+        context.put("readinessGoals", limitedStrings(fields.readinessGoals(), LIST_LIMIT));
+        context.put("recommendedServices", limitedStrings(fields.recommendedServices(), LIST_LIMIT));
+        context.put("recommendedServiceModules", fields.recommendedServiceModules() == null ? List.of() : fields.recommendedServiceModules().stream()
+                .limit(8)
+                .map(recommendation -> Map.of(
+                        "moduleCode", safeText(recommendation.moduleCode(), FIELD_LIMIT),
+                        "moduleName", safeText(recommendation.moduleName(), FIELD_LIMIT),
+                        "categorySlug", safeText(recommendation.categorySlug(), FIELD_LIMIT),
+                        "priority", safeText(recommendation.priority(), FIELD_LIMIT),
+                        "reason", safePublicText(recommendation.reason(), SUMMARY_LIMIT)
+                ))
+                .toList());
+        context.put("scannerFocusAreas", limitedStrings(fields.scannerFocusAreas(), LIST_LIMIT));
+        context.put("suggestedNextSteps", limitedStrings(fields.suggestedNextSteps(), LIST_LIMIT));
+        context.put("sourceInsights", limitedStrings(fields.sourceInsights(), LIST_LIMIT));
+        context.put("assumptions", limitedStrings(fields.assumptions(), LIST_LIMIT));
+        context.put("missingEvidence", limitedStrings(fields.missingEvidence(), LIST_LIMIT));
+        return context;
+    }
+
+    private List<String> limitedStrings(List<String> values, int limit) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(value -> !blank(value))
+                .map(value -> safePublicText(value, SUMMARY_LIMIT))
+                .limit(Math.max(1, limit))
+                .toList();
+    }
+
     private Map<String, Object> projectCreationServiceCatalogSnapshot(
             ProjectCreationAssistantRequest request,
             List<Map<String, Object>> publicLinkInsights
@@ -1550,6 +1747,63 @@ public class LoomAIIntegrationService {
     }
 
     private record ScoredServiceModule(ServiceModule module, int score, List<String> signals) {}
+
+    private String aiOpportunityPrompt(AiOpportunityAssistantRequest request, Map<String, Object> context) {
+        return """
+                You are ProdUS AI opportunity analyst for a product owner.
+                This is a standalone analysis request, not a mutation. Do not create products, workspaces, packages, teams, invitations, or participants.
+                The owner asked ProdUS to analyze a project for productization. Use the owner brief, project analysis, public-link insights, selected temporary documents, and service catalog snapshot.
+                Identify where AI creates practical productization value for this specific project.
+                LoomAI is the only recommended AI integration service. Other AI providers may be mentioned only as existing stack context, not as recommended services.
+                Focus only on ProdUS core value areas: project/product diagnosis, readiness explanation, scanner finding summaries, service/package recommendation support, milestone/evidence readiness, and owner decision support.
+                Do not recommend AI for team invitations, team creation, access grants, participant management, billing decisions, or owner approvals.
+                Recommend catalog services only from context.serviceCatalogSnapshot.candidateModules. Use moduleCode exactly as provided. If AI integration services are listed, prefer them for implementation work.
+                Use owner input and project analysis as primary context. Use selected documents if they were available through temporaryAccessUrl and cite owner-safe evidence in sourceInsights.
+                Return only a strict JSON object with fields:
+                status, summary, opportunityScore, confidence, strategicRationale, useCases, recommendedServices, recommendedServiceModules, scannerFocusAreas, suggestedNextSteps, sourceInsights, assumptions, missingEvidence.
+                useCases must be an array of objects with:
+                title, workflow, userValue, businessValue, loomaiCapability, integrationPattern, priority, confidence, evidenceBasis, recommendedServiceModules.
+                priority must be MUST, SHOULD, COULD, or LATER. confidence and opportunityScore must be 0..1.
+                recommendedServiceModules must be an array of catalog-backed objects with moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
+                Make this useful for project creation: the returned service modules can be persisted after owner approval.
+                Owner-selected documents:
+                %s
+                Project analysis:
+                %s
+                Service catalog snapshot:
+                %s
+                """.formatted(
+                projectCreationDocumentPromptSection(request.documents()),
+                writeJson(context.get("projectAnalysis")),
+                writeJson(context.get("serviceCatalogSnapshot"))
+        );
+    }
+
+    private String loomAIOverviewPrompt(LoomAIOverviewAssistantRequest request, Map<String, Object> context) {
+        return """
+                You are the ProdUS LoomAI integration advisor.
+                Explain how LoomAI can support this specific project after the AI opportunity analysis.
+                This is a one-time owner-facing overview, not an implementation mutation.
+                LoomAI is the recommended AI integration service for ProdUS. Make the answer specific, practical, and bounded.
+                Use the project analysis, AI opportunity report, public-link insights, selected documents, and ProdUS service catalog snapshot.
+                Recommend only catalog service module codes present in context.serviceCatalogSnapshot.candidateModules.
+                Return only a strict JSON object with fields:
+                summary, recommendedStartingPoint, capabilities, implementationSteps, ownerDecisions, risks, sourceInsights, recommendedServiceModules.
+                capabilities, implementationSteps, ownerDecisions, risks, and sourceInsights must be arrays of concise strings.
+                recommendedServiceModules must be catalog-backed objects with moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
+                Keep the advice production-safe: backend-only secrets, browser calls only to ProdUS backend, owner confirmation for any future write action, and no document indexing for temporary project-creation attachments.
+                AI opportunity report:
+                %s
+                Project analysis:
+                %s
+                Service catalog snapshot:
+                %s
+                """.formatted(
+                writeJson(context.get("aiOpportunityReport")),
+                writeJson(context.get("projectAnalysis")),
+                writeJson(context.get("serviceCatalogSnapshot"))
+        );
+    }
 
     private String projectCreationPrompt(ProjectCreationAssistantRequest request, Map<String, Object> context) {
         return """
@@ -3471,6 +3725,31 @@ public class LoomAIIntegrationService {
             String repositoryUrl,
             String knownRisks,
             List<ProjectCreationDocumentReference> documents
+    ) {}
+
+    public record AiOpportunityAssistantRequest(
+            UUID productId,
+            String ownerMessage,
+            String businessStage,
+            String techStack,
+            String productUrl,
+            String repositoryUrl,
+            String knownRisks,
+            List<ProjectCreationDocumentReference> documents,
+            ProductCreationFields projectAnalysis
+    ) {}
+
+    public record LoomAIOverviewAssistantRequest(
+            UUID productId,
+            String ownerMessage,
+            String businessStage,
+            String techStack,
+            String productUrl,
+            String repositoryUrl,
+            String knownRisks,
+            List<ProjectCreationDocumentReference> documents,
+            ProductCreationFields projectAnalysis,
+            AiOpportunityReport aiOpportunityReport
     ) {}
 
     public record ProjectCreationDocumentReference(

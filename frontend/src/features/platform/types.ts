@@ -255,6 +255,54 @@ export interface ProductCreationFields {
   documentUsage: DocumentUsageEvidence[];
 }
 
+export type ProductAnalysisMode = 'FULL_WITH_AI_OPPORTUNITIES' | 'AI_OPPORTUNITIES';
+
+export interface AiOpportunityUseCase {
+  title: string;
+  workflow?: string;
+  userValue?: string;
+  businessValue?: string;
+  loomaiCapability?: string;
+  integrationPattern?: string;
+  priority?: string;
+  confidence?: number;
+  evidenceBasis?: string[];
+  recommendedServiceModules?: ServiceModuleRecommendation[];
+}
+
+export interface AiOpportunityReport {
+  status?: string;
+  summary?: string;
+  opportunityScore?: number;
+  confidence?: number;
+  strategicRationale?: string;
+  useCases?: AiOpportunityUseCase[];
+  recommendedServices?: string[];
+  recommendedServiceModules?: ServiceModuleRecommendation[];
+  scannerFocusAreas?: string[];
+  suggestedNextSteps?: string[];
+  sourceInsights?: string[];
+  assumptions?: string[];
+  missingEvidence?: string[];
+  provider?: string;
+  providerRequestId?: string;
+  live?: boolean;
+}
+
+export interface LoomAIIntegrationOverview {
+  summary?: string;
+  recommendedStartingPoint?: string;
+  capabilities?: string[];
+  implementationSteps?: string[];
+  ownerDecisions?: string[];
+  risks?: string[];
+  sourceInsights?: string[];
+  recommendedServiceModules?: ServiceModuleRecommendation[];
+  provider?: string;
+  providerRequestId?: string;
+  live?: boolean;
+}
+
 export interface AiAssistedProductAnalysisResponse {
   intent: ProductCreationIntent;
   analysis: ProductCreationFields;
@@ -263,6 +311,9 @@ export interface AiAssistedProductAnalysisResponse {
   assistant: AssistantQueryResponse;
   aiApplied: boolean;
   fallbackReason?: string;
+  analysisMode: ProductAnalysisMode;
+  aiOpportunityReport?: AiOpportunityReport;
+  loomaiIntegrationOverview?: LoomAIIntegrationOverview;
   runtimeActionPayload: Record<string, unknown>;
 }
 

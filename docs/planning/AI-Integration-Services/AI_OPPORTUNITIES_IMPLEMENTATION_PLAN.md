@@ -35,16 +35,17 @@ AI opportunities analysis is a separate LoomAI chat request. It is accumulated i
 
 The owner can choose one of two analysis modes:
 
-1. **Project Analysis Only**
-   - Runs the existing project analysis flow.
-   - Produces product attributes, service recommendations, scanner focus, document usage evidence, and project creation payload.
-   - Does not run AI opportunities or LoomAI implementation overview.
-
-2. **Full Analysis**
+1. **Full Analysis**
    - Runs project analysis.
    - Runs standalone AI opportunities analysis.
    - Runs standalone LoomAI implementation overview after opportunities are available.
    - Merges all successful analysis blocks into the project creation intent.
+
+2. **AI Integration Only**
+   - Skips the full project-readiness analysis request.
+   - Runs standalone AI opportunities analysis.
+   - Runs standalone LoomAI implementation overview after opportunities are available.
+   - Uses owner-provided fields as the project creation base and seeds AI Integration service options only.
 
 Failure behavior:
 
@@ -64,12 +65,12 @@ This matters because AI opportunities may be useful even if the project analysis
 
 The project creation page presents a mode selector:
 
-- `Project analysis only`
-- `Full analysis with AI opportunities`
+- `Full analysis`
+- `AI integration only`
 
 Default: `Full analysis with AI opportunities`, unless LoomAI is unavailable.
 
-Owner inputs remain the primary context for both analysis calls:
+Owner inputs remain the primary context for both modes:
 
 - owner brief
 - product name, if provided
@@ -296,7 +297,7 @@ Content-Type: multipart/form-data
 New field:
 
 ```text
-analysisMode=PROJECT_ONLY | FULL_WITH_AI_OPPORTUNITIES
+analysisMode=FULL_WITH_AI_OPPORTUNITIES | AI_OPPORTUNITIES
 ```
 
 Response additions:
@@ -606,10 +607,10 @@ On project creation:
 
 Add an analysis mode segmented control:
 
-- `Project analysis only`
 - `Full analysis`
+- `AI integration only`
 
-When full analysis is selected, show three progress states:
+When full analysis is selected, show project readiness plus AI integration progress states. When AI integration only is selected, show AI opportunity and LoomAI implementation progress without the broader readiness-analysis step:
 
 - Product analysis
 - AI opportunities
@@ -694,7 +695,7 @@ Backend tests:
 
 - full analysis runs three blocks and persists all successful blocks
 - project analysis failure plus AI opportunities success still allows creation with owner fields
-- AI opportunities failure does not block project-only creation
+- AI opportunities failure does not block deterministic owner-field creation when required fields are present
 - AI opportunity report schema validates score ranges and module codes
 - adding AI Integration consultation to cart uses catalog module ID, not free text
 - LoomAI Partner filtering only returns tagged teams/solo experts
@@ -762,3 +763,54 @@ Needs LoomAI coordination:
 - Confirm no new runtime action is required for Phase 1.
 - After catalog/vectorization changes, ask LoomAI to rerun managed vectorization so the new AI Integration service records are retrievable.
 
+## 18. Implementation Status - 2026-06-03
+
+Status: project creation slice implemented and locally verified.
+
+Implemented in this slice:
+
+- Added project creation `analysisMode` with `FULL_WITH_AI_OPPORTUNITIES` and `AI_OPPORTUNITIES`.
+- Added standalone AI opportunities analysis request from ProdUS backend to LoomAI `/query-once` using `thinker` mode, with deterministic fallback when LoomAI is disabled or unavailable.
+- Added standalone LoomAI implementation overview request, also backend-mediated and `thinker` mode.
+- Added AI Integration catalog category and LoomAI-focused service modules:
+  - `ai.loomai_opportunity_assessment`
+  - `ai.loomai_integration_implementation`
+  - `ai.scanner_finding_assistant`
+  - `ai.service_plan_assistant`
+- Merged full-analysis results into the owner-approved project creation action payload.
+- Persisted the full AI opportunity report and LoomAI overview inside project intelligence when the owner creates the project.
+- Seeded accepted AI Integration service modules into service recommendations/cart items through the existing service module persistence path.
+- Replaced project-only behavior with AI Integration-only behavior so owners can evaluate LoomAI opportunities without running full project-readiness analysis.
+- Added owner UI mode selector, AI opportunity panel, LoomAI implementation path panel, and validation rail updates.
+- Added analysis chat page context for AI opportunities and LoomAI overview so the fixed chat/max-mode assistant can reason about the current project analysis page.
+
+Intentionally not implemented in this slice:
+
+- Dedicated `ai_opportunity_reports` and `ai_opportunity_use_cases` tables. Current persistence uses the existing `product_project_intelligence.analysis_json` and service recommendation records, which is enough for project creation and workspace handoff.
+- LoomAI Partner profile fields on teams/solo experts. The catalog now supports LoomAI Integration services, but provider certification/badge filtering remains a network/profile follow-up.
+- New LoomAI mutation action. Project creation still uses the existing owner-approved ProdUS creation action path.
+
+Verification completed:
+
+- `mvn -q test` from `backend` passed.
+- `mvn -q clean -Dtest=AiAssistedProductCreationServiceTest test` passed.
+- `npm run type-check` from `frontend` passed.
+- `npm run build` from `frontend` passed.
+- Local backend smoke with H2/mock auth passed for `FULL_WITH_AI_OPPORTUNITIES`.
+- Local backend smoke with H2/mock auth passed for `AI_OPPORTUNITIES`.
+- Local create-action smoke created a product with:
+  - repository URL persisted;
+  - scan source created;
+  - 8 service recommendations;
+  - 7 scanner recommendations;
+  - 9 readiness tasks;
+  - 8 cart service items;
+  - project intelligence record.
+- Local frontend production server rendered `/products/new`.
+- Authenticated Playwright screenshot assertions passed for `Full analysis` and `AI integration only` UI selectors.
+
+Current LoomAI follow-up:
+
+- No new runtime action or secret is required for this project-creation slice.
+- Ask LoomAI to rerun managed vectorization after this code is deployed so the new AI Integration catalog records are retrievable in LoomAI RAG/service answers.
+- If LoomAI documents examples for the confirmed project creation action, include optional fields `analysisMode`, `aiOpportunityReport`, and `loomaiIntegrationOverview` in the example payload. ProdUS already accepts these fields through the backend payload path.

@@ -22,6 +22,22 @@ import static org.mockito.Mockito.mock;
 class AiAssistedProductCreationServiceTest {
 
     @Test
+    void analysisModeSupportsFullAndAiOpportunitiesOnlyContract() {
+        assertThat(AiAssistedProductCreationService.AnalysisMode.from("FULL_WITH_AI_OPPORTUNITIES"))
+                .isEqualTo(AiAssistedProductCreationService.AnalysisMode.FULL_WITH_AI_OPPORTUNITIES);
+        assertThat(AiAssistedProductCreationService.AnalysisMode.from("AI_OPPORTUNITIES"))
+                .isEqualTo(AiAssistedProductCreationService.AnalysisMode.AI_OPPORTUNITIES);
+        assertThat(AiAssistedProductCreationService.AnalysisMode.from("UNKNOWN_MODE"))
+                .isEqualTo(AiAssistedProductCreationService.AnalysisMode.FULL_WITH_AI_OPPORTUNITIES);
+        assertThat(AiAssistedProductCreationService.AnalysisMode.FULL_WITH_AI_OPPORTUNITIES.includesProjectAnalysis())
+                .isTrue();
+        assertThat(AiAssistedProductCreationService.AnalysisMode.AI_OPPORTUNITIES.includesProjectAnalysis())
+                .isFalse();
+        assertThat(AiAssistedProductCreationService.AnalysisMode.AI_OPPORTUNITIES.includesAiOpportunities())
+                .isTrue();
+    }
+
+    @Test
     void parsesProjectCreationFieldsFromLoomAiActionParameters() throws Exception {
         AiAssistedProductCreationService service = service();
         LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.ai.LoomAIIntegrationService;
 import com.produs.ai.LoomAIIntegrationService.AssistantQueryResponse;
+import com.produs.ai.LoomAIIntegrationService.AiOpportunityAssistantRequest;
+import com.produs.ai.LoomAIIntegrationService.LoomAIOverviewAssistantRequest;
 import com.produs.ai.LoomAIIntegrationService.ProjectCreationAssistantRequest;
 import com.produs.ai.LoomAIIntegrationService.ProjectCreationDocumentReference;
 import com.produs.audit.AuditEvent;
@@ -88,32 +90,53 @@ public class AiAssistedProductCreationService {
             throw new IllegalStateException("Project creation analysis could not be started");
         }
 
-        AssistantQueryResponse assistant = loomAIIntegrationService.projectCreation(owner, new ProjectCreationAssistantRequest(
-                start.intentId(),
-                request.ownerMessage(),
-                request.businessStage() == null ? "" : request.businessStage().name(),
-                request.techStack(),
-                request.productUrl(),
-                request.repositoryUrl(),
-                request.knownRisks(),
-                start.documentReferences()
-        ));
-
+        AnalysisMode analysisMode = request.analysisModeOrDefault();
         ProductCreationFields ownerProvidedFields = deterministicFields(request);
-        Optional<ProductCreationFields> parsedFields = parseFields(assistant).filter(this::hasMeaningfulFields);
-        ProductCreationFields fields = parsedFields
-                .map(parsed -> mergeFields(parsed, ownerProvidedFields))
-                .orElse(ownerProvidedFields);
-        ProductCreationFields creationReadyFields = ensureCreationReadyPlan(fields, request);
-        ProductCreationFields finalFields = ensureDocumentUsage(creationReadyFields, start.documentReferences());
-        AssistantQueryResponse finalAssistant = normalizeAssistantForUsefulAnalysis(
-                assistant,
-                finalFields,
-                parsedFields.isPresent()
-        );
+        AssistantQueryResponse assistant = null;
+        Optional<ProductCreationFields> parsedFields = Optional.empty();
+        ProductCreationFields fields = analysisMode.includesProjectAnalysis()
+                ? ownerProvidedFields
+                : aiOpportunityOnlyFields(request);
+        if (analysisMode.includesProjectAnalysis()) {
+            assistant = loomAIIntegrationService.projectCreation(owner, new ProjectCreationAssistantRequest(
+                    start.intentId(),
+                    request.ownerMessage(),
+                    request.businessStage() == null ? "" : request.businessStage().name(),
+                    request.techStack(),
+                    request.productUrl(),
+                    request.repositoryUrl(),
+                    request.knownRisks(),
+                    start.documentReferences()
+            ));
+            parsedFields = parseFields(assistant).filter(this::hasMeaningfulFields);
+            fields = parsedFields
+                    .map(parsed -> mergeFields(parsed, ownerProvidedFields))
+                    .orElse(ownerProvidedFields);
+        }
+        ProductCreationFields creationReadyFields = analysisMode.includesProjectAnalysis()
+                ? ensureCreationReadyPlan(fields, request)
+                : fields;
+        ProductCreationFields documentReadyFields = ensureDocumentUsage(creationReadyFields, start.documentReferences());
 
+        AiOpportunityReport aiOpportunityReport = null;
+        LoomAIIntegrationOverview loomAIIntegrationOverview = null;
+        ProductCreationFields finalFields = documentReadyFields;
+        if (analysisMode.includesAiOpportunities()) {
+            AiOpportunityBundle opportunityBundle = runAiOpportunityAnalysis(owner, request, start, documentReadyFields);
+            aiOpportunityReport = opportunityBundle.aiOpportunityReport();
+            loomAIIntegrationOverview = opportunityBundle.loomAIIntegrationOverview();
+            finalFields = mergeAiOpportunityAnalysis(documentReadyFields, aiOpportunityReport, loomAIIntegrationOverview);
+        }
+        AssistantQueryResponse finalAssistant = analysisMode.includesProjectAnalysis()
+                ? normalizeAssistantForUsefulAnalysis(assistant, finalFields, parsedFields.isPresent())
+                : aiOpportunityOnlyAssistant(start.intentId(), aiOpportunityReport, loomAIIntegrationOverview);
+        boolean aiApplied = parsedFields.isPresent()
+                || (aiOpportunityReport != null && aiOpportunityReport.live())
+                || (loomAIIntegrationOverview != null && loomAIIntegrationOverview.live());
+
+        ProductCreationFields fieldsForCompletion = finalFields;
         ProductCreationIntent intent = transactionTemplate.execute(status ->
-                completeAnalysis(start.intentId(), finalFields, finalAssistant, start.temporaryAccess().size())
+                completeAnalysis(start.intentId(), fieldsForCompletion, finalAssistant, start.temporaryAccess().size())
         );
         if (intent == null) {
             throw new IllegalStateException("Project creation analysis could not be completed");
@@ -135,9 +158,21 @@ public class AiAssistedProductCreationService {
                         ))
                         .toList(),
                 finalAssistant,
-                parsedFields.isPresent(),
+                aiApplied,
                 finalAssistant.fallbackReason(),
-                projectCreationActionPayload(intent, consentToken, finalFields, start.attachments(), start.temporaryAccess())
+                analysisMode,
+                aiOpportunityReport,
+                loomAIIntegrationOverview,
+                projectCreationActionPayload(
+                        intent,
+                        consentToken,
+                        finalFields,
+                        start.attachments(),
+                        start.temporaryAccess(),
+                        analysisMode,
+                        aiOpportunityReport,
+                        loomAIIntegrationOverview
+                )
         );
     }
 
@@ -479,6 +514,14 @@ public class AiAssistedProductCreationService {
         addListPart(parts, "Scanner focus", request.scannerFocusAreas());
         addListPart(parts, "Next steps", request.suggestedNextSteps());
         addListPart(parts, "Source insights", request.sourceInsights());
+        if (request.aiOpportunityReport() != null) {
+            addTextPart(parts, "AI opportunities", request.aiOpportunityReport().summary());
+            addListPart(parts, "AI opportunity use cases", request.aiOpportunityReport().useCaseTitles());
+        }
+        if (request.loomaiIntegrationOverview() != null) {
+            addTextPart(parts, "LoomAI path", request.loomaiIntegrationOverview().summary());
+            addTextPart(parts, "LoomAI starting point", request.loomaiIntegrationOverview().recommendedStartingPoint());
+        }
         return trim(String.join("\n", parts), TEXT_LIMIT);
     }
 
@@ -514,9 +557,13 @@ public class AiAssistedProductCreationService {
             String consentToken,
             ProductCreationFields fields,
             List<ProductProjectAttachmentResponse> attachments,
-            List<ProductProjectAttachmentService.TemporaryAiDocumentAccess> temporaryAccess
+            List<ProductProjectAttachmentService.TemporaryAiDocumentAccess> temporaryAccess,
+            AnalysisMode analysisMode,
+            AiOpportunityReport aiOpportunityReport,
+            LoomAIIntegrationOverview loomAIIntegrationOverview
     ) {
         Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("analysisMode", analysisMode.name());
         payload.put("creationIntentId", intent.getId().toString());
         payload.put("consentToken", consentToken);
         payload.put("idempotencyKey", intent.getIdempotencyKey());
@@ -543,6 +590,8 @@ public class AiAssistedProductCreationService {
         payload.put("sourceInsights", fields.sourceInsights());
         payload.put("assumptions", fields.assumptions());
         payload.put("missingEvidence", fields.missingEvidence());
+        payload.put("aiOpportunityReport", aiOpportunityReport);
+        payload.put("loomaiIntegrationOverview", loomAIIntegrationOverview);
         payload.put("sourceAttachmentIds", attachments.stream().map(attachment -> attachment.id().toString()).toList());
         payload.put("aiAccessibleAttachmentIds", temporaryAccess.stream().map(access -> access.attachmentId().toString()).toList());
         return payload;
@@ -798,6 +847,7 @@ public class AiAssistedProductCreationService {
 
     private String writeAnalysisJson(ProductCreationActionRequest request) {
         Map<String, Object> analysis = new LinkedHashMap<>();
+        analysis.put("analysisMode", request.analysisModeOrDefault().name());
         analysis.put("productName", request.productName());
         analysis.put("summary", request.summary());
         analysis.put("projectDescription", request.projectDescription());
@@ -820,6 +870,8 @@ public class AiAssistedProductCreationService {
         analysis.put("sourceInsights", listOrEmpty(request.sourceInsights()));
         analysis.put("assumptions", listOrEmpty(request.assumptions()));
         analysis.put("missingEvidence", listOrEmpty(request.missingEvidence()));
+        analysis.put("aiOpportunityReport", request.aiOpportunityReport());
+        analysis.put("loomaiIntegrationOverview", request.loomaiIntegrationOverview());
         try {
             return objectMapper.writeValueAsString(analysis);
         } catch (Exception exception) {
@@ -1264,17 +1316,51 @@ public class AiAssistedProductCreationService {
         return values == null ? List.of() : values;
     }
 
-    private List<String> mergeList(List<String> preferred, List<String> fallback) {
-        List<String> values = listOrEmpty(preferred);
-        return values.isEmpty() ? listOrEmpty(fallback) : values;
+    private static <T> List<T> listOrEmptyStatic(List<T> values) {
+        return values == null ? List.of() : values;
     }
 
-    private List<ServiceModuleRecommendation> mergeServiceModuleRecommendations(
-            List<ServiceModuleRecommendation> preferred,
-            List<ServiceModuleRecommendation> fallback
+    @SafeVarargs
+    private final List<String> mergeList(List<String>... lists) {
+        List<String> result = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        if (lists == null) {
+            return List.of();
+        }
+        for (List<String> values : lists) {
+            for (String value : listOrEmpty(values)) {
+                String cleaned = trim(value, 500);
+                if (!cleaned.isBlank() && seen.add(cleaned.toLowerCase(Locale.ROOT))) {
+                    result.add(cleaned);
+                }
+            }
+        }
+        return result;
+    }
+
+    @SafeVarargs
+    private final List<ServiceModuleRecommendation> mergeServiceModuleRecommendations(
+            List<ServiceModuleRecommendation>... lists
     ) {
-        List<ServiceModuleRecommendation> values = listOrEmpty(preferred);
-        return values.isEmpty() ? listOrEmpty(fallback) : values;
+        List<ServiceModuleRecommendation> result = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        if (lists == null) {
+            return List.of();
+        }
+        for (List<ServiceModuleRecommendation> values : lists) {
+            for (ServiceModuleRecommendation recommendation : listOrEmpty(values)) {
+                if (recommendation == null || !hasText(recommendation.moduleCode())) {
+                    continue;
+                }
+                String key = recommendation.moduleCode().toLowerCase(Locale.ROOT);
+                if (seen.add(key)) {
+                    result.add(recommendation);
+                }
+            }
+        }
+        return result.stream()
+                .limit(12)
+                .toList();
     }
 
     private List<MissingCatalogCoverage> mergeMissingCatalogCoverage(
@@ -1446,6 +1532,430 @@ public class AiAssistedProductCreationService {
                 List.of("Run diagnosis and scanner evidence collection after project creation."),
                 List.of()
         );
+    }
+
+    private ProductCreationFields aiOpportunityOnlyFields(AiAssistedProductCreationRequest request) {
+        return new ProductCreationFields(
+                firstNonBlank(request.productName(), firstLine(request.ownerMessage()), "AI opportunity project " + LocalDateTime.now().toLocalDate()),
+                trim(request.ownerMessage(), TEXT_LIMIT),
+                trim(request.ownerMessage(), TEXT_LIMIT),
+                "",
+                "",
+                request.businessStage() == null ? ProductProfile.BusinessStage.PROTOTYPE.name() : request.businessStage().name(),
+                request.techStack(),
+                request.productUrl(),
+                request.repositoryUrl(),
+                request.knownRisks(),
+                "AI opportunities analysis will focus on useful LoomAI integration points and the implementation overview. Project-readiness diagnosis was not requested for this run.",
+                List.of("AI opportunity assessment"),
+                List.of("Clear owner decision on whether LoomAI integration belongs in this productization scope."),
+                List.of("Decide if LoomAI-backed assistance should be implemented as part of the productization project."),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of("Review the AI opportunity map and choose whether to create the project with LoomAI integration services selected."),
+                deterministicSourceInsights(request),
+                List.of("Owner selected AI opportunities only; full project-readiness analysis was intentionally skipped."),
+                List.of(),
+                List.of()
+        );
+    }
+
+    private AssistantQueryResponse aiOpportunityOnlyAssistant(
+            UUID intentId,
+            AiOpportunityReport report,
+            LoomAIIntegrationOverview overview
+    ) {
+        boolean live = (report != null && report.live()) || (overview != null && overview.live());
+        double confidence = Math.max(
+                report == null ? 0.0 : report.confidence(),
+                overview != null && overview.live() ? 0.7 : 0.0
+        );
+        String summary = firstNonBlank(
+                report == null ? "" : report.summary(),
+                overview == null ? "" : overview.summary(),
+                "AI opportunities and LoomAI implementation overview are ready for owner review."
+        );
+        return new AssistantQueryResponse(
+                live ? "LOOMAI" : "PRODUS_FALLBACK",
+                "thinker",
+                live,
+                live ? "INFORMATION_PROVIDED" : "FALLBACK",
+                summary,
+                summary,
+                "ai-opportunities-" + intentId,
+                confidence,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                Map.of(),
+                Map.of(),
+                List.of(),
+                live ? null : "LOOMAI_UNAVAILABLE",
+                live ? null : "LOOMAI_UNAVAILABLE",
+                live ? null : "LOOMAI_UNAVAILABLE",
+                false,
+                firstNonBlank(
+                        report == null ? "" : report.providerRequestId(),
+                        overview == null ? "" : overview.providerRequestId()
+                )
+        );
+    }
+
+    private AiOpportunityBundle runAiOpportunityAnalysis(
+            User owner,
+            AiAssistedProductCreationRequest request,
+            AnalysisStart start,
+            ProductCreationFields projectFields
+    ) {
+        AssistantQueryResponse opportunitiesAssistant = null;
+        AiOpportunityReport report;
+        try {
+            opportunitiesAssistant = loomAIIntegrationService.aiOpportunities(owner, new AiOpportunityAssistantRequest(
+                    start.intentId(),
+                    request.ownerMessage(),
+                    request.businessStage() == null ? "" : request.businessStage().name(),
+                    request.techStack(),
+                    request.productUrl(),
+                    request.repositoryUrl(),
+                    request.knownRisks(),
+                    start.documentReferences(),
+                    projectFields
+            ));
+            AssistantQueryResponse parsedOpportunitiesAssistant = opportunitiesAssistant;
+            report = parseAiOpportunityReport(parsedOpportunitiesAssistant)
+                    .orElseGet(() -> deterministicAiOpportunityReport(request, projectFields, parsedOpportunitiesAssistant));
+        } catch (RuntimeException exception) {
+            report = deterministicAiOpportunityReport(request, projectFields, opportunitiesAssistant);
+        }
+
+        AssistantQueryResponse overviewAssistant = null;
+        LoomAIIntegrationOverview overview;
+        try {
+            overviewAssistant = loomAIIntegrationService.loomAIIntegrationOverview(owner, new LoomAIOverviewAssistantRequest(
+                    start.intentId(),
+                    request.ownerMessage(),
+                    request.businessStage() == null ? "" : request.businessStage().name(),
+                    request.techStack(),
+                    request.productUrl(),
+                    request.repositoryUrl(),
+                    request.knownRisks(),
+                    start.documentReferences(),
+                    projectFields,
+                    report
+            ));
+            AiOpportunityReport parsedReport = report;
+            AssistantQueryResponse parsedOverviewAssistant = overviewAssistant;
+            overview = parseLoomAIIntegrationOverview(parsedOverviewAssistant)
+                    .orElseGet(() -> deterministicLoomAIOverview(parsedReport, parsedOverviewAssistant));
+        } catch (RuntimeException exception) {
+            overview = deterministicLoomAIOverview(report, overviewAssistant);
+        }
+        return new AiOpportunityBundle(report, overview);
+    }
+
+    private ProductCreationFields mergeAiOpportunityAnalysis(
+            ProductCreationFields fields,
+            AiOpportunityReport report,
+            LoomAIIntegrationOverview overview
+    ) {
+        if (fields == null || report == null) {
+            return fields;
+        }
+        List<String> recommendedServices = mergeList(
+                fields.recommendedServices(),
+                report.recommendedServices(),
+                overview == null ? List.of() : overview.recommendedServices()
+        );
+        List<ServiceModuleRecommendation> recommendedModules = mergeServiceModuleRecommendations(
+                fields.recommendedServiceModules(),
+                report.recommendedServiceModules(),
+                overview == null ? List.of() : overview.recommendedServiceModules()
+        );
+        List<String> nextSteps = mergeList(
+                fields.suggestedNextSteps(),
+                report.suggestedNextSteps(),
+                overview == null ? List.of() : overview.implementationSteps()
+        );
+        List<String> sourceInsights = mergeList(
+                fields.sourceInsights(),
+                report.sourceInsights(),
+                overview == null ? List.of() : overview.sourceInsights()
+        );
+        List<String> readinessGoals = mergeList(
+                fields.readinessGoals(),
+                List.of("Review AI opportunity fit before implementation scope is finalized.")
+        );
+        List<String> scannerFocusAreas = mergeList(
+                fields.scannerFocusAreas(),
+                report.scannerFocusAreas()
+        );
+        return new ProductCreationFields(
+                fields.productName(),
+                fields.summary(),
+                fields.projectDescription(),
+                fields.businessProblem(),
+                fields.targetUsers(),
+                fields.businessStage(),
+                fields.techStack(),
+                fields.productUrl(),
+                fields.repositoryUrl(),
+                fields.riskProfile(),
+                firstNonBlank(fields.aiCreationSummary(), report.summary()),
+                fields.coreCapabilities(),
+                fields.businessOutcomes(),
+                readinessGoals,
+                recommendedServices,
+                recommendedModules,
+                fields.missingCatalogCoverage(),
+                scannerFocusAreas,
+                nextSteps,
+                sourceInsights,
+                fields.assumptions(),
+                fields.missingEvidence(),
+                fields.documentUsage()
+        );
+    }
+
+    private Optional<AiOpportunityReport> parseAiOpportunityReport(AssistantQueryResponse response) {
+        if (response == null) {
+            return Optional.empty();
+        }
+        return parseAiOpportunityReport(response.answer(), response)
+                .or(() -> parseAiOpportunityReport(response.safeSummary(), response));
+    }
+
+    private Optional<AiOpportunityReport> parseAiOpportunityReport(String raw, AssistantQueryResponse response) {
+        String json = extractJson(raw);
+        if (json.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(json);
+            if (!node.isObject()) {
+                return Optional.empty();
+            }
+            List<AiOpportunityUseCase> useCases = aiOpportunityUseCases(node, "useCases", "aiUseCases", "opportunities");
+            List<ServiceModuleRecommendation> modules = mergeServiceModuleRecommendations(
+                    serviceModuleRecommendationList(node, "recommendedServiceModules", "catalogServiceRecommendations"),
+                    useCases.stream()
+                            .flatMap(useCase -> useCase.recommendedServiceModules().stream())
+                            .toList()
+            );
+            return Optional.of(new AiOpportunityReport(
+                    firstNonBlank(text(node, "status"), response.success() ? "READY" : "REVIEW"),
+                    firstNonBlank(text(node, "summary", "overview"), response.safeSummary(), response.answer()),
+                    normalizeScore(doubleValue(node.path("opportunityScore")), 0.0),
+                    normalizeScore(doubleValue(node.path("confidence")), response.confidence()),
+                    text(node, "strategicRationale", "rationale"),
+                    useCases,
+                    textList(node, "recommendedServices", "serviceRecommendations"),
+                    modules,
+                    textList(node, "scannerFocusAreas", "scanFocus"),
+                    textList(node, "suggestedNextSteps", "nextSteps"),
+                    textList(node, "sourceInsights", "evidenceInsights"),
+                    textList(node, "assumptions"),
+                    textList(node, "missingEvidence"),
+                    response.provider(),
+                    response.providerRequestId(),
+                    response.success()
+            ));
+        } catch (Exception ignored) {
+            return Optional.empty();
+        }
+    }
+
+    private Optional<LoomAIIntegrationOverview> parseLoomAIIntegrationOverview(AssistantQueryResponse response) {
+        if (response == null) {
+            return Optional.empty();
+        }
+        return parseLoomAIIntegrationOverview(response.answer(), response)
+                .or(() -> parseLoomAIIntegrationOverview(response.safeSummary(), response));
+    }
+
+    private Optional<LoomAIIntegrationOverview> parseLoomAIIntegrationOverview(String raw, AssistantQueryResponse response) {
+        String json = extractJson(raw);
+        if (json.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(json);
+            if (!node.isObject()) {
+                return Optional.empty();
+            }
+            return Optional.of(new LoomAIIntegrationOverview(
+                    firstNonBlank(text(node, "summary", "overview"), response.safeSummary(), response.answer()),
+                    text(node, "recommendedStartingPoint", "startingPoint"),
+                    textList(node, "capabilities", "loomaiCapabilities"),
+                    textList(node, "implementationSteps", "steps"),
+                    textList(node, "ownerDecisions", "decisions"),
+                    textList(node, "risks", "integrationRisks"),
+                    textList(node, "sourceInsights"),
+                    serviceModuleRecommendationList(node, "recommendedServiceModules", "catalogServiceRecommendations"),
+                    response.provider(),
+                    response.providerRequestId(),
+                    response.success()
+            ));
+        } catch (Exception ignored) {
+            return Optional.empty();
+        }
+    }
+
+    private AiOpportunityReport deterministicAiOpportunityReport(
+            AiAssistedProductCreationRequest request,
+            ProductCreationFields fields,
+            AssistantQueryResponse response
+    ) {
+        List<AiOpportunityUseCase> useCases = List.of(
+                new AiOpportunityUseCase(
+                        "Production-readiness copilot",
+                        "Owner and reviewer questions during diagnosis, scanner review, and service planning.",
+                        "Owners can understand blockers, tradeoffs, and next decisions without reading every technical artifact.",
+                        "Shortens productization discovery and makes readiness decisions easier to defend.",
+                        "LoomAI backend-mediated private runtime with read-only ProdUS context.",
+                        "BACKEND_MEDIATED_PRIVATE_RUNTIME",
+                        "MUST",
+                        0.74,
+                        List.of("Owner requested AI-supported productization.", hasText(request.repositoryUrl()) ? "Repository URL provided" : "Owner brief provided"),
+                        aiIntegrationServiceSeeds()
+                ),
+                new AiOpportunityUseCase(
+                        "Scanner finding explainer",
+                        "Summarize findings, severity, evidence, and likely remediation service path.",
+                        "Owners see what a finding means and which lifecycle service should handle it.",
+                        "Improves conversion from diagnosis to scoped work.",
+                        "LoomAI query-once or analysis chat grounded by product, scan, finding, and evidence context.",
+                        "READ_ONLY_CONTEXT_AND_MCP_ACTIONS",
+                        "SHOULD",
+                        0.68,
+                        List.of("ProdUS supports scanner findings and evidence records."),
+                        aiIntegrationServiceSeeds()
+                ),
+                new AiOpportunityUseCase(
+                        "Service-plan advisor",
+                        "Explain selected catalog services, dependencies, and missing coverage before workspace creation.",
+                        "Owners can adjust the service plan before committing to delivery.",
+                        "Reduces blocked project starts and unclear scope.",
+                        "LoomAI thinker mode with catalog read actions and owner-approved context.",
+                        "CATALOG_GROUNDED_READ_ACTIONS",
+                        "SHOULD",
+                        0.66,
+                        List.of("ProdUS catalog service recommendations are available in the project analysis."),
+                        aiIntegrationServiceSeeds()
+                )
+        );
+        List<ServiceModuleRecommendation> modules = useCases.stream()
+                .flatMap(useCase -> useCase.recommendedServiceModules().stream())
+                .toList();
+        return new AiOpportunityReport(
+                response != null && response.success() ? "READY" : "FALLBACK_READY",
+                "AI opportunities were prepared for the owner-approved project creation path. LoomAI is the recommended AI integration service; implementation remains a catalog-backed service delivered by a LoomAI partner team or solo expert.",
+                0.72,
+                response == null ? 0.64 : Math.max(0.5, response.confidence()),
+                "ProdUS should use AI where it improves diagnosis, explanation, scanner interpretation, and service planning. Team creation, participant access, and ownership decisions remain explicit owner actions.",
+                useCases,
+                modules.stream().map(ServiceModuleRecommendation::moduleName).filter(value -> !value.isBlank()).distinct().toList(),
+                modules,
+                List.of("AI-assisted scanner finding summaries", "AI-assisted service selection rationale"),
+                List.of("Review AI opportunities with the owner before implementation scope is finalized.", "Select a LoomAI partner service if the owner wants AI integration implemented."),
+                mergeList(fields.sourceInsights(), List.of("AI opportunity analysis used the owner intake and project analysis context.")),
+                List.of("LoomAI integration should be implemented through backend-mediated private runtime calls, not browser secrets."),
+                List.of(),
+                response == null ? "PRODUS_DETERMINISTIC" : response.provider(),
+                response == null ? "" : response.providerRequestId(),
+                response != null && response.success()
+        );
+    }
+
+    private LoomAIIntegrationOverview deterministicLoomAIOverview(
+            AiOpportunityReport report,
+            AssistantQueryResponse response
+    ) {
+        return new LoomAIIntegrationOverview(
+                "LoomAI can support ProdUS by answering owner questions, explaining readiness evidence, summarizing scanner findings, and helping turn catalog recommendations into an understandable service path.",
+                "Start with backend-mediated thinker-mode assistance for product diagnosis and scanner/service-plan explanation. Add confirmed write actions only after owner review gates are explicit.",
+                List.of("Private runtime chat", "Read-only ProdUS MCP actions", "Managed safe-knowledge retrieval", "Confirmed runtime action flow"),
+                List.of("Keep browser calls pointed only at ProdUS backend.", "Send product/project/scanner context through authorized backend enrichment.", "Use LoomAI partners for implementation service delivery.", "Audit confirmed actions separately from analysis chat."),
+                List.of("Which product surfaces need AI first?", "Which service modules should be implemented by a LoomAI partner?", "Which documents and evidence can be shared temporarily with AI?"),
+                List.of("Do not expose secrets or browser runtime keys.", "Do not allow AI to select teams, invite participants, or grant access without owner confirmation."),
+                report == null ? List.of() : report.sourceInsights(),
+                aiIntegrationServiceSeeds(),
+                response == null ? "PRODUS_DETERMINISTIC" : response.provider(),
+                response == null ? "" : response.providerRequestId(),
+                response != null && response.success()
+        );
+    }
+
+    private List<ServiceModuleRecommendation> aiIntegrationServiceSeeds() {
+        List<DeterministicServiceSeed> seeds = List.of(
+                new DeterministicServiceSeed("ai.loomai_opportunity_assessment", "MUST", "Owner requested AI-supported productization analysis.", "AI opportunity map with useful integration points and boundaries."),
+                new DeterministicServiceSeed("ai.loomai_integration_implementation", "SHOULD", "LoomAI is the recommended ProdUS AI integration service.", "Backend-mediated LoomAI integration is implemented safely with owner-visible outcomes.")
+        );
+        List<ServiceModuleRecommendation> recommendations = new ArrayList<>();
+        int sequence = 0;
+        for (DeterministicServiceSeed seed : seeds) {
+            Optional<ServiceModule> module = findServiceModule(seed.moduleCode());
+            if (module.isEmpty()) {
+                continue;
+            }
+            sequence++;
+            ServiceModule serviceModule = module.get();
+            recommendations.add(new ServiceModuleRecommendation(
+                    moduleCode(serviceModule),
+                    serviceModule.getName(),
+                    serviceModule.getCategory() == null ? "" : serviceModule.getCategory().getSlug(),
+                    seed.priority(),
+                    sequence,
+                    seed.reason(),
+                    List.of("AI opportunities analysis", "ProdUS LoomAI partnership"),
+                    firstNonBlank(serviceModule.getOwnerOutcome(), seed.expectedOutcome()),
+                    0.76,
+                    true
+            ));
+        }
+        return recommendations;
+    }
+
+    private List<AiOpportunityUseCase> aiOpportunityUseCases(JsonNode node, String... fields) {
+        for (String field : fields) {
+            JsonNode value = node.path(field);
+            if (!value.isArray()) {
+                continue;
+            }
+            List<AiOpportunityUseCase> result = new ArrayList<>();
+            value.forEach(item -> {
+                if (!item.isObject()) {
+                    return;
+                }
+                result.add(new AiOpportunityUseCase(
+                        trim(text(item, "title", "name"), NAME_LIMIT),
+                        trim(text(item, "workflow", "targetWorkflow"), TEXT_LIMIT),
+                        trim(text(item, "userValue", "ownerValue"), TEXT_LIMIT),
+                        trim(text(item, "businessValue", "businessOutcome"), TEXT_LIMIT),
+                        trim(text(item, "loomaiCapability", "capability"), TEXT_LIMIT),
+                        trim(text(item, "integrationPattern", "pattern"), NAME_LIMIT),
+                        normalizePriority(text(item, "priority")),
+                        normalizeScore(doubleValue(item.path("confidence")), 0.5),
+                        textList(item, "evidenceBasis", "evidence", "sourceEvidence"),
+                        serviceModuleRecommendationList(item, "recommendedServiceModules", "catalogServiceRecommendations")
+                ));
+            });
+            return result.stream()
+                    .filter(useCase -> hasText(useCase.title()))
+                    .limit(8)
+                    .toList();
+        }
+        return List.of();
+    }
+
+    private double normalizeScore(Double value, double fallback) {
+        if (value == null || value.isNaN() || value.isInfinite()) {
+            return fallback;
+        }
+        return Math.max(0.0, Math.min(1.0, value));
     }
 
     private List<ServiceModuleRecommendation> deterministicServiceModuleRecommendations(AiAssistedProductCreationRequest request) {
@@ -1889,8 +2399,50 @@ public class AiAssistedProductCreationService {
             String techStack,
             String productUrl,
             String repositoryUrl,
-            String knownRisks
-    ) {}
+            String knownRisks,
+            AnalysisMode analysisMode
+    ) {
+        public AiAssistedProductCreationRequest(
+                String productName,
+                String ownerMessage,
+                ProductProfile.BusinessStage businessStage,
+                String techStack,
+                String productUrl,
+                String repositoryUrl,
+                String knownRisks
+        ) {
+            this(productName, ownerMessage, businessStage, techStack, productUrl, repositoryUrl, knownRisks, AnalysisMode.FULL_WITH_AI_OPPORTUNITIES);
+        }
+
+        AnalysisMode analysisModeOrDefault() {
+            return analysisMode == null ? AnalysisMode.FULL_WITH_AI_OPPORTUNITIES : analysisMode;
+        }
+    }
+
+    public enum AnalysisMode {
+        FULL_WITH_AI_OPPORTUNITIES,
+        AI_OPPORTUNITIES;
+
+        static AnalysisMode from(String raw) {
+            String value = raw == null ? "" : raw.trim();
+            if (value.isBlank()) {
+                return FULL_WITH_AI_OPPORTUNITIES;
+            }
+            try {
+                return AnalysisMode.valueOf(value.toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                return FULL_WITH_AI_OPPORTUNITIES;
+            }
+        }
+
+        boolean includesProjectAnalysis() {
+            return this == FULL_WITH_AI_OPPORTUNITIES;
+        }
+
+        boolean includesAiOpportunities() {
+            return true;
+        }
+    }
 
     public record ProductCreationFields(
             String productName,
@@ -1962,7 +2514,76 @@ public class AiAssistedProductCreationService {
             AssistantQueryResponse assistant,
             boolean aiApplied,
             String fallbackReason,
+            AnalysisMode analysisMode,
+            AiOpportunityReport aiOpportunityReport,
+            LoomAIIntegrationOverview loomaiIntegrationOverview,
             Map<String, Object> runtimeActionPayload
+    ) {}
+
+    public record AiOpportunityReport(
+            String status,
+            String summary,
+            double opportunityScore,
+            double confidence,
+            String strategicRationale,
+            List<AiOpportunityUseCase> useCases,
+            List<String> recommendedServices,
+            List<ServiceModuleRecommendation> recommendedServiceModules,
+            List<String> scannerFocusAreas,
+            List<String> suggestedNextSteps,
+            List<String> sourceInsights,
+            List<String> assumptions,
+            List<String> missingEvidence,
+            String provider,
+            String providerRequestId,
+            boolean live
+    ) {
+        List<String> useCaseTitles() {
+            return listOrEmptyStatic(useCases).stream()
+                    .map(AiOpportunityUseCase::title)
+                    .filter(value -> value != null && !value.isBlank())
+                    .toList();
+        }
+    }
+
+    public record AiOpportunityUseCase(
+            String title,
+            String workflow,
+            String userValue,
+            String businessValue,
+            String loomaiCapability,
+            String integrationPattern,
+            String priority,
+            double confidence,
+            List<String> evidenceBasis,
+            List<ServiceModuleRecommendation> recommendedServiceModules
+    ) {}
+
+    public record LoomAIIntegrationOverview(
+            String summary,
+            String recommendedStartingPoint,
+            List<String> capabilities,
+            List<String> implementationSteps,
+            List<String> ownerDecisions,
+            List<String> risks,
+            List<String> sourceInsights,
+            List<ServiceModuleRecommendation> recommendedServiceModules,
+            String provider,
+            String providerRequestId,
+            boolean live
+    ) {
+        List<String> recommendedServices() {
+            return listOrEmptyStatic(recommendedServiceModules).stream()
+                    .map(ServiceModuleRecommendation::moduleName)
+                    .filter(value -> value != null && !value.isBlank())
+                    .distinct()
+                    .toList();
+        }
+    }
+
+    private record AiOpportunityBundle(
+            AiOpportunityReport aiOpportunityReport,
+            LoomAIIntegrationOverview loomAIIntegrationOverview
     ) {}
 
     public record ProductCreationActionResponse(
@@ -2038,6 +2659,7 @@ public class AiAssistedProductCreationService {
     ) {}
 
     public record ProductCreationActionRequest(
+            AnalysisMode analysisMode,
             UUID creationIntentId,
             String consentToken,
             String idempotencyKey,
@@ -2064,12 +2686,15 @@ public class AiAssistedProductCreationService {
             List<String> sourceInsights,
             List<String> assumptions,
             List<String> missingEvidence,
+            AiOpportunityReport aiOpportunityReport,
+            LoomAIIntegrationOverview loomaiIntegrationOverview,
             List<UUID> sourceAttachmentIds,
             List<UUID> aiAccessibleAttachmentIds
     ) {
         static ProductCreationActionRequest from(Map<String, Object> args) {
             Map<String, Object> value = args == null ? Map.of() : args;
             return new ProductCreationActionRequest(
+                    analysisMode(value.get("analysisMode")),
                     uuid(value.get("creationIntentId")),
                     string(value.get("consentToken")),
                     string(value.get("idempotencyKey")),
@@ -2096,8 +2721,93 @@ public class AiAssistedProductCreationService {
                     stringList(value.get("sourceInsights")),
                     stringList(value.get("assumptions")),
                     stringList(value.get("missingEvidence")),
+                    aiOpportunityReport(value.get("aiOpportunityReport")),
+                    loomAIIntegrationOverview(value.get("loomaiIntegrationOverview")),
                     uuidList(value.get("sourceAttachmentIds")),
                     uuidList(value.get("aiAccessibleAttachmentIds"))
+            );
+        }
+
+        AnalysisMode analysisModeOrDefault() {
+            return analysisMode == null ? AnalysisMode.FULL_WITH_AI_OPPORTUNITIES : analysisMode;
+        }
+
+        private static AnalysisMode analysisMode(Object raw) {
+            return AnalysisMode.from(string(raw));
+        }
+
+        private static AiOpportunityReport aiOpportunityReport(Object raw) {
+            if (!(raw instanceof Map<?, ?> item)) {
+                return null;
+            }
+            List<AiOpportunityUseCase> useCases = aiOpportunityUseCases(item.get("useCases"));
+            List<ServiceModuleRecommendation> moduleRecommendations = serviceModuleRecommendationList(item.get("recommendedServiceModules"));
+            if (moduleRecommendations.isEmpty() && !useCases.isEmpty()) {
+                moduleRecommendations = useCases.stream()
+                        .flatMap(useCase -> useCase.recommendedServiceModules().stream())
+                        .toList();
+            }
+            return new AiOpportunityReport(
+                    firstString(item, "status"),
+                    firstString(item, "summary", "overview"),
+                    decimalOrDefault(item.get("opportunityScore"), 0.0),
+                    decimalOrDefault(item.get("confidence"), 0.0),
+                    firstString(item, "strategicRationale", "rationale"),
+                    useCases,
+                    stringList(item.get("recommendedServices")),
+                    moduleRecommendations,
+                    stringList(item.get("scannerFocusAreas")),
+                    stringList(item.get("suggestedNextSteps")),
+                    stringList(item.get("sourceInsights")),
+                    stringList(item.get("assumptions")),
+                    stringList(item.get("missingEvidence")),
+                    firstString(item, "provider"),
+                    firstString(item, "providerRequestId"),
+                    bool(item.get("live"), false)
+            );
+        }
+
+        private static List<AiOpportunityUseCase> aiOpportunityUseCases(Object raw) {
+            if (!(raw instanceof List<?> values)) {
+                return List.of();
+            }
+            List<AiOpportunityUseCase> result = new ArrayList<>();
+            for (Object value : values) {
+                if (!(value instanceof Map<?, ?> item)) {
+                    continue;
+                }
+                result.add(new AiOpportunityUseCase(
+                        firstString(item, "title", "name"),
+                        firstString(item, "workflow", "targetWorkflow"),
+                        firstString(item, "userValue", "ownerValue"),
+                        firstString(item, "businessValue", "businessOutcome"),
+                        firstString(item, "loomaiCapability", "capability"),
+                        firstString(item, "integrationPattern", "pattern"),
+                        firstString(item, "priority"),
+                        decimalOrDefault(item.get("confidence"), 0.0),
+                        stringList(item.get("evidenceBasis")),
+                        serviceModuleRecommendationList(item.get("recommendedServiceModules"))
+                ));
+            }
+            return result;
+        }
+
+        private static LoomAIIntegrationOverview loomAIIntegrationOverview(Object raw) {
+            if (!(raw instanceof Map<?, ?> item)) {
+                return null;
+            }
+            return new LoomAIIntegrationOverview(
+                    firstString(item, "summary", "overview"),
+                    firstString(item, "recommendedStartingPoint", "startingPoint"),
+                    stringList(item.get("capabilities")),
+                    stringList(item.get("implementationSteps")),
+                    stringList(item.get("ownerDecisions")),
+                    stringList(item.get("risks")),
+                    stringList(item.get("sourceInsights")),
+                    serviceModuleRecommendationList(item.get("recommendedServiceModules")),
+                    firstString(item, "provider"),
+                    firstString(item, "providerRequestId"),
+                    bool(item.get("live"), false)
             );
         }
 
@@ -2225,6 +2935,11 @@ public class AiAssistedProductCreationService {
             } catch (NumberFormatException ignored) {
                 return null;
             }
+        }
+
+        private static double decimalOrDefault(Object raw, double fallback) {
+            Double value = decimal(raw);
+            return value == null ? fallback : Math.max(0.0, Math.min(1.0, value));
         }
 
         private static Boolean bool(Object raw, boolean fallback) {
