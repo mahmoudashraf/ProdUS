@@ -2,6 +2,7 @@ package com.produs.platform;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.produs.catalog.PackageTemplate;
 import com.produs.catalog.PackageTemplateModule;
 import com.produs.catalog.PackageTemplateModuleRepository;
@@ -179,6 +180,46 @@ class ProductizationWorkflowIntegrationTest {
         mockMvc.perform(get("/api/product-attachments/{id}/download-url", attachmentId).with(auth(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.url", containsString("https://storage.produs.test/signed/project-attachments/intents/")));
+    }
+
+    @Test
+    void aiAssistedProductCreationRejectsDifferentOwnerWithActionMessage() throws Exception {
+        User owner = saveUser("owner-ai-create-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        User otherOwner = saveUser("other-ai-create-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+
+        JsonNode body = analyzeAiProject(owner);
+        String intentId = body.path("intent").path("id").asText();
+        JsonNode actionPayload = body.path("runtimeActionPayload");
+
+        mockMvc.perform(post("/api/products/ai-assisted/intents/{intentId}/create", intentId)
+                        .with(auth(otherOwner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(actionPayload)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("https://api.produs.com/errors/project-creation-action"))
+                .andExpect(jsonPath("$.title").value("AI Project Creation Action Rejected"))
+                .andExpect(jsonPath("$.detail").value("This creation action belongs to a different signed-in user. Re-run analysis from this account."))
+                .andExpect(jsonPath("$.errorCode").value("AI_CREATION_INTENT_OWNER_MISMATCH"));
+    }
+
+    @Test
+    void aiAssistedProductCreationRejectsStaleActionPayloadWithActionMessage() throws Exception {
+        User owner = saveUser("owner-ai-create-stale@produs.test", User.UserRole.PRODUCT_OWNER);
+
+        JsonNode body = analyzeAiProject(owner);
+        String intentId = body.path("intent").path("id").asText();
+        ObjectNode stalePayload = (ObjectNode) body.path("runtimeActionPayload").deepCopy();
+        stalePayload.put("consentToken", "pcint_stale");
+
+        mockMvc.perform(post("/api/products/ai-assisted/intents/{intentId}/create", intentId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(stalePayload)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("https://api.produs.com/errors/project-creation-action"))
+                .andExpect(jsonPath("$.title").value("AI Project Creation Action Rejected"))
+                .andExpect(jsonPath("$.detail").value("This action payload is stale. Use the latest AI analysis result."))
+                .andExpect(jsonPath("$.errorCode").value("AI_CREATION_CONSENT_INVALID"));
     }
 
     @Test
@@ -1262,6 +1303,30 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].title").value("Launch readiness evidence pack"));
+    }
+
+    private JsonNode analyzeAiProject(User owner) throws Exception {
+        MockMultipartFile brief = new MockMultipartFile(
+                "files",
+                "product-readiness.md",
+                "text/markdown",
+                "Owner wants a production readiness diagnosis, service recommendations, and scanner setup.".getBytes(StandardCharsets.UTF_8)
+        );
+
+        MvcResult analysisResult = mockMvc.perform(multipart("/api/products/ai-assisted/analyze")
+                        .file(brief)
+                        .param("ownerMessage", "Create a productization workspace for a prototype that needs production readiness.")
+                        .param("businessStage", "PROTOTYPE")
+                        .param("techStack", "Next.js, Spring Boot, PostgreSQL")
+                        .param("repositoryUrl", "https://github.com/example/prototype")
+                        .param("aiSharedFileIndexes", "0")
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.intent.status").value("READY_FOR_ACTION"))
+                .andExpect(jsonPath("$.runtimeActionPayload.creationIntentId").exists())
+                .andReturn();
+
+        return objectMapper.readTree(analysisResult.getResponse().getContentAsString());
     }
 
     private User saveUser(String email, User.UserRole role) {

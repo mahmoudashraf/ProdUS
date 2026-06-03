@@ -12,6 +12,7 @@ import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
 import com.produs.dto.PlatformDtos.ProductProfileResponse;
 import com.produs.entity.User;
+import com.produs.exception.ProjectCreationActionException;
 import com.produs.scanner.ScanSource;
 import com.produs.scanner.ScanSourceRepository;
 import com.produs.service.AuditService;
@@ -307,7 +308,10 @@ public class AiAssistedProductCreationService {
         ProductCreationIntent intent = intentRepository.findById(request.creationIntentId())
                 .orElseThrow(() -> new IllegalArgumentException("Project creation intent not found"));
         if (owner.getRole() != User.UserRole.ADMIN && !intent.getOwner().getId().equals(owner.getId())) {
-            throw new AccessDeniedException("Project creation intent belongs to another owner");
+            throw projectCreationActionRejected(
+                    "AI_CREATION_INTENT_OWNER_MISMATCH",
+                    "This creation action belongs to a different signed-in user. Re-run analysis from this account."
+            );
         }
         return createFromAction(request);
     }
@@ -352,27 +356,42 @@ public class AiAssistedProductCreationService {
     private void validateActionRequest(ProductCreationIntent intent, ProductCreationActionRequest request) {
         if (intent.getStatus() == ProductCreationIntent.Status.CREATED && intent.getProductProfile() != null) {
             if (!intent.getIdempotencyKey().equals(request.idempotencyKey())) {
-                throw new AccessDeniedException("Project creation idempotency key does not match the existing product");
+                throw projectCreationActionRejected(
+                        "AI_CREATION_ACTION_STALE",
+                        "This action payload is stale. Use the latest AI analysis result."
+                );
             }
             return;
         }
         if (intent.getStatus() != ProductCreationIntent.Status.READY_FOR_ACTION) {
-            throw new AccessDeniedException("Project creation intent is not ready for action execution");
+            throw projectCreationActionRejected(
+                    "AI_CREATION_INTENT_NOT_READY",
+                    "This AI creation request is not ready yet. Re-run analysis before creating the project."
+            );
         }
         if (intent.getExpiresAt() == null || intent.getExpiresAt().isBefore(LocalDateTime.now())) {
             intent.setStatus(ProductCreationIntent.Status.EXPIRED);
             intentRepository.save(intent);
-            throw new AccessDeniedException("Project creation intent has expired");
+            throw projectCreationActionRejected(
+                    "AI_CREATION_INTENT_EXPIRED",
+                    "This AI creation request expired. Re-run analysis."
+            );
         }
         if (request.consentToken() == null || request.consentToken().isBlank()
                 || !MessageDigest.isEqual(
                 intent.getConsentTokenHash().getBytes(java.nio.charset.StandardCharsets.UTF_8),
                 sha256Hex(request.consentToken()).getBytes(java.nio.charset.StandardCharsets.UTF_8)
         )) {
-            throw new AccessDeniedException("Project creation consent token is invalid");
+            throw projectCreationActionRejected(
+                    "AI_CREATION_CONSENT_INVALID",
+                    "This action payload is stale. Use the latest AI analysis result."
+            );
         }
         if (request.idempotencyKey() == null || !intent.getIdempotencyKey().equals(request.idempotencyKey())) {
-            throw new AccessDeniedException("Project creation idempotency key is invalid");
+            throw projectCreationActionRejected(
+                    "AI_CREATION_IDEMPOTENCY_INVALID",
+                    "This action payload is stale. Use the latest AI analysis result."
+            );
         }
         if (request.productName() == null || request.productName().isBlank()) {
             throw new IllegalArgumentException("Product name is required for AI project creation action");
@@ -395,8 +414,15 @@ public class AiAssistedProductCreationService {
                 .collect(java.util.stream.Collectors.toSet());
         List<UUID> invalid = attachmentIds.stream().filter(id -> !ownedAttachmentIds.contains(id)).toList();
         if (!invalid.isEmpty()) {
-            throw new AccessDeniedException("Project creation action contains attachment ids outside the creation intent");
+            throw projectCreationActionRejected(
+                    "AI_CREATION_ATTACHMENT_SCOPE_INVALID",
+                    "This action payload references documents from another analysis. Use the latest AI analysis result."
+            );
         }
+    }
+
+    private ProjectCreationActionException projectCreationActionRejected(String errorCode, String message) {
+        return new ProjectCreationActionException(errorCode, message);
     }
 
     private void applyAnalysis(

@@ -50,6 +50,18 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
+    @ExceptionHandler(ProjectCreationActionException.class)
+    public ProblemDetail handleProjectCreationActionException(ProjectCreationActionException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.FORBIDDEN,
+                ex.getMessage()
+        );
+        problemDetail.setType(URI.create("https://api.produs.com/errors/project-creation-action"));
+        problemDetail.setTitle("AI Project Creation Action Rejected");
+        problemDetail.setProperty("errorCode", ex.getErrorCode());
+        return problemDetail;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidationException(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -67,17 +79,6 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail handleIllegalArgumentException(IllegalArgumentException ex) {
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                ex.getMessage()
-        );
-        problemDetail.setType(URI.create("https://api.produs.com/errors/bad-request"));
-        problemDetail.setTitle("Bad Request");
-        return problemDetail;
-    }
-
     @ExceptionHandler(CatalogDependencyBlockedException.class)
     public ProblemDetail handleCatalogDependencyBlockedException(CatalogDependencyBlockedException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
@@ -88,6 +89,17 @@ public class GlobalExceptionHandler {
         problemDetail.setTitle("Required Lifecycle Services Missing");
         problemDetail.setProperty("missingServices", ex.getMissingServices());
         problemDetail.setProperty("nextBestActions", ex.getNextBestActions());
+        return problemDetail;
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail handleIllegalArgumentException(IllegalArgumentException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage()
+        );
+        problemDetail.setType(URI.create("https://api.produs.com/errors/bad-request"));
+        problemDetail.setTitle("Bad Request");
         return problemDetail;
     }
 

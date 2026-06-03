@@ -13,7 +13,7 @@ public class CatalogDependencyBlockedException extends IllegalArgumentException 
     private final List<String> nextBestActions;
 
     public CatalogDependencyBlockedException(CatalogRuleEvaluationResponse evaluation) {
-        super("Add the required lifecycle services before starting the project workspace.");
+        super(message(evaluation));
         this.missingServices = evaluation == null
                 ? List.of()
                 : evaluation.recommendations().stream()
@@ -22,6 +22,23 @@ public class CatalogDependencyBlockedException extends IllegalArgumentException 
                         .map(CatalogDependencyBlockedException::toMissingService)
                         .toList();
         this.nextBestActions = evaluation == null ? List.of() : evaluation.nextBestActions();
+    }
+
+    private static String message(CatalogRuleEvaluationResponse evaluation) {
+        if (evaluation == null || evaluation.recommendations() == null) {
+            return "Add the required lifecycle services before starting the project workspace.";
+        }
+        String services = evaluation.recommendations().stream()
+                .filter(item -> item.severity() == ServiceDependency.DependencySeverity.BLOCKER)
+                .filter(item -> !item.alreadySelected())
+                .map(item -> item.recommendedModule().name())
+                .distinct()
+                .limit(5)
+                .collect(java.util.stream.Collectors.joining(", "));
+        if (services.isBlank()) {
+            return "Add the required lifecycle services before starting the project workspace.";
+        }
+        return "Resolve required catalog services before starting a project: " + services;
     }
 
     public List<MissingCatalogService> getMissingServices() {

@@ -137,6 +137,22 @@ const compactCount = (count: number, singular: string, plural = `${singular}s`) 
 
 const cleanText = (value?: string | null) => value?.trim() ?? '';
 
+const errorCodeFromUnknown = (error: unknown) => {
+  const responseData =
+    typeof error === 'object' && error !== null && 'response' in error
+      ? (error as { response?: { data?: unknown } }).response?.data
+      : undefined;
+
+  if (responseData && typeof responseData === 'object') {
+    const value = (responseData as Record<string, unknown>).errorCode;
+    if (typeof value === 'string' && value.trim()) {
+      return value;
+    }
+  }
+
+  return '';
+};
+
 function ValidationRow({
   title,
   detail,
@@ -801,6 +817,9 @@ export default function ProductOnboardingWizard() {
         'The AI project creation action was rejected.'
       )
     : '';
+  const aiActionErrorCode = createProductFromAIAction.error
+    ? errorCodeFromUnknown(createProductFromAIAction.error)
+    : '';
   const selectedAiServiceCount = selectedServiceCodes.length;
   const missingCatalogCoverage = aiAnalysis?.analysis.missingCatalogCoverage ?? [];
   const aiValidationItems: Array<{
@@ -1464,6 +1483,14 @@ export default function ProductOnboardingWizard() {
                         <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.45 }}>
                           {aiActionErrorMessage}
                         </Typography>
+                        {aiActionErrorCode && (
+                          <Typography
+                            variant="caption"
+                            sx={{ display: 'block', mt: 0.5, fontWeight: 800, opacity: 0.8 }}
+                          >
+                            Code: {aiActionErrorCode}
+                          </Typography>
+                        )}
                       </Alert>
                     )}
                     <ProjectAnalysisChatPanel
