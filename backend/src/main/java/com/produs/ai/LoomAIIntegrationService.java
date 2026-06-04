@@ -1501,7 +1501,7 @@ public class LoomAIIntegrationService {
                         "missingEvidence"
                 ),
                 "useCaseFields", List.of("title", "workflow", "userValue", "businessValue", "loomaiCapabilityCode", "loomaiCapability", "integrationPattern", "priority", "confidence", "evidenceBasis", "recommendedServiceModules"),
-                "capabilityRule", "loomaiCapabilityCode must use a code from loomaiCapabilitySnapshot.capabilities only; loomaiCapability should be the matching name or concise owner-facing label",
+                "capabilityRule", "Prefer loomaiCapabilityCode values from loomaiCapabilitySnapshot.capabilities when they clearly fit. If none fit, leave loomaiCapabilityCode blank or use custom:<short-label> and explain the gap in missingEvidence/sourceInsights. Do not invent official LoomAI codes.",
                 "catalogRule", "recommendedServiceModules must use moduleCode values from serviceCatalogSnapshot.candidateModules only"
         ));
         return context;
@@ -1571,9 +1571,17 @@ public class LoomAIIntegrationService {
     private Map<String, Object> loomAICapabilitySnapshot() {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("schemaVersion", "loomai-provider-capabilities-v1");
-        snapshot.put("selectionPolicy", "select-only-listed-capability-codes");
+        snapshot.put("provider", "LoomAI");
+        snapshot.put("selectionPolicy", "prefer-listed-capability-codes-when-they-fit; allow explained custom capability gaps when no listed capability matches");
         snapshot.put("recommendedProvider", "LoomAI");
-        snapshot.put("purpose", "Describe LoomAI as an AI enablement provider for the owner's product, not as a ProdUS feature list.");
+        snapshot.put("purpose", "Official LoomAI provider capability taxonomy for AI opportunity analysis. Use as guidance, not as a hard limiter.");
+        snapshot.put("usageGuidance", List.of(
+                "Prefer an official code when one clearly fits the product opportunity.",
+                "If no listed capability fits, leave loomaiCapabilityCode blank or use custom:<short-label> and explain the gap.",
+                "Do not invent official LoomAI codes or use product-specific implementation labels as stable provider capability codes.",
+                "Use implementationPattern to describe how LoomAI would be introduced.",
+                "Respect notFor boundaries when recommending an opportunity."
+        ));
         snapshot.put("integrationGuardrails", Map.of(
                 "analysisAndPageHelp", "thinker",
                 "governedWriteActions", "executor",
@@ -1582,94 +1590,257 @@ public class LoomAIIntegrationService {
         ));
         snapshot.put("capabilities", List.of(
                 loomAICapability(
-                        "ai_runtime_orchestration",
+                        "loomai_runtime_orchestration",
                         "AI runtime orchestration",
-                        "Managed runtime layer for AI chat, one-time analysis, model/provider routing, response normalization, and backend-mediated private access.",
-                        "The product needs a dependable AI backend without building model routing, auth, response contracts, and fallbacks from scratch.",
-                        "Backend endpoint, user/session identity, allowed modes, safe request context.",
-                        "A production AI runtime foundation that product teams can integrate behind their own backend.",
-                        List.of("direct browser secrets", "uncontrolled model calls")
+                        "Coordinates intent detection, mode selection, retrieval, tool/action use, policy checks, and final answer generation.",
+                        "A product needs a governed AI layer instead of scattered prompts or isolated tool calls.",
+                        "User journeys, modes, allowed data, allowed actions, auth boundaries, and success criteria.",
+                        "Turns AI into a controllable runtime capability.",
+                        "Product calls LoomAI runtime APIs with query, mode, position, context, and attachments.",
+                        List.of("Pure deterministic CRUD", "Replacing product business logic", "Uncontrolled autonomous agents"),
+                        List.of("Support assistant", "Admin copilot", "Project analysis assistant")
                 ),
                 loomAICapability(
-                        "retrieval_augmented_generation",
-                        "Retrieval-augmented generation",
-                        "Ground responses in approved knowledge sources using managed retrieval, source-aware answers, and bounded context construction.",
-                        "The product needs answers grounded in product docs, policies, service data, support material, or domain knowledge.",
-                        "Safe knowledge export, vector spaces, metadata, retrieval policy, answer contract.",
-                        "Users get answers that reference approved knowledge instead of generic model guesses.",
-                        List.of("private raw data bulk indexing", "unbounded retrieval")
+                        "loomai_curated_modes_prompt_packs",
+                        "Curated modes and prompt packs",
+                        "Provides reusable mode profiles, routing defaults, prompt overlays, and product-specific AI behavior packs.",
+                        "A product needs different assistant behaviors such as thinker, navigator, support, or executor modes.",
+                        "Target modes, surfaces, tone, domain constraints, and override rules.",
+                        "Lets owners ship consistent AI behavior without rebuilding prompts per feature.",
+                        "Enable curated packs and pass mode or surface position into the runtime.",
+                        List.of("One prompt with no product behavior differences", "Hardcoded domain logic inside the AI provider"),
+                        List.of("Thinker mode analysis", "Support mode", "Commerce guidance mode")
                 ),
                 loomAICapability(
-                        "managed_vectorization",
+                        "loomai_model_provider_abstraction",
+                        "Model provider abstraction",
+                        "Supports using different LLM and embedding providers through LoomAI runtime configuration.",
+                        "A product wants provider flexibility, fallback options, or environment-specific model choices.",
+                        "Provider choices, model requirements, latency/cost limits, API credentials, and data policy.",
+                        "Avoids locking the product to one AI vendor.",
+                        "Configure provider profiles for runtime generation, embeddings, or structured calls.",
+                        List.of("Bypassing provider terms", "Provider selection without testing", "Assuming all models support identical file/tool features"),
+                        List.of("OpenAI runtime", "Gemini file input", "ONNX embeddings", "Cloud/self-hosted vector choices")
+                ),
+                loomAICapability(
+                        "loomai_grounded_rag_answers",
+                        "Grounded answers / RAG",
+                        "Generates answers grounded in retrieved documents, chunks, citations, or managed knowledge sources.",
+                        "The product must answer from owned knowledge such as docs, policies, catalog data, or support material.",
+                        "Knowledge sources, vector spaces or retrieval endpoint, citation rules, freshness expectations, and access rules.",
+                        "Reduces hallucination and makes answers explainable.",
+                        "Use LoomAI-managed retrieval or an external retrieval connector, then let LoomAI generate the answer.",
+                        List.of("Fresh transactional state without read actions", "Regulated final advice without review", "Private data without authorization"),
+                        List.of("Help center Q&A", "Policy explanation", "Catalog guidance")
+                ),
+                loomAICapability(
+                        "loomai_external_retrieval_connector",
+                        "External retrieval connector",
+                        "Lets a customer keep their own search/retrieval system while LoomAI handles orchestration and final generation.",
+                        "The product already owns search or document retrieval and does not want LoomAI to index the data.",
+                        "Retrieval endpoint, document schema, auth, citation fields, filters, and timeout behavior.",
+                        "Adopts LoomAI without migrating the knowledge system.",
+                        "Customer exposes a documents-only retrieval endpoint; LoomAI calls it during RAG flows.",
+                        List.of("Endpoints returning unbounded data", "Search results without usable text", "Private retrieval without scoped auth"),
+                        List.of("Enterprise search integration", "Existing knowledge base search", "Customer-owned document store")
+                ),
+                loomAICapability(
+                        "loomai_managed_vectorization",
                         "Managed vectorization and data sync",
-                        "Index approved entities through a managed vectorization/data-sync pipeline with record identity, metadata, and reindex support.",
-                        "The product has safe internal content that should be searchable by AI without hand-building vector infrastructure.",
-                        "Entity export endpoint or data-sync batches, vector-space definitions, metadata and deletion policy.",
-                        "Current safe product knowledge can stay fresh as entities change.",
-                        List.of("raw credentials", "private files", "unreviewed user-owned workspace data")
+                        "Ingests, embeds, indexes, updates, and deletes customer-provided documents or entities for AI retrieval.",
+                        "A product needs AI-searchable knowledge but does not want to build its own vector pipeline.",
+                        "Source data, vector-space names, sync cadence, metadata, tenant ownership, and deletion rules.",
+                        "Creates a reusable AI knowledge layer from product data.",
+                        "Push documents/entities through ingestion or sync APIs; LoomAI indexes and retrieves them.",
+                        List.of("Highly volatile transactional data", "Secrets without governance", "Data that cannot be stored or indexed"),
+                        List.of("Product catalog sync", "Documentation indexing", "Support article vectorization")
                 ),
                 loomAICapability(
-                        "transient_file_understanding",
+                        "loomai_semantic_relationship_query",
+                        "Semantic relationship query",
+                        "Uses structured entity relationships and semantic query planning to answer across connected business objects.",
+                        "Questions require reasoning across related entities, not only plain document chunks.",
+                        "Entity schemas, relationships, fields, allowed traversal, return shape, and access rules.",
+                        "Enables deeper product intelligence over structured data.",
+                        "Configure relationship schemas and allow LoomAI to plan bounded relationship queries.",
+                        List.of("Unmodeled databases", "Unbounded joins", "Replacing database permissions"),
+                        List.of("Find projects blocked by missing dependencies", "Explain customer account relationships", "Analyze linked records")
+                ),
+                loomAICapability(
+                        "loomai_transient_document_understanding",
                         "Transient file understanding",
-                        "Analyze owner-selected short-lived file URLs during one request without indexing, retaining, or exposing storage credentials.",
-                        "The product needs users to attach briefs, requirements, specs, PDFs, or notes for temporary AI reasoning.",
-                        "Temporary HTTPS file URLs, expiry, allowed hosts, document usage evidence contract.",
-                        "Users can share private files with AI for a bounded task while keeping files private in the product.",
-                        List.of("permanent file indexing", "public file publishing", "raw storage URLs")
+                        "Analyzes short-lived files or provider file inputs without turning them into a permanent corpus.",
+                        "Users upload documents for immediate analysis, extraction, comparison, or summarization.",
+                        "Temporary file URLs, file type/size limits, retention policy, and desired output.",
+                        "Adds document intelligence without permanent indexing.",
+                        "Pass transient attachments or provider file inputs into LoomAI runtime requests.",
+                        List.of("Long-term knowledge storage", "Unauthorized files", "Files that must never leave the product boundary"),
+                        List.of("Proposal review", "PDF summary", "Requirement extraction")
                 ),
                 loomAICapability(
-                        "embedded_ai_assistant_ui",
-                        "Embedded AI assistant UI",
-                        "Provide embeddable assistant experiences such as fixed chat and Max Mode overlays that operate through the product backend.",
-                        "The product needs an in-app assistant that understands page context and can answer workflow-specific questions.",
-                        "Frontend widget script, backend chat/query routes, request context provider.",
-                        "Users get contextual AI help inside the application instead of a separate disconnected chatbot.",
-                        List.of("standalone generic chatbot", "browser runtime secrets")
+                        "loomai_contextual_attachments",
+                        "Contextual attachments",
+                        "Allows users or products to attach active documents/context to a chat or analysis request.",
+                        "The AI result should be grounded in user-selected project, file, or page context.",
+                        "Attachment IDs, active attachment selection, content policy, and user ownership.",
+                        "Makes AI feel aware of the current product workspace.",
+                        "Send attachments and activeAttachmentIds with runtime chat or query-once calls.",
+                        List.of("Implicitly reading all user files", "Sensitive files without consent", "Permanent indexing unless using vectorization"),
+                        List.of("Analyze selected files", "Answer from current project context", "Summarize attached docs")
                 ),
                 loomAICapability(
-                        "tool_and_mcp_orchestration",
+                        "loomai_conversation_session_memory",
+                        "Conversation session memory",
+                        "Maintains conversation/session context for multi-turn AI experiences.",
+                        "The user expects follow-up questions, continuity, or assistant state across turns.",
+                        "Conversation ID, user identity, retention rules, and session scope.",
+                        "Improves usability for real assistant workflows.",
+                        "Use chat/session APIs with conversation identity and product auth.",
+                        List.of("Stateless one-off analysis", "Workflows where history must not be stored", "Cross-tenant memory"),
+                        List.of("Support conversation", "Workspace assistant", "Iterative planning")
+                ),
+                loomAICapability(
+                        "loomai_query_once_analysis",
+                        "One-shot AI analysis",
+                        "Runs a single AI analysis request without requiring a persistent chat session.",
+                        "A backend or UI needs one structured answer, recommendation, extraction, or classification.",
+                        "Prompt objective, input data, expected schema, and authorization.",
+                        "Adds AI analysis to product workflows without building chat.",
+                        "Call a query-once/runtime endpoint and consume the response or structured payload.",
+                        List.of("Multi-turn assistant UX", "Workflows requiring persisted memory", "Actions needing user confirmation"),
+                        List.of("AI opportunity analysis", "Risk scoring", "Requirement extraction")
+                ),
+                loomAICapability(
+                        "loomai_embedded_assistant_ui",
+                        "Embedded assistant UI / Max Mode",
+                        "Powers an in-product assistant surface, including richer embedded experiences such as Max Mode.",
+                        "A product wants users to interact with AI directly inside the application.",
+                        "Runtime URL, user/session auth, allowed modes, UI placement, branding, and enabled capabilities.",
+                        "Ships a usable AI surface faster than building a full custom assistant UI.",
+                        "Embed LoomAI widget or connect a custom UI to LoomAI runtime APIs.",
+                        List.of("Backend-only automation", "Unauthenticated private capability access", "A fully custom native UX with no shared shell"),
+                        List.of("In-app help", "Workspace assistant", "Storefront assistant")
+                ),
+                loomAICapability(
+                        "loomai_tool_mcp_orchestration",
                         "Tool and MCP orchestration",
-                        "Let AI call allowlisted backend tools through controlled action catalogs, scopes, and auditable tool execution.",
-                        "The product needs AI to fetch live system facts or operate approved tools without exposing the whole backend.",
-                        "MCP/tool manifest, scopes, auth policy, read/write separation, action result schema.",
-                        "AI can answer with fresh application facts instead of relying only on static context.",
-                        List.of("full backend exposure", "unreviewed mutation tools")
+                        "Discovers, selects, and invokes configured tools or MCP-backed capabilities during AI workflows.",
+                        "The assistant needs real external capabilities beyond text generation.",
+                        "Tool schemas, MCP server config, auth, allowed operations, and result contracts.",
+                        "Lets AI use real systems through governed contracts.",
+                        "Register MCP/tool contracts and route execution through LoomAI connector or gateway paths.",
+                        List.of("Arbitrary tool URLs", "Tools without schemas", "High-risk operations without controls"),
+                        List.of("Catalog search", "Order lookup", "CRM read", "Ticket creation")
                 ),
                 loomAICapability(
-                        "governed_action_execution",
+                        "loomai_connector_action_catalog",
+                        "Connector-backed action catalog",
+                        "Defines customer actions through portable contracts and executes them through customer connector endpoints.",
+                        "A product wants LoomAI to call customer-owned APIs in a language-agnostic way.",
+                        "Action catalog, connector URL, schemas, auth, parameter rules, and error behavior.",
+                        "Connects AI to product APIs without coupling LoomAI to product internals.",
+                        "Publish action contracts and expose a customer connector API for execution.",
+                        List.of("Unspecified APIs", "Actions with no validation", "Secrets passed through prompts"),
+                        List.of("Create project", "Search products", "Open escalation", "Update support profile")
+                ),
+                loomAICapability(
+                        "loomai_read_action_grounding",
+                        "Live read-action grounding",
+                        "Executes safe read actions and forces final answer generation from returned action data.",
+                        "The answer needs fresh live data that should not be indexed as static knowledge.",
+                        "Read-only action contract, grounding eligibility, result shape, mode policy, and auth scope.",
+                        "Combines live operational facts with natural-language answers.",
+                        "Mark read actions as grounding eligible; LoomAI executes them and generates a user-facing answer.",
+                        List.of("Write actions", "Raw JSON dumps", "Unbounded private data reads"),
+                        List.of("Find available packages", "Check order status", "Lookup project state")
+                ),
+                loomAICapability(
+                        "loomai_governed_action_execution",
                         "Governed action execution",
-                        "Prepare or execute state-changing actions only through confirmed action flows, idempotency, authorization, and audit controls.",
-                        "The product needs AI-assisted workflow execution while preserving human consent and backend authority.",
-                        "Confirmed action manifest, consent token, idempotency key, audit output, backend guardrails.",
-                        "Users can move from AI recommendation to controlled action without hidden autonomous mutation.",
-                        List.of("silent mutation", "approval bypass", "owner decision automation")
+                        "Executes side-effecting actions with confirmation, access control, idempotency, and audit-friendly handling.",
+                        "AI should help users take actions, not only provide recommendations.",
+                        "Action schema, side-effect level, permissions, confirmation copy, idempotency, and rollback expectations.",
+                        "Enables useful automation while preserving control and consent.",
+                        "Define confirmable actions and let LoomAI pause for approval before execution.",
+                        List.of("Silent destructive actions", "Payments without explicit approval", "Autonomous production changes"),
+                        List.of("Create task", "Submit request", "Start workflow", "Update record after approval")
                 ),
                 loomAICapability(
-                        "structured_output_contracts",
+                        "loomai_structured_outputs",
                         "Structured output contracts",
-                        "Return machine-readable JSON outputs for analysis, recommendations, opportunities, action payloads, and UI rendering.",
-                        "The product needs AI output that can drive UI state, persistence, or workflow decisions.",
-                        "Strict output schema, validation rules, fallback strategy, parser/error handling.",
-                        "AI becomes usable product data, not just prose.",
-                        List.of("unvalidated free text for critical workflow state")
+                        "Produces validated machine-readable JSON for downstream product workflows.",
+                        "The product needs parseable recommendations, classifications, extracted data, or opportunity records.",
+                        "JSON schema, required fields, validation rules, fallback behavior, and consumer expectations.",
+                        "Makes AI output usable by backend code without fragile text parsing.",
+                        "Provide schema or typed contract and validate LoomAI output before storing or acting on it.",
+                        List.of("Free-form chat only", "Schemas that hide uncertainty", "Replacing backend validation"),
+                        List.of("AI opportunity records", "Extraction payloads", "Risk classifications")
                 ),
                 loomAICapability(
-                        "ai_governance_and_safety",
-                        "AI governance and safety controls",
-                        "Apply boundaries around allowed data, scopes, modes, actions, redaction, fallbacks, and user-visible safe responses.",
-                        "The product needs enterprise-safe AI behavior that respects permissions and avoids unsafe claims.",
-                        "Role/auth context, allowed actions, data-sharing policy, redaction, fallback and refusal rules.",
-                        "AI behavior can be governed, reviewed, and constrained by product policy.",
-                        List.of("cross-user access", "secret exposure", "unbounded agent behavior")
+                        "loomai_privacy_pii_controls",
+                        "Privacy and PII controls",
+                        "Supports sensitivity classification, redaction-aware handling, and privacy-oriented runtime policy.",
+                        "AI touches customer data, personal data, support content, or sensitive business context.",
+                        "Data classes, PII policy, redaction rules, retention requirements, and allowed providers.",
+                        "Reduces privacy risk when introducing AI.",
+                        "Enable PII/privacy modules and enforce data handling rules before retrieval, generation, or logging.",
+                        List.of("Bypassing legal/compliance review", "Sending secrets to models", "Treating redaction as perfect security"),
+                        List.of("Support transcript analysis", "Customer-data assistant", "Sensitive document review")
                 ),
                 loomAICapability(
-                        "observability_and_evaluation",
-                        "AI observability and evaluation",
-                        "Expose provider request IDs, traces, sources, action evidence, fallback reasons, and smoke/evaluation signals.",
-                        "The product needs confidence that AI outputs are explainable, debuggable, and production-operable.",
-                        "Provider trace IDs, source/action metadata, response status, evaluation checks.",
-                        "Teams can debug and improve AI behavior without guessing what happened.",
-                        List.of("opaque AI decisions", "secret-bearing raw provider logs")
+                        "loomai_safety_governance",
+                        "Safety and governance controls",
+                        "Provides runtime guardrails for auth, scopes, tenant boundaries, policy decisions, and fail-closed behavior.",
+                        "AI will access private data, tools, actions, or production workflows.",
+                        "Caller identity, tenant boundaries, allowed modes/actions, policy requirements, and audit posture.",
+                        "Makes AI safer to operate in production.",
+                        "Configure scoped auth, policy packs, guarded execution paths, and denied-by-default boundaries.",
+                        List.of("Bypassing product authorization", "Frontend exposure of backend-only secrets", "Cross-tenant data sharing"),
+                        List.of("Tenant-aware assistant", "Admin-only actions", "Permissioned support AI")
+                ),
+                loomAICapability(
+                        "loomai_runtime_auth_assignment",
+                        "Runtime auth and assignment",
+                        "Provides secure runtime access, backend assertions, browser-safe auth modes, and consumer-bound runtime assignment.",
+                        "A product needs to connect safely to the correct active LoomAI runtime across environments.",
+                        "Consumer ID, issuer, audience, auth mode, assignment key, runtime URL, and secret boundary.",
+                        "Lets products integrate with LoomAI without hardcoding fragile deployment URLs or exposing backend secrets.",
+                        "Backend resolves runtime assignment and calls the assigned runtime with scoped auth/assertions.",
+                        List.of("Putting backend-only keys in frontend code", "Unauthenticated private runtimes", "Using deployment IDs as user-facing product logic"),
+                        List.of("Staging runtime assignment", "Production runtime promotion", "Private backend runtime calls")
+                ),
+                loomAICapability(
+                        "loomai_observability_evaluation",
+                        "Traces, evaluation, and observability",
+                        "Captures evidence around orchestration decisions, action use, runtime health, smoke tests, and quality checks.",
+                        "The owner needs to verify, debug, evaluate, or monitor AI behavior.",
+                        "Test prompts, expected behavior, target environment, metrics, and evidence retention.",
+                        "Makes AI behavior reviewable instead of opaque.",
+                        "Run readiness checks, trace review, prompt regression tests, and live smoke tests.",
+                        List.of("Launching AI without acceptance criteria", "Unlogged critical decisions", "Using observability as a replacement for governance"),
+                        List.of("Launch readiness", "Prompt regression", "Action audit", "RAG quality checks")
+                ),
+                loomAICapability(
+                        "loomai_behavior_intelligence",
+                        "Behavior intelligence",
+                        "Analyzes user/product behavior signals to classify sentiment, trends, events, or engagement patterns.",
+                        "A product wants AI-assisted insight from usage events or behavioral data.",
+                        "Event schema, user/session scope, privacy policy, analysis goals, and aggregation rules.",
+                        "Turns product behavior data into insight for owners and operators.",
+                        "Send structured behavior events and analyze them through LoomAI behavior modules or runtime workflows.",
+                        List.of("Surveillance without consent", "Raw PII-heavy event streams", "Replacing analytics source-of-truth systems"),
+                        List.of("Usage trend analysis", "Sentiment classification", "Engagement insights")
+                ),
+                loomAICapability(
+                        "loomai_marketplace_capability_packs",
+                        "Marketplace capability packs",
+                        "Packages reusable AI capabilities, prompts, connectors, templates, or vertical enablement profiles.",
+                        "A product wants to adopt a prebuilt AI capability instead of designing everything from scratch.",
+                        "Target vertical, enabled surfaces, connector needs, pack version, and entitlement rules.",
+                        "Shortens time-to-value for common AI product patterns.",
+                        "Select and provision a LoomAI capability pack, then configure product-specific data/actions.",
+                        List.of("Custom workflows with no reusable pattern", "Installing packs without reviewing boundaries", "Treating templates as finished product logic"),
+                        List.of("Commerce assistant pack", "Support assistant pack", "Knowledge assistant pack")
                 )
         ));
         return snapshot;
@@ -1682,7 +1853,9 @@ public class LoomAIIntegrationService {
             String useWhen,
             String requiredContext,
             String ownerValue,
-            List<String> notFor
+            String implementationPattern,
+            List<String> notFor,
+            List<String> exampleUseCases
     ) {
         Map<String, Object> capability = new LinkedHashMap<>();
         capability.put("code", code);
@@ -1691,7 +1864,9 @@ public class LoomAIIntegrationService {
         capability.put("useWhen", useWhen);
         capability.put("requiredContext", requiredContext);
         capability.put("ownerValue", ownerValue);
+        capability.put("implementationPattern", implementationPattern);
         capability.put("notFor", notFor);
+        capability.put("exampleUseCases", exampleUseCases);
         return capability;
     }
 
@@ -1887,14 +2062,15 @@ public class LoomAIIntegrationService {
                 Focus only on ProdUS core value areas: project/product diagnosis, readiness explanation, scanner finding summaries, service/package recommendation support, milestone/evidence readiness, and owner decision support.
                 Do not recommend AI for team invitations, team creation, access grants, participant management, billing decisions, or owner approvals.
                 Treat loomaiCapabilitySnapshot as LoomAI provider capabilities that could be implemented in the owner's product, not as ProdUS internal feature names.
-                Select LoomAI capabilities only from context.loomaiCapabilitySnapshot.capabilities. Return loomaiCapabilityCode exactly as one listed capability code and loomaiCapability as the matching capability name or concise owner-facing label.
+                Prefer LoomAI capabilities from context.loomaiCapabilitySnapshot.capabilities when they clearly fit. Return loomaiCapabilityCode exactly as an official listed code when available, and loomaiCapability as the matching capability name or concise owner-facing label.
+                If no listed LoomAI capability clearly fits, leave loomaiCapabilityCode blank or use custom:<short-label>, then explain the gap in missingEvidence or sourceInsights. Do not invent official LoomAI codes.
+                Respect each capability's notFor boundaries, and use implementationPattern to make the recommendation concrete.
                 Recommend catalog services only from context.serviceCatalogSnapshot.candidateModules. Use moduleCode exactly as provided. If AI integration services are listed, prefer them for implementation work.
                 Use owner input and project analysis as primary context. Use selected documents if they were available through temporaryAccessUrl and cite owner-safe evidence in sourceInsights.
                 Return only a strict JSON object with fields:
                 status, summary, opportunityScore, confidence, strategicRationale, useCases, recommendedServices, recommendedServiceModules, scannerFocusAreas, suggestedNextSteps, sourceInsights, assumptions, missingEvidence.
                 useCases must be an array of objects with:
                 title, workflow, userValue, businessValue, loomaiCapabilityCode, loomaiCapability, integrationPattern, priority, confidence, evidenceBasis, recommendedServiceModules.
-                loomaiCapabilityCode must be one of the listed capability codes. Do not invent capability names or capabilities.
                 priority must be MUST, SHOULD, COULD, or LATER. confidence and opportunityScore must be 0..1.
                 recommendedServiceModules must be an array of catalog-backed objects with moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
                 Make this useful for project creation: the returned service modules can be persisted after owner approval.
@@ -1922,7 +2098,7 @@ public class LoomAIIntegrationService {
                 LoomAI is the recommended AI integration service for ProdUS. Make the answer specific, practical, and bounded.
                 Use the project analysis, AI opportunity report, public-link insights, selected documents, and ProdUS service catalog snapshot.
                 Treat loomaiCapabilitySnapshot as LoomAI provider capabilities that could be enabled in the owner's product.
-                Use context.loomaiCapabilitySnapshot to explain capabilities; do not invent LoomAI capabilities outside that list.
+                Use context.loomaiCapabilitySnapshot to explain official capabilities when they fit. If the project needs something outside the listed taxonomy, describe it as a gap or custom need, not as an official LoomAI capability.
                 Recommend only catalog service module codes present in context.serviceCatalogSnapshot.candidateModules.
                 Return only a strict JSON object with fields:
                 summary, recommendedStartingPoint, capabilities, implementationSteps, ownerDecisions, risks, sourceInsights, recommendedServiceModules.
