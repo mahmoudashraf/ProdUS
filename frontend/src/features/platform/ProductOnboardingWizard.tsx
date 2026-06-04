@@ -858,6 +858,15 @@ export default function ProductOnboardingWizard() {
       if (!aiAnalysis) {
         throw new Error('Run AI analysis before creating the project.');
       }
+      const analysisRecommendations = aiAnalysis.analysis.recommendedServiceModules ?? [];
+      const effectiveRecommendations = reviewedServiceRecommendations.length
+        ? reviewedServiceRecommendations
+        : analysisRecommendations;
+      const effectiveSelectedCodes = selectedServiceCodes.length
+        ? selectedServiceCodes
+        : effectiveRecommendations
+            .filter(recommendation => recommendation.accepted !== false)
+            .map(recommendation => recommendation.moduleCode);
       const actionPayload: Record<string, unknown> = {
         ...aiAnalysis.runtimeActionPayload,
         analysisMode: aiAnalysis.analysisMode,
@@ -880,10 +889,10 @@ export default function ProductOnboardingWizard() {
         businessOutcomes: aiAnalysis.analysis.businessOutcomes ?? [],
         readinessGoals: aiAnalysis.analysis.readinessGoals ?? [],
         recommendedServices: aiAnalysis.analysis.recommendedServices ?? [],
-        recommendedServiceModules: reviewedServiceRecommendations.map((recommendation, index) => ({
+        recommendedServiceModules: effectiveRecommendations.map((recommendation, index) => ({
           ...recommendation,
           sequence: index + 1,
-          accepted: selectedServiceCodes.includes(recommendation.moduleCode),
+          accepted: effectiveSelectedCodes.includes(recommendation.moduleCode),
         })),
         missingCatalogCoverage: aiAnalysis.analysis.missingCatalogCoverage ?? [],
         scannerFocusAreas: aiAnalysis.analysis.scannerFocusAreas ?? [],
