@@ -10,8 +10,16 @@ import com.produs.packages.PackageModule;
 import com.produs.packages.PackageModuleRepository;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
+import com.produs.product.ProductServiceRecommendation;
+import com.produs.product.ProductServiceRecommendationRepository;
 import com.produs.requirements.RequirementIntake;
 import com.produs.requirements.RequirementIntakeRepository;
+import com.produs.scanner.NormalizedFinding;
+import com.produs.scanner.NormalizedFindingRepository;
+import com.produs.scanner.ScanRun;
+import com.produs.scanner.ScanRunRepository;
+import com.produs.scanner.ScannerEvidenceItem;
+import com.produs.scanner.ScannerEvidenceItemRepository;
 import com.produs.service.AuditService;
 import com.produs.workspace.Milestone;
 import com.produs.workspace.MilestoneRepository;
@@ -27,10 +35,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -55,6 +66,11 @@ public class ProductizationEngineService {
     private final SupportSubscriptionRepository supportSubscriptionRepository;
     private final IntegrationConnectionRepository integrationConnectionRepository;
     private final IntegrationSignalRepository integrationSignalRepository;
+    private final NormalizedFindingRepository normalizedFindingRepository;
+    private final ScannerEvidenceItemRepository scannerEvidenceItemRepository;
+    private final ScanRunRepository scanRunRepository;
+    private final ProductServiceRecommendationRepository serviceRecommendationRepository;
+    private final ScannerFindingClassifier scannerFindingClassifier;
     private final AuditService auditService;
 
     @Transactional
@@ -111,6 +127,77 @@ public class ProductizationEngineService {
         return diagnosisRepository.findByProductProfileIdOrderByCreatedAtDesc(productId).stream()
                 .map(diagnosis -> toDiagnosisResponse(diagnosis, findingRepository.findByDiagnosisIdOrderByCreatedAtAsc(diagnosis.getId())))
                 .toList();
+    }
+
+    @Transactional
+    public DiagnosisResponse createScannerReadinessDiagnosis(User user, UUID productId, ScannerReadinessDiagnosisRequest request) {
+        ProductProfile product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        requireProductOwner(user, product);
+
+        ProjectWorkspace workspace = null;
+        if (request.workspaceId() != null) {
+            workspace = workspaceRepository.findById(request.workspaceId())
+                    .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+            if (!workspace.getPackageInstance().getProductProfile().getId().equals(productId)) {
+                throw new IllegalArgumentException("Workspace belongs to another product");
+            }
+            requireWorkspaceViewer(user, workspace);
+        }
+
+        boolean includeAcceptedRisk = Boolean.TRUE.equals(request.includeAcceptedRisk());
+        boolean createServiceRecommendations = !Boolean.FALSE.equals(request.createServiceRecommendations());
+        List<NormalizedFinding> scannerFindings = request.workspaceId() == null
+                ? normalizedFindingRepository.findByProductProfileIdOrderBySeverityDescCreatedAtDesc(productId)
+                : normalizedFindingRepository.findByProductProfileIdAndWorkspaceIdOrderBySeverityDescCreatedAtDesc(productId, request.workspaceId());
+        DiagnosisResponse response = createScannerReadinessDiagnosisFromFindings(
+                user,
+                product,
+                workspace,
+                scannerFindings,
+                includeAcceptedRisk,
+                createServiceRecommendations,
+                request.summary(),
+                null,
+                true
+        );
+        auditService.logAction(user.getId(), "CREATE_SCANNER_READINESS_DIAGNOSIS", "PRODUCT_DIAGNOSIS", response.id(), AuditEvent.RiskLevel.HIGH,
+                "Refreshed scanner readiness mapping for product " + product.getId());
+        return response;
+    }
+
+    @Transactional
+    public DiagnosisResponse syncScannerReadinessDiagnosisForScanRun(User actor, UUID scanRunId) {
+        ScanRun scanRun = scanRunRepository.findById(scanRunId)
+                .orElseThrow(() -> new IllegalArgumentException("Scan run not found"));
+        if (scanRun.getStatus() != ScanRun.RunStatus.COMPLETED) {
+            throw new IllegalStateException("Scanner readiness mapping can only be generated for completed scan runs");
+        }
+        String generatedFromScanRunIds = scanRun.getId().toString();
+        ProductDiagnosis existing = diagnosisRepository.findByProductProfileIdAndDiagnosisSourceAndGeneratedFromScanRunIds(
+                scanRun.getProductProfile().getId(),
+                ProductDiagnosis.DiagnosisSource.SCANNER_READINESS,
+                generatedFromScanRunIds
+        ).orElse(null);
+        if (existing != null) {
+            return toDiagnosisResponse(existing, findingRepository.findByDiagnosisIdOrderByCreatedAtAsc(existing.getId()));
+        }
+
+        List<NormalizedFinding> scannerFindings = normalizedFindingRepository.findByScanRunIdOrderBySeverityDescCreatedAtDesc(scanRunId);
+        DiagnosisResponse response = createScannerReadinessDiagnosisFromFindings(
+                actor,
+                scanRun.getProductProfile(),
+                scanRun.getWorkspace(),
+                scannerFindings,
+                false,
+                true,
+                "Scanner findings were mapped automatically after scan completion.",
+                List.of(scanRun.getId()),
+                false
+        );
+        auditService.logAction(actor.getId(), "SYNC_SCANNER_READINESS_MAPPING", "SCAN_RUN", scanRun.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Stored scanner readiness mapping for completed scan " + scanRun.getId());
+        return response;
     }
 
     @Transactional
@@ -396,6 +483,238 @@ public class ProductizationEngineService {
         return toIntegrationSignalResponse(signal);
     }
 
+    private DiagnosisResponse createScannerReadinessDiagnosisFromFindings(
+            User actor,
+            ProductProfile product,
+            ProjectWorkspace workspace,
+            List<NormalizedFinding> findings,
+            boolean includeAcceptedRisk,
+            boolean createServiceRecommendations,
+            String summary,
+            List<UUID> forcedScanRunIds,
+            boolean manualRefresh
+    ) {
+        List<NormalizedFinding> scannerFindings = findings.stream()
+                .filter(finding -> includeAcceptedRisk || activeScannerFinding(finding))
+                .sorted(Comparator
+                        .comparingInt((NormalizedFinding finding) -> severityRank(finding.getSeverity())).reversed()
+                        .thenComparing(NormalizedFinding::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+
+        List<UUID> scanRunIds = forcedScanRunIds != null
+                ? forcedScanRunIds.stream().distinct().toList()
+                : scannerFindings.stream()
+                        .map(finding -> finding.getScanRun().getId())
+                        .distinct()
+                        .toList();
+        String generatedFromScanRunIds = scanRunIds.stream()
+                .map(UUID::toString)
+                .reduce((left, right) -> left + "," + right)
+                .orElse("");
+        List<ScannerEvidenceItem> evidenceItems = scanRunIds.isEmpty()
+                ? List.of()
+                : scannerEvidenceItemRepository.findByScanRunIdInOrderByCreatedAtDesc(scanRunIds);
+        List<ScanRun> scanRuns = scanRunIds.isEmpty()
+                ? List.of()
+                : scanRunRepository.findAllById(scanRunIds);
+
+        ProductDiagnosis diagnosis = new ProductDiagnosis();
+        diagnosis.setProductProfile(product);
+        diagnosis.setWorkspace(workspace);
+        diagnosis.setCreatedBy(actor);
+        diagnosis.setDiagnosisSource(ProductDiagnosis.DiagnosisSource.SCANNER_READINESS);
+        diagnosis.setAiReady(true);
+        diagnosis.setAiExecuted(false);
+        diagnosis.setReadinessScore(scannerReadinessScore(scannerFindings));
+        diagnosis.setGeneratedFromScanRunIds(generatedFromScanRunIds);
+        diagnosis.setTopBlockerCount((int) scannerFindings.stream()
+                .filter(finding -> finding.getSeverity() == NormalizedFinding.FindingSeverity.CRITICAL || finding.getSeverity() == NormalizedFinding.FindingSeverity.HIGH)
+                .count());
+        diagnosis.setEvidenceCount(evidenceItems.size());
+        diagnosis.setAccessSignals("Scanner-backed diagnosis from " + scanRuns.size() + " scan run(s), " + evidenceItems.size()
+                + " evidence item(s), and " + scannerFindings.size() + " active finding(s).");
+        diagnosis.setSummary(firstNonBlank(
+                summary,
+                scannerFindings.isEmpty()
+                        ? "No active scanner findings are currently blocking productization. Keep scheduled evidence refresh enabled before launch decisions."
+                        : (manualRefresh
+                                ? "Scanner findings were refreshed against the current production-readiness catalog."
+                                : "Scanner findings were mapped automatically to production-readiness areas, evidence needs, and catalog services.")
+        ));
+        diagnosis = diagnosisRepository.save(diagnosis);
+
+        List<ProductFinding> productFindings = new ArrayList<>();
+        Map<ServiceModule, List<NormalizedFinding>> findingsByModule = new LinkedHashMap<>();
+        int unmappedCount = 0;
+        for (NormalizedFinding scannerFinding : scannerFindings) {
+            ScannerFindingClassifier.ScannerFindingClassification classification = scannerFindingClassifier.classify(scannerFinding);
+            ServiceModule mappedModule = classification.serviceModuleCode() == null ? null : findModule(classification.serviceModuleCode());
+            if (mappedModule == null) {
+                unmappedCount++;
+            } else {
+                findingsByModule.computeIfAbsent(mappedModule, ignored -> new ArrayList<>()).add(scannerFinding);
+            }
+            persistScannerClassification(scannerFinding, classification, mappedModule);
+            productFindings.add(createScannerProductFinding(diagnosis, scannerFinding, classification, mappedModule));
+        }
+        diagnosis.setUnmappedFindingCount(unmappedCount);
+        diagnosisRepository.save(diagnosis);
+
+        int recommendationsCreated = createServiceRecommendations
+                ? createScannerServiceRecommendations(product, findingsByModule)
+                : 0;
+        if (!manualRefresh) {
+            auditService.logAction(actor.getId(), "STORE_SCANNER_READINESS_DIAGNOSIS", "PRODUCT_DIAGNOSIS", diagnosis.getId(), AuditEvent.RiskLevel.MEDIUM,
+                    "Stored scanner readiness map from " + scanRunIds.size() + " scan run(s), "
+                            + scannerFindings.size() + " active finding(s), and " + recommendationsCreated + " service recommendation(s)");
+        }
+        return toDiagnosisResponse(diagnosis, productFindings);
+    }
+
+    private void persistScannerClassification(
+            NormalizedFinding scannerFinding,
+            ScannerFindingClassifier.ScannerFindingClassification classification,
+            ServiceModule mappedModule
+    ) {
+        scannerFinding.setFindingCategory(classification.category());
+        scannerFinding.setReadinessArea(classification.readinessArea());
+        scannerFinding.setBusinessRisk(classification.businessRisk());
+        scannerFinding.setEvidenceRequired(classification.evidenceRequired());
+        scannerFinding.setMappingReason(classification.mappingReason());
+        scannerFinding.setMappingConfidence(classification.confidence());
+        scannerFinding.setMappingSource("RULE_BASED_SCANNER_CATALOG");
+        scannerFinding.setRecommendedModule(mappedModule);
+        scannerFinding.setConfidenceBasis(firstNonBlank(scannerFinding.getConfidenceBasis(), classification.mappingReason()));
+        normalizedFindingRepository.save(scannerFinding);
+    }
+
+    private ProductFinding createScannerProductFinding(
+            ProductDiagnosis diagnosis,
+            NormalizedFinding scannerFinding,
+            ScannerFindingClassifier.ScannerFindingClassification classification,
+            ServiceModule mappedModule
+    ) {
+        ProductFinding productFinding = new ProductFinding();
+        productFinding.setDiagnosis(diagnosis);
+        productFinding.setNormalizedFinding(scannerFinding);
+        productFinding.setScannerEvidenceItem(scannerFinding.getEvidenceItem());
+        productFinding.setRecommendedModule(mappedModule);
+        productFinding.setTitle(scannerFinding.getTitle());
+        productFinding.setDescription(scannerFinding.getDescription());
+        productFinding.setAffectedLayer(firstNonBlank(
+                mappedModule == null ? null : mappedModule.getServiceLayer(),
+                classification.readinessArea(),
+                scannerFinding.getAffectedComponent()
+        ));
+        productFinding.setReadinessArea(classification.readinessArea());
+        productFinding.setBusinessRisk(classification.businessRisk());
+        productFinding.setOwnerDecision(ownerDecisionFor(scannerFinding, mappedModule));
+        productFinding.setEvidenceRequired(classification.evidenceRequired());
+        productFinding.setMappingReason(classification.mappingReason());
+        productFinding.setMappingConfidence(classification.confidence());
+        productFinding.setMappingSource("RULE_BASED_SCANNER_CATALOG");
+        productFinding.setSeverity(ProductFinding.FindingSeverity.valueOf(scannerFinding.getSeverity().name()));
+        productFinding.setConfidenceLevel(classification.confidence() >= 0.85
+                ? ProductFinding.ConfidenceLevel.HIGH
+                : ProductFinding.ConfidenceLevel.MEDIUM);
+        productFinding.setConfidenceBasis(classification.mappingReason());
+        productFinding.setSourceSignal(scannerFinding.getSourceTool()
+                + (scannerFinding.getSourceRuleId() == null ? "" : " / " + scannerFinding.getSourceRuleId()));
+        return findingRepository.save(productFinding);
+    }
+
+    private int createScannerServiceRecommendations(ProductProfile product, Map<ServiceModule, List<NormalizedFinding>> findingsByModule) {
+        int sequence = serviceRecommendationRepository.findByProductProfileIdOrderBySequenceNumberAscCreatedAtAsc(product.getId()).size() + 1;
+        int created = 0;
+        for (Map.Entry<ServiceModule, List<NormalizedFinding>> entry : findingsByModule.entrySet()) {
+            ServiceModule module = entry.getKey();
+            if (serviceRecommendationRepository.findByProductProfileIdAndServiceModuleId(product.getId(), module.getId()).isPresent()) {
+                continue;
+            }
+            List<NormalizedFinding> findings = entry.getValue();
+            ProductServiceRecommendation recommendation = new ProductServiceRecommendation();
+            recommendation.setProductProfile(product);
+            recommendation.setServiceModule(module);
+            recommendation.setModuleCode(firstNonBlank(module.getStableCode(), module.getSlug()));
+            recommendation.setPriority(recommendationPriority(findings));
+            recommendation.setSequenceNumber(sequence++);
+            recommendation.setReason("Scanner readiness mapping found " + findings.size() + " active finding(s) that need " + module.getName()
+                    + ". Top signal: " + findings.get(0).getTitle() + ".");
+            recommendation.setEvidenceBasisJson(scannerEvidenceBasisJson(findings));
+            recommendation.setExpectedOutcome(firstNonBlank(module.getOwnerOutcome(), "Evidence-backed remediation is ready for owner review."));
+            recommendation.setConfidence(findings.stream().anyMatch(finding -> finding.getSeverity() == NormalizedFinding.FindingSeverity.CRITICAL
+                    || finding.getSeverity() == NormalizedFinding.FindingSeverity.HIGH) ? 0.88 : 0.78);
+            recommendation.setCreatedByAi(false);
+            serviceRecommendationRepository.save(recommendation);
+            created++;
+        }
+        return created;
+    }
+
+    private static String ownerDecisionFor(NormalizedFinding finding, ServiceModule mappedModule) {
+        if (mappedModule == null) {
+            return "Decide whether this scanner signal blocks launch, should be accepted as risk, or needs a new catalog service mapping.";
+        }
+        if (finding.getSeverity() == NormalizedFinding.FindingSeverity.CRITICAL || finding.getSeverity() == NormalizedFinding.FindingSeverity.HIGH) {
+            return "Choose whether " + mappedModule.getName() + " must be added before workspace kickoff or whether the risk is formally accepted.";
+        }
+        return "Decide whether to include " + mappedModule.getName() + " now or track it as a later readiness improvement.";
+    }
+
+    private static String recommendationPriority(List<NormalizedFinding> findings) {
+        boolean severe = findings.stream().anyMatch(finding -> finding.getSeverity() == NormalizedFinding.FindingSeverity.CRITICAL
+                || finding.getSeverity() == NormalizedFinding.FindingSeverity.HIGH);
+        boolean medium = findings.stream().anyMatch(finding -> finding.getSeverity() == NormalizedFinding.FindingSeverity.MEDIUM);
+        if (severe) return "MUST";
+        if (medium) return "SHOULD";
+        return "COULD";
+    }
+
+    private static String scannerEvidenceBasisJson(List<NormalizedFinding> findings) {
+        return "[" + findings.stream()
+                .limit(8)
+                .map(finding -> "{\"findingId\":\"" + finding.getId() + "\",\"severity\":\"" + finding.getSeverity()
+                        + "\",\"title\":\"" + jsonEscape(finding.getTitle()) + "\"}")
+                .reduce((left, right) -> left + "," + right)
+                .orElse("") + "]";
+    }
+
+    private static boolean activeScannerFinding(NormalizedFinding finding) {
+        return finding.getStatus() == NormalizedFinding.FindingStatus.NEW
+                || finding.getStatus() == NormalizedFinding.FindingStatus.OPEN
+                || finding.getStatus() == NormalizedFinding.FindingStatus.REGRESSED
+                || finding.getStatus() == NormalizedFinding.FindingStatus.INSUFFICIENT_EVIDENCE;
+    }
+
+    private static int scannerReadinessScore(List<NormalizedFinding> findings) {
+        int score = 100;
+        Set<String> categories = new HashSet<>();
+        for (NormalizedFinding finding : findings) {
+            score -= switch (finding.getSeverity()) {
+                case CRITICAL -> 18;
+                case HIGH -> 11;
+                case MEDIUM -> 6;
+                case LOW -> 3;
+                case INFO -> 1;
+            };
+            if (finding.getFindingCategory() != null) {
+                categories.add(finding.getFindingCategory());
+            }
+        }
+        score -= Math.max(0, categories.size() - 3) * 2;
+        return clamp(score, 0, 100);
+    }
+
+    private static int severityRank(NormalizedFinding.FindingSeverity severity) {
+        return switch (severity) {
+            case CRITICAL -> 5;
+            case HIGH -> 4;
+            case MEDIUM -> 3;
+            case LOW -> 2;
+            case INFO -> 1;
+        };
+    }
+
     private List<ProductFinding> seedFindings(ProductDiagnosis diagnosis, String combinedSignal) {
         Map<String, FindingSeed> seeds = new LinkedHashMap<>();
         addSeed(seeds, "baseline", "validation.product_readiness", "Production readiness baseline", "Confirm the product has an evidence-backed readiness view before teams scope delivery.", ProductFinding.FindingSeverity.MEDIUM, "Product context requires a baseline diagnosis.");
@@ -543,6 +862,12 @@ public class ProductizationEngineService {
                 diagnosis.getReadinessScore(),
                 diagnosis.getSummary(),
                 diagnosis.getAccessSignals(),
+                diagnosis.getWorkspace() == null ? null : diagnosis.getWorkspace().getId(),
+                diagnosis.getDiagnosisSource(),
+                diagnosis.getGeneratedFromScanRunIds(),
+                diagnosis.getTopBlockerCount(),
+                diagnosis.getEvidenceCount(),
+                diagnosis.getUnmappedFindingCount(),
                 diagnosis.getStatus(),
                 diagnosis.isAiReady(),
                 diagnosis.isAiExecuted(),
@@ -557,11 +882,20 @@ public class ProductizationEngineService {
                 finding.getTitle(),
                 finding.getDescription(),
                 finding.getAffectedLayer(),
+                finding.getReadinessArea(),
+                finding.getBusinessRisk(),
+                finding.getOwnerDecision(),
+                finding.getEvidenceRequired(),
+                finding.getMappingReason(),
+                finding.getMappingConfidence(),
+                finding.getMappingSource(),
                 finding.getSeverity(),
                 finding.getConfidenceLevel(),
                 finding.getConfidenceBasis(),
                 finding.getSourceSignal(),
                 finding.getStatus(),
+                finding.getNormalizedFinding() == null ? null : finding.getNormalizedFinding().getId(),
+                finding.getScannerEvidenceItem() == null ? null : finding.getScannerEvidenceItem().getId(),
                 module == null ? null : module.getId(),
                 module == null ? null : module.getName(),
                 module == null ? null : module.getStableCode()
@@ -685,8 +1019,14 @@ public class ProductizationEngineService {
     }
 
     private ServiceModule findModule(String stableCode) {
+        if (stableCode == null || stableCode.isBlank()) {
+            return null;
+        }
+        String fallbackSlug = stableCode.contains(".")
+                ? stableCode.substring(stableCode.indexOf('.') + 1).replace('_', '-')
+                : stableCode.replace('_', '-');
         return moduleRepository.findByStableCode(stableCode)
-                .orElseGet(() -> moduleRepository.findBySlug(stableCode.substring(stableCode.indexOf('.') + 1).replace('_', '-')).orElse(null));
+                .orElseGet(() -> moduleRepository.findBySlug(fallbackSlug).orElse(null));
     }
 
     private void addSeed(Map<String, FindingSeed> seeds, String key, String serviceCode, String title, String description, ProductFinding.FindingSeverity severity, String basis) {
@@ -757,6 +1097,17 @@ public class ProductizationEngineService {
         return false;
     }
 
+    private static String jsonEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
+    }
+
     private static List<String> splitStatements(String value) {
         if (value == null || value.isBlank()) {
             return List.of();
@@ -782,8 +1133,9 @@ public class ProductizationEngineService {
     private record FindingSeed(String serviceCode, String title, String description, ProductFinding.FindingSeverity severity, String basis) {}
 
     public record DiagnosisRequest(UUID requirementIntakeId, String businessGoal, String currentProblems, String accessSignals, String summary) {}
-    public record DiagnosisResponse(UUID id, LocalDateTime createdAt, UUID productId, String productName, Integer readinessScore, String summary, String accessSignals, ProductDiagnosis.DiagnosisStatus status, boolean aiReady, boolean aiExecuted, List<FindingResponse> findings) {}
-    public record FindingResponse(UUID id, String title, String description, String affectedLayer, ProductFinding.FindingSeverity severity, ProductFinding.ConfidenceLevel confidenceLevel, String confidenceBasis, String sourceSignal, ProductFinding.FindingStatus status, UUID recommendedModuleId, String recommendedModuleName, String recommendedModuleCode) {}
+    public record ScannerReadinessDiagnosisRequest(UUID workspaceId, Boolean createServiceRecommendations, Boolean includeAcceptedRisk, String summary) {}
+    public record DiagnosisResponse(UUID id, LocalDateTime createdAt, UUID productId, String productName, Integer readinessScore, String summary, String accessSignals, UUID workspaceId, ProductDiagnosis.DiagnosisSource diagnosisSource, String generatedFromScanRunIds, int topBlockerCount, int evidenceCount, int unmappedFindingCount, ProductDiagnosis.DiagnosisStatus status, boolean aiReady, boolean aiExecuted, List<FindingResponse> findings) {}
+    public record FindingResponse(UUID id, String title, String description, String affectedLayer, String readinessArea, String businessRisk, String ownerDecision, String evidenceRequired, String mappingReason, Double mappingConfidence, String mappingSource, ProductFinding.FindingSeverity severity, ProductFinding.ConfidenceLevel confidenceLevel, String confidenceBasis, String sourceSignal, ProductFinding.FindingStatus status, UUID normalizedFindingId, UUID scannerEvidenceItemId, UUID recommendedModuleId, String recommendedModuleName, String recommendedModuleCode) {}
     public record CriterionResponse(UUID id, UUID milestoneId, UUID packageModuleId, String serviceName, String title, String description, boolean required, AcceptanceCriterion.CriterionStatus status, boolean humanReviewRequired, List<EvidenceRequirementResponse> evidenceRequirements, List<AutomatedCheckResponse> automatedChecks, List<ReviewDecisionResponse> reviews) {}
     public record EvidenceRequirementRequest(EvidenceRequirement.EvidenceStatus status, String evidenceReference) {}
     public record EvidenceRequirementResponse(UUID id, UUID criterionId, String evidenceType, String description, boolean required, EvidenceRequirement.EvidenceStatus status, String evidenceReference) {}

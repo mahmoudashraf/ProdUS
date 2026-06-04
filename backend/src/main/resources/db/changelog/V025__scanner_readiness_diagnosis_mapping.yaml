@@ -1,0 +1,94 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2500
+      author: produs
+      changes:
+        - addColumn:
+            tableName: product_diagnoses
+            columns:
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: diagnosis_source, type: VARCHAR(80), defaultValue: MANUAL_DETERMINISTIC, constraints: { nullable: false } }
+              - column: { name: generated_from_scan_run_ids, type: TEXT }
+              - column: { name: top_blocker_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: evidence_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: unmapped_finding_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            baseTableName: product_diagnoses
+            baseColumnNames: workspace_id
+            constraintName: fk_product_diagnoses_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_diagnoses
+            indexName: idx_product_diagnoses_source
+            columns:
+              - column: { name: diagnosis_source }
+        - createIndex:
+            tableName: product_diagnoses
+            indexName: idx_product_diagnoses_workspace
+            columns:
+              - column: { name: workspace_id }
+
+  - changeSet:
+      id: 2501
+      author: produs
+      changes:
+        - addColumn:
+            tableName: product_findings
+            columns:
+              - column: { name: normalized_finding_id, type: UUID }
+              - column: { name: scanner_evidence_item_id, type: UUID }
+              - column: { name: readiness_area, type: VARCHAR(80) }
+              - column: { name: business_risk, type: TEXT }
+              - column: { name: owner_decision, type: TEXT }
+              - column: { name: evidence_required, type: TEXT }
+              - column: { name: mapping_reason, type: TEXT }
+              - column: { name: mapping_confidence, type: DOUBLE }
+              - column: { name: mapping_source, type: VARCHAR(50) }
+        - addForeignKeyConstraint:
+            baseTableName: product_findings
+            baseColumnNames: normalized_finding_id
+            constraintName: fk_product_findings_normalized_finding
+            referencedTableName: normalized_findings
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: product_findings
+            baseColumnNames: scanner_evidence_item_id
+            constraintName: fk_product_findings_scanner_evidence
+            referencedTableName: scanner_evidence_items
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_findings
+            indexName: idx_product_findings_normalized
+            columns:
+              - column: { name: normalized_finding_id }
+        - createIndex:
+            tableName: product_findings
+            indexName: idx_product_findings_readiness_area
+            columns:
+              - column: { name: readiness_area }
+
+  - changeSet:
+      id: 2502
+      author: produs
+      changes:
+        - addColumn:
+            tableName: normalized_findings
+            columns:
+              - column: { name: finding_category, type: VARCHAR(80) }
+              - column: { name: readiness_area, type: VARCHAR(80) }
+              - column: { name: business_risk, type: TEXT }
+              - column: { name: evidence_required, type: TEXT }
+              - column: { name: mapping_reason, type: TEXT }
+              - column: { name: mapping_confidence, type: DOUBLE }
+              - column: { name: mapping_source, type: VARCHAR(50) }
+        - createIndex:
+            tableName: normalized_findings
+            indexName: idx_normalized_findings_category
+            columns:
+              - column: { name: finding_category }
+        - createIndex:
+            tableName: normalized_findings
+            indexName: idx_normalized_findings_readiness_area
+            columns:
+              - column: { name: readiness_area }

@@ -80,6 +80,27 @@ public class NormalizedFinding extends BaseEntity {
     @Column(name = "confidence_basis", columnDefinition = "TEXT")
     private String confidenceBasis;
 
+    @Column(name = "finding_category")
+    private String findingCategory;
+
+    @Column(name = "readiness_area")
+    private String readinessArea;
+
+    @Column(name = "business_risk", columnDefinition = "TEXT")
+    private String businessRisk;
+
+    @Column(name = "evidence_required", columnDefinition = "TEXT")
+    private String evidenceRequired;
+
+    @Column(name = "mapping_reason", columnDefinition = "TEXT")
+    private String mappingReason;
+
+    @Column(name = "mapping_confidence")
+    private Double mappingConfidence;
+
+    @Column(name = "mapping_source")
+    private String mappingSource;
+
     @Column(name = "risk_acceptance_reason", columnDefinition = "TEXT")
     private String riskAcceptanceReason;
 

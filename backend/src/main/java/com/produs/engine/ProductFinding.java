@@ -1,6 +1,8 @@
 package com.produs.engine;
 
 import com.produs.catalog.ServiceModule;
+import com.produs.scanner.NormalizedFinding;
+import com.produs.scanner.ScannerEvidenceItem;
 import com.produs.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,6 +30,14 @@ public class ProductFinding extends BaseEntity {
     @JoinColumn(name = "recommended_module_id")
     private ServiceModule recommendedModule;
 
+    @ManyToOne
+    @JoinColumn(name = "normalized_finding_id")
+    private NormalizedFinding normalizedFinding;
+
+    @ManyToOne
+    @JoinColumn(name = "scanner_evidence_item_id")
+    private ScannerEvidenceItem scannerEvidenceItem;
+
     @Column(nullable = false)
     private String title;
 
@@ -36,6 +46,27 @@ public class ProductFinding extends BaseEntity {
 
     @Column(name = "affected_layer")
     private String affectedLayer;
+
+    @Column(name = "readiness_area")
+    private String readinessArea;
+
+    @Column(name = "business_risk", columnDefinition = "TEXT")
+    private String businessRisk;
+
+    @Column(name = "owner_decision", columnDefinition = "TEXT")
+    private String ownerDecision;
+
+    @Column(name = "evidence_required", columnDefinition = "TEXT")
+    private String evidenceRequired;
+
+    @Column(name = "mapping_reason", columnDefinition = "TEXT")
+    private String mappingReason;
+
+    @Column(name = "mapping_confidence")
+    private Double mappingConfidence;
+
+    @Column(name = "mapping_source")
+    private String mappingSource;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

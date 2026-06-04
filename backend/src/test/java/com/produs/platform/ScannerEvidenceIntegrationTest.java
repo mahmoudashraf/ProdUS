@@ -2,6 +2,7 @@ package com.produs.platform;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.produs.catalog.CatalogCoreSeedService;
 import com.produs.entity.User;
 import com.produs.repository.UserRepository;
 import com.produs.scanner.ScannerProperties;
@@ -84,11 +85,15 @@ class ScannerEvidenceIntegrationTest {
     @Autowired
     private ScannerProperties scannerProperties;
 
+    @Autowired
+    private CatalogCoreSeedService catalogCoreSeedService;
+
     @MockBean
     private S3Service s3Service;
 
     @BeforeEach
     void mockObjectStorage() {
+        catalogCoreSeedService.seedCoreCatalog();
         when(s3Service.generateFileKey(anyString(), anyString()))
                 .thenAnswer(invocation -> invocation.getArgument(0, String.class) + "/" + UUID.randomUUID() + ".sarif");
         when(s3Service.uploadFile(anyString(), any(byte[].class), anyString()))
@@ -173,8 +178,19 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(jsonPath("$[0].description", not(containsString("sk_live"))))
                 .andExpect(jsonPath("$[0].description").value(containsString("[REDACTED_SECRET]")))
                 .andExpect(jsonPath("$[0].evidenceItemId").exists())
+                .andExpect(jsonPath("$[0].findingCategory").value("SECRET_EXPOSURE"))
+                .andExpect(jsonPath("$[0].readinessArea").value("Security and secrets"))
+                .andExpect(jsonPath("$[0].mappingSource").value("RULE_BASED_SCANNER_CATALOG"))
                 .andReturn();
         UUID findingId = UUID.fromString(objectMapper.readTree(findingsResult.getResponse().getContentAsString()).get(0).get("id").asText());
+
+        mockMvc.perform(get("/api/productization-engine/products/{productId}/diagnoses", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].diagnosisSource").value("SCANNER_READINESS"))
+                .andExpect(jsonPath("$[0].generatedFromScanRunIds").value(runId.toString()))
+                .andExpect(jsonPath("$[0].topBlockerCount").value(1))
+                .andExpect(jsonPath("$[0].findings[0].recommendedModuleCode").value("security.secrets_scan"))
+                .andExpect(jsonPath("$[0].findings[0].businessRisk").value(containsString("credential")));
 
         mockMvc.perform(get("/api/scanner/products/{productId}/summary", productId).with(auth(owner)))
                 .andExpect(status().isOk())
@@ -445,7 +461,15 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(jsonPath("$[0].sourceTool").value("GitHub Code Scanning"))
                 .andExpect(jsonPath("$[0].sourceRuleId").value("js/sql-injection"))
                 .andExpect(jsonPath("$[0].severity").value("HIGH"))
-                .andExpect(jsonPath("$[0].affectedComponent").value("src/api/payments.ts:44"));
+                .andExpect(jsonPath("$[0].affectedComponent").value("src/api/payments.ts:44"))
+                .andExpect(jsonPath("$[0].mappingSource").value("RULE_BASED_SCANNER_CATALOG"))
+                .andExpect(jsonPath("$[0].readinessArea").value("API and integration security"));
+
+        mockMvc.perform(get("/api/productization-engine/products/{productId}/diagnoses", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].diagnosisSource").value("SCANNER_READINESS"))
+                .andExpect(jsonPath("$[0].generatedFromScanRunIds").value(runId.toString()))
+                .andExpect(jsonPath("$[0].findings[0].recommendedModuleCode").value("security.api_review"));
 
         mockMvc.perform(get("/api/scanner/imports")
                         .with(auth(owner))

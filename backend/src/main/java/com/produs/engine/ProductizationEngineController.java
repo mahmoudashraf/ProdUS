@@ -18,6 +18,7 @@ import com.produs.engine.ProductizationEngineService.IntegrationSignalRequest;
 import com.produs.engine.ProductizationEngineService.IntegrationSignalResponse;
 import com.produs.engine.ProductizationEngineService.ReviewDecisionRequest;
 import com.produs.engine.ProductizationEngineService.ReviewDecisionResponse;
+import com.produs.engine.ProductizationEngineService.ScannerReadinessDiagnosisRequest;
 import com.produs.engine.ProductizationEngineService.WorkspaceGovernanceResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,15 @@ public class ProductizationEngineController {
             @Valid @RequestBody DiagnosisRequest request
     ) {
         return engineService.createDiagnosis(user, productId, request);
+    }
+
+    @PostMapping("/products/{productId}/scanner-diagnosis")
+    public DiagnosisResponse createScannerReadinessDiagnosis(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID productId,
+            @Valid @RequestBody ScannerReadinessDiagnosisRequest request
+    ) {
+        return engineService.createScannerReadinessDiagnosis(user, productId, request);
     }
 
     @GetMapping("/milestones/{milestoneId}/criteria")

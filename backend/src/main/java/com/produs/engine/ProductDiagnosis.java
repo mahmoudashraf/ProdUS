@@ -4,6 +4,7 @@ import com.produs.entity.User;
 import com.produs.product.ProductProfile;
 import com.produs.requirements.RequirementIntake;
 import com.produs.shared.BaseEntity;
+import com.produs.workspace.ProjectWorkspace;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -30,6 +31,10 @@ public class ProductDiagnosis extends BaseEntity {
     @JoinColumn(name = "requirement_intake_id")
     private RequirementIntake requirementIntake;
 
+    @ManyToOne
+    @JoinColumn(name = "workspace_id")
+    private ProjectWorkspace workspace;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
@@ -42,6 +47,22 @@ public class ProductDiagnosis extends BaseEntity {
 
     @Column(name = "access_signals", columnDefinition = "TEXT")
     private String accessSignals;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "diagnosis_source", nullable = false)
+    private DiagnosisSource diagnosisSource = DiagnosisSource.MANUAL_DETERMINISTIC;
+
+    @Column(name = "generated_from_scan_run_ids", columnDefinition = "TEXT")
+    private String generatedFromScanRunIds;
+
+    @Column(name = "top_blocker_count", nullable = false)
+    private int topBlockerCount = 0;
+
+    @Column(name = "evidence_count", nullable = false)
+    private int evidenceCount = 0;
+
+    @Column(name = "unmapped_finding_count", nullable = false)
+    private int unmappedFindingCount = 0;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -59,5 +80,10 @@ public class ProductDiagnosis extends BaseEntity {
         FINDINGS_REVIEWED,
         SERVICE_PLAN_CREATED,
         ARCHIVED
+    }
+
+    public enum DiagnosisSource {
+        MANUAL_DETERMINISTIC,
+        SCANNER_READINESS
     }
 }

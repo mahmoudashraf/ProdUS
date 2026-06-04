@@ -7,6 +7,7 @@ import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
 import com.produs.dto.PlatformDtos.ProductProfileResponse;
 import com.produs.dto.PlatformDtos.ServiceModuleResponse;
+import com.produs.engine.ProductizationEngineService;
 import com.produs.entity.User;
 import com.produs.exception.ResourceNotFoundException;
 import com.produs.product.ProductProfile;
@@ -73,6 +74,7 @@ public class ScannerService {
     private final ObjectMapper objectMapper;
     private final ScannerProperties scannerProperties;
     private final ScannerProcessRunner scannerProcessRunner;
+    private final ProductizationEngineService productizationEngineService;
 
     @Transactional
     public ScanSourceResponse createSource(User actor, CreateScanSourceRequest request) {
@@ -354,6 +356,7 @@ public class ScannerService {
             savedImport.setArtifactRef(artifactRef);
             savedImport.setStorageKey(storageKey);
             ScannerImportRun completedImport = importRunRepository.save(savedImport);
+            productizationEngineService.syncScannerReadinessDiagnosisForScanRun(actor, savedRun.getId());
             audit(actor, "SCANNER_EXTERNAL_IMPORT_COMPLETED", "SCANNER_IMPORT_RUN", completedImport.getId(), AuditEvent.RiskLevel.MEDIUM,
                     "Imported %s evidence for product %s with %d normalized findings".formatted(provider, product.getId(), normalizedCount));
             return toImportRunResponse(completedImport);
@@ -470,6 +473,7 @@ public class ScannerService {
             savedRun.setCompletedAt(LocalDateTime.now());
             savedRun.setStatus(ScanRun.RunStatus.COMPLETED);
             scanRunRepository.save(savedRun);
+            productizationEngineService.syncScannerReadinessDiagnosisForScanRun(actor, savedRun.getId());
             audit(actor, "SCANNER_EVIDENCE_UPLOADED", "SCAN_RUN", savedRun.getId(), AuditEvent.RiskLevel.MEDIUM,
                     "Uploaded %s evidence for product %s with %d normalized findings".formatted(request.format(), product.getId(), normalizedCount));
             return toScanRunResponse(savedRun, List.of(savedTool));
@@ -1053,6 +1057,9 @@ public class ScannerService {
         }
         run.setCompletedAt(LocalDateTime.now());
         scanRunRepository.save(run);
+        if (run.getStatus() == ScanRun.RunStatus.COMPLETED) {
+            productizationEngineService.syncScannerReadinessDiagnosisForScanRun(run.getRequestedBy(), run.getId());
+        }
         audit(run.getRequestedBy(), "SCANNER_RUN_FINISHED", "SCAN_RUN", run.getId(), failed ? AuditEvent.RiskLevel.HIGH : AuditEvent.RiskLevel.MEDIUM,
                 "Scanner run finished with status " + run.getStatus());
     }
@@ -2367,6 +2374,13 @@ public class ScannerService {
                 finding.getEvidenceItem() == null ? null : finding.getEvidenceItem().getId(),
                 toServiceModuleResponse(finding.getRecommendedModule()),
                 finding.getConfidenceBasis(),
+                finding.getFindingCategory(),
+                finding.getReadinessArea(),
+                finding.getBusinessRisk(),
+                finding.getEvidenceRequired(),
+                finding.getMappingReason(),
+                finding.getMappingConfidence(),
+                finding.getMappingSource(),
                 finding.getRiskAcceptanceReason(),
                 finding.getRiskReviewDueOn(),
                 finding.getReviewedBy() == null ? null : finding.getReviewedBy().getEmail(),
@@ -2787,6 +2801,13 @@ public class ScannerService {
             UUID evidenceItemId,
             ServiceModuleResponse recommendedModule,
             String confidenceBasis,
+            String findingCategory,
+            String readinessArea,
+            String businessRisk,
+            String evidenceRequired,
+            String mappingReason,
+            Double mappingConfidence,
+            String mappingSource,
             String riskAcceptanceReason,
             LocalDate riskReviewDueOn,
             String reviewedByEmail,

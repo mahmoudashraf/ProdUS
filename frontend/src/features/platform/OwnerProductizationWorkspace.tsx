@@ -163,6 +163,13 @@ interface DiagnosisPayload {
   summary: string;
 }
 
+interface ScannerReadinessDiagnosisPayload {
+  workspaceId?: string;
+  createServiceRecommendations: boolean;
+  includeAcceptedRisk: boolean;
+  summary?: string;
+}
+
 interface ScanSourcePayload {
   productId: string;
   workspaceId?: string;
@@ -893,6 +900,7 @@ export default function OwnerProductizationWorkspace({
   const [pendingRequirementId, setPendingRequirementId] = useState('');
   const [projectName, setProjectName] = useState('');
   const [cartNotice, setCartNotice] = useState('');
+  const [lastDiagnosisRefreshRunId, setLastDiagnosisRefreshRunId] = useState('');
   const diagnoses = useQuery({
     queryKey: ['productization-engine', selectedProductId, 'diagnoses'],
     enabled: !!selectedProductId,
@@ -907,6 +915,13 @@ export default function OwnerProductizationWorkspace({
       return data?.recentRuns.some((run) => run.status === 'QUEUED' || run.status === 'RUNNING') ? 5000 : false;
     },
   });
+  const latestCompletedScannerRunId = scannerSummary.data?.recentRuns.find((run) => run.status === 'COMPLETED')?.id || '';
+  useEffect(() => {
+    if (!selectedProductId || !latestCompletedScannerRunId || latestCompletedScannerRunId === lastDiagnosisRefreshRunId) return;
+    setLastDiagnosisRefreshRunId(latestCompletedScannerRunId);
+    queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProductId, 'diagnoses'] });
+    queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
+  }, [latestCompletedScannerRunId, lastDiagnosisRefreshRunId, queryClient, selectedProductId]);
   const connectorPermissions = useQuery({
     queryKey: ['scanner-connector-permissions'],
     queryFn: () => getJson<ConnectorPermission[]>('/scanner/connector-permissions'),
@@ -1042,7 +1057,7 @@ export default function OwnerProductizationWorkspace({
   );
   const assistantSuggestions = useQuery({
     queryKey: ['assistant-suggestions', selectedProduct?.id, selectedPackage?.id, selectedWorkspace?.id, selectedFindingId],
-    enabled: !!selectedProduct?.id,
+    enabled: false,
     queryFn: () =>
       postJson<AssistantSuggestionsResponse, { content: string; conversationId: string; maxSuggestions: number; context: Record<string, string | undefined> }>('/ai/assistant/suggestions', {
         content: `Suggest the next useful productization actions for ${selectedProduct?.name || 'this product'}.`,
@@ -1206,6 +1221,19 @@ export default function OwnerProductizationWorkspace({
       await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
     },
   });
+  const createScannerReadinessDiagnosis = useMutation({
+    mutationFn: (payload: ScannerReadinessDiagnosisPayload) =>
+      postJson<ProductDiagnosis, ScannerReadinessDiagnosisPayload>(
+        `/productization-engine/products/${selectedProduct?.id}/scanner-diagnosis`,
+        payload
+      ),
+    onSuccess: async () => {
+      setCartNotice('Scanner findings were mapped to readiness services. Review the diagnosis, then add the right services to the plan.');
+      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
+    },
+  });
   const createScanSource = useMutation({
     mutationFn: () => {
       const payload: ScanSourcePayload = {
@@ -1275,6 +1303,8 @@ export default function OwnerProductizationWorkspace({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
+      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
     },
   });
   const importExternalEvidence = useMutation({
@@ -1299,6 +1329,8 @@ export default function OwnerProductizationWorkspace({
     onSuccess: async () => {
       setExternalImportForm((current) => ({ ...current, artifactPayload: '', externalReference: '' }));
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
+      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
     },
   });
   const fetchCiTemplate = useMutation({
@@ -1431,13 +1463,20 @@ export default function OwnerProductizationWorkspace({
   const suggestedExperts = (experts.data || []).filter((expert) => expert.active).slice(0, 3);
   const health = productHealth(selectedProduct, selectedPackage, packageModules.data);
   const latestDiagnosis = diagnoses.data?.[0];
+  const latestScannerDiagnosis = (diagnoses.data || []).find((diagnosis) => diagnosis.diagnosisSource === 'SCANNER_READINESS');
   const scannerCounts = scannerSummary.data?.counts;
   const scannerReadiness = scannerSummary.data?.readinessScore ?? (scannerCounts?.total ? 72 : 100);
   const scannerOpenFindings = (scannerSummary.data?.findings || []).filter((finding) => ['NEW', 'OPEN', 'REGRESSED'].includes(finding.status));
+  const hasCompletedScannerRun = !!scannerSummary.data?.recentRuns.some((run) => run.status === 'COMPLETED');
   const selectedFinding = (scannerSummary.data?.findings || []).find((finding) => finding.id === selectedFindingId) || scannerOpenFindings[0] || scannerSummary.data?.findings?.[0];
   const selectedFindingEvidence = (scannerSummary.data?.evidence || []).filter((item) => item.findingId && item.findingId === selectedFinding?.id);
+  const scannerMappedFindings = latestScannerDiagnosis?.findings || [];
+  const scannerMappedServices = Array.from(new Set(scannerMappedFindings.map((finding) => finding.recommendedModuleName).filter(Boolean)));
+  const scannerReadinessPromptFacts = latestScannerDiagnosis
+    ? `Scanner readiness map: score ${latestScannerDiagnosis.readinessScore}/100, top blockers ${latestScannerDiagnosis.topBlockerCount || 0}, evidence items ${latestScannerDiagnosis.evidenceCount || 0}, unmapped findings ${latestScannerDiagnosis.unmappedFindingCount || 0}. Mapped services: ${scannerMappedServices.join(', ') || 'none'}. Top mapped findings: ${scannerMappedFindings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.readinessArea || 'unclassified'}, service ${finding.recommendedModuleName || 'unmapped'}): risk ${finding.businessRisk || finding.description}; evidence ${finding.evidenceRequired || 'not recorded'}`).join('; ') || 'none'}.`
+    : 'No scanner readiness diagnosis has been generated yet.';
   const diagnosisPromptFacts = latestDiagnosis
-    ? `Visible diagnosis facts: readiness score ${latestDiagnosis.readinessScore}/100, status ${formatLabel(latestDiagnosis.status)}, AI state ${latestDiagnosis.aiExecuted ? 'AI executed' : 'AI-ready deterministic'}, finding count ${latestDiagnosis.findings.length}. Diagnosis summary: "${latestDiagnosis.summary || 'not recorded'}". Access signals: "${latestDiagnosis.accessSignals || 'not recorded'}". Top findings: ${latestDiagnosis.findings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.status}, recommended service ${finding.recommendedModuleName || 'not mapped'}): ${finding.description}`).join('; ') || 'none recorded'}. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings; scanner top findings ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none open'}.`
+    ? `Visible diagnosis facts: readiness score ${latestDiagnosis.readinessScore}/100, status ${formatLabel(latestDiagnosis.status)}, source ${formatLabel(latestDiagnosis.diagnosisSource || 'MANUAL_DETERMINISTIC')}, AI state ${latestDiagnosis.aiExecuted ? 'AI executed' : 'AI-ready deterministic'}, finding count ${latestDiagnosis.findings.length}. Diagnosis summary: "${latestDiagnosis.summary || 'not recorded'}". Access signals: "${latestDiagnosis.accessSignals || 'not recorded'}". Top findings: ${latestDiagnosis.findings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.status}, area ${finding.readinessArea || 'not classified'}, recommended service ${finding.recommendedModuleName || 'not mapped'}): ${finding.businessRisk || finding.description}`).join('; ') || 'none recorded'}. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings; scanner top findings ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none open'}. ${scannerReadinessPromptFacts}`
     : `No deterministic productization diagnosis exists yet for ${selectedProduct?.name || 'this product'}. Ask the owner to run diagnosis before making readiness claims. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings.`;
   const filteredScannerEvidence = (scannerSummary.data?.evidence || []).filter((item) => {
     if (evidenceFilter === 'FINDINGS') return !!item.findingId;
@@ -1587,6 +1626,7 @@ export default function OwnerProductizationWorkspace({
     || removeTalentFromCart.error
     || convertCart.error
     || createDiagnosis.error
+    || createScannerReadinessDiagnosis.error
     || createScanSource.error
     || requestConnectorInstall.error
     || createProviderSource.error
@@ -1834,8 +1874,18 @@ export default function OwnerProductizationWorkspace({
                             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>{latestDiagnosis.summary}</Typography>
                           </Box>
                         </Stack>
-                        <PastelChip label={latestDiagnosis.aiExecuted ? 'AI executed' : 'AI-ready, deterministic'} accent={appleColors.blue} bg="#eaf3ff" />
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ sm: 'flex-end' }}>
+                          <PastelChip label={formatLabel(latestDiagnosis.diagnosisSource || 'MANUAL_DETERMINISTIC')} accent={latestDiagnosis.diagnosisSource === 'SCANNER_READINESS' ? appleColors.green : appleColors.blue} bg={latestDiagnosis.diagnosisSource === 'SCANNER_READINESS' ? '#e7f8ee' : '#eaf3ff'} />
+                          <PastelChip label={latestDiagnosis.aiExecuted ? 'AI executed' : 'AI-ready, deterministic'} accent={appleColors.blue} bg="#eaf3ff" />
+                        </Stack>
                       </Stack>
+                      {latestDiagnosis.diagnosisSource === 'SCANNER_READINESS' && (
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
+                          <MetricTile label="Top blockers" value={latestDiagnosis.topBlockerCount || 0} detail="Critical/high scanner findings" accent={(latestDiagnosis.topBlockerCount || 0) ? appleColors.red : appleColors.green} icon={<BugReportOutlined />} />
+                          <MetricTile label="Evidence linked" value={latestDiagnosis.evidenceCount || 0} detail="Scanner evidence items" accent={appleColors.cyan} icon={<ArticleOutlined />} />
+                          <MetricTile label="Unmapped" value={latestDiagnosis.unmappedFindingCount || 0} detail="Need human classification" accent={(latestDiagnosis.unmappedFindingCount || 0) ? appleColors.amber : appleColors.green} icon={<InfoOutlined />} />
+                        </Box>
+                      )}
                       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
                         {latestDiagnosis.findings.map((finding) => {
                           const recommendedModule = (catalogModules.data || []).find((module) => module.id === finding.recommendedModuleId);
@@ -1845,14 +1895,31 @@ export default function OwnerProductizationWorkspace({
                               <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
                                 <Box sx={{ minWidth: 0 }}>
                                   <Typography sx={{ fontWeight: 900 }}>{finding.title}</Typography>
-                                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.5 }}>{finding.description}</Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.5 }}>{finding.businessRisk || finding.description}</Typography>
                                 </Box>
                                 <StatusChip label={finding.severity} color={finding.severity === 'CRITICAL' || finding.severity === 'HIGH' ? 'error' : 'warning'} />
                               </Stack>
                               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                                 <PastelChip label={finding.confidenceLevel} accent={appleColors.cyan} bg="#e4f9fd" />
+                                {finding.readinessArea && <PastelChip label={finding.readinessArea} accent={appleColors.green} bg="#e7f8ee" />}
                                 {finding.recommendedModuleName && <PastelChip label={finding.recommendedModuleName} accent={appleColors.purple} />}
                               </Stack>
+                              {(finding.ownerDecision || finding.evidenceRequired) && (
+                                <Box sx={{ mt: 1, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
+                                  {finding.ownerDecision && (
+                                    <Box sx={{ p: 1, borderRadius: 1, border: '1px solid', borderColor: '#dbeafe', bgcolor: '#fbfdff' }}>
+                                      <Typography variant="caption" color="text.secondary">Owner decision</Typography>
+                                      <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1.45 }}>{finding.ownerDecision}</Typography>
+                                    </Box>
+                                  )}
+                                  {finding.evidenceRequired && (
+                                    <Box sx={{ p: 1, borderRadius: 1, border: '1px solid', borderColor: '#dcfce7', bgcolor: '#fbfffd' }}>
+                                      <Typography variant="caption" color="text.secondary">Evidence required</Typography>
+                                      <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1.45 }}>{finding.evidenceRequired}</Typography>
+                                    </Box>
+                                  )}
+                                </Box>
+                              )}
                               {recommendedModule && (
                                 <Button
                                   variant={inCart ? 'outlined' : 'contained'}
@@ -1931,11 +1998,117 @@ export default function OwnerProductizationWorkspace({
                 })}
               </Box>
 
+              <Box sx={{ mb: 2, p: 1.5, borderRadius: 1, border: '1px solid', borderColor: '#dbeafe', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
+                <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ lg: 'center' }}>
+                  <Stack direction="row" spacing={1.25} alignItems="center">
+                    <Box sx={{ width: 44, height: 44, borderRadius: 1, bgcolor: '#eaf3ff', color: appleColors.blue, display: 'grid', placeItems: 'center' }}>
+                      <AutoAwesomeOutlined />
+                    </Box>
+                    <Box>
+                      <Typography sx={{ fontWeight: 950 }}>Readiness service map</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                        Stored automatically when scanner evidence completes. Refresh only after catalog, finding, or risk-decision changes.
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+                    {latestScannerDiagnosis ? (
+                      <>
+                        <PastelChip label={`${latestScannerDiagnosis.topBlockerCount || 0} top blockers`} accent={(latestScannerDiagnosis.topBlockerCount || 0) ? appleColors.red : appleColors.green} bg={(latestScannerDiagnosis.topBlockerCount || 0) ? '#fff1f2' : '#e7f8ee'} />
+                        <PastelChip label={`${scannerMappedServices.length} services mapped`} accent={appleColors.purple} />
+                        <PastelChip label={`${latestScannerDiagnosis.unmappedFindingCount || 0} unmapped`} accent={(latestScannerDiagnosis.unmappedFindingCount || 0) ? appleColors.amber : appleColors.green} bg={(latestScannerDiagnosis.unmappedFindingCount || 0) ? '#fff4dc' : '#e7f8ee'} />
+                      </>
+                    ) : (
+                      hasCompletedScannerRun ? (
+                        <PastelChip label="Awaiting refresh" accent={appleColors.amber} bg="#fff4dc" />
+                      ) : (
+                        <PastelChip label="Runs after scanner" accent={appleColors.muted} />
+                      )
+                    )}
+                    <Button
+                      variant={latestScannerDiagnosis ? 'outlined' : 'contained'}
+                      startIcon={<RefreshOutlined />}
+                      disabled={!hasCompletedScannerRun || createScannerReadinessDiagnosis.isPending}
+                      onClick={() =>
+                        createScannerReadinessDiagnosis.mutate({
+                          ...(selectedWorkspace?.id ? { workspaceId: selectedWorkspace.id } : {}),
+                          createServiceRecommendations: true,
+                          includeAcceptedRisk: false,
+                          summary: `Scanner-backed readiness map for ${selectedProduct.name}.`,
+                        })
+                      }
+                      sx={{ minHeight: 40, px: 2, whiteSpace: 'nowrap' }}
+                    >
+                      {createScannerReadinessDiagnosis.isPending ? 'Refreshing...' : 'Refresh Map'}
+                    </Button>
+                  </Stack>
+                </Stack>
+
+                {latestScannerDiagnosis ? (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1, mt: 1.5 }}>
+                    {scannerMappedFindings.slice(0, 6).map((finding) => {
+                      const recommendedModule = (catalogModules.data || []).find((module) => module.id === finding.recommendedModuleId);
+                      const inCart = !!recommendedModule && cartServiceIds.has(recommendedModule.id);
+                      return (
+                        <Box key={finding.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: `${severityAccent(finding.severity)}30`, bgcolor: '#fff' }}>
+                          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                            <Box sx={{ minWidth: 0 }}>
+                              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                                <PastelChip label={formatLabel(finding.severity)} accent={severityAccent(finding.severity)} bg={`${severityAccent(finding.severity)}12`} />
+                                {finding.readinessArea && <PastelChip label={finding.readinessArea} accent={appleColors.cyan} bg="#e4f9fd" />}
+                              </Stack>
+                              <Typography sx={{ mt: 0.9, fontWeight: 950 }}>{finding.title}</Typography>
+                            </Box>
+                            <Typography variant="caption" sx={{ fontWeight: 900, color: appleColors.muted }}>
+                              {typeof finding.mappingConfidence === 'number' ? `${Math.round(finding.mappingConfidence * 100)}%` : 'Mapped'}
+                            </Typography>
+                          </Stack>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.55 }}>
+                            {finding.businessRisk || finding.description}
+                          </Typography>
+                          <Box sx={{ mt: 1, p: 1, borderRadius: 1, bgcolor: '#fbfdff', border: '1px solid', borderColor: appleColors.line }}>
+                            <Typography variant="caption" color="text.secondary">Evidence needed</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1.5 }}>
+                              {finding.evidenceRequired || 'Owner review note and scanner rerun evidence.'}
+                            </Typography>
+                          </Box>
+                          {recommendedModule ? (
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} justifyContent="space-between" sx={{ mt: 1 }}>
+                              <PastelChip label={recommendedModule.name} accent={appleColors.purple} />
+                              <Button
+                                size="small"
+                                variant={inCart ? 'outlined' : 'contained'}
+                                disabled={inCart || addServiceToCart.isPending}
+                                startIcon={<AddShoppingCartOutlined />}
+                                onClick={() => addLifecycleService(recommendedModule, 'Readiness service map')}
+                                sx={{ minHeight: 34, minWidth: 128 }}
+                              >
+                                {inCart ? 'In Plan' : 'Add Service'}
+                              </Button>
+                            </Stack>
+                          ) : (
+                            <Alert severity="warning" sx={{ mt: 1, borderRadius: 1 }}>
+                              Human review needed before this scanner signal can be mapped to a catalog service.
+                            </Alert>
+                          )}
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                ) : (
+                  <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1 }}>
+                    {hasCompletedScannerRun
+                      ? 'Older scanner evidence exists without a stored readiness map. Use Refresh Map once to backfill it.'
+                      : 'Run a scanner first. ProdUS will store the readiness service map automatically when the scan completes.'}
+                  </Alert>
+                )}
+              </Box>
+
               <Box sx={{ mb: 2 }}>
                 <StudioAssistantCard
                   title="AI Scanner Summary"
                   description="Summarize scanner readiness, explain the highest-risk findings, and translate evidence into productization actions."
-                  prompt={`Do not call tools for this answer. Summarize scanner readiness for ${selectedProduct.name}. Current scanner score is ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings. Top visible findings: ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none'}. Prioritize critical and high findings, explain the business risk, identify missing evidence, and recommend lifecycle services or milestone actions. Use the provided context and visible facts directly. Avoid raw artifact details.`}
+                  prompt={`Do not call write actions for this answer. Summarize scanner readiness for ${selectedProduct.name}. Current scanner score is ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings. Top visible findings: ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none'}. ${scannerReadinessPromptFacts} Prioritize critical and high findings, explain the business risk, identify missing evidence, and recommend lifecycle services or milestone actions. Use the provided context and visible facts directly. Avoid raw artifact details.`}
                   conversationId={`studio-scanner-${selectedProduct.id}-${selectedFinding?.id || 'summary'}`}
                   context={assistantContext('scanner-readiness', { findingId: selectedFinding?.id })}
                   {...assistantActionProps}
@@ -2533,7 +2706,7 @@ export default function OwnerProductizationWorkspace({
                 </Stack>
 
                 <Stack spacing={1.5}>
-                  {(scannerSummary.isFetching || createProviderSource.isPending || requestConnectorInstall.isPending || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending || openSignedEvidence.isPending || createEvidenceExport.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
+                  {(scannerSummary.isFetching || createScannerReadinessDiagnosis.isPending || createProviderSource.isPending || requestConnectorInstall.isPending || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending || openSignedEvidence.isPending || createEvidenceExport.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
                   {scannerSummary.data?.sources.length ? (
                     <Stack spacing={1}>
                       <FormControlLabel
@@ -2739,10 +2912,11 @@ export default function OwnerProductizationWorkspace({
                                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
                                   <PastelChip label={formatLabel(finding.severity)} accent={severityAccent(finding.severity)} bg={`${severityAccent(finding.severity)}12`} />
                                   <PastelChip label={formatLabel(finding.status)} accent={findingStatusAccent(finding.status)} bg={`${findingStatusAccent(finding.status)}12`} />
+                                  {finding.readinessArea && <PastelChip label={finding.readinessArea} accent={appleColors.green} bg="#e7f8ee" />}
                                   {finding.recommendedModule && <PastelChip label={finding.recommendedModule.name} accent={appleColors.purple} />}
                                 </Stack>
                                 <Typography sx={{ mt: 1, fontWeight: 900 }}>{finding.title}</Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>{finding.description}</Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>{finding.businessRisk || finding.description}</Typography>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
                                   {finding.sourceTool}{finding.sourceRuleId ? ` · ${finding.sourceRuleId}` : ''}{finding.affectedComponent ? ` · ${finding.affectedComponent}` : ''}
                                 </Typography>
@@ -2826,12 +3000,12 @@ export default function OwnerProductizationWorkspace({
                       </Stack>
                       <Typography sx={{ fontWeight: 900 }}>{selectedFinding.title}</Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>
-                        {selectedFinding.description}
+                        {selectedFinding.businessRisk || selectedFinding.description}
                       </Typography>
                       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1, mt: 1.25 }}>
                         <Box sx={{ p: 1, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
                           <Typography variant="caption" color="text.secondary">Affected area</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFinding.affectedComponent || 'Product surface'}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFinding.readinessArea || selectedFinding.affectedComponent || 'Product surface'}</Typography>
                         </Box>
                         <Box sx={{ p: 1, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
                           <Typography variant="caption" color="text.secondary">Source rule</Typography>
@@ -2842,11 +3016,27 @@ export default function OwnerProductizationWorkspace({
                           <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFindingEvidence.length}</Typography>
                         </Box>
                       </Box>
+                      {(selectedFinding.evidenceRequired || selectedFinding.mappingReason) && (
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1, mt: 1.25 }}>
+                          {selectedFinding.evidenceRequired && (
+                            <Box sx={{ p: 1, border: '1px solid', borderColor: '#dcfce7', borderRadius: 1, bgcolor: '#fbfffd' }}>
+                              <Typography variant="caption" color="text.secondary">Evidence required</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.5 }}>{selectedFinding.evidenceRequired}</Typography>
+                            </Box>
+                          )}
+                          {selectedFinding.mappingReason && (
+                            <Box sx={{ p: 1, border: '1px solid', borderColor: '#dbeafe', borderRadius: 1, bgcolor: '#fbfdff' }}>
+                              <Typography variant="caption" color="text.secondary">Mapping reason</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.5 }}>{selectedFinding.mappingReason}</Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      )}
                       <Box sx={{ mt: 1.25 }}>
                         <StudioAssistantCard
                           title="AI Finding Review"
                           description="Turn this finding into an owner-readable decision with evidence needs and remediation direction."
-                          prompt={`Do not call tools for this answer. Review scanner finding ${selectedFinding.id} for ${selectedProduct.name}. Finding details: title "${selectedFinding.title}", severity ${selectedFinding.severity}, status ${selectedFinding.status}, affected area "${selectedFinding.affectedComponent || 'not specified'}", source rule "${selectedFinding.sourceRuleId || selectedFinding.sourceTool}", description "${selectedFinding.description}", linked evidence count ${selectedFindingEvidence.length}. Explain likely impact, what evidence is needed to resolve or accept risk, and which productization service or milestone should own follow-up. Use these provided details directly. Do not include raw artifact contents.`}
+                          prompt={`Do not call write actions for this answer. Review scanner finding ${selectedFinding.id} for ${selectedProduct.name}. Finding details: title "${selectedFinding.title}", severity ${selectedFinding.severity}, status ${selectedFinding.status}, affected area "${selectedFinding.readinessArea || selectedFinding.affectedComponent || 'not specified'}", source rule "${selectedFinding.sourceRuleId || selectedFinding.sourceTool}", description "${selectedFinding.description}", business risk "${selectedFinding.businessRisk || 'not mapped'}", required evidence "${selectedFinding.evidenceRequired || 'not mapped'}", recommended service "${selectedFinding.recommendedModule?.name || 'not mapped'}", linked evidence count ${selectedFindingEvidence.length}. Explain likely impact, what evidence is needed to resolve or accept risk, and which productization service or milestone should own follow-up. Use these provided details directly. Do not include raw artifact contents.`}
                           conversationId={`studio-finding-${selectedProduct.id}-${selectedFinding.id}`}
                           context={assistantContext('scanner-finding-review', { findingId: selectedFinding.id })}
                           {...assistantActionProps}
@@ -3491,10 +3681,22 @@ export default function OwnerProductizationWorkspace({
             <SectionTitle
               title="AI Owner Brief"
               action={
-                <PastelChip
-                  label={assistantSuggestions.data && assistantSuggestions.data.mode !== 'FALLBACK' ? 'LoomAI live' : 'ProdUS fallback'}
-                  accent={assistantSuggestions.data && assistantSuggestions.data.mode !== 'FALLBACK' ? appleColors.purple : appleColors.blue}
-                />
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <PastelChip
+                    label={assistantSuggestions.data ? (assistantSuggestions.data.mode !== 'FALLBACK' ? 'LoomAI live' : 'ProdUS fallback') : 'On demand'}
+                    accent={assistantSuggestions.data && assistantSuggestions.data.mode !== 'FALLBACK' ? appleColors.purple : appleColors.blue}
+                  />
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<AutoAwesomeOutlined />}
+                    disabled={!selectedProduct?.id || assistantSuggestions.isFetching}
+                    onClick={() => assistantSuggestions.refetch()}
+                    sx={{ minHeight: 34 }}
+                  >
+                    {assistantSuggestions.isFetching ? 'Thinking...' : 'Suggest'}
+                  </Button>
+                </Stack>
               }
             />
             <Stack direction="row" spacing={2} alignItems="center">

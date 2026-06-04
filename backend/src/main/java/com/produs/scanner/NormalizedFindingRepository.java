@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public interface NormalizedFindingRepository extends JpaRepository<NormalizedFinding, UUID> {
     List<NormalizedFinding> findByProductProfileIdOrderBySeverityDescCreatedAtDesc(UUID productProfileId);
+    List<NormalizedFinding> findByProductProfileIdAndWorkspaceIdOrderBySeverityDescCreatedAtDesc(UUID productProfileId, UUID workspaceId);
     List<NormalizedFinding> findByScanRunIdOrderBySeverityDescCreatedAtDesc(UUID scanRunId);
     Optional<NormalizedFinding> findTopByProductProfileIdAndFingerprintOrderByCreatedAtDesc(UUID productProfileId, String fingerprint);
 }
