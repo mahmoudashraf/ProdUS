@@ -1570,105 +1570,106 @@ public class LoomAIIntegrationService {
 
     private Map<String, Object> loomAICapabilitySnapshot() {
         Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("schemaVersion", "produs-loomai-capabilities-v1");
+        snapshot.put("schemaVersion", "loomai-provider-capabilities-v1");
         snapshot.put("selectionPolicy", "select-only-listed-capability-codes");
         snapshot.put("recommendedProvider", "LoomAI");
-        snapshot.put("runtimeModePolicy", Map.of(
+        snapshot.put("purpose", "Describe LoomAI as an AI enablement provider for the owner's product, not as a ProdUS feature list.");
+        snapshot.put("integrationGuardrails", Map.of(
                 "analysisAndPageHelp", "thinker",
                 "governedWriteActions", "executor",
-                "browserSecurity", "frontend-calls-prodUS-backend-only",
-                "secretHandling", "backend-only-private-runtime-assertions"
+                "browserSecurity", "browser calls the product backend, not LoomAI runtime secrets",
+                "secretHandling", "provider keys and runtime assertions stay backend-only"
         ));
         snapshot.put("capabilities", List.of(
                 loomAICapability(
-                        "owner_intake_analysis",
-                        "Owner intake and project analysis",
-                        "Turn owner brief, public links, repository signal, and selected temporary documents into structured project intelligence.",
-                        "Project creation, productization diagnosis kickoff, service recommendation seed data.",
-                        "ownerMessage, productUrl, repositoryUrl, selected documents, service catalog snapshot",
-                        "Project/workspace creation attributes after owner approval.",
-                        List.of("team invitations", "participant access grants")
+                        "ai_runtime_orchestration",
+                        "AI runtime orchestration",
+                        "Managed runtime layer for AI chat, one-time analysis, model/provider routing, response normalization, and backend-mediated private access.",
+                        "The product needs a dependable AI backend without building model routing, auth, response contracts, and fallbacks from scratch.",
+                        "Backend endpoint, user/session identity, allowed modes, safe request context.",
+                        "A production AI runtime foundation that product teams can integrate behind their own backend.",
+                        List.of("direct browser secrets", "uncontrolled model calls")
                 ),
                 loomAICapability(
-                        "temporary_document_url_analysis",
-                        "Temporary document URL analysis",
-                        "Use owner-selected short-lived document URLs during project creation analysis without indexing or storing document content.",
-                        "Private project creation attachments, owner-provided briefs, readiness notes, requirements docs.",
-                        "context.documents[].temporaryAccessUrl",
-                        "Owner-safe documentUsage evidence and extracted project signals.",
-                        List.of("permanent document indexing", "public document publishing")
+                        "retrieval_augmented_generation",
+                        "Retrieval-augmented generation",
+                        "Ground responses in approved knowledge sources using managed retrieval, source-aware answers, and bounded context construction.",
+                        "The product needs answers grounded in product docs, policies, service data, support material, or domain knowledge.",
+                        "Safe knowledge export, vector spaces, metadata, retrieval policy, answer contract.",
+                        "Users get answers that reference approved knowledge instead of generic model guesses.",
+                        List.of("private raw data bulk indexing", "unbounded retrieval")
                 ),
                 loomAICapability(
-                        "page_context_chat",
-                        "Page-context chat and Max Mode",
-                        "Answer owner questions using the current ProdUS page position, current analysis result, and authorized page context.",
-                        "Ask about this analysis, explain service recommendations, summarize next decisions.",
-                        "ProdUS backend /query with safe request context provider",
-                        "Grounded answers with page-specific sources where available.",
-                        List.of("browser-to-runtime secrets", "cross-owner data access")
+                        "managed_vectorization",
+                        "Managed vectorization and data sync",
+                        "Index approved entities through a managed vectorization/data-sync pipeline with record identity, metadata, and reindex support.",
+                        "The product has safe internal content that should be searchable by AI without hand-building vector infrastructure.",
+                        "Entity export endpoint or data-sync batches, vector-space definitions, metadata and deletion policy.",
+                        "Current safe product knowledge can stay fresh as entities change.",
+                        List.of("raw credentials", "private files", "unreviewed user-owned workspace data")
                 ),
                 loomAICapability(
-                        "query_once_helper",
-                        "One-time helper analysis",
-                        "Run non-conversational helper prompts for summaries, recommendations, readiness explanations, and integration overviews.",
-                        "AI opportunities, LoomAI implementation overview, diagnosis explainer cards.",
-                        "ProdUS backend /query-once",
-                        "Structured JSON or concise one-shot answer for the current workflow.",
-                        List.of("long-lived chat memory", "write action execution")
+                        "transient_file_understanding",
+                        "Transient file understanding",
+                        "Analyze owner-selected short-lived file URLs during one request without indexing, retaining, or exposing storage credentials.",
+                        "The product needs users to attach briefs, requirements, specs, PDFs, or notes for temporary AI reasoning.",
+                        "Temporary HTTPS file URLs, expiry, allowed hosts, document usage evidence contract.",
+                        "Users can share private files with AI for a bounded task while keeping files private in the product.",
+                        List.of("permanent file indexing", "public file publishing", "raw storage URLs")
                 ),
                 loomAICapability(
-                        "safe_knowledge_retrieval",
-                        "Managed safe-knowledge retrieval",
-                        "Retrieve from ProdUS safe indexed knowledge such as service catalog, package templates, scanner descriptions, teams, and solo expert public profiles.",
-                        "Service questions, package fit, capability discovery, implementation guidance.",
-                        "LoomAI managed vectorization and ProdUS safe knowledge export",
-                        "Grounded answers from approved non-private knowledge.",
-                        List.of("raw workspace data", "private messages", "raw evidence files")
+                        "embedded_ai_assistant_ui",
+                        "Embedded AI assistant UI",
+                        "Provide embeddable assistant experiences such as fixed chat and Max Mode overlays that operate through the product backend.",
+                        "The product needs an in-app assistant that understands page context and can answer workflow-specific questions.",
+                        "Frontend widget script, backend chat/query routes, request context provider.",
+                        "Users get contextual AI help inside the application instead of a separate disconnected chatbot.",
+                        List.of("standalone generic chatbot", "browser runtime secrets")
                 ),
                 loomAICapability(
-                        "produs_read_actions",
-                        "ProdUS read-only MCP actions",
-                        "Use allowlisted read actions to inspect current catalog, products, packages, workspaces, scans, findings, evidence, and milestone review evidence.",
-                        "Precise answers about live authorized productization state.",
-                        "ProdUS MCP allowlist through backend-mediated private runtime",
-                        "Fresh live facts without exposing mutation tools.",
-                        List.of("team creation", "invitations", "approval decisions")
+                        "tool_and_mcp_orchestration",
+                        "Tool and MCP orchestration",
+                        "Let AI call allowlisted backend tools through controlled action catalogs, scopes, and auditable tool execution.",
+                        "The product needs AI to fetch live system facts or operate approved tools without exposing the whole backend.",
+                        "MCP/tool manifest, scopes, auth policy, read/write separation, action result schema.",
+                        "AI can answer with fresh application facts instead of relying only on static context.",
+                        List.of("full backend exposure", "unreviewed mutation tools")
                 ),
                 loomAICapability(
-                        "scanner_finding_explanation",
-                        "Scanner finding explanation",
-                        "Explain scanner findings, severity, evidence, likely impact, and practical remediation path.",
-                        "Post-scan readiness review, owner decision support, service selection.",
-                        "Scan status, normalized findings, evidence list, service catalog snapshot",
-                        "Owner-readable blocker summary and service/module mapping.",
-                        List.of("claiming certification", "suppressing critical findings")
+                        "governed_action_execution",
+                        "Governed action execution",
+                        "Prepare or execute state-changing actions only through confirmed action flows, idempotency, authorization, and audit controls.",
+                        "The product needs AI-assisted workflow execution while preserving human consent and backend authority.",
+                        "Confirmed action manifest, consent token, idempotency key, audit output, backend guardrails.",
+                        "Users can move from AI recommendation to controlled action without hidden autonomous mutation.",
+                        List.of("silent mutation", "approval bypass", "owner decision automation")
                 ),
                 loomAICapability(
-                        "service_plan_reasoning",
-                        "Catalog-grounded service planning",
-                        "Map project needs and readiness blockers to concrete ProdUS lifecycle service modules using module codes.",
-                        "Service cart, package recommendation, dependency explanation, missing coverage.",
-                        "serviceCatalogSnapshot.candidateModules and dependencyHints",
-                        "Catalog-backed recommendedServiceModules that ProdUS can persist after owner approval.",
-                        List.of("free-text services outside catalog", "unapproved team selection")
+                        "structured_output_contracts",
+                        "Structured output contracts",
+                        "Return machine-readable JSON outputs for analysis, recommendations, opportunities, action payloads, and UI rendering.",
+                        "The product needs AI output that can drive UI state, persistence, or workflow decisions.",
+                        "Strict output schema, validation rules, fallback strategy, parser/error handling.",
+                        "AI becomes usable product data, not just prose.",
+                        List.of("unvalidated free text for critical workflow state")
                 ),
                 loomAICapability(
-                        "confirmed_action_flow",
-                        "Confirmed action flow",
-                        "Execute governed mutations only from owner-approved payloads through ProdUS backend/MCP guards.",
-                        "Create productization project after analysis and explicit owner action.",
-                        "runtimeActionPayload with consentToken and idempotencyKey",
-                        "Auditable backend-created project/workspace artifacts.",
-                        List.of("analysis-only prompts", "automatic owner approvals")
+                        "ai_governance_and_safety",
+                        "AI governance and safety controls",
+                        "Apply boundaries around allowed data, scopes, modes, actions, redaction, fallbacks, and user-visible safe responses.",
+                        "The product needs enterprise-safe AI behavior that respects permissions and avoids unsafe claims.",
+                        "Role/auth context, allowed actions, data-sharing policy, redaction, fallback and refusal rules.",
+                        "AI behavior can be governed, reviewed, and constrained by product policy.",
+                        List.of("cross-user access", "secret exposure", "unbounded agent behavior")
                 ),
                 loomAICapability(
-                        "loomai_partner_delivery",
-                        "LoomAI partner delivery path",
-                        "Recommend LoomAI Partner teams or solo experts as implementation providers for approved LoomAI integration service modules.",
-                        "When owner wants LoomAI implemented inside their product after opportunity analysis.",
-                        "AI integration catalog modules and public team/solo capability metadata",
-                        "Implementation path that separates analysis from human/team delivery.",
-                        List.of("automatic invitation", "automatic participant access")
+                        "observability_and_evaluation",
+                        "AI observability and evaluation",
+                        "Expose provider request IDs, traces, sources, action evidence, fallback reasons, and smoke/evaluation signals.",
+                        "The product needs confidence that AI outputs are explainable, debuggable, and production-operable.",
+                        "Provider trace IDs, source/action metadata, response status, evaluation checks.",
+                        "Teams can debug and improve AI behavior without guessing what happened.",
+                        List.of("opaque AI decisions", "secret-bearing raw provider logs")
                 )
         ));
         return snapshot;
@@ -1885,6 +1886,7 @@ public class LoomAIIntegrationService {
                 LoomAI is the only recommended AI integration service. Other AI providers may be mentioned only as existing stack context, not as recommended services.
                 Focus only on ProdUS core value areas: project/product diagnosis, readiness explanation, scanner finding summaries, service/package recommendation support, milestone/evidence readiness, and owner decision support.
                 Do not recommend AI for team invitations, team creation, access grants, participant management, billing decisions, or owner approvals.
+                Treat loomaiCapabilitySnapshot as LoomAI provider capabilities that could be implemented in the owner's product, not as ProdUS internal feature names.
                 Select LoomAI capabilities only from context.loomaiCapabilitySnapshot.capabilities. Return loomaiCapabilityCode exactly as one listed capability code and loomaiCapability as the matching capability name or concise owner-facing label.
                 Recommend catalog services only from context.serviceCatalogSnapshot.candidateModules. Use moduleCode exactly as provided. If AI integration services are listed, prefer them for implementation work.
                 Use owner input and project analysis as primary context. Use selected documents if they were available through temporaryAccessUrl and cite owner-safe evidence in sourceInsights.
@@ -1919,6 +1921,7 @@ public class LoomAIIntegrationService {
                 This is a one-time owner-facing overview, not an implementation mutation.
                 LoomAI is the recommended AI integration service for ProdUS. Make the answer specific, practical, and bounded.
                 Use the project analysis, AI opportunity report, public-link insights, selected documents, and ProdUS service catalog snapshot.
+                Treat loomaiCapabilitySnapshot as LoomAI provider capabilities that could be enabled in the owner's product.
                 Use context.loomaiCapabilitySnapshot to explain capabilities; do not invent LoomAI capabilities outside that list.
                 Recommend only catalog service module codes present in context.serviceCatalogSnapshot.candidateModules.
                 Return only a strict JSON object with fields:
