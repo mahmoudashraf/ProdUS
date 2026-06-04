@@ -72,6 +72,9 @@ public class AiAssistedProductCreationService {
     @Value("${app.product-creation.intent-ttl-minutes:30}")
     private long creationIntentTtlMinutes;
 
+    @Value("${app.product-creation.block-unproven-ai-document-usage:false}")
+    private boolean blockUnprovenAiDocumentUsage;
+
     public AiAssistedProductAnalysisResponse analyze(
             User owner,
             AiAssistedProductCreationRequest request,
@@ -164,6 +167,7 @@ public class AiAssistedProductCreationService {
                 analysisMode,
                 aiOpportunityReport,
                 loomAIIntegrationOverview,
+                blockUnprovenAiDocumentUsage,
                 projectCreationActionPayload(
                         intent,
                         consentToken,
@@ -459,6 +463,9 @@ public class AiAssistedProductCreationService {
     }
 
     private void validateSelectedDocumentUsage(ProductCreationIntent intent, ProductCreationActionRequest request) {
+        if (!blockUnprovenAiDocumentUsage) {
+            return;
+        }
         List<UUID> aiAccessibleAttachmentIds = listOrEmpty(request.aiAccessibleAttachmentIds());
         if (aiAccessibleAttachmentIds.isEmpty()) {
             return;
@@ -2577,6 +2584,7 @@ public class AiAssistedProductCreationService {
             AnalysisMode analysisMode,
             AiOpportunityReport aiOpportunityReport,
             LoomAIIntegrationOverview loomaiIntegrationOverview,
+            boolean blockUnprovenAiDocumentUsage,
             Map<String, Object> runtimeActionPayload
     ) {}
 

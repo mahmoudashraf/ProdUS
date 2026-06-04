@@ -1019,13 +1019,15 @@ export default function ProductOnboardingWizard() {
   const aiDocumentUsageMissing =
     Boolean(aiAnalysis?.aiSharedDocuments.length) && aiDocumentUsage.length === 0;
   const aiSharedDocumentCount = aiAnalysis?.aiSharedDocuments.length ?? 0;
-  const aiDocumentProofBlocked =
+  const aiDocumentProofRequired = aiAnalysis?.blockUnprovenAiDocumentUsage === true;
+  const aiDocumentProofGap =
     aiSharedDocumentCount > 0
     && (
       aiDocumentUsageMissing
       || aiNotUsedDocumentCount > 0
       || aiOpenedDocumentCount < aiSharedDocumentCount
     );
+  const aiDocumentProofBlocked = aiDocumentProofRequired && aiDocumentProofGap;
   const aiBusy = analyzeProductWithAI.isPending || createProductFromAIAction.isPending;
   const productNameReady = form.values.name.trim().length > 0;
   const productSummaryReady = form.values.summary.trim().length > 0;
@@ -1097,8 +1099,8 @@ export default function ProductOnboardingWizard() {
       state:
         aiDocumentFiles.length > 0 && selectedAiDocumentCount === 0
           ? 'attention'
-          : aiDocumentProofBlocked
-            ? 'blocked'
+          : aiDocumentProofGap
+            ? (aiDocumentProofRequired ? 'blocked' : 'attention')
             : 'ready',
     },
     {
@@ -1810,11 +1812,11 @@ export default function ProductOnboardingWizard() {
                       requestContext={analysisChatContext()}
                       conversationId={aiAnalysis ? `project-analysis-${aiAnalysis.intent.id}` : 'project-analysis-draft'}
                     />
-                    {aiDocumentProofBlocked && (
-                      <Alert severity="warning" sx={{ borderRadius: 1 }}>
-                        LoomAI did not prove it opened every AI-shared document. Re-run
-                        analysis after document access is available, or unshare the file
-                        from AI before creating this project.
+                    {aiDocumentProofGap && (
+                      <Alert severity={aiDocumentProofRequired ? 'warning' : 'info'} sx={{ borderRadius: 1 }}>
+                        {aiDocumentProofRequired
+                          ? 'LoomAI did not prove it opened every AI-shared document. Re-run analysis after document access is available, or unshare the file from AI before creating this project.'
+                          : 'LoomAI did not return formal proof for every AI-shared document. Creation is still allowed; ProdUS will keep the file attached privately and store this evidence gap for follow-up.'}
                       </Alert>
                     )}
                     <Button

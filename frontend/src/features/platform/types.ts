@@ -314,6 +314,7 @@ export interface AiAssistedProductAnalysisResponse {
   analysisMode: ProductAnalysisMode;
   aiOpportunityReport?: AiOpportunityReport;
   loomaiIntegrationOverview?: LoomAIIntegrationOverview;
+  blockUnprovenAiDocumentUsage: boolean;
   runtimeActionPayload: Record<string, unknown>;
 }
 

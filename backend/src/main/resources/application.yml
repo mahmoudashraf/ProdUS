@@ -52,6 +52,7 @@ app:
     max-file-size-bytes: ${APP_ATTACHMENTS_MAX_FILE_SIZE_BYTES:10485760}
   product-creation:
     ai-document-access-ttl-minutes: ${APP_PROJECT_CREATION_AI_DOCUMENT_ACCESS_TTL_MINUTES:10}
+    block-unproven-ai-document-usage: ${APP_PROJECT_CREATION_BLOCK_UNPROVEN_AI_DOCUMENT_USAGE:false}
   notifications:
     delivery:
       enabled: ${APP_NOTIFICATION_DELIVERY_ENABLED:true}
