@@ -38,6 +38,73 @@ class AiAssistedProductCreationServiceTest {
     }
 
     @Test
+    void normalizesLoomAiCapabilityCodesWhenProviderReturnsLabelsOnly() throws Exception {
+        AiAssistedProductCreationService service = service();
+        LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(
+                "LOOMAI",
+                "LIVE",
+                true,
+                "INFORMATION_PROVIDED",
+                """
+                        {
+                          "status": "READY",
+                          "summary": "LoomAI opportunities are available.",
+                          "opportunityScore": 0.8,
+                          "confidence": 0.7,
+                          "strategicRationale": "Use LoomAI where it improves owner decisions.",
+                          "useCases": [
+                            {
+                              "title": "Production-readiness copilot",
+                              "workflow": "Owner questions during diagnosis.",
+                              "userValue": "Owners understand blockers.",
+                              "businessValue": "Shortens discovery.",
+                              "loomaiCapability": "LoomAI backend-mediated private runtime with read-only ProdUS context.",
+                              "integrationPattern": "BACKEND_MEDIATED_PRIVATE_RUNTIME",
+                              "priority": "MUST",
+                              "confidence": 0.74,
+                              "evidenceBasis": ["Repository URL provided"],
+                              "recommendedServiceModules": []
+                            },
+                            {
+                              "title": "Scanner finding explainer",
+                              "workflow": "Summarize findings through MCP-backed read actions.",
+                              "userValue": "Owners see what findings mean.",
+                              "businessValue": "Improves conversion.",
+                              "loomaiCapability": "LoomAI query-once or analysis chat grounded by product, scan, finding, and evidence context.",
+                              "integrationPattern": "READ_ONLY_CONTEXT_AND_MCP_ACTIONS",
+                              "priority": "SHOULD",
+                              "confidence": 0.68,
+                              "evidenceBasis": [],
+                              "recommendedServiceModules": []
+                            }
+                          ]
+                        }
+                        """,
+                "",
+                "conversation-1",
+                0.7,
+                List.of(),
+                List.of(),
+                List.of(),
+                "",
+                "rag-test"
+        );
+
+        Method parser = AiAssistedProductCreationService.class
+                .getDeclaredMethod("parseAiOpportunityReport", LoomAIIntegrationService.AssistantQueryResponse.class);
+        parser.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        Optional<AiAssistedProductCreationService.AiOpportunityReport> report =
+                (Optional<AiAssistedProductCreationService.AiOpportunityReport>) parser.invoke(service, response);
+
+        assertThat(report).isPresent();
+        assertThat(report.orElseThrow().useCases())
+                .extracting(AiAssistedProductCreationService.AiOpportunityUseCase::loomaiCapabilityCode)
+                .containsExactly("loomai_runtime_auth_assignment", "loomai_tool_mcp_orchestration");
+    }
+
+    @Test
     void actionRequestParsesDocumentUsageForCreationGuard() {
         AiAssistedProductCreationService.ProductCreationActionRequest request =
                 AiAssistedProductCreationService.ProductCreationActionRequest.from(Map.of(

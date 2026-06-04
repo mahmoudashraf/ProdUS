@@ -1805,7 +1805,9 @@ public class AiAssistedProductCreationService {
             if (!node.isObject()) {
                 return Optional.empty();
             }
-            List<AiOpportunityUseCase> useCases = aiOpportunityUseCases(node, "useCases", "aiUseCases", "opportunities");
+            List<AiOpportunityUseCase> useCases = normalizeAiOpportunityUseCases(
+                    aiOpportunityUseCases(node, "useCases", "aiUseCases", "opportunities")
+            );
             List<ServiceModuleRecommendation> modules = mergeServiceModuleRecommendations(
                     serviceModuleRecommendationList(node, "recommendedServiceModules", "catalogServiceRecommendations"),
                     useCases.stream()
@@ -1833,6 +1835,129 @@ public class AiAssistedProductCreationService {
         } catch (Exception ignored) {
             return Optional.empty();
         }
+    }
+
+    private List<AiOpportunityUseCase> normalizeAiOpportunityUseCases(List<AiOpportunityUseCase> useCases) {
+        if (useCases == null || useCases.isEmpty()) {
+            return List.of();
+        }
+        return useCases.stream()
+                .map(useCase -> {
+                    String code = normalizeLoomAiCapabilityCode(useCase.loomaiCapabilityCode(), useCase);
+                    if (code.equals(useCase.loomaiCapabilityCode())) {
+                        return useCase;
+                    }
+                    return new AiOpportunityUseCase(
+                            useCase.title(),
+                            useCase.workflow(),
+                            useCase.userValue(),
+                            useCase.businessValue(),
+                            code,
+                            useCase.loomaiCapability(),
+                            useCase.integrationPattern(),
+                            useCase.priority(),
+                            useCase.confidence(),
+                            useCase.evidenceBasis(),
+                            useCase.recommendedServiceModules()
+                    );
+                })
+                .toList();
+    }
+
+    private String normalizeLoomAiCapabilityCode(String rawCode, AiOpportunityUseCase useCase) {
+        String code = trim(rawCode, NAME_LIMIT);
+        if (code.startsWith("loomai_") || code.startsWith("custom:")) {
+            return code;
+        }
+        return switch (code) {
+            case "ai_runtime_orchestration" -> "loomai_runtime_orchestration";
+            case "retrieval_augmented_generation" -> "loomai_grounded_rag_answers";
+            case "managed_vectorization" -> "loomai_managed_vectorization";
+            case "transient_file_understanding" -> "loomai_transient_document_understanding";
+            case "embedded_ai_assistant_ui" -> "loomai_embedded_assistant_ui";
+            case "tool_and_mcp_orchestration" -> "loomai_tool_mcp_orchestration";
+            case "governed_action_execution" -> "loomai_governed_action_execution";
+            case "structured_output_contracts" -> "loomai_structured_outputs";
+            case "ai_governance_and_safety" -> "loomai_safety_governance";
+            case "observability_and_evaluation" -> "loomai_observability_evaluation";
+            default -> inferLoomAiCapabilityCode(useCase);
+        };
+    }
+
+    private String inferLoomAiCapabilityCode(AiOpportunityUseCase useCase) {
+        String text = normalizeCapabilityText(String.join(" ",
+                useCase.title(),
+                useCase.workflow(),
+                useCase.userValue(),
+                useCase.businessValue(),
+                useCase.loomaiCapability(),
+                useCase.integrationPattern()
+        ));
+        if (containsAll(text, "max", "mode") || containsAll(text, "embedded", "assistant") || containsAll(text, "assistant", "ui")) {
+            return "loomai_embedded_assistant_ui";
+        }
+        if (containsAll(text, "mcp") || containsAll(text, "tool", "orchestration")) {
+            return "loomai_tool_mcp_orchestration";
+        }
+        if (containsAll(text, "auth") || containsAll(text, "assignment") || containsAll(text, "private", "runtime")) {
+            return "loomai_runtime_auth_assignment";
+        }
+        if (containsAll(text, "read", "action") || containsAll(text, "read", "only") || containsAll(text, "live", "data")) {
+            return "loomai_read_action_grounding";
+        }
+        if (containsAll(text, "query", "once") || containsAll(text, "one", "shot") || containsAll(text, "one", "time")) {
+            return "loomai_query_once_analysis";
+        }
+        if (containsAll(text, "structured") || containsAll(text, "json") || containsAll(text, "parseable")) {
+            return "loomai_structured_outputs";
+        }
+        if (containsAll(text, "temporary", "document") || containsAll(text, "transient", "document") || containsAll(text, "file", "understanding")) {
+            return "loomai_transient_document_understanding";
+        }
+        if (containsAll(text, "attachment")) {
+            return "loomai_contextual_attachments";
+        }
+        if (containsAll(text, "rag") || containsAll(text, "retrieval") || containsAll(text, "grounded")) {
+            return "loomai_grounded_rag_answers";
+        }
+        if (containsAll(text, "vector") || containsAll(text, "index") || containsAll(text, "data", "sync")) {
+            return "loomai_managed_vectorization";
+        }
+        if (containsAll(text, "runtime") || containsAll(text, "backend", "mediated") || containsAll(text, "orchestration")) {
+            return "loomai_runtime_orchestration";
+        }
+        if (containsAll(text, "privacy") || containsAll(text, "pii") || containsAll(text, "redaction")) {
+            return "loomai_privacy_pii_controls";
+        }
+        if (containsAll(text, "governance") || containsAll(text, "safety") || containsAll(text, "guardrail")) {
+            return "loomai_safety_governance";
+        }
+        if (containsAll(text, "trace") || containsAll(text, "evaluation") || containsAll(text, "observability")) {
+            return "loomai_observability_evaluation";
+        }
+        if (containsAll(text, "behavior") || containsAll(text, "usage", "event") || containsAll(text, "engagement")) {
+            return "loomai_behavior_intelligence";
+        }
+        return "";
+    }
+
+    private String normalizeCapabilityText(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
+    }
+
+    private boolean containsAll(String text, String... values) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        for (String value : values) {
+            if (value == null || value.isBlank() || !text.contains(value.toLowerCase(Locale.ROOT))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private Optional<LoomAIIntegrationOverview> parseLoomAIIntegrationOverview(AssistantQueryResponse response) {
