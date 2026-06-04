@@ -13,12 +13,20 @@ export async function postJson<T, TPayload extends object>(
   return response.data;
 }
 
-export async function postFormData<T>(url: string, payload: FormData): Promise<T> {
-  const response = await apiClient.post<T>(url, payload, {
+export async function postFormData<T>(
+  url: string,
+  payload: FormData,
+  options?: { timeoutMs?: number }
+): Promise<T> {
+  const config: { headers: Record<string, string>; timeout?: number } = {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
-  });
+  };
+  if (options?.timeoutMs) {
+    config.timeout = options.timeoutMs;
+  }
+  const response = await apiClient.post<T>(url, payload, config);
   return response.data;
 }
 

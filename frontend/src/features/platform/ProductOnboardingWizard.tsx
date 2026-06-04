@@ -828,7 +828,8 @@ export default function ProductOnboardingWizard() {
       });
       return postFormData<AiAssistedProductAnalysisResponse>(
         '/products/ai-assisted/analyze',
-        payload
+        payload,
+        { timeoutMs: 360000 }
       );
     },
     onSuccess: response => {
