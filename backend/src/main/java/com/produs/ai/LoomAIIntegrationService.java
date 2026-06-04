@@ -1481,6 +1481,7 @@ public class LoomAIIntegrationService {
                 "excludedFlows", List.of("team invitations", "team creation", "participant access grants", "owner approvals"),
                 "implementationPath", "backend-mediated private runtime with ProdUS authorization"
         ));
+        context.put("loomaiCapabilitySnapshot", loomAICapabilitySnapshot());
         context.put("projectAnalysis", projectFieldsContext(request.projectAnalysis()));
         context.put("outputContract", Map.of(
                 "format", "strict-json-object",
@@ -1499,7 +1500,8 @@ public class LoomAIIntegrationService {
                         "assumptions",
                         "missingEvidence"
                 ),
-                "useCaseFields", List.of("title", "workflow", "userValue", "businessValue", "loomaiCapability", "integrationPattern", "priority", "confidence", "evidenceBasis", "recommendedServiceModules"),
+                "useCaseFields", List.of("title", "workflow", "userValue", "businessValue", "loomaiCapabilityCode", "loomaiCapability", "integrationPattern", "priority", "confidence", "evidenceBasis", "recommendedServiceModules"),
+                "capabilityRule", "loomaiCapabilityCode must use a code from loomaiCapabilitySnapshot.capabilities only; loomaiCapability should be the matching name or concise owner-facing label",
                 "catalogRule", "recommendedServiceModules must use moduleCode values from serviceCatalogSnapshot.candidateModules only"
         ));
         return context;
@@ -1564,6 +1566,132 @@ public class LoomAIIntegrationService {
         context.put("assumptions", limitedStrings(fields.assumptions(), LIST_LIMIT));
         context.put("missingEvidence", limitedStrings(fields.missingEvidence(), LIST_LIMIT));
         return context;
+    }
+
+    private Map<String, Object> loomAICapabilitySnapshot() {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("schemaVersion", "produs-loomai-capabilities-v1");
+        snapshot.put("selectionPolicy", "select-only-listed-capability-codes");
+        snapshot.put("recommendedProvider", "LoomAI");
+        snapshot.put("runtimeModePolicy", Map.of(
+                "analysisAndPageHelp", "thinker",
+                "governedWriteActions", "executor",
+                "browserSecurity", "frontend-calls-prodUS-backend-only",
+                "secretHandling", "backend-only-private-runtime-assertions"
+        ));
+        snapshot.put("capabilities", List.of(
+                loomAICapability(
+                        "owner_intake_analysis",
+                        "Owner intake and project analysis",
+                        "Turn owner brief, public links, repository signal, and selected temporary documents into structured project intelligence.",
+                        "Project creation, productization diagnosis kickoff, service recommendation seed data.",
+                        "ownerMessage, productUrl, repositoryUrl, selected documents, service catalog snapshot",
+                        "Project/workspace creation attributes after owner approval.",
+                        List.of("team invitations", "participant access grants")
+                ),
+                loomAICapability(
+                        "temporary_document_url_analysis",
+                        "Temporary document URL analysis",
+                        "Use owner-selected short-lived document URLs during project creation analysis without indexing or storing document content.",
+                        "Private project creation attachments, owner-provided briefs, readiness notes, requirements docs.",
+                        "context.documents[].temporaryAccessUrl",
+                        "Owner-safe documentUsage evidence and extracted project signals.",
+                        List.of("permanent document indexing", "public document publishing")
+                ),
+                loomAICapability(
+                        "page_context_chat",
+                        "Page-context chat and Max Mode",
+                        "Answer owner questions using the current ProdUS page position, current analysis result, and authorized page context.",
+                        "Ask about this analysis, explain service recommendations, summarize next decisions.",
+                        "ProdUS backend /query with safe request context provider",
+                        "Grounded answers with page-specific sources where available.",
+                        List.of("browser-to-runtime secrets", "cross-owner data access")
+                ),
+                loomAICapability(
+                        "query_once_helper",
+                        "One-time helper analysis",
+                        "Run non-conversational helper prompts for summaries, recommendations, readiness explanations, and integration overviews.",
+                        "AI opportunities, LoomAI implementation overview, diagnosis explainer cards.",
+                        "ProdUS backend /query-once",
+                        "Structured JSON or concise one-shot answer for the current workflow.",
+                        List.of("long-lived chat memory", "write action execution")
+                ),
+                loomAICapability(
+                        "safe_knowledge_retrieval",
+                        "Managed safe-knowledge retrieval",
+                        "Retrieve from ProdUS safe indexed knowledge such as service catalog, package templates, scanner descriptions, teams, and solo expert public profiles.",
+                        "Service questions, package fit, capability discovery, implementation guidance.",
+                        "LoomAI managed vectorization and ProdUS safe knowledge export",
+                        "Grounded answers from approved non-private knowledge.",
+                        List.of("raw workspace data", "private messages", "raw evidence files")
+                ),
+                loomAICapability(
+                        "produs_read_actions",
+                        "ProdUS read-only MCP actions",
+                        "Use allowlisted read actions to inspect current catalog, products, packages, workspaces, scans, findings, evidence, and milestone review evidence.",
+                        "Precise answers about live authorized productization state.",
+                        "ProdUS MCP allowlist through backend-mediated private runtime",
+                        "Fresh live facts without exposing mutation tools.",
+                        List.of("team creation", "invitations", "approval decisions")
+                ),
+                loomAICapability(
+                        "scanner_finding_explanation",
+                        "Scanner finding explanation",
+                        "Explain scanner findings, severity, evidence, likely impact, and practical remediation path.",
+                        "Post-scan readiness review, owner decision support, service selection.",
+                        "Scan status, normalized findings, evidence list, service catalog snapshot",
+                        "Owner-readable blocker summary and service/module mapping.",
+                        List.of("claiming certification", "suppressing critical findings")
+                ),
+                loomAICapability(
+                        "service_plan_reasoning",
+                        "Catalog-grounded service planning",
+                        "Map project needs and readiness blockers to concrete ProdUS lifecycle service modules using module codes.",
+                        "Service cart, package recommendation, dependency explanation, missing coverage.",
+                        "serviceCatalogSnapshot.candidateModules and dependencyHints",
+                        "Catalog-backed recommendedServiceModules that ProdUS can persist after owner approval.",
+                        List.of("free-text services outside catalog", "unapproved team selection")
+                ),
+                loomAICapability(
+                        "confirmed_action_flow",
+                        "Confirmed action flow",
+                        "Execute governed mutations only from owner-approved payloads through ProdUS backend/MCP guards.",
+                        "Create productization project after analysis and explicit owner action.",
+                        "runtimeActionPayload with consentToken and idempotencyKey",
+                        "Auditable backend-created project/workspace artifacts.",
+                        List.of("analysis-only prompts", "automatic owner approvals")
+                ),
+                loomAICapability(
+                        "loomai_partner_delivery",
+                        "LoomAI partner delivery path",
+                        "Recommend LoomAI Partner teams or solo experts as implementation providers for approved LoomAI integration service modules.",
+                        "When owner wants LoomAI implemented inside their product after opportunity analysis.",
+                        "AI integration catalog modules and public team/solo capability metadata",
+                        "Implementation path that separates analysis from human/team delivery.",
+                        List.of("automatic invitation", "automatic participant access")
+                )
+        ));
+        return snapshot;
+    }
+
+    private Map<String, Object> loomAICapability(
+            String code,
+            String name,
+            String description,
+            String useWhen,
+            String requiredContext,
+            String ownerValue,
+            List<String> notFor
+    ) {
+        Map<String, Object> capability = new LinkedHashMap<>();
+        capability.put("code", code);
+        capability.put("name", name);
+        capability.put("description", description);
+        capability.put("useWhen", useWhen);
+        capability.put("requiredContext", requiredContext);
+        capability.put("ownerValue", ownerValue);
+        capability.put("notFor", notFor);
+        return capability;
     }
 
     private List<String> limitedStrings(List<String> values, int limit) {
@@ -1757,15 +1885,19 @@ public class LoomAIIntegrationService {
                 LoomAI is the only recommended AI integration service. Other AI providers may be mentioned only as existing stack context, not as recommended services.
                 Focus only on ProdUS core value areas: project/product diagnosis, readiness explanation, scanner finding summaries, service/package recommendation support, milestone/evidence readiness, and owner decision support.
                 Do not recommend AI for team invitations, team creation, access grants, participant management, billing decisions, or owner approvals.
+                Select LoomAI capabilities only from context.loomaiCapabilitySnapshot.capabilities. Return loomaiCapabilityCode exactly as one listed capability code and loomaiCapability as the matching capability name or concise owner-facing label.
                 Recommend catalog services only from context.serviceCatalogSnapshot.candidateModules. Use moduleCode exactly as provided. If AI integration services are listed, prefer them for implementation work.
                 Use owner input and project analysis as primary context. Use selected documents if they were available through temporaryAccessUrl and cite owner-safe evidence in sourceInsights.
                 Return only a strict JSON object with fields:
                 status, summary, opportunityScore, confidence, strategicRationale, useCases, recommendedServices, recommendedServiceModules, scannerFocusAreas, suggestedNextSteps, sourceInsights, assumptions, missingEvidence.
                 useCases must be an array of objects with:
-                title, workflow, userValue, businessValue, loomaiCapability, integrationPattern, priority, confidence, evidenceBasis, recommendedServiceModules.
+                title, workflow, userValue, businessValue, loomaiCapabilityCode, loomaiCapability, integrationPattern, priority, confidence, evidenceBasis, recommendedServiceModules.
+                loomaiCapabilityCode must be one of the listed capability codes. Do not invent capability names or capabilities.
                 priority must be MUST, SHOULD, COULD, or LATER. confidence and opportunityScore must be 0..1.
                 recommendedServiceModules must be an array of catalog-backed objects with moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
                 Make this useful for project creation: the returned service modules can be persisted after owner approval.
+                LoomAI capability snapshot:
+                %s
                 Owner-selected documents:
                 %s
                 Project analysis:
@@ -1773,6 +1905,7 @@ public class LoomAIIntegrationService {
                 Service catalog snapshot:
                 %s
                 """.formatted(
+                writeJson(context.get("loomaiCapabilitySnapshot")),
                 projectCreationDocumentPromptSection(request.documents()),
                 writeJson(context.get("projectAnalysis")),
                 writeJson(context.get("serviceCatalogSnapshot"))
@@ -1786,6 +1919,7 @@ public class LoomAIIntegrationService {
                 This is a one-time owner-facing overview, not an implementation mutation.
                 LoomAI is the recommended AI integration service for ProdUS. Make the answer specific, practical, and bounded.
                 Use the project analysis, AI opportunity report, public-link insights, selected documents, and ProdUS service catalog snapshot.
+                Use context.loomaiCapabilitySnapshot to explain capabilities; do not invent LoomAI capabilities outside that list.
                 Recommend only catalog service module codes present in context.serviceCatalogSnapshot.candidateModules.
                 Return only a strict JSON object with fields:
                 summary, recommendedStartingPoint, capabilities, implementationSteps, ownerDecisions, risks, sourceInsights, recommendedServiceModules.
@@ -1794,12 +1928,15 @@ public class LoomAIIntegrationService {
                 Keep the advice production-safe: backend-only secrets, browser calls only to ProdUS backend, owner confirmation for any future write action, and no document indexing for temporary project-creation attachments.
                 AI opportunity report:
                 %s
+                LoomAI capability snapshot:
+                %s
                 Project analysis:
                 %s
                 Service catalog snapshot:
                 %s
                 """.formatted(
                 writeJson(context.get("aiOpportunityReport")),
+                writeJson(context.get("loomaiCapabilitySnapshot")),
                 writeJson(context.get("projectAnalysis")),
                 writeJson(context.get("serviceCatalogSnapshot"))
         );

@@ -262,6 +262,7 @@ export interface AiOpportunityUseCase {
   workflow?: string;
   userValue?: string;
   businessValue?: string;
+  loomaiCapabilityCode?: string;
   loomaiCapability?: string;
   integrationPattern?: string;
   priority?: string;

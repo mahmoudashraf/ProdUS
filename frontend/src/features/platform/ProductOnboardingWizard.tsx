@@ -555,8 +555,13 @@ function AiOpportunityPanel({
                     {useCase.userValue}
                   </Typography>
                 )}
-                {useCase.loomaiCapability && (
-                  <DotLabel label={useCase.loomaiCapability} color={appleColors.purple} />
+                {(useCase.loomaiCapability || useCase.loomaiCapabilityCode) && (
+                  <DotLabel
+                    label={useCase.loomaiCapabilityCode
+                      ? `${useCase.loomaiCapabilityCode}${useCase.loomaiCapability ? ` · ${useCase.loomaiCapability}` : ''}`
+                      : useCase.loomaiCapability ?? ''}
+                    color={appleColors.purple}
+                  />
                 )}
               </Stack>
             </Box>
@@ -954,6 +959,7 @@ export default function ProductOnboardingWizard() {
                 workflow: useCase.workflow,
                 userValue: useCase.userValue,
                 businessValue: useCase.businessValue,
+                loomaiCapabilityCode: useCase.loomaiCapabilityCode,
                 loomaiCapability: useCase.loomaiCapability,
                 priority: useCase.priority,
               })),
