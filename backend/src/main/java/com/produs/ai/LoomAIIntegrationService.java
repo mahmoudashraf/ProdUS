@@ -1860,13 +1860,10 @@ public class LoomAIIntegrationService {
         Map<String, Object> capability = new LinkedHashMap<>();
         capability.put("code", code);
         capability.put("name", name);
-        capability.put("description", description);
         capability.put("useWhen", useWhen);
-        capability.put("requiredContext", requiredContext);
         capability.put("ownerValue", ownerValue);
         capability.put("implementationPattern", implementationPattern);
         capability.put("notFor", notFor);
-        capability.put("exampleUseCases", exampleUseCases);
         return capability;
     }
 
