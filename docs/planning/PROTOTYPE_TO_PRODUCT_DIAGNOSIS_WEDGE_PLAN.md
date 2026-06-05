@@ -4,7 +4,7 @@ Date: 2026-06-05
 
 Audience: product, engineering, design, AI integration, catalog, scanner, and delivery stakeholders
 
-Status: plan for review
+Status: implementation plan; Sequence 1 implemented; Sequence 2 is the next build slice
 
 Primary references:
 
@@ -29,7 +29,7 @@ The core question ProdUS must answer better than a generic chatbot is:
 
 ## 2. Why This Is Next
 
-The current system can already perform the broad journey:
+The current system can already perform the broad journey, but the experience is still more "possible" than "obvious":
 
 ```text
 Create project with AI
@@ -48,7 +48,34 @@ The kill-or-win assumption:
 
 If this assumption is false, more UI, more catalog entries, more marketplace features, or more AI chat will not save the product. If it is true, those layers become natural extensions.
 
-## 3. Target Users
+## 3. Implementation Spine
+
+This plan should be implemented as one cohesive owner flow, not as separate feature islands:
+
+```text
+Project Analysis
+  -> Repo And Scanner Facts
+  -> Production Diagnosis
+  -> Fix Path
+  -> Service Plan
+  -> Workspace Start
+  -> Launch Readiness Report
+```
+
+Each layer has a clear job:
+
+- scanners and repo tools collect grounded facts
+- ProdUS normalizes those facts into safe product signals
+- LoomAI explains and synthesizes from bounded context
+- the catalog translates blockers into real services
+- the workspace turns selected services into milestones, proof tasks, and delivery context
+- the report proves what is ready, what is risky, and what decision comes next
+
+Implementation principle:
+
+> Store deterministic facts and validated choices. Let AI explain, prioritize, and suggest, but do not persist unsupported AI claims as source-of-truth data.
+
+## 4. Target Users
 
 Primary users for this plan:
 
@@ -65,7 +92,7 @@ Secondary users:
 - LoomAI partner identifying where AI enablement adds value
 - delivery lead using the workspace after the owner accepts the plan
 
-## 4. Product Tone
+## 5. Product Tone
 
 The default experience should feel like a productization assistant for builders, not a rigid enterprise audit system.
 
@@ -92,7 +119,7 @@ Language to avoid as default UI framing:
 
 The backend can still be rigorous. It should store evidence, enforce permissions, validate catalog dependencies, and keep audit records. The UI should translate that into language that helps a founder or product owner move.
 
-## 5. Non-Goals
+## 6. Non-Goals
 
 Do not prioritize these until the diagnosis wedge is credible:
 
@@ -105,7 +132,7 @@ Do not prioritize these until the diagnosis wedge is credible:
 - AI write actions beyond the governed project creation flow
 - a full project management replacement
 
-## 6. Success Criteria
+## 7. Success Criteria
 
 ### Product Success Criteria
 
@@ -134,13 +161,101 @@ Do not prioritize these until the diagnosis wedge is credible:
 - LoomAI calls remain backend-mediated, with no browser runtime secrets.
 - Expensive AI calls are user-triggered or tied to explicit analysis runs, not automatic page-load behavior.
 
-## 7. Implementation Sequence
+## 8. Sequence Dependency Map
+
+| Sequence | Build Slice | Depends On | Produces |
+| --- | --- | --- | --- |
+| 1 | Diagnosis Quality Harness | Existing scanner classifier and catalog modules | Regression harness for diagnosis and service-mapping quality |
+| 2 | Repo And Scanner Fact Understanding | Repo source connection, scanner outputs, safe file access | Grounded repo signal snapshot and owner-facing repo readout |
+| 3 | AI Analysis Contract Upgrade | Sequence 2 facts when available, service catalog snapshot, LoomAI private runtime | Validated project intelligence and catalog-backed recommendations |
+| 4 | Scanner To Fix Path Hardening | Scanner findings, catalog modules, Sequence 2/3 context | Stored diagnosis snapshot and owner-readable fix path |
+| 5 | Service Plan From Diagnosis | Sequence 4 fix path and catalog dependency rules | Workspace-ready service plan with dependency guidance |
+| 6 | Launch Readiness Report | Diagnosis, service plan, scanner evidence, workspace proof | Shareable readiness report |
+| 7 | Project Analysis To Fix Path Demo Flow | Sequences 2 through 6 | One polished owner journey for staging and external validation |
+| 8 | Measurement And Review | All prior slices | Product and quality feedback loop |
+
+Build rule:
+
+- Implement the deterministic foundation first.
+- Add AI synthesis where it improves understanding.
+- Keep expensive AI calls user-triggered.
+- Validate every persisted AI-derived service/module/reference against backend data.
+
+## 9. Immediate Next Build Slice
+
+The next implementation slice is **Sequence 2: Repo And Scanner Fact Understanding**.
+
+Goal:
+
+> When an owner creates a project with a repo, ProdUS should show what it safely knows about that repo before asking the owner to trust AI interpretation or service recommendations.
+
+Backend scope:
+
+- add a repo signal model for product/workspace context:
+  - `productId`
+  - `workspaceId`, optional
+  - `signalType`
+  - `signalValue`
+  - `confidence`
+  - `source`
+  - `sourceTool`
+  - `sourcePath`
+  - `evidenceKind`
+  - `ownerSafeEvidence`
+  - `detectedAt`
+- add repo signal refresh service:
+  - reads existing product repo source
+  - uses scanner outputs when available
+  - reads bounded safe files only when provider/source access allows it
+  - stores normalized signals
+  - never stores secrets or raw large file contents
+- add endpoints:
+  - `GET /api/products/{productId}/repo-signals`
+  - `POST /api/products/{productId}/repo-signals/refresh`
+  - workspace equivalents if workspace-scoped signals already have enough context
+- add compact repo/scanner facts builder for LoomAI context:
+  - used by project analysis and future diagnosis explanation
+  - excludes unsupported/unverified claims
+
+Frontend scope:
+
+- add Repo Readout panel to the product page:
+  - source status
+  - detected stack
+  - dependency/test/deploy/docs signals
+  - scanner facts
+  - unknowns and next scan action
+- show facts separately from AI interpretation:
+  - "Detected by ProdUS"
+  - "Explained by LoomAI"
+  - "Still unknown"
+- add user-triggered refresh action.
+
+Verification scope:
+
+- backend tests for signal normalization and safe redaction
+- frontend build/type-check
+- Playwright product page check with a mock product/repo
+- staging smoke with `mahmoudashraf/ProdUS`
+
+## 10. Implementation Sequence
 
 ### Sequence 1: Diagnosis Quality Harness
 
 Purpose:
 
 Create a repeatable way to prove the diagnosis is specific, useful, and regression-safe.
+
+Depends on:
+
+- existing scanner finding classifier
+- existing catalog service modules
+- admin-only internal review surface
+
+Produces:
+
+- repeatable diagnosis/service-mapping regression harness
+- fixture results that show whether the diagnosis became generic or less actionable
 
 Backend deliverables:
 
@@ -183,7 +298,7 @@ Implementation status:
 - The harness checks classifier category accuracy, catalog-backed service mapping, catalog resolution, diagnosis specificity, non-generic wording, and bad-diagnosis detection.
 - Live browser verification was completed locally with a mock admin session, and production frontend/backend builds pass.
 
-### Sequence 2: Better Repo Understanding
+### Sequence 2: Repo And Scanner Fact Understanding
 
 Purpose:
 
@@ -201,6 +316,18 @@ repo connection + scanners/tools
 ```
 
 ProdUS should not ask an LLM to blindly inspect a whole repository as the source of truth. Scanners and repo tools should collect grounded facts. AI should turn those facts into a useful productization interpretation.
+
+Depends on:
+
+- product repository URL or connected GitHub/GitLab source
+- scanner output where available
+- bounded safe file access for README/config/manifests
+
+Produces:
+
+- normalized repo signal snapshot
+- owner-facing Repo Readout
+- scanner focus areas for the next diagnosis run
 
 Backend deliverables:
 
@@ -287,6 +414,19 @@ Purpose:
 
 Make AI analysis useful for project creation and downstream diagnosis, not just descriptive.
 
+Depends on:
+
+- service catalog snapshot
+- Sequence 2 repo/scanner facts when available
+- LoomAI private runtime integration
+- temporary document URL support
+
+Produces:
+
+- validated project intelligence snapshot
+- catalog-backed service recommendations
+- AI opportunities that can be carried into project creation
+
 Backend deliverables:
 
 - compact service catalog snapshot passed to LoomAI during project analysis:
@@ -362,6 +502,18 @@ Purpose:
 
 Turn scanner findings into owner-readable fix paths and catalog-backed service recommendations.
 
+Depends on:
+
+- scanner runs and normalized findings
+- catalog module mapping rules
+- repo signals and project analysis context when available
+
+Produces:
+
+- persisted diagnosis snapshot
+- stored finding-to-service mapping
+- owner-readable priority fix path
+
 Backend deliverables:
 
 - persisted scanner finding classification:
@@ -409,6 +561,18 @@ Acceptance criteria:
 Purpose:
 
 Make the service plan a real translation of diagnosis into work.
+
+Depends on:
+
+- Sequence 4 fix path
+- catalog dependencies and service requirements
+- owner-selected or accepted recommendations
+
+Produces:
+
+- workspace-ready service plan
+- dependency guidance before workspace start
+- clear blocked-conversion recovery path
 
 Backend deliverables:
 
@@ -462,6 +626,18 @@ Purpose:
 
 Produce a shareable outcome that proves ProdUS value beyond UI navigation.
 
+Depends on:
+
+- latest diagnosis snapshot
+- scanner evidence
+- selected services
+- workspace proof tasks, when a workspace exists
+
+Produces:
+
+- shareable readiness report
+- owner/advisor-facing summary of what is ready, risky, and next
+
 Backend deliverables:
 
 - report endpoint:
@@ -503,11 +679,22 @@ Acceptance criteria:
 - Report language is practical and not enterprise-heavy.
 - Report links back to scanner evidence and service recommendations.
 
-### Sequence 7: Demo Path And User Story
+### Sequence 7: Project Analysis To Scanner To Fix Path Demo Flow
 
 Purpose:
 
 Create one excellent path that the team can demo, test, and use for external validation.
+
+Depends on:
+
+- Sequences 2 through 6
+- staging test repo and README/spec attachment
+- mock and production-like auth paths
+
+Produces:
+
+- one polished, repeatable owner journey
+- the external validation path for MVP/startup users
 
 Demo path:
 
@@ -546,6 +733,17 @@ Purpose:
 
 Prove the wedge is improving instead of only adding features.
 
+Depends on:
+
+- events and snapshots from the previous sequences
+- fixture harness results
+- staging demo runs
+
+Produces:
+
+- product quality feedback loop
+- weekly diagnosis/service-mapping review inputs
+
 Metrics:
 
 - project analysis success rate
@@ -573,7 +771,7 @@ Acceptance criteria:
 - At least 70 percent of owner-created projects have a repo source or explicit "no repo yet" reason.
 - At least 60 percent of scanner-backed projects produce a usable fix path without manual admin cleanup.
 
-## 8. LoomAI Role
+## 11. LoomAI Role
 
 LoomAI should be used where it adds understanding, explanation, or synthesis.
 
@@ -602,7 +800,7 @@ Mode expectations:
 - allow read-only MCP actions when the user is asking about product, catalog, service, scanner, evidence, or workspace context
 - keep write actions behind explicit owner approval and backend consent/idempotency checks
 
-## 9. Security And Production Constraints
+## 12. Security And Production Constraints
 
 Required constraints:
 
@@ -622,7 +820,7 @@ Creation action errors should be explicit:
 - "This action payload is stale. Use the latest AI analysis result."
 - "This project is missing required services before workspace start."
 
-## 10. Backend Deliverables Summary
+## 13. Backend Deliverables Summary
 
 - diagnosis fixture harness
 - repo metadata extraction service
@@ -637,7 +835,7 @@ Creation action errors should be explicit:
 - metrics events for the full path
 - tests for each deterministic mapping and failure path
 
-## 11. Frontend Deliverables Summary
+## 14. Frontend Deliverables Summary
 
 - improved project creation AI analysis UI
 - repo readout panel
@@ -657,7 +855,7 @@ Creation action errors should be explicit:
   - services missing
   - workspace ready
 
-## 12. Test And Verification Plan
+## 15. Test And Verification Plan
 
 Automated tests:
 
@@ -682,7 +880,7 @@ Live staging verification:
 - generate launch readiness report
 - ask LoomAI chat about the analysis and confirm it sees page context
 
-## 13. Review Gates
+## 16. Review Gates
 
 Gate 1: Diagnosis Credibility
 
@@ -706,7 +904,7 @@ Gate 4: External Demo
 - one polished staging flow is ready for external user testing
 - report output is clear enough to share outside the product team
 
-## 14. Product Decision After This Plan
+## 17. Product Decision After This Plan
 
 After this plan is implemented and tested with real users, decide one of three paths:
 
