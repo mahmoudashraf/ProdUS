@@ -19,6 +19,7 @@ import com.produs.engine.ProductizationEngineService.IntegrationSignalResponse;
 import com.produs.engine.ProductizationEngineService.ReviewDecisionRequest;
 import com.produs.engine.ProductizationEngineService.ReviewDecisionResponse;
 import com.produs.engine.ProductizationEngineService.ScannerReadinessDiagnosisRequest;
+import com.produs.engine.ProductizationEngineService.ShipConfidenceHistoryResponse;
 import com.produs.engine.ProductizationEngineService.WorkspaceScannerReadinessRequest;
 import com.produs.engine.ProductizationEngineService.WorkspaceScannerReadinessResponse;
 import com.produs.engine.ProductizationEngineService.WorkspaceGovernanceResponse;
@@ -46,6 +47,11 @@ public class ProductizationEngineController {
     @GetMapping("/products/{productId}/diagnoses")
     public List<DiagnosisResponse> diagnoses(@AuthenticationPrincipal User user, @PathVariable UUID productId) {
         return engineService.diagnoses(user, productId);
+    }
+
+    @GetMapping("/products/{productId}/ship-confidence")
+    public ShipConfidenceHistoryResponse productShipConfidence(@AuthenticationPrincipal User user, @PathVariable UUID productId) {
+        return engineService.productShipConfidence(user, productId);
     }
 
     @PostMapping("/products/{productId}/diagnoses")
@@ -111,6 +117,11 @@ public class ProductizationEngineController {
     @GetMapping("/workspaces/{workspaceId}/scanner-readiness")
     public WorkspaceScannerReadinessResponse workspaceScannerReadiness(@AuthenticationPrincipal User user, @PathVariable UUID workspaceId) {
         return engineService.workspaceScannerReadiness(user, workspaceId);
+    }
+
+    @GetMapping("/workspaces/{workspaceId}/ship-confidence")
+    public ShipConfidenceHistoryResponse workspaceShipConfidence(@AuthenticationPrincipal User user, @PathVariable UUID workspaceId) {
+        return engineService.workspaceShipConfidence(user, workspaceId);
     }
 
     @PostMapping("/workspaces/{workspaceId}/scanner-readiness/enrich")

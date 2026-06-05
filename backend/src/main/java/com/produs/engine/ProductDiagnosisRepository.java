@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public interface ProductDiagnosisRepository extends JpaRepository<ProductDiagnosis, UUID> {
     List<ProductDiagnosis> findByProductProfileIdOrderByCreatedAtDesc(UUID productProfileId);
+    List<ProductDiagnosis> findByWorkspaceIdOrderByCreatedAtDesc(UUID workspaceId);
     List<ProductDiagnosis> findByWorkspaceIdAndDiagnosisSourceOrderByCreatedAtDesc(UUID workspaceId, ProductDiagnosis.DiagnosisSource diagnosisSource);
     Optional<ProductDiagnosis> findByProductProfileIdAndDiagnosisSourceAndGeneratedFromScanRunIds(
             UUID productProfileId,

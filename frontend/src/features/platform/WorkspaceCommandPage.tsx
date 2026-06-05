@@ -21,6 +21,7 @@ import { uploadService } from '@/services/uploadService';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
 import PlatformAssistantCard from './PlatformAssistantCard';
+import ShipConfidencePanel from './ShipConfidencePanel';
 import { sortWorkspacesForOwner } from './displayOrder';
 import {
   DotLabel,
@@ -55,6 +56,7 @@ import {
   ReviewDecision,
   ScannerEvidenceItem,
   ScanRun,
+  ShipConfidenceHistory,
   SupportRequest,
   Team,
   WorkspaceGovernance,
@@ -367,6 +369,11 @@ export default function WorkspaceCommandPage() {
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<WorkspaceScannerReadiness>(`/productization-engine/workspaces/${selectedWorkspace?.id}/scanner-readiness`),
   });
+  const shipConfidence = useQuery({
+    queryKey: ['productization-engine', 'workspace-ship-confidence', selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () => getJson<ShipConfidenceHistory>(`/productization-engine/workspaces/${selectedWorkspace?.id}/ship-confidence`),
+  });
 
   const attachmentsByScope = useMemo(
     () =>
@@ -460,6 +467,7 @@ export default function WorkspaceCommandPage() {
   const refreshGovernance = async () => {
     await queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-governance', selectedWorkspace?.id] });
     await queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-scanner-readiness', selectedWorkspace?.id] });
+    await queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-ship-confidence', selectedWorkspace?.id] });
     await queryClient.invalidateQueries({ queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'] });
   };
   const generateCriteria = useMutation({
@@ -700,11 +708,11 @@ export default function WorkspaceCommandPage() {
   return (
     <>
       <PageHeader
-        title="Project Workspaces"
-        description="One focused place to run a productization workspace: milestones, evidence, people, support, and risk."
+        title="Productization Workspaces"
+        description="One focused place to turn a prototype into a shippable product: fixes, proof, people, and next launch decisions."
       />
       <QueryState
-        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || milestones.isLoading || deliverables.isLoading || participants.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading || governance.isLoading || scannerEvidence.isLoading || workspaceScannerReadiness.isLoading}
+        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || milestones.isLoading || deliverables.isLoading || participants.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading || governance.isLoading || scannerEvidence.isLoading || workspaceScannerReadiness.isLoading || shipConfidence.isLoading}
         error={
           packages.error
           || workspaces.error
@@ -718,6 +726,7 @@ export default function WorkspaceCommandPage() {
           || governance.error
           || scannerEvidence.error
           || workspaceScannerReadiness.error
+          || shipConfidence.error
           || createWorkspace.error
           || createMilestone.error
           || createDeliverable.error
@@ -750,10 +759,10 @@ export default function WorkspaceCommandPage() {
         </Alert>
       )}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 2, mb: 2.5 }}>
-        <MetricTile label="Active projects" value={activeWorkspaceCount} detail={`${workspaceList.length} total workspaces`} accent={appleColors.cyan} icon={<FactCheckOutlined />} />
-        <MetricTile label="Milestones accepted" value={completedMilestones} detail={`${milestoneList.length} in selected workspace`} accent={appleColors.green} icon={<TaskAltOutlined />} />
-        <MetricTile label="Needs attention" value={blockedItems} detail="Workspace, SLA, or dispute risk" accent={appleColors.red} icon={<ErrorOutlineOutlined />} />
-        <MetricTile label="Dated milestones" value={milestoneList.filter((milestone) => milestone.dueDate).length} detail="Scheduled delivery checks" accent={appleColors.purple} icon={<CalendarMonthOutlined />} />
+        <MetricTile label="Active workspaces" value={activeWorkspaceCount} detail={`${workspaceList.length} total productization paths`} accent={appleColors.cyan} icon={<FactCheckOutlined />} />
+        <MetricTile label="Launch checkpoints" value={completedMilestones} detail={`${milestoneList.length} in selected workspace`} accent={appleColors.green} icon={<TaskAltOutlined />} />
+        <MetricTile label="Rough edges" value={blockedItems} detail="Needs owner or specialist attention" accent={appleColors.red} icon={<ErrorOutlineOutlined />} />
+        <MetricTile label="Timed checks" value={milestoneList.filter((milestone) => milestone.dueDate).length} detail="Scheduled launch checkpoints" accent={appleColors.purple} icon={<CalendarMonthOutlined />} />
       </Box>
 
       <Box
@@ -836,9 +845,9 @@ export default function WorkspaceCommandPage() {
                     </Box>
                   </Stack>
                   <Stack direction={{ xs: 'row', xl: 'column' }} spacing={0.75} flexWrap="wrap" useFlexGap>
-                    <DotLabel label={`${deliverableList.length} deliverables in focus`} color={appleColors.green} />
-                    <DotLabel label={`${scopedAttachments('WORKSPACE', selectedWorkspace.id).length} workspace evidence files`} color={appleColors.purple} />
-                    <DotLabel label={`${supportList.length + disputeList.length} support/risk records`} color={supportList.length + disputeList.length ? appleColors.amber : appleColors.green} />
+                    <DotLabel label={`${deliverableList.length} fixes in focus`} color={appleColors.green} />
+                    <DotLabel label={`${scopedAttachments('WORKSPACE', selectedWorkspace.id).length} proof files`} color={appleColors.purple} />
+                    <DotLabel label={`${supportList.length + disputeList.length} open rough edges`} color={supportList.length + disputeList.length ? appleColors.amber : appleColors.green} />
                   </Stack>
                 </Stack>
               </Surface>
@@ -877,7 +886,7 @@ export default function WorkspaceCommandPage() {
                         <PastelChip label={readinessStatus} accent={readiness?.blockerCount ? appleColors.red : appleColors.green} bg={readiness?.blockerCount ? '#fff1f1' : '#e7f8ee'} />
                       </Stack>
                       <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6, maxWidth: 760 }}>
-                        Scanner findings become clear fix paths, suggested services, and proof tasks. This is stored and deterministic; AI explanation only runs when you ask for it.
+                        Scanner findings become clear fixes, suggested services, and proof tasks. This is stored and deterministic; AI explanation only runs when you ask for it.
                       </Typography>
                       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
                         <PastelChip label={`${readiness?.mappedFindingCount || 0} mapped`} accent={appleColors.green} bg="#e7f8ee" />
@@ -938,10 +947,19 @@ export default function WorkspaceCommandPage() {
                 )}
               </Surface>
 
+              <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f9fcff 100%)' }}>
+                <ShipConfidencePanel
+                  history={shipConfidence.data}
+                  isLoading={shipConfidence.isFetching}
+                  title="Workspace Ship Confidence"
+                  subtitle="Workspace scanner maps become checkpoints, so the owner can see whether this prototype is moving closer to launch."
+                />
+              </Surface>
+
               <PlatformAssistantCard
                 title="AI Fix Path Explainer"
                 description="Explain mapped findings and owner decisions from the stored scanner fix path."
-                prompt={`Use thinker mode and read-only context only. Explain the scanner fix path for workspace "${selectedWorkspace.name}". Product: ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}. Readiness score: ${readinessScore}. Status: ${readinessStatus}. Mapped findings: ${readiness?.mappedFindingCount || 0}. Priority fixes: ${readiness?.blockerCount || 0}. Missing proof: ${readiness?.missingEvidenceCount || 0}. Unmapped findings: ${readiness?.unmappedFindingCount || 0}. Mapped services: ${(readiness?.milestoneRisks || []).flatMap((risk) => risk.mappedServices).slice(0, 8).join(', ') || 'none'}. Milestone risks: ${(readiness?.milestoneRisks || []).slice(0, 6).map((risk) => `${risk.milestoneTitle}: ${risk.scannerFindingCount} findings, ${risk.missingEvidenceCount} proof gaps, highest ${risk.highestSeverity || 'none'}`).join('; ') || 'none'}. Tell the owner what could stop shipping, which service work addresses it, what proof is missing, and what decision is safe next. Do not mutate workspace state.`}
+                prompt={`Use thinker mode and read-only context only. Explain the scanner fix path for workspace "${selectedWorkspace.name}". Product: ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}. Readiness score: ${readinessScore}. Status: ${readinessStatus}. Mapped findings: ${readiness?.mappedFindingCount || 0}. Priority fixes: ${readiness?.blockerCount || 0}. Missing proof: ${readiness?.missingEvidenceCount || 0}. Unmapped findings: ${readiness?.unmappedFindingCount || 0}. Ship-confidence history: ${shipConfidence.data?.trendSummary || 'not available yet'}. Latest checkpoint: ${shipConfidence.data?.latest ? `${shipConfidence.data.latest.shipConfidenceScore}/100, ${shipConfidence.data.latest.statusLabel}, next step ${shipConfidence.data.latest.suggestedNextStep}` : 'none'}. Mapped services: ${(readiness?.milestoneRisks || []).flatMap((risk) => risk.mappedServices).slice(0, 8).join(', ') || 'none'}. Milestone risks: ${(readiness?.milestoneRisks || []).slice(0, 6).map((risk) => `${risk.milestoneTitle}: ${risk.scannerFindingCount} findings, ${risk.missingEvidenceCount} proof gaps, highest ${risk.highestSeverity || 'none'}`).join('; ') || 'none'}. Tell the owner what could stop shipping, which service work addresses it, what proof is missing, and what decision is safe next. Do not mutate workspace state.`}
                 conversationId={`workspace-scanner-readiness-${selectedWorkspace.id}`}
                 context={{
                   pageType: 'workspace-scanner-readiness',

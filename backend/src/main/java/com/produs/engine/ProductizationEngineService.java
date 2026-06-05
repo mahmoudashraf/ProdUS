@@ -133,6 +133,15 @@ public class ProductizationEngineService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public ShipConfidenceHistoryResponse productShipConfidence(User user, UUID productId) {
+        ProductProfile product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        requireProductOwner(user, product);
+        List<ProductDiagnosis> diagnoses = diagnosisRepository.findByProductProfileIdOrderByCreatedAtDesc(productId);
+        return buildShipConfidenceHistory(product, null, diagnoses);
+    }
+
     @Transactional
     public DiagnosisResponse createScannerReadinessDiagnosis(User user, UUID productId, ScannerReadinessDiagnosisRequest request) {
         ProductProfile product = productRepository.findById(productId)
@@ -359,6 +368,16 @@ public class ProductizationEngineService {
                 .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
         requireWorkspaceViewer(user, workspace);
         return buildWorkspaceScannerReadiness(workspace);
+    }
+
+    @Transactional(readOnly = true)
+    public ShipConfidenceHistoryResponse workspaceShipConfidence(User user, UUID workspaceId) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceViewer(user, workspace);
+        ProductProfile product = workspaceProduct(workspace);
+        List<ProductDiagnosis> diagnoses = diagnosisRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId);
+        return buildShipConfidenceHistory(product, workspace, diagnoses);
     }
 
     @Transactional
@@ -815,6 +834,185 @@ public class ProductizationEngineService {
                 scannerCriteria.size(),
                 milestoneRisks
         );
+    }
+
+    private ShipConfidenceHistoryResponse buildShipConfidenceHistory(
+            ProductProfile product,
+            ProjectWorkspace workspace,
+            List<ProductDiagnosis> diagnoses
+    ) {
+        List<DiagnosisSnapshotResponse> snapshots = new ArrayList<>();
+        for (int index = 0; index < diagnoses.size(); index++) {
+            ProductDiagnosis diagnosis = diagnoses.get(index);
+            Integer previousScore = index + 1 < diagnoses.size()
+                    ? diagnoses.get(index + 1).getReadinessScore()
+                    : null;
+            snapshots.add(toDiagnosisSnapshotResponse(diagnosis, previousScore));
+        }
+        DiagnosisSnapshotResponse latest = snapshots.isEmpty() ? null : snapshots.get(0);
+        Integer previousScore = snapshots.size() > 1 ? snapshots.get(1).shipConfidenceScore() : null;
+        Integer delta = latest == null || previousScore == null ? null : latest.shipConfidenceScore() - previousScore;
+        return new ShipConfidenceHistoryResponse(
+                product == null ? null : product.getId(),
+                product == null ? "Unknown product" : product.getName(),
+                workspace == null ? null : workspace.getId(),
+                workspace == null ? null : workspace.getName(),
+                latest,
+                previousScore,
+                delta,
+                trendSummary(latest, delta),
+                snapshots
+        );
+    }
+
+    private DiagnosisSnapshotResponse toDiagnosisSnapshotResponse(ProductDiagnosis diagnosis, Integer previousScore) {
+        ProductProfile product = firstNonNull(diagnosis.getProductProfile(), workspaceProduct(diagnosis.getWorkspace()));
+        List<ProductFinding> findings = findingRepository.findByDiagnosisIdOrderByCreatedAtAsc(diagnosis.getId());
+        int mappedFindingCount = (int) findings.stream().filter(finding -> finding.getRecommendedModule() != null).count();
+        int priorityFixCount = Math.max(
+                diagnosis.getTopBlockerCount(),
+                (int) findings.stream()
+                        .filter(finding -> severe(finding.getSeverity()))
+                        .filter(finding -> finding.getStatus() == ProductFinding.FindingStatus.OPEN
+                                || finding.getStatus() == ProductFinding.FindingStatus.SERVICE_SELECTED)
+                        .count()
+        );
+        int proofGapCount = (int) findings.stream()
+                .filter(finding -> finding.getEvidenceRequired() != null && !finding.getEvidenceRequired().isBlank())
+                .filter(finding -> finding.getScannerEvidenceItem() == null)
+                .filter(finding -> finding.getStatus() != ProductFinding.FindingStatus.RESOLVED
+                        && finding.getStatus() != ProductFinding.FindingStatus.DISMISSED)
+                .count();
+        List<ProductServiceRecommendation> recommendations = product == null
+                ? List.of()
+                : serviceRecommendationRepository.findByProductProfileIdOrderBySequenceNumberAscCreatedAtAsc(product.getId());
+        List<String> recommendedServices = recommendedServiceNames(findings, recommendations);
+        List<String> recommendedServiceCodes = recommendedServiceCodes(findings, recommendations);
+        String trendDirection = trendDirection(diagnosis.getReadinessScore(), previousScore);
+        return new DiagnosisSnapshotResponse(
+                diagnosis.getId(),
+                diagnosis.getCreatedAt(),
+                product == null ? null : product.getId(),
+                product == null ? "Unknown product" : product.getName(),
+                diagnosis.getWorkspace() == null ? null : diagnosis.getWorkspace().getId(),
+                diagnosis.getWorkspace() == null ? null : diagnosis.getWorkspace().getName(),
+                diagnosis.getDiagnosisSource(),
+                diagnosis.getReadinessScore(),
+                shipConfidenceLabel(diagnosis.getReadinessScore(), priorityFixCount, proofGapCount),
+                diagnosis.getSummary(),
+                priorityFixCount,
+                mappedFindingCount,
+                diagnosis.getUnmappedFindingCount(),
+                proofGapCount,
+                recommendedServices.size(),
+                recommendedServices,
+                recommendedServiceCodes,
+                suggestedNextStep(diagnosis, priorityFixCount, mappedFindingCount, proofGapCount, recommendedServices),
+                trendDirection
+        );
+    }
+
+    private static List<String> recommendedServiceNames(
+            List<ProductFinding> findings,
+            List<ProductServiceRecommendation> recommendations
+    ) {
+        LinkedHashMap<String, String> services = new LinkedHashMap<>();
+        findings.stream()
+                .map(ProductFinding::getRecommendedModule)
+                .filter(module -> module != null)
+                .forEach(module -> services.putIfAbsent(module.getStableCode(), module.getName()));
+        recommendations.stream()
+                .map(ProductServiceRecommendation::getServiceModule)
+                .filter(module -> module != null)
+                .forEach(module -> services.putIfAbsent(module.getStableCode(), module.getName()));
+        return services.values().stream().limit(10).toList();
+    }
+
+    private static List<String> recommendedServiceCodes(
+            List<ProductFinding> findings,
+            List<ProductServiceRecommendation> recommendations
+    ) {
+        LinkedHashMap<String, String> services = new LinkedHashMap<>();
+        findings.stream()
+                .map(ProductFinding::getRecommendedModule)
+                .filter(module -> module != null)
+                .forEach(module -> services.putIfAbsent(module.getStableCode(), module.getStableCode()));
+        recommendations.stream()
+                .map(recommendation -> firstNonBlank(recommendation.getModuleCode(), recommendation.getServiceModule().getStableCode()))
+                .filter(code -> code != null && !code.isBlank())
+                .forEach(code -> services.putIfAbsent(code, code));
+        return services.values().stream().limit(10).toList();
+    }
+
+    private static String shipConfidenceLabel(int score, int priorityFixCount, int proofGapCount) {
+        if (priorityFixCount > 0) {
+            return "Needs key fixes";
+        }
+        if (proofGapCount > 0) {
+            return "Needs proof";
+        }
+        if (score >= 85) {
+            return "Nearly ready";
+        }
+        if (score >= 65) {
+            return "Promising";
+        }
+        return "Early signal";
+    }
+
+    private static String suggestedNextStep(
+            ProductDiagnosis diagnosis,
+            int priorityFixCount,
+            int mappedFindingCount,
+            int proofGapCount,
+            List<String> recommendedServices
+    ) {
+        if (priorityFixCount > 0 && !recommendedServices.isEmpty()) {
+            return "Add the highest-priority service and decide what must be fixed before the next user-facing launch.";
+        }
+        if (mappedFindingCount > 0 && !recommendedServices.isEmpty()) {
+            return "Review the mapped service recommendations and add the work that helps this prototype ship safely.";
+        }
+        if (diagnosis.getUnmappedFindingCount() > 0) {
+            return "Review unmapped scanner signals so ProdUS can turn them into a clear service path.";
+        }
+        if (proofGapCount > 0) {
+            return "Attach lightweight proof or run a fresh scan so the owner can trust the next decision.";
+        }
+        if (diagnosis.getDiagnosisSource() == ProductDiagnosis.DiagnosisSource.SCANNER_READINESS) {
+            return "Keep scanner proof fresh and move the next fix into the workspace.";
+        }
+        return "Run a scanner or add repository proof to turn the diagnosis into a concrete fix path.";
+    }
+
+    private static String trendDirection(Integer currentScore, Integer previousScore) {
+        if (currentScore == null || previousScore == null) {
+            return "NEW";
+        }
+        int delta = currentScore - previousScore;
+        if (delta >= 3) {
+            return "UP";
+        }
+        if (delta <= -3) {
+            return "DOWN";
+        }
+        return "FLAT";
+    }
+
+    private static String trendSummary(DiagnosisSnapshotResponse latest, Integer delta) {
+        if (latest == null) {
+            return "No diagnosis history yet. Run a diagnosis or scanner to create the first ship-confidence checkpoint.";
+        }
+        if (delta == null) {
+            return "First ship-confidence checkpoint captured. Re-run after fixes to show movement.";
+        }
+        if (delta > 0) {
+            return "Ship confidence improved by " + delta + " points. Keep closing the highest-priority fixes.";
+        }
+        if (delta < 0) {
+            return "Ship confidence dropped by " + Math.abs(delta) + " points. Review the newest scanner signals before starting more work.";
+        }
+        return "Ship confidence is steady. Use the next suggested fix to create movement.";
     }
 
     private MilestoneRiskResponse toMilestoneRiskResponse(ProjectWorkspace workspace, Milestone milestone, List<ProductFinding> findings) {
@@ -1550,6 +1748,8 @@ public class ProductizationEngineService {
     public record DiagnosisRequest(UUID requirementIntakeId, String businessGoal, String currentProblems, String accessSignals, String summary) {}
     public record ScannerReadinessDiagnosisRequest(UUID workspaceId, Boolean createServiceRecommendations, Boolean includeAcceptedRisk, String summary) {}
     public record DiagnosisResponse(UUID id, LocalDateTime createdAt, UUID productId, String productName, Integer readinessScore, String summary, String accessSignals, UUID workspaceId, ProductDiagnosis.DiagnosisSource diagnosisSource, String generatedFromScanRunIds, int topBlockerCount, int evidenceCount, int unmappedFindingCount, ProductDiagnosis.DiagnosisStatus status, boolean aiReady, boolean aiExecuted, List<FindingResponse> findings) {}
+    public record DiagnosisSnapshotResponse(UUID id, LocalDateTime createdAt, UUID productId, String productName, UUID workspaceId, String workspaceName, ProductDiagnosis.DiagnosisSource source, int shipConfidenceScore, String statusLabel, String summary, int priorityFixCount, int mappedFindingCount, int unmappedFindingCount, int proofGapCount, int recommendedServiceCount, List<String> recommendedServices, List<String> recommendedServiceCodes, String suggestedNextStep, String trendDirection) {}
+    public record ShipConfidenceHistoryResponse(UUID productId, String productName, UUID workspaceId, String workspaceName, DiagnosisSnapshotResponse latest, Integer previousScore, Integer delta, String trendSummary, List<DiagnosisSnapshotResponse> snapshots) {}
     public record FindingResponse(UUID id, String title, String description, String affectedLayer, String readinessArea, String businessRisk, String ownerDecision, String evidenceRequired, String mappingReason, Double mappingConfidence, String mappingSource, ProductFinding.FindingSeverity severity, ProductFinding.ConfidenceLevel confidenceLevel, String confidenceBasis, String sourceSignal, ProductFinding.FindingStatus status, UUID normalizedFindingId, UUID scannerEvidenceItemId, UUID recommendedModuleId, String recommendedModuleName, String recommendedModuleCode) {}
     public record CriterionResponse(UUID id, UUID milestoneId, UUID packageModuleId, String serviceName, String title, String description, boolean required, AcceptanceCriterion.CriterionStatus status, boolean humanReviewRequired, List<EvidenceRequirementResponse> evidenceRequirements, List<AutomatedCheckResponse> automatedChecks, List<ReviewDecisionResponse> reviews) {}
     public record EvidenceRequirementRequest(EvidenceRequirement.EvidenceStatus status, String evidenceReference) {}

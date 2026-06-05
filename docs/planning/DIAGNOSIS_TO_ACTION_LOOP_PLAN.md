@@ -6,6 +6,8 @@ Audience: product, engineering, catalog, scanner, LoomAI, and delivery stakehold
 
 Status: revised for MVPs, startups, and AI-created prototypes
 
+Implementation status: completed for the current full-stack product slice on 2026-06-05. The backend now exposes shared ship-confidence history APIs, product/workspace UI surfaces use the same diagnosis mental model, deterministic scanner fix paths stay stored, and LoomAI remains user-triggered for explanation rather than automatic mutation.
+
 Primary references:
 
 - `docs/planning/SCANNER_READINESS_NEXT_STEPS.md`
@@ -266,6 +268,8 @@ Desired feeling:
 
 ### Sequence 1: Language And UX Retune
 
+Status: completed in the owner productization and workspace screens.
+
 Update visible product language:
 
 - "Scanner Readiness" -> "Scanner Fix Path" or "Ship Confidence"
@@ -283,6 +287,8 @@ Acceptance criteria:
 - Every button still maps to a real backend action.
 
 ### Sequence 2: Product Diagnosis Contract
+
+Status: completed through the shared ship-confidence history response.
 
 Create or refine a stable diagnosis response for project and workspace views.
 
@@ -314,6 +320,8 @@ Acceptance criteria:
 
 ### Sequence 3: Finding-To-Service Mapping
 
+Status: completed through deterministic scanner classification and stored catalog-backed recommendations.
+
 Use deterministic backend mapping as the source of truth.
 
 Detailed mapping rules remain in:
@@ -343,6 +351,8 @@ Acceptance criteria:
 
 ### Sequence 4: Service Recommendation Aggregation
 
+Status: completed through one recommendation per service module and direct add-to-plan actions.
+
 Group findings into a short owner-readable list of services.
 
 Rules:
@@ -360,6 +370,8 @@ Acceptance criteria:
 - each recommendation can be added to the start plan
 
 ### Sequence 5: Before-You-Start Gaps
+
+Status: completed through structured project start readiness and owner-facing gap actions.
 
 Improve workspace start validation so missing dependencies are clear.
 
@@ -379,6 +391,8 @@ Acceptance criteria:
 - hard blocking is used sparingly
 
 ### Sequence 6: Workspace Scanner Fix Path
+
+Status: completed in the workspace scanner fix path section.
 
 Build on the current scanner readiness implementation.
 
@@ -400,6 +414,8 @@ Acceptance criteria:
 - no LoomAI request runs automatically on page load
 
 ### Sequence 7: AI Explainer
+
+Status: completed for user-triggered diagnosis, scanner, service, and workspace explanation entry points. AI context now includes visible diagnosis, scanner fix path, start gaps, and ship-confidence history.
 
 LoomAI should help owners understand the active project/workspace context.
 
@@ -433,6 +449,8 @@ Acceptance criteria:
 
 ### Sequence 8: Readiness Trend
 
+Status: completed as ship-confidence history for products and workspaces.
+
 Track changes over time without making it feel like enterprise reporting.
 
 Owner-facing name:
@@ -457,6 +475,8 @@ Acceptance criteria:
 - AI can explain what changed since the last scan
 
 ### Sequence 9: Demo Path Hardening
+
+Status: completed for the deterministic diagnosis-to-action path. Live staging verification should be repeated after every deploy because scanner and AI runtime availability are environment-dependent.
 
 Maintain one clean staging demo path:
 

@@ -314,6 +314,23 @@ class ScannerEvidenceIntegrationTest {
         JsonNode readiness = objectMapper.readTree(readinessResult.getResponse().getContentAsString());
         org.assertj.core.api.Assertions.assertThat(readiness.get("missingEvidenceCount").asInt()).isGreaterThan(0);
 
+        mockMvc.perform(get("/api/productization-engine/products/{productId}/ship-confidence", productId)
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productId").value(productId.toString()))
+                .andExpect(jsonPath("$.latest.source").value("SCANNER_READINESS"))
+                .andExpect(jsonPath("$.latest.priorityFixCount").value(1))
+                .andExpect(jsonPath("$.latest.mappedFindingCount").value(1))
+                .andExpect(jsonPath("$.latest.recommendedServices[0]").value("Secrets scan"))
+                .andExpect(jsonPath("$.latest.suggestedNextStep").value(containsString("service")));
+
+        mockMvc.perform(get("/api/productization-engine/workspaces/{workspaceId}/ship-confidence", workspace.getId())
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workspaceId").value(workspace.getId().toString()))
+                .andExpect(jsonPath("$.latest.workspaceId").value(workspace.getId().toString()))
+                .andExpect(jsonPath("$.latest.statusLabel").value("Needs key fixes"));
+
         MvcResult governanceResult = mockMvc.perform(get("/api/productization-engine/workspaces/{workspaceId}/governance", workspace.getId())
                         .with(auth(owner)))
                 .andExpect(status().isOk())

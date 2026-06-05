@@ -70,6 +70,7 @@ import {
   clampScore,
   formatLabel,
 } from './PlatformComponents';
+import ShipConfidencePanel from './ShipConfidencePanel';
 import {
   AIRecommendation,
   Milestone,
@@ -103,6 +104,7 @@ import {
   ScannerConnectorInstallation,
   ScannerEvidenceItem,
   SignedArtifactResponse,
+  ShipConfidenceHistory,
 } from './types';
 
 interface ProductProfilePayload {
@@ -918,6 +920,11 @@ export default function OwnerProductizationWorkspace({
     enabled: !!selectedProductId,
     queryFn: () => getJson<ProductDiagnosis[]>(`/productization-engine/products/${selectedProductId}/diagnoses`),
   });
+  const shipConfidence = useQuery({
+    queryKey: ['productization-engine', selectedProductId, 'ship-confidence'],
+    enabled: !!selectedProductId,
+    queryFn: () => getJson<ShipConfidenceHistory>(`/productization-engine/products/${selectedProductId}/ship-confidence`),
+  });
   const scannerSummary = useQuery({
     queryKey: ['scanner-summary', selectedProductId],
     enabled: !!selectedProductId,
@@ -932,6 +939,7 @@ export default function OwnerProductizationWorkspace({
     if (!selectedProductId || !latestCompletedScannerRunId || latestCompletedScannerRunId === lastDiagnosisRefreshRunId) return;
     setLastDiagnosisRefreshRunId(latestCompletedScannerRunId);
     queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProductId, 'diagnoses'] });
+    queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProductId, 'ship-confidence'] });
     queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
   }, [latestCompletedScannerRunId, lastDiagnosisRefreshRunId, queryClient, selectedProductId]);
   const connectorPermissions = useQuery({
@@ -1231,6 +1239,7 @@ export default function OwnerProductizationWorkspace({
     onSuccess: async () => {
       diagnosisForm.resetForm();
       await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
+      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
     },
   });
   const createScannerReadinessDiagnosis = useMutation({
@@ -1242,6 +1251,7 @@ export default function OwnerProductizationWorkspace({
     onSuccess: async () => {
       setCartNotice('Scanner findings were mapped to readiness services. Review the diagnosis, then add the right services to the plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
+      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
       await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
     },
@@ -1316,6 +1326,7 @@ export default function OwnerProductizationWorkspace({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
       await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
+      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
       await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
     },
   });
@@ -1342,6 +1353,7 @@ export default function OwnerProductizationWorkspace({
       setExternalImportForm((current) => ({ ...current, artifactPayload: '', externalReference: '' }));
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
       await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
+      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
       await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
     },
   });
@@ -1507,7 +1519,7 @@ export default function OwnerProductizationWorkspace({
     ? `Scanner ship-readiness map: score ${latestScannerDiagnosis.readinessScore}/100, priority fixes ${latestScannerDiagnosis.topBlockerCount || 0}, proof items ${latestScannerDiagnosis.evidenceCount || 0}, unmapped findings ${latestScannerDiagnosis.unmappedFindingCount || 0}. Mapped services: ${scannerMappedServices.join(', ') || 'none'}. Top mapped findings: ${scannerMappedFindings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.readinessArea || 'unclassified'}, service ${finding.recommendedModuleName || 'unmapped'}): risk ${finding.businessRisk || finding.description}; proof ${finding.evidenceRequired || 'not recorded'}`).join('; ') || 'none'}.`
     : 'No scanner readiness diagnosis has been generated yet.';
   const diagnosisPromptFacts = latestDiagnosis
-    ? `Visible diagnosis facts: readiness score ${latestDiagnosis.readinessScore}/100, status ${formatLabel(latestDiagnosis.status)}, source ${formatLabel(latestDiagnosis.diagnosisSource || 'MANUAL_DETERMINISTIC')}, AI state ${latestDiagnosis.aiExecuted ? 'AI executed' : 'AI-ready deterministic'}, finding count ${latestDiagnosis.findings.length}. Diagnosis summary: "${latestDiagnosis.summary || 'not recorded'}". Access signals: "${latestDiagnosis.accessSignals || 'not recorded'}". Top findings: ${latestDiagnosis.findings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.status}, area ${finding.readinessArea || 'not classified'}, recommended service ${finding.recommendedModuleName || 'not mapped'}): ${finding.businessRisk || finding.description}`).join('; ') || 'none recorded'}. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings; scanner top findings ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none open'}. ${scannerReadinessPromptFacts}`
+    ? `Visible diagnosis facts: readiness score ${latestDiagnosis.readinessScore}/100, status ${formatLabel(latestDiagnosis.status)}, source ${formatLabel(latestDiagnosis.diagnosisSource || 'MANUAL_DETERMINISTIC')}, AI state ${latestDiagnosis.aiExecuted ? 'AI executed' : 'AI context ready'}, finding count ${latestDiagnosis.findings.length}. Diagnosis summary: "${latestDiagnosis.summary || 'not recorded'}". Access signals: "${latestDiagnosis.accessSignals || 'not recorded'}". Top findings: ${latestDiagnosis.findings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.status}, area ${finding.readinessArea || 'not classified'}, recommended service ${finding.recommendedModuleName || 'not mapped'}): ${finding.businessRisk || finding.description}`).join('; ') || 'none recorded'}. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings; scanner top findings ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none open'}. Ship-confidence history: ${shipConfidence.data?.trendSummary || 'not available yet'} Latest checkpoint: ${shipConfidence.data?.latest ? `${shipConfidence.data.latest.shipConfidenceScore}/100, ${shipConfidence.data.latest.statusLabel}, next step ${shipConfidence.data.latest.suggestedNextStep}` : 'none'}. ${scannerReadinessPromptFacts}`
     : `No deterministic productization diagnosis exists yet for ${selectedProduct?.name || 'this product'}. Ask the owner to run diagnosis before making readiness claims. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings.`;
   const filteredScannerEvidence = (scannerSummary.data?.evidence || []).filter((item) => {
     if (evidenceFilter === 'FINDINGS') return !!item.findingId;
@@ -1644,8 +1656,8 @@ export default function OwnerProductizationWorkspace({
     }
   });
 
-  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, scannerSummary, scannerConnectors].some((query) => query.isLoading);
-  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, scannerSummary, scannerConnectors, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
+  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, scannerSummary, scannerConnectors].some((query) => query.isLoading);
+  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, scannerSummary, scannerConnectors, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
     || createProduct.error
     || createRequirement.error
     || buildPackage.error
@@ -1844,18 +1856,18 @@ export default function OwnerProductizationWorkspace({
           {selectedProduct && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
               <SectionTitle
-                title="Diagnosis And Findings"
+                title="Product Diagnosis"
                 action={<PastelChip label={latestDiagnosis ? `${latestDiagnosis.findings.length} findings` : 'Not run'} accent={latestDiagnosis ? appleColors.amber : appleColors.purple} />}
               />
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '320px minmax(0, 1fr)' }, gap: 2 }}>
                 <Box component="form" onSubmit={diagnosisForm.handleSubmit(() => createDiagnosis.mutate())}>
                   <Stack spacing={1.25}>
                     <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                      Run a deterministic productization diagnosis from the product profile, owner goal, access signals, and catalog rules. It prepares AI-ready context without executing AI.
+                      Turn the owner brief into a practical launch-readiness view. This is deterministic and stored; AI explanation only runs when you ask for it.
                     </Typography>
                     <TextField
                       size="small"
-                      label="Production goal"
+                      label="Launch goal"
                       value={diagnosisForm.values.businessGoal}
                       onChange={(event) => diagnosisForm.setValue('businessGoal', event.target.value)}
                     />
@@ -1868,14 +1880,14 @@ export default function OwnerProductizationWorkspace({
                     />
                     <TextField
                       size="small"
-                      label="Access signals"
+                      label="Repo / app signals"
                       placeholder="Repo available, staging missing, no monitoring, payment flow exists..."
                       value={diagnosisForm.values.accessSignals}
                       onChange={(event) => diagnosisForm.setValue('accessSignals', event.target.value)}
                       multiline
                     />
                     <Button type="submit" variant="contained" disabled={createDiagnosis.isPending} sx={{ minHeight: 42 }}>
-                      Run diagnosis
+                      Map rough edges
                     </Button>
                   </Stack>
                 </Box>
@@ -1892,7 +1904,7 @@ export default function OwnerProductizationWorkspace({
                         </Stack>
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ sm: 'flex-end' }}>
                           <PastelChip label={formatLabel(latestDiagnosis.diagnosisSource || 'MANUAL_DETERMINISTIC')} accent={latestDiagnosis.diagnosisSource === 'SCANNER_READINESS' ? appleColors.green : appleColors.blue} bg={latestDiagnosis.diagnosisSource === 'SCANNER_READINESS' ? '#e7f8ee' : '#eaf3ff'} />
-                          <PastelChip label={latestDiagnosis.aiExecuted ? 'AI executed' : 'AI-ready, deterministic'} accent={appleColors.blue} bg="#eaf3ff" />
+                          <PastelChip label={latestDiagnosis.aiExecuted ? 'AI analyzed' : 'AI context ready'} accent={appleColors.blue} bg="#eaf3ff" />
                         </Stack>
                       </Stack>
                       {latestDiagnosis.diagnosisSource === 'SCANNER_READINESS' && (
@@ -1953,7 +1965,7 @@ export default function OwnerProductizationWorkspace({
                       </Box>
                     </>
                   ) : (
-                    <EmptyState label="No diagnosis has been created for this product yet." />
+                    <EmptyState label="No product diagnosis yet. Add the launch goal and map the rough edges." />
                   )}
                 </Stack>
               </Box>
@@ -1973,9 +1985,20 @@ export default function OwnerProductizationWorkspace({
           )}
 
           {selectedProduct && (
+            <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f9fcff 100%)' }}>
+              <ShipConfidencePanel
+                history={shipConfidence.data}
+                isLoading={shipConfidence.isFetching}
+                title="Ship Confidence History"
+                subtitle="Every diagnosis and scanner map becomes a checkpoint, so this prototype has a visible path from rough edges to ready-to-ship."
+              />
+            </Surface>
+          )}
+
+          {selectedProduct && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
               <SectionTitle
-                title="Scanner Proof And Fix Path"
+                title="Scanner Fix Path"
                 action={<PastelChip label={`${scannerCounts?.total || 0} normalized findings`} accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green} bg={scannerOpenFindings.length ? '#fff4dc' : '#e7f8ee'} />}
               />
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '220px repeat(3, minmax(0, 1fr))' }, gap: 1.5, mb: 2 }}>

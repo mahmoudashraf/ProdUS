@@ -1240,6 +1240,38 @@ export interface ProductDiagnosis extends BaseRecord {
   findings: ProductFinding[];
 }
 
+export interface DiagnosisSnapshot extends BaseRecord {
+  productId?: string;
+  productName: string;
+  workspaceId?: string;
+  workspaceName?: string;
+  source?: ProductDiagnosis['diagnosisSource'];
+  shipConfidenceScore: number;
+  statusLabel: string;
+  summary: string;
+  priorityFixCount: number;
+  mappedFindingCount: number;
+  unmappedFindingCount: number;
+  proofGapCount: number;
+  recommendedServiceCount: number;
+  recommendedServices: string[];
+  recommendedServiceCodes: string[];
+  suggestedNextStep: string;
+  trendDirection: 'NEW' | 'UP' | 'DOWN' | 'FLAT';
+}
+
+export interface ShipConfidenceHistory {
+  productId?: string;
+  productName: string;
+  workspaceId?: string;
+  workspaceName?: string;
+  latest?: DiagnosisSnapshot;
+  previousScore?: number;
+  delta?: number;
+  trendSummary: string;
+  snapshots: DiagnosisSnapshot[];
+}
+
 export interface EvidenceRequirement extends BaseRecord {
   criterionId: string;
   evidenceType: string;
