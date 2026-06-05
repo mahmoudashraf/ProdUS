@@ -48,6 +48,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProductizationEngineService {
 
+    private static final String SCANNER_CRITERION_MARKER = "Scanner finding ID: ";
+    private static final String SCANNER_EVIDENCE_MARKER = "Scanner evidence ID: ";
+    private static final String SCANNER_READINESS_CHECK_TYPE = "scanner-readiness-map";
+
     private final ProductProfileRepository productRepository;
     private final RequirementIntakeRepository requirementRepository;
     private final ProductDiagnosisRepository diagnosisRepository;
@@ -174,11 +178,18 @@ public class ProductizationEngineService {
             throw new IllegalStateException("Scanner readiness mapping can only be generated for completed scan runs");
         }
         String generatedFromScanRunIds = scanRun.getId().toString();
-        ProductDiagnosis existing = diagnosisRepository.findByProductProfileIdAndDiagnosisSourceAndGeneratedFromScanRunIds(
-                scanRun.getProductProfile().getId(),
-                ProductDiagnosis.DiagnosisSource.SCANNER_READINESS,
-                generatedFromScanRunIds
-        ).orElse(null);
+        ProductDiagnosis existing = scanRun.getWorkspace() == null
+                ? diagnosisRepository.findByProductProfileIdAndDiagnosisSourceAndGeneratedFromScanRunIds(
+                        scanRun.getProductProfile().getId(),
+                        ProductDiagnosis.DiagnosisSource.SCANNER_READINESS,
+                        generatedFromScanRunIds
+                ).orElse(null)
+                : diagnosisRepository.findByProductProfileIdAndWorkspaceIdAndDiagnosisSourceAndGeneratedFromScanRunIds(
+                        scanRun.getProductProfile().getId(),
+                        scanRun.getWorkspace().getId(),
+                        ProductDiagnosis.DiagnosisSource.SCANNER_READINESS,
+                        generatedFromScanRunIds
+                ).orElse(null);
         if (existing != null) {
             return toDiagnosisResponse(existing, findingRepository.findByDiagnosisIdOrderByCreatedAtAsc(existing.getId()));
         }
@@ -195,6 +206,12 @@ public class ProductizationEngineService {
                 List.of(scanRun.getId()),
                 false
         );
+        if (scanRun.getWorkspace() != null) {
+            ProductDiagnosis diagnosis = diagnosisRepository.findById(response.id())
+                    .orElseThrow(() -> new IllegalStateException("Scanner diagnosis was not stored"));
+            List<ProductFinding> productFindings = findingRepository.findByDiagnosisIdOrderByCreatedAtAsc(diagnosis.getId());
+            enrichWorkspaceFromScannerDiagnosis(actor, scanRun.getWorkspace(), productFindings, true);
+        }
         auditService.logAction(actor.getId(), "SYNC_SCANNER_READINESS_MAPPING", "SCAN_RUN", scanRun.getId(), AuditEvent.RiskLevel.MEDIUM,
                 "Stored scanner readiness mapping for completed scan " + scanRun.getId());
         return response;
@@ -334,6 +351,51 @@ public class ProductizationEngineService {
                 .map(this::toIntegrationConnectionResponse)
                 .toList();
         return new WorkspaceGovernanceResponse(workspace.getId(), workspace.getName(), criteria, checks, handoffs, healthReviews, integrations);
+    }
+
+    @Transactional(readOnly = true)
+    public WorkspaceScannerReadinessResponse workspaceScannerReadiness(User user, UUID workspaceId) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceViewer(user, workspace);
+        return buildWorkspaceScannerReadiness(workspace);
+    }
+
+    @Transactional
+    public WorkspaceScannerReadinessResponse enrichWorkspaceScannerReadiness(User user, UUID workspaceId, WorkspaceScannerReadinessRequest request) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceCoordinator(user, workspace);
+        if (workspace.getPackageInstance() == null || workspace.getPackageInstance().getProductProfile() == null) {
+            throw new IllegalArgumentException("Workspace is not attached to a product service plan");
+        }
+
+        ProductProfile product = workspace.getPackageInstance().getProductProfile();
+        boolean includeAcceptedRisk = Boolean.TRUE.equals(request.includeAcceptedRisk());
+        boolean createServiceRecommendations = !Boolean.FALSE.equals(request.createServiceRecommendations());
+        List<NormalizedFinding> scannerFindings = normalizedFindingRepository
+                .findByProductProfileIdAndWorkspaceIdOrderBySeverityDescCreatedAtDesc(product.getId(), workspace.getId());
+        DiagnosisResponse diagnosis = createOrReuseWorkspaceScannerDiagnosis(
+                user,
+                product,
+                workspace,
+                scannerFindings,
+                includeAcceptedRisk,
+                createServiceRecommendations,
+                request.summary()
+        );
+        ProductDiagnosis diagnosisEntity = diagnosisRepository.findById(diagnosis.id())
+                .orElseThrow(() -> new IllegalStateException("Workspace scanner diagnosis was not stored"));
+        List<ProductFinding> productFindings = findingRepository.findByDiagnosisIdOrderByCreatedAtAsc(diagnosisEntity.getId());
+        int createdArtifacts = enrichWorkspaceFromScannerDiagnosis(
+                user,
+                workspace,
+                productFindings,
+                !Boolean.FALSE.equals(request.createCriteria())
+        );
+        auditService.logAction(user.getId(), "ENRICH_WORKSPACE_SCANNER_READINESS", "PROJECT_WORKSPACE", workspace.getId(), AuditEvent.RiskLevel.HIGH,
+                "Scanner readiness enrichment created " + createdArtifacts + " workspace artifact(s)");
+        return buildWorkspaceScannerReadiness(workspace);
     }
 
     @Transactional
@@ -483,6 +545,321 @@ public class ProductizationEngineService {
         return toIntegrationSignalResponse(signal);
     }
 
+    private DiagnosisResponse createOrReuseWorkspaceScannerDiagnosis(
+            User actor,
+            ProductProfile product,
+            ProjectWorkspace workspace,
+            List<NormalizedFinding> findings,
+            boolean includeAcceptedRisk,
+            boolean createServiceRecommendations,
+            String summary
+    ) {
+        List<NormalizedFinding> activeFindings = findings.stream()
+                .filter(finding -> includeAcceptedRisk || activeScannerFinding(finding))
+                .toList();
+        String generatedFromScanRunIds = activeFindings.stream()
+                .map(NormalizedFinding::getScanRun)
+                .filter(scanRun -> scanRun != null && scanRun.getId() != null)
+                .map(scanRun -> scanRun.getId().toString())
+                .distinct()
+                .reduce((left, right) -> left + "," + right)
+                .orElse("");
+        ProductDiagnosis existing = generatedFromScanRunIds.isBlank()
+                ? null
+                : diagnosisRepository.findByProductProfileIdAndWorkspaceIdAndDiagnosisSourceAndGeneratedFromScanRunIds(
+                        product.getId(),
+                        workspace.getId(),
+                        ProductDiagnosis.DiagnosisSource.SCANNER_READINESS,
+                        generatedFromScanRunIds
+                ).orElse(null);
+        if (existing != null) {
+            return toDiagnosisResponse(existing, findingRepository.findByDiagnosisIdOrderByCreatedAtAsc(existing.getId()));
+        }
+        return createScannerReadinessDiagnosisFromFindings(
+                actor,
+                product,
+                workspace,
+                findings,
+                includeAcceptedRisk,
+                createServiceRecommendations,
+                firstNonBlank(summary, "Workspace scanner findings were mapped into milestone readiness work."),
+                null,
+                true
+        );
+    }
+
+    private int enrichWorkspaceFromScannerDiagnosis(User actor, ProjectWorkspace workspace, List<ProductFinding> productFindings, boolean createCriteria) {
+        if (!createCriteria || productFindings.isEmpty()) {
+            return 0;
+        }
+        int created = 0;
+        List<Milestone> milestones = milestoneRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspace.getId());
+        for (ProductFinding finding : productFindings) {
+            if (finding.getNormalizedFinding() == null || scannerCriterionExists(workspace, finding.getNormalizedFinding().getId())) {
+                continue;
+            }
+            Milestone milestone = resolveScannerMilestone(workspace, milestones, finding, true);
+            PackageModule packageModule = matchPackageModuleForService(workspace, finding.getRecommendedModule());
+
+            AcceptanceCriterion criterion = new AcceptanceCriterion();
+            criterion.setMilestone(milestone);
+            criterion.setPackageModule(packageModule);
+            criterion.setServiceModule(finding.getRecommendedModule());
+            criterion.setTitle("Scanner blocker: " + firstNonBlank(finding.getReadinessArea(), finding.getTitle()));
+            criterion.setDescription(scannerCriterionDescription(finding));
+            criterion.setRequired(true);
+            criterion.setHumanReviewRequired(true);
+            criterion.setStatus(severe(finding.getSeverity())
+                    ? AcceptanceCriterion.CriterionStatus.FAILED
+                    : AcceptanceCriterion.CriterionStatus.PENDING);
+            criterion = criterionRepository.save(criterion);
+            created++;
+
+            created += createScannerEvidenceRequirements(milestone, criterion, finding);
+            created += createScannerAutomatedCheck(workspace, milestone, criterion, finding);
+            if (severe(finding.getSeverity())) {
+                milestone.setStatus(Milestone.MilestoneStatus.BLOCKED);
+                milestoneRepository.save(milestone);
+            }
+        }
+        if (created > 0) {
+            auditService.logAction(actor.getId(), "CREATE_SCANNER_WORKSPACE_EVIDENCE_TASKS", "PROJECT_WORKSPACE", workspace.getId(), AuditEvent.RiskLevel.HIGH,
+                    "Created scanner-backed milestone evidence tasks");
+        }
+        return created;
+    }
+
+    private boolean scannerCriterionExists(ProjectWorkspace workspace, UUID normalizedFindingId) {
+        if (normalizedFindingId == null) {
+            return false;
+        }
+        String marker = SCANNER_CRITERION_MARKER + normalizedFindingId;
+        return milestoneRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspace.getId()).stream()
+                .flatMap(milestone -> criterionRepository.findByMilestoneIdOrderByCreatedAtAsc(milestone.getId()).stream())
+                .anyMatch(criterion -> criterion.getDescription() != null && criterion.getDescription().contains(marker));
+    }
+
+    private Milestone resolveScannerMilestone(ProjectWorkspace workspace, List<Milestone> milestones, ProductFinding finding, boolean createIfMissing) {
+        if (milestones.isEmpty()) {
+            if (!createIfMissing) {
+                return null;
+            }
+            Milestone milestone = new Milestone();
+            milestone.setWorkspace(workspace);
+            milestone.setTitle("Scanner readiness review");
+            milestone.setDescription("Scanner-backed remediation, evidence capture, and owner readiness decisions.");
+            milestone.setStatus(Milestone.MilestoneStatus.IN_PROGRESS);
+            Milestone saved = milestoneRepository.save(milestone);
+            milestones.add(saved);
+            return saved;
+        }
+
+        String moduleSignal = normalize(
+                (finding.getRecommendedModule() == null ? "" : finding.getRecommendedModule().getName())
+                        + " "
+                        + (finding.getRecommendedModule() == null ? "" : finding.getRecommendedModule().getStableCode())
+                        + " "
+                        + (finding.getRecommendedModule() == null ? "" : finding.getRecommendedModule().getSlug())
+        );
+        for (Milestone milestone : milestones) {
+            String text = normalize(milestone.getTitle() + " " + firstNonBlank(milestone.getDescription(), ""));
+            if (!moduleSignal.isBlank() && (moduleSignal.contains(text) || text.contains(moduleSignal)
+                    || containsOverlap(text, moduleSignal))) {
+                return milestone;
+            }
+        }
+
+        String area = normalize(firstNonBlank(finding.getReadinessArea(), finding.getTitle()));
+        for (Milestone milestone : milestones) {
+            String text = normalize(milestone.getTitle() + " " + firstNonBlank(milestone.getDescription(), ""));
+            if ((area.contains("security") || area.contains("secret") || area.contains("auth")) && contains(text, "security", "secure", "risk")) {
+                return milestone;
+            }
+            if ((area.contains("deployment") || area.contains("monitoring") || area.contains("launch")) && contains(text, "launch", "deploy", "stabilize", "readiness")) {
+                return milestone;
+            }
+            if (area.contains("testing") && contains(text, "test", "quality", "validate")) {
+                return milestone;
+            }
+        }
+        return milestones.get(0);
+    }
+
+    private PackageModule matchPackageModuleForService(ProjectWorkspace workspace, ServiceModule serviceModule) {
+        if (workspace.getPackageInstance() == null || serviceModule == null) {
+            return null;
+        }
+        return packageModuleRepository.findByPackageInstanceIdOrderBySequenceOrderAsc(workspace.getPackageInstance().getId()).stream()
+                .filter(module -> module.getServiceModule() != null && module.getServiceModule().getId().equals(serviceModule.getId()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String scannerCriterionDescription(ProductFinding finding) {
+        String normalizedFindingId = finding.getNormalizedFinding() == null ? "unknown" : finding.getNormalizedFinding().getId().toString();
+        String scannerEvidenceId = finding.getScannerEvidenceItem() == null ? null : finding.getScannerEvidenceItem().getId().toString();
+        return joined(
+                finding.getDescription(),
+                "Business risk: " + firstNonBlank(finding.getBusinessRisk(), "Scanner signal may block production readiness."),
+                "Recommended service: " + (finding.getRecommendedModule() == null ? "Needs service mapping review" : finding.getRecommendedModule().getName()),
+                "Owner decision: " + firstNonBlank(finding.getOwnerDecision(), "Decide whether to remediate, accept risk, or request a service mapping review."),
+                "Evidence required: " + firstNonBlank(finding.getEvidenceRequired(), "Attach remediation proof and a clean scanner rerun."),
+                SCANNER_CRITERION_MARKER + normalizedFindingId,
+                scannerEvidenceId == null ? null : SCANNER_EVIDENCE_MARKER + scannerEvidenceId
+        );
+    }
+
+    private int createScannerEvidenceRequirements(Milestone milestone, AcceptanceCriterion criterion, ProductFinding finding) {
+        List<EvidenceRequirement> existing = evidenceRequirementRepository.findByCriterionIdOrderByCreatedAtAsc(criterion.getId());
+        if (!existing.isEmpty()) {
+            return 0;
+        }
+        int created = 0;
+        EvidenceRequirement source = new EvidenceRequirement();
+        source.setMilestone(milestone);
+        source.setCriterion(criterion);
+        source.setEvidenceType("Scanner source evidence");
+        source.setDescription("Original normalized scanner evidence that produced this readiness blocker.");
+        source.setRequired(true);
+        source.setStatus(finding.getScannerEvidenceItem() == null ? EvidenceRequirement.EvidenceStatus.MISSING : EvidenceRequirement.EvidenceStatus.ATTACHED);
+        source.setEvidenceReference(finding.getScannerEvidenceItem() == null ? null : "scanner-evidence:" + finding.getScannerEvidenceItem().getId());
+        evidenceRequirementRepository.save(source);
+        created++;
+
+        EvidenceRequirement remediation = new EvidenceRequirement();
+        remediation.setMilestone(milestone);
+        remediation.setCriterion(criterion);
+        remediation.setEvidenceType("Remediation proof");
+        remediation.setDescription(firstNonBlank(finding.getEvidenceRequired(), "Attach implementation evidence showing the blocker has been remediated or accepted with owner review."));
+        remediation.setRequired(true);
+        evidenceRequirementRepository.save(remediation);
+        created++;
+
+        EvidenceRequirement rerun = new EvidenceRequirement();
+        rerun.setMilestone(milestone);
+        rerun.setCriterion(criterion);
+        rerun.setEvidenceType("Clean scanner rerun");
+        rerun.setDescription("Attach a follow-up scan or CI evidence showing the finding is resolved or risk-reviewed.");
+        rerun.setRequired(true);
+        evidenceRequirementRepository.save(rerun);
+        created++;
+        return created;
+    }
+
+    private int createScannerAutomatedCheck(ProjectWorkspace workspace, Milestone milestone, AcceptanceCriterion criterion, ProductFinding finding) {
+        String externalRef = finding.getNormalizedFinding() == null ? finding.getId().toString() : finding.getNormalizedFinding().getId().toString();
+        if (automatedCheckRepository.findTopByWorkspaceIdAndCheckTypeAndExternalRefOrderByCreatedAtDesc(
+                workspace.getId(),
+                SCANNER_READINESS_CHECK_TYPE,
+                externalRef
+        ).isPresent()) {
+            return 0;
+        }
+        AutomatedCheck check = new AutomatedCheck();
+        check.setWorkspace(workspace);
+        check.setMilestone(milestone);
+        check.setCriterion(criterion);
+        check.setCheckType(SCANNER_READINESS_CHECK_TYPE);
+        check.setProvider(firstNonBlank(finding.getSourceSignal(), "ProdUS Scanner"));
+        check.setExternalRef(externalRef);
+        check.setStatus(severe(finding.getSeverity())
+                ? AutomatedCheck.CheckStatus.FAILED
+                : AutomatedCheck.CheckStatus.WARNING);
+        check.setSummary(firstNonBlank(finding.getMappingReason(), "Scanner finding mapped to workspace readiness evidence."));
+        check.setRawPayload("{\"findingId\":\"" + externalRef + "\",\"severity\":\"" + finding.getSeverity()
+                + "\",\"recommendedModule\":\"" + jsonEscape(finding.getRecommendedModule() == null ? "" : finding.getRecommendedModule().getStableCode()) + "\"}");
+        check.setObservedAt(LocalDateTime.now());
+        automatedCheckRepository.save(check);
+        return 1;
+    }
+
+    private WorkspaceScannerReadinessResponse buildWorkspaceScannerReadiness(ProjectWorkspace workspace) {
+        ProductDiagnosis diagnosis = diagnosisRepository
+                .findByWorkspaceIdAndDiagnosisSourceOrderByCreatedAtDesc(workspace.getId(), ProductDiagnosis.DiagnosisSource.SCANNER_READINESS)
+                .stream()
+                .findFirst()
+                .orElse(null);
+        List<ProductFinding> findings = diagnosis == null
+                ? List.of()
+                : findingRepository.findByDiagnosisIdOrderByCreatedAtAsc(diagnosis.getId());
+        List<ScannerEvidenceItem> evidenceItems = scannerEvidenceItemRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId());
+        List<Milestone> milestones = milestoneRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspace.getId());
+        List<AcceptanceCriterion> scannerCriteria = milestones.stream()
+                .flatMap(milestone -> criterionRepository.findByMilestoneIdOrderByCreatedAtAsc(milestone.getId()).stream())
+                .filter(this::scannerCriterion)
+                .toList();
+        int missingEvidence = scannerCriteria.stream()
+                .flatMap(criterion -> evidenceRequirementRepository.findByCriterionIdOrderByCreatedAtAsc(criterion.getId()).stream())
+                .filter(requirement -> requirement.isRequired() && requirement.getStatus() == EvidenceRequirement.EvidenceStatus.MISSING)
+                .toList()
+                .size();
+        List<MilestoneRiskResponse> milestoneRisks = milestones.stream()
+                .map(milestone -> toMilestoneRiskResponse(workspace, milestone, findings))
+                .filter(risk -> risk.scannerFindingCount() > 0 || risk.missingEvidenceCount() > 0)
+                .toList();
+        long mappedCount = findings.stream().filter(finding -> finding.getRecommendedModule() != null).count();
+        long blockerCount = findings.stream().filter(finding -> severe(finding.getSeverity())).count();
+        DiagnosisResponse diagnosisResponse = diagnosis == null
+                ? null
+                : toDiagnosisResponse(diagnosis, findings);
+        return new WorkspaceScannerReadinessResponse(
+                workspace.getId(),
+                workspace.getPackageInstance() == null ? null : workspace.getPackageInstance().getProductProfile().getId(),
+                diagnosisResponse,
+                (int) mappedCount,
+                diagnosis == null ? 0 : diagnosis.getUnmappedFindingCount(),
+                evidenceItems.size(),
+                missingEvidence,
+                (int) blockerCount,
+                scannerCriteria.size(),
+                milestoneRisks
+        );
+    }
+
+    private MilestoneRiskResponse toMilestoneRiskResponse(ProjectWorkspace workspace, Milestone milestone, List<ProductFinding> findings) {
+        List<AcceptanceCriterion> scannerCriteria = criterionRepository.findByMilestoneIdOrderByCreatedAtAsc(milestone.getId()).stream()
+                .filter(this::scannerCriterion)
+                .toList();
+        List<ProductFinding> matched = findings.stream()
+                .filter(finding -> finding.getNormalizedFinding() != null)
+                .filter(finding -> {
+                    String marker = SCANNER_CRITERION_MARKER + finding.getNormalizedFinding().getId();
+                    return scannerCriteria.stream().anyMatch(criterion -> criterion.getDescription() != null && criterion.getDescription().contains(marker));
+                })
+                .toList();
+        int missingEvidence = scannerCriteria.stream()
+                .flatMap(criterion -> evidenceRequirementRepository.findByCriterionIdOrderByCreatedAtAsc(criterion.getId()).stream())
+                .filter(requirement -> requirement.isRequired() && requirement.getStatus() == EvidenceRequirement.EvidenceStatus.MISSING)
+                .toList()
+                .size();
+        String highestSeverity = matched.stream()
+                .map(ProductFinding::getSeverity)
+                .max(Comparator.comparingInt(ProductizationEngineService::productFindingSeverityRank))
+                .map(Enum::name)
+                .orElse(null);
+        List<String> services = matched.stream()
+                .map(ProductFinding::getRecommendedModule)
+                .filter(module -> module != null)
+                .map(ServiceModule::getName)
+                .distinct()
+                .limit(6)
+                .toList();
+        return new MilestoneRiskResponse(
+                milestone.getId(),
+                milestone.getTitle(),
+                milestone.getStatus(),
+                matched.size(),
+                services.size(),
+                highestSeverity,
+                missingEvidence,
+                services
+        );
+    }
+
+    private boolean scannerCriterion(AcceptanceCriterion criterion) {
+        return criterion.getDescription() != null && criterion.getDescription().contains(SCANNER_CRITERION_MARKER);
+    }
+
     private DiagnosisResponse createScannerReadinessDiagnosisFromFindings(
             User actor,
             ProductProfile product,
@@ -504,7 +881,9 @@ public class ProductizationEngineService {
         List<UUID> scanRunIds = forcedScanRunIds != null
                 ? forcedScanRunIds.stream().distinct().toList()
                 : scannerFindings.stream()
-                        .map(finding -> finding.getScanRun().getId())
+                        .map(NormalizedFinding::getScanRun)
+                        .filter(scanRun -> scanRun != null && scanRun.getId() != null)
+                        .map(ScanRun::getId)
                         .distinct()
                         .toList();
         String generatedFromScanRunIds = scanRunIds.stream()
@@ -713,6 +1092,30 @@ public class ProductizationEngineService {
             case LOW -> 2;
             case INFO -> 1;
         };
+    }
+
+    private static int productFindingSeverityRank(ProductFinding.FindingSeverity severity) {
+        return switch (severity) {
+            case CRITICAL -> 5;
+            case HIGH -> 4;
+            case MEDIUM -> 3;
+            case LOW -> 2;
+            case INFO -> 1;
+        };
+    }
+
+    private static boolean severe(ProductFinding.FindingSeverity severity) {
+        return severity == ProductFinding.FindingSeverity.CRITICAL || severity == ProductFinding.FindingSeverity.HIGH;
+    }
+
+    private static boolean containsOverlap(String left, String right) {
+        if (left.isBlank() || right.isBlank()) {
+            return false;
+        }
+        Set<String> leftWords = new HashSet<>(List.of(left.split("\\s+")));
+        return List.of(right.split("\\s+")).stream()
+                .filter(word -> word.length() >= 5)
+                .anyMatch(leftWords::contains);
     }
 
     private List<ProductFinding> seedFindings(ProductDiagnosis diagnosis, String combinedSignal) {
@@ -1144,6 +1547,9 @@ public class ProductizationEngineService {
     public record ReviewDecisionRequest(ReviewDecision.Decision decision, String note) {}
     public record ReviewDecisionResponse(UUID id, UUID milestoneId, UUID criterionId, String reviewerEmail, ReviewDecision.Decision decision, String note, LocalDateTime createdAt) {}
     public record WorkspaceGovernanceResponse(UUID workspaceId, String workspaceName, List<CriterionResponse> criteria, List<AutomatedCheckResponse> automatedChecks, List<HandoffResponse> handoffs, List<HealthReviewResponse> healthReviews, List<IntegrationConnectionResponse> integrations) {}
+    public record WorkspaceScannerReadinessRequest(Boolean createCriteria, Boolean createServiceRecommendations, Boolean includeAcceptedRisk, String summary) {}
+    public record WorkspaceScannerReadinessResponse(UUID workspaceId, UUID productId, DiagnosisResponse diagnosis, int mappedFindingCount, int unmappedFindingCount, int scannerEvidenceCount, int missingEvidenceCount, int blockerCount, int enrichedCriterionCount, List<MilestoneRiskResponse> milestoneRisks) {}
+    public record MilestoneRiskResponse(UUID milestoneId, String milestoneTitle, Milestone.MilestoneStatus milestoneStatus, int scannerFindingCount, int mappedServiceCount, String highestSeverity, int missingEvidenceCount, List<String> mappedServices) {}
     public record HandoffRequest(String title, String runbook, String accessChecklist, String knownIssues, String supportScope, HandoffDocument.HandoffStatus status) {}
     public record HandoffResponse(UUID id, UUID workspaceId, String title, String runbook, String accessChecklist, String knownIssues, String supportScope, HandoffDocument.HandoffStatus status) {}
     public record HealthReviewRequest(UUID supportSubscriptionId, LocalDate periodStart, LocalDate periodEnd, Integer healthScore, String summary, String risks, String actions, ProductHealthReview.ReviewStatus status) {}

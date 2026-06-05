@@ -3,11 +3,23 @@ package com.produs.platform;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.catalog.CatalogCoreSeedService;
+import com.produs.catalog.ServiceModule;
+import com.produs.catalog.ServiceModuleRepository;
 import com.produs.entity.User;
+import com.produs.packages.PackageInstance;
+import com.produs.packages.PackageInstanceRepository;
+import com.produs.packages.PackageModule;
+import com.produs.packages.PackageModuleRepository;
+import com.produs.product.ProductProfile;
+import com.produs.product.ProductProfileRepository;
 import com.produs.repository.UserRepository;
 import com.produs.scanner.ScannerProperties;
 import com.produs.scanner.ScannerWorker;
 import com.produs.service.S3Service;
+import com.produs.workspace.Milestone;
+import com.produs.workspace.MilestoneRepository;
+import com.produs.workspace.ProjectWorkspace;
+import com.produs.workspace.ProjectWorkspaceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -78,6 +90,24 @@ class ScannerEvidenceIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ProductProfileRepository productProfileRepository;
+
+    @Autowired
+    private ServiceModuleRepository serviceModuleRepository;
+
+    @Autowired
+    private PackageInstanceRepository packageInstanceRepository;
+
+    @Autowired
+    private PackageModuleRepository packageModuleRepository;
+
+    @Autowired
+    private ProjectWorkspaceRepository workspaceRepository;
+
+    @Autowired
+    private MilestoneRepository milestoneRepository;
 
     @Autowired
     private ScannerWorker scannerWorker;
@@ -221,6 +251,86 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACCEPTED_RISK"))
                 .andExpect(jsonPath("$.riskReviewDueOn").value("2026-06-30"));
+    }
+
+    @Test
+    void workspaceScopedScannerEvidenceCreatesReadinessCriteriaAndMilestoneRisk() throws Exception {
+        User owner = saveUser("scanner-workspace-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        UUID productId = createProduct(owner);
+        ProjectWorkspace workspace = createWorkspaceWithModule(owner, productId, "security.secrets_scan");
+        Milestone milestone = createMilestone(workspace, "Test & Secure");
+
+        String sarif = """
+                {
+                  "version": "2.1.0",
+                  "runs": [{
+                    "tool": {
+                      "driver": {
+                        "name": "Gitleaks",
+                        "rules": [{ "id": "generic-api-key" }]
+                      }
+                    },
+                    "results": [{
+                      "ruleId": "generic-api-key",
+                      "level": "error",
+                      "message": {
+                        "text": "Hardcoded API key prod_live_123456789abcdef detected in env sample"
+                      },
+                      "locations": [{
+                        "physicalLocation": {
+                          "artifactLocation": { "uri": ".env.example" },
+                          "region": { "startLine": 4 }
+                        }
+                      }]
+                    }]
+                  }]
+                }
+                """;
+
+        mockMvc.perform(post("/api/scanner/runs/ci-upload")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "productId", productId.toString(),
+                                "workspaceId", workspace.getId().toString(),
+                                "milestoneId", milestone.getId().toString(),
+                                "toolName", "Gitleaks",
+                                "format", "SARIF",
+                                "artifactFileName", "gitleaks.sarif",
+                                "artifactPayload", sarif
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+
+        MvcResult readinessResult = mockMvc.perform(get("/api/productization-engine/workspaces/{workspaceId}/scanner-readiness", workspace.getId())
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.diagnosis.diagnosisSource").value("SCANNER_READINESS"))
+                .andExpect(jsonPath("$.mappedFindingCount").value(1))
+                .andExpect(jsonPath("$.blockerCount").value(1))
+                .andExpect(jsonPath("$.enrichedCriterionCount").value(1))
+                .andExpect(jsonPath("$.milestoneRisks[0].mappedServices[0]").value("Secrets scan"))
+                .andReturn();
+        JsonNode readiness = objectMapper.readTree(readinessResult.getResponse().getContentAsString());
+        org.assertj.core.api.Assertions.assertThat(readiness.get("missingEvidenceCount").asInt()).isGreaterThan(0);
+
+        MvcResult governanceResult = mockMvc.perform(get("/api/productization-engine/workspaces/{workspaceId}/governance", workspace.getId())
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode governance = objectMapper.readTree(governanceResult.getResponse().getContentAsString());
+        JsonNode criterion = governance.get("criteria").get(0);
+        org.assertj.core.api.Assertions.assertThat(criterion.get("title").asText()).contains("Scanner blocker");
+        org.assertj.core.api.Assertions.assertThat(criterion.get("description").asText()).contains("Scanner finding ID");
+        org.assertj.core.api.Assertions.assertThat(criterion.get("evidenceRequirements").size()).isEqualTo(3);
+        org.assertj.core.api.Assertions.assertThat(criterion.get("automatedChecks").get(0).get("checkType").asText()).isEqualTo("scanner-readiness-map");
+
+        mockMvc.perform(post("/api/productization-engine/workspaces/{workspaceId}/scanner-readiness/enrich", workspace.getId())
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"createCriteria\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enrichedCriterionCount").value(1));
     }
 
     @Test
@@ -815,6 +925,45 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
         return readId(productResult);
+    }
+
+    private ProjectWorkspace createWorkspaceWithModule(User owner, UUID productId, String serviceModuleCode) {
+        ProductProfile product = productProfileRepository.findById(productId).orElseThrow();
+        ServiceModule serviceModule = serviceModuleRepository.findByStableCode(serviceModuleCode).orElseThrow();
+
+        PackageInstance packageInstance = new PackageInstance();
+        packageInstance.setOwner(owner);
+        packageInstance.setProductProfile(product);
+        packageInstance.setName("Scanner readiness service plan");
+        packageInstance.setSummary("Service plan seeded for workspace scanner readiness tests.");
+        packageInstance.setStatus(PackageInstance.PackageStatus.ACTIVE_DELIVERY);
+        packageInstance = packageInstanceRepository.save(packageInstance);
+
+        PackageModule packageModule = new PackageModule();
+        packageModule.setPackageInstance(packageInstance);
+        packageModule.setServiceModule(serviceModule);
+        packageModule.setSequenceOrder(1);
+        packageModule.setRequired(true);
+        packageModule.setRationale("Scanner readiness mapping requires this service.");
+        packageModule.setDeliverables(serviceModule.getExpectedDeliverables());
+        packageModule.setAcceptanceCriteria(serviceModule.getAcceptanceCriteria());
+        packageModuleRepository.save(packageModule);
+
+        ProjectWorkspace workspace = new ProjectWorkspace();
+        workspace.setOwner(owner);
+        workspace.setPackageInstance(packageInstance);
+        workspace.setName("Scanner readiness workspace");
+        workspace.setStatus(ProjectWorkspace.WorkspaceStatus.ACTIVE_DELIVERY);
+        return workspaceRepository.save(workspace);
+    }
+
+    private Milestone createMilestone(ProjectWorkspace workspace, String title) {
+        Milestone milestone = new Milestone();
+        milestone.setWorkspace(workspace);
+        milestone.setTitle(title);
+        milestone.setDescription("Security and scanner readiness evidence for owner review.");
+        milestone.setStatus(Milestone.MilestoneStatus.IN_PROGRESS);
+        return milestoneRepository.save(milestone);
     }
 
     private UUID readId(MvcResult result) throws Exception {

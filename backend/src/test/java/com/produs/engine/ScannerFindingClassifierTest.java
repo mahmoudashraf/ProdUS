@@ -41,6 +41,76 @@ class ScannerFindingClassifierTest {
     }
 
     @Test
+    void mapsSemgrepApiSignalsToApiReview() {
+        NormalizedFinding finding = finding("Semgrep", "js/sql-injection", "Unsanitized API input reaches SQL query", "Injection risk in API handler");
+
+        ScannerFindingClassifier.ScannerFindingClassification result = classifier.classify(finding);
+
+        assertThat(result.category()).isEqualTo("API_SECURITY");
+        assertThat(result.serviceModuleCode()).isEqualTo("security.api_review");
+    }
+
+    @Test
+    void mapsTrivyContainerSignalsToDeploymentSetup() {
+        NormalizedFinding finding = finding("Trivy", "CVE-2026-4567", "Container image uses vulnerable base image", "Docker runtime package is vulnerable");
+
+        ScannerFindingClassifier.ScannerFindingClassification result = classifier.classify(finding);
+
+        assertThat(result.category()).isEqualTo("DEPLOYMENT_RUNTIME_RISK");
+        assertThat(result.serviceModuleCode()).isEqualTo("cloud.deployment_setup");
+    }
+
+    @Test
+    void mapsCheckovIacSignalsToDeploymentSetup() {
+        NormalizedFinding finding = finding("Checkov", "CKV_AWS_20", "Public S3 bucket allows full read access", "Terraform storage bucket is public");
+
+        ScannerFindingClassifier.ScannerFindingClassification result = classifier.classify(finding);
+
+        assertThat(result.category()).isEqualTo("INFRASTRUCTURE_EXPOSURE");
+        assertThat(result.serviceModuleCode()).isEqualTo("cloud.deployment_setup");
+    }
+
+    @Test
+    void mapsLighthouseSignalsToPerformanceAudit() {
+        NormalizedFinding finding = finding("Lighthouse", "lighthouse-performance", "Lighthouse performance score is below launch threshold", "Largest Contentful Paint is slow");
+
+        ScannerFindingClassifier.ScannerFindingClassification result = classifier.classify(finding);
+
+        assertThat(result.category()).isEqualTo("PERFORMANCE_READINESS");
+        assertThat(result.serviceModuleCode()).isEqualTo("scale.performance_audit");
+    }
+
+    @Test
+    void mapsMonitoringSignalsToMonitoringSetup() {
+        NormalizedFinding finding = finding("Datadog", "monitoring-gap", "No alerts configured for production sync failures", "Observability and incident ownership are missing");
+
+        ScannerFindingClassifier.ScannerFindingClassification result = classifier.classify(finding);
+
+        assertThat(result.category()).isEqualTo("MONITORING_GAP");
+        assertThat(result.serviceModuleCode()).isEqualTo("cloud.monitoring_setup");
+    }
+
+    @Test
+    void mapsTestingSignalsToTestStrategy() {
+        NormalizedFinding finding = finding("JUnit", "coverage-gap", "Critical checkout path has low test coverage", "Flaky tests and coverage gaps block release confidence");
+
+        ScannerFindingClassifier.ScannerFindingClassification result = classifier.classify(finding);
+
+        assertThat(result.category()).isEqualTo("TESTING_GAP");
+        assertThat(result.serviceModuleCode()).isEqualTo("quality.test_strategy");
+    }
+
+    @Test
+    void mapsLaunchSignalsToReadinessReview() {
+        NormalizedFinding finding = finding("Runbook", "launch-checklist", "Go-live runbook is missing rollback steps", "Support handoff documentation is incomplete");
+
+        ScannerFindingClassifier.ScannerFindingClassification result = classifier.classify(finding);
+
+        assertThat(result.category()).isEqualTo("LAUNCH_READINESS_GAP");
+        assertThat(result.serviceModuleCode()).isEqualTo("launch.readiness_review");
+    }
+
+    @Test
     void leavesUnknownSignalsForHumanReview() {
         NormalizedFinding finding = finding("Custom", "misc", "Unexpected scanner note", "Needs review");
 

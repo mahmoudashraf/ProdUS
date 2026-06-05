@@ -19,6 +19,8 @@ import com.produs.engine.ProductizationEngineService.IntegrationSignalResponse;
 import com.produs.engine.ProductizationEngineService.ReviewDecisionRequest;
 import com.produs.engine.ProductizationEngineService.ReviewDecisionResponse;
 import com.produs.engine.ProductizationEngineService.ScannerReadinessDiagnosisRequest;
+import com.produs.engine.ProductizationEngineService.WorkspaceScannerReadinessRequest;
+import com.produs.engine.ProductizationEngineService.WorkspaceScannerReadinessResponse;
 import com.produs.engine.ProductizationEngineService.WorkspaceGovernanceResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -104,6 +106,20 @@ public class ProductizationEngineController {
     @GetMapping("/workspaces/{workspaceId}/governance")
     public WorkspaceGovernanceResponse workspaceGovernance(@AuthenticationPrincipal User user, @PathVariable UUID workspaceId) {
         return engineService.workspaceGovernance(user, workspaceId);
+    }
+
+    @GetMapping("/workspaces/{workspaceId}/scanner-readiness")
+    public WorkspaceScannerReadinessResponse workspaceScannerReadiness(@AuthenticationPrincipal User user, @PathVariable UUID workspaceId) {
+        return engineService.workspaceScannerReadiness(user, workspaceId);
+    }
+
+    @PostMapping("/workspaces/{workspaceId}/scanner-readiness/enrich")
+    public WorkspaceScannerReadinessResponse enrichWorkspaceScannerReadiness(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody WorkspaceScannerReadinessRequest request
+    ) {
+        return engineService.enrichWorkspaceScannerReadiness(user, workspaceId, request);
     }
 
     @PostMapping("/workspaces/{workspaceId}/handoff")

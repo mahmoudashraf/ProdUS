@@ -1325,6 +1325,30 @@ export interface WorkspaceGovernance {
   integrations: IntegrationConnection[];
 }
 
+export interface WorkspaceMilestoneRisk {
+  milestoneId: string;
+  milestoneTitle: string;
+  milestoneStatus: Milestone['status'];
+  scannerFindingCount: number;
+  mappedServiceCount: number;
+  highestSeverity?: ProductFinding['severity'];
+  missingEvidenceCount: number;
+  mappedServices: string[];
+}
+
+export interface WorkspaceScannerReadiness {
+  workspaceId: string;
+  productId?: string;
+  diagnosis?: ProductDiagnosis;
+  mappedFindingCount: number;
+  unmappedFindingCount: number;
+  scannerEvidenceCount: number;
+  missingEvidenceCount: number;
+  blockerCount: number;
+  enrichedCriterionCount: number;
+  milestoneRisks: WorkspaceMilestoneRisk[];
+}
+
 export interface AuditEvent extends BaseRecord {
   actorEmail?: string;
   action: string;

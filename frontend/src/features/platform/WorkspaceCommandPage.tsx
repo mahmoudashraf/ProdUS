@@ -3,10 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AddOutlined,
+  AutoAwesomeOutlined,
   CalendarMonthOutlined,
   CloudUploadOutlined,
   ErrorOutlineOutlined,
   FactCheckOutlined,
+  ShieldOutlined,
+  SyncOutlined,
   TaskAltOutlined,
 } from '@mui/icons-material';
 import { Alert, Box, Button, Divider, LinearProgress, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
@@ -56,6 +59,7 @@ import {
   Team,
   WorkspaceGovernance,
   WorkspaceParticipant,
+  WorkspaceScannerReadiness,
 } from './types';
 
 interface WorkspacePayload {
@@ -176,6 +180,13 @@ interface ScannerUploadPayload {
   milestoneId?: string;
 }
 
+interface WorkspaceScannerReadinessPayload {
+  createCriteria: boolean;
+  createServiceRecommendations: boolean;
+  includeAcceptedRisk: boolean;
+  summary: string;
+}
+
 const participantRoles: WorkspaceParticipant['role'][] = ['COORDINATOR', 'TEAM_LEAD', 'SPECIALIST', 'ADVISOR', 'VIEWER'];
 const supportPriorities: SupportRequest['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 const supportStatuses: SupportRequest['status'][] = ['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'WAITING_ON_OWNER', 'RESOLVED', 'CANCELLED'];
@@ -189,6 +200,13 @@ const workspaceAccent = (status?: string) => {
   if (status.includes('REVIEW') || status.includes('NEGOTIATION') || status.includes('AWAITING')) return appleColors.amber;
   if (status.includes('ACTIVE') || status.includes('DELIVER') || status.includes('SUPPORT')) return appleColors.green;
   return appleColors.purple;
+};
+
+const severityAccent = (severity?: string) => {
+  if (severity === 'CRITICAL' || severity === 'HIGH') return appleColors.red;
+  if (severity === 'MEDIUM') return appleColors.amber;
+  if (severity === 'LOW') return appleColors.cyan;
+  return appleColors.green;
 };
 
 const attachmentKey = (scopeType: AttachmentScope, scopeId: string) => `${scopeType}:${scopeId}`;
@@ -344,6 +362,11 @@ export default function WorkspaceCommandPage() {
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<ScannerEvidenceItem[]>(`/scanner/evidence?workspaceId=${selectedWorkspace?.id}`),
   });
+  const workspaceScannerReadiness = useQuery({
+    queryKey: ['productization-engine', 'workspace-scanner-readiness', selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () => getJson<WorkspaceScannerReadiness>(`/productization-engine/workspaces/${selectedWorkspace?.id}/scanner-readiness`),
+  });
 
   const attachmentsByScope = useMemo(
     () =>
@@ -436,6 +459,7 @@ export default function WorkspaceCommandPage() {
   });
   const refreshGovernance = async () => {
     await queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-governance', selectedWorkspace?.id] });
+    await queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-scanner-readiness', selectedWorkspace?.id] });
     await queryClient.invalidateQueries({ queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'] });
   };
   const generateCriteria = useMutation({
@@ -514,6 +538,20 @@ export default function WorkspaceCommandPage() {
       await refreshGovernance();
     },
   });
+  const enrichScannerReadiness = useMutation({
+    mutationFn: () =>
+      postJson<WorkspaceScannerReadiness, WorkspaceScannerReadinessPayload>(`/productization-engine/workspaces/${selectedWorkspace?.id}/scanner-readiness/enrich`, {
+        createCriteria: true,
+        createServiceRecommendations: true,
+        includeAcceptedRisk: false,
+        summary: 'Owner requested workspace scanner readiness refresh from the workspace board.',
+      }),
+    onSuccess: async () => {
+      setGovernanceNotice('Workspace scanner readiness refreshed and linked to milestone evidence.');
+      await refreshGovernance();
+      await queryClient.invalidateQueries({ queryKey: ['scanner-evidence', selectedWorkspace?.id] });
+    },
+  });
   const uploadScannerEvidence = useMutation({
     mutationFn: () => {
       const payload: ScannerUploadPayload = {
@@ -542,6 +580,21 @@ export default function WorkspaceCommandPage() {
   const supportList = supportRequests.data || [];
   const disputeList = disputes.data || [];
   const scannerEvidenceList = scannerEvidence.data || [];
+  const readiness = workspaceScannerReadiness.data;
+  const readinessScore = readiness?.diagnosis?.readinessScore ?? (scannerEvidenceList.length ? 100 : 0);
+  const readinessStatus = readiness?.blockerCount
+    ? 'Blocked by scanner evidence'
+    : readiness?.diagnosis
+      ? 'Evidence mapped'
+      : 'No scanner map yet';
+  const milestoneRiskById = useMemo(
+    () =>
+      (readiness?.milestoneRisks || []).reduce<Record<string, WorkspaceScannerReadiness['milestoneRisks'][number]>>((byId, risk) => {
+        byId[risk.milestoneId] = risk;
+        return byId;
+      }, {}),
+    [readiness?.milestoneRisks]
+  );
   const governanceCriteria = governance.data?.criteria || [];
   const selectedMilestoneCriteria = selectedMilestone?.id
     ? governanceCriteria.filter((criterion) => criterion.milestoneId === selectedMilestone.id)
@@ -651,7 +704,7 @@ export default function WorkspaceCommandPage() {
         description="One focused place to run a productization workspace: milestones, evidence, people, support, and risk."
       />
       <QueryState
-        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || milestones.isLoading || deliverables.isLoading || participants.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading || governance.isLoading || scannerEvidence.isLoading}
+        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || milestones.isLoading || deliverables.isLoading || participants.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading || governance.isLoading || scannerEvidence.isLoading || workspaceScannerReadiness.isLoading}
         error={
           packages.error
           || workspaces.error
@@ -664,6 +717,7 @@ export default function WorkspaceCommandPage() {
           || attachments.error
           || governance.error
           || scannerEvidence.error
+          || workspaceScannerReadiness.error
           || createWorkspace.error
           || createMilestone.error
           || createDeliverable.error
@@ -681,6 +735,7 @@ export default function WorkspaceCommandPage() {
           || createHealthReview.error
           || createIntegration.error
           || createIntegrationSignal.error
+          || enrichScannerReadiness.error
           || uploadScannerEvidence.error
         }
       />
@@ -806,6 +861,99 @@ export default function WorkspaceCommandPage() {
                 cta="Review Proof"
               />
 
+              <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f5fbff 46%, #fffaf2 100%)' }}>
+                <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} alignItems={{ lg: 'center' }} justifyContent="space-between">
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <ProgressRing
+                      value={readinessScore}
+                      size={110}
+                      color={readiness?.blockerCount ? appleColors.red : readiness?.diagnosis ? appleColors.green : appleColors.cyan}
+                      label="ready"
+                    />
+                    <Box sx={{ minWidth: 0 }}>
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                        <ShieldOutlined sx={{ color: readiness?.blockerCount ? appleColors.red : appleColors.cyan }} />
+                        <Typography variant="h3" sx={{ fontSize: { xs: 22, md: 26 } }}>Scanner Readiness</Typography>
+                        <PastelChip label={readinessStatus} accent={readiness?.blockerCount ? appleColors.red : appleColors.green} bg={readiness?.blockerCount ? '#fff1f1' : '#e7f8ee'} />
+                      </Stack>
+                      <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6, maxWidth: 760 }}>
+                        Workspace scanner findings are translated into milestone blockers, mapped services, and evidence tasks. This is deterministic and stored; AI explanation only runs when you ask for it.
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
+                        <PastelChip label={`${readiness?.mappedFindingCount || 0} mapped`} accent={appleColors.green} bg="#e7f8ee" />
+                        <PastelChip label={`${readiness?.blockerCount || 0} blockers`} accent={readiness?.blockerCount ? appleColors.red : appleColors.green} bg={readiness?.blockerCount ? '#fff1f1' : '#e7f8ee'} />
+                        <PastelChip label={`${readiness?.missingEvidenceCount || 0} evidence gaps`} accent={readiness?.missingEvidenceCount ? appleColors.amber : appleColors.green} bg={readiness?.missingEvidenceCount ? '#fff4dc' : '#e7f8ee'} />
+                        <PastelChip label={`${readiness?.unmappedFindingCount || 0} unmapped`} accent={readiness?.unmappedFindingCount ? appleColors.amber : appleColors.cyan} bg={readiness?.unmappedFindingCount ? '#fff4dc' : '#e4f9fd'} />
+                      </Stack>
+                    </Box>
+                  </Stack>
+                  <Stack direction={{ xs: 'column', sm: 'row', lg: 'column' }} spacing={1} sx={{ flex: { lg: '0 0 230px' } }}>
+                    <Button
+                      variant="contained"
+                      startIcon={<SyncOutlined />}
+                      disabled={!selectedWorkspaceProductId || enrichScannerReadiness.isPending}
+                      onClick={() => enrichScannerReadiness.mutate()}
+                      sx={{ minHeight: 42 }}
+                    >
+                      Refresh Readiness
+                    </Button>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+                      Refresh is deterministic and stored. Use the AI explainer below when you want a narrative readout.
+                    </Typography>
+                  </Stack>
+                </Stack>
+                {(workspaceScannerReadiness.isFetching || enrichScannerReadiness.isPending) && <LinearProgress sx={{ mt: 1.5, borderRadius: 999 }} />}
+                {readiness?.milestoneRisks?.length ? (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1.25, mt: 2 }}>
+                    {readiness.milestoneRisks.slice(0, 4).map((risk) => (
+                      <Box key={risk.milestoneId} sx={{ p: 1.35, border: '1px solid', borderColor: '#e1eaf6', borderRadius: 1, bgcolor: '#fff' }}>
+                        <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={{ fontWeight: 900 }} noWrap>{risk.milestoneTitle}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {risk.scannerFindingCount} scanner blocker{risk.scannerFindingCount === 1 ? '' : 's'} · {risk.missingEvidenceCount} proof gap{risk.missingEvidenceCount === 1 ? '' : 's'}
+                            </Typography>
+                          </Box>
+                          <PastelChip label={risk.highestSeverity || 'Mapped'} accent={severityAccent(risk.highestSeverity)} bg={risk.highestSeverity === 'CRITICAL' || risk.highestSeverity === 'HIGH' ? '#fff1f1' : '#f1efff'} />
+                        </Stack>
+                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                          {risk.mappedServices.length ? risk.mappedServices.slice(0, 4).map((service) => (
+                            <PastelChip key={service} label={service} accent={appleColors.cyan} bg="#e4f9fd" />
+                          )) : <Typography variant="caption" color="text.secondary">Needs service mapping review</Typography>}
+                        </Stack>
+                      </Box>
+                    ))}
+                  </Box>
+                ) : (
+                  <Box sx={{ mt: 2, p: 1.5, border: '1px dashed', borderColor: '#cfe3f8', borderRadius: 1, bgcolor: '#fbfdff' }}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'center' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {scannerEvidenceList.length
+                          ? 'Scanner evidence exists. Refresh readiness to materialize mapped milestone blockers and evidence tasks.'
+                          : 'Run or attach workspace-scoped scanner evidence to build a readiness map for this delivery.'}
+                      </Typography>
+                      <AutoAwesomeOutlined sx={{ color: appleColors.purple }} />
+                    </Stack>
+                  </Box>
+                )}
+              </Surface>
+
+              <PlatformAssistantCard
+                title="AI Scanner Explainer"
+                description="Explain mapped blockers and owner decisions from the stored scanner readiness map."
+                prompt={`Use thinker mode and read-only context only. Explain scanner readiness for workspace "${selectedWorkspace.name}". Product: ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}. Readiness score: ${readinessScore}. Status: ${readinessStatus}. Mapped findings: ${readiness?.mappedFindingCount || 0}. Blockers: ${readiness?.blockerCount || 0}. Missing evidence: ${readiness?.missingEvidenceCount || 0}. Unmapped findings: ${readiness?.unmappedFindingCount || 0}. Mapped services: ${(readiness?.milestoneRisks || []).flatMap((risk) => risk.mappedServices).slice(0, 8).join(', ') || 'none'}. Milestone risks: ${(readiness?.milestoneRisks || []).slice(0, 6).map((risk) => `${risk.milestoneTitle}: ${risk.scannerFindingCount} findings, ${risk.missingEvidenceCount} evidence gaps, highest ${risk.highestSeverity || 'none'}`).join('; ') || 'none'}. Tell the owner what blocks production, which service work addresses it, what proof is missing, and what decision is safe next. Do not mutate workspace state.`}
+                conversationId={`workspace-scanner-readiness-${selectedWorkspace.id}`}
+                context={{
+                  pageType: 'workspace-scanner-readiness',
+                  productId: selectedWorkspaceProductId,
+                  packageId: selectedWorkspace.packageInstance?.id,
+                  workspaceId: selectedWorkspace.id,
+                  milestoneId: selectedMilestone?.id,
+                }}
+                accent={readiness?.blockerCount ? appleColors.red : appleColors.cyan}
+                cta="Ask AI"
+              />
+
               <Surface>
                 <SectionTitle title="Milestones" action={selectedMilestone && <PastelChip label={`Selected: ${selectedMilestone.title}`} accent={workspaceAccent(selectedMilestone.status)} />} />
                 <Box component="form" onSubmit={milestoneForm.handleSubmit(() => createMilestone.mutate())} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 1fr) 170px auto' }, gap: 1, mb: 2 }}>
@@ -815,30 +963,51 @@ export default function WorkspaceCommandPage() {
                 </Box>
                 {milestoneList.length ? (
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
-                    {milestoneList.map((milestone) => (
-                      <Button
-                        key={milestone.id}
-                        variant={selectedMilestone?.id === milestone.id ? 'contained' : 'outlined'}
-                        color={selectedMilestone?.id === milestone.id ? 'primary' : 'inherit'}
-                        onClick={() => setSelectedMilestoneId(milestone.id)}
-                        sx={{ justifyContent: 'flex-start', textAlign: 'left', minHeight: 92, p: 1.5, borderRadius: 1, whiteSpace: 'normal' }}
-                      >
-                        <Box>
-                          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: workspaceAccent(milestone.status) }} />
-                            <Typography sx={{ fontWeight: 900 }}>{milestone.title}</Typography>
-                          </Stack>
-                          <Typography variant="caption" sx={{ color: selectedMilestone?.id === milestone.id ? 'inherit' : 'text.secondary', display: 'block' }}>
-                            {formatLabel(milestone.status)}{milestone.dueDate ? ` · due ${milestone.dueDate}` : ''}
-                          </Typography>
-                          {milestone.description && (
-                            <Typography variant="body2" sx={{ color: selectedMilestone?.id === milestone.id ? 'inherit' : 'text.secondary', mt: 0.5, lineHeight: 1.45 }}>
-                              {milestone.description}
+                    {milestoneList.map((milestone) => {
+                      const milestoneRisk = milestoneRiskById[milestone.id];
+                      const selected = selectedMilestone?.id === milestone.id;
+                      return (
+                        <Button
+                          key={milestone.id}
+                          variant={selected ? 'contained' : 'outlined'}
+                          color={selected ? 'primary' : 'inherit'}
+                          onClick={() => setSelectedMilestoneId(milestone.id)}
+                          sx={{ justifyContent: 'flex-start', textAlign: 'left', minHeight: 104, p: 1.5, borderRadius: 1, whiteSpace: 'normal' }}
+                        >
+                          <Box sx={{ width: '100%', minWidth: 0 }}>
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: workspaceAccent(milestone.status) }} />
+                              <Typography sx={{ fontWeight: 900, minWidth: 0 }} noWrap>{milestone.title}</Typography>
+                            </Stack>
+                            <Typography variant="caption" sx={{ color: selected ? 'inherit' : 'text.secondary', display: 'block' }}>
+                              {formatLabel(milestone.status)}{milestone.dueDate ? ` · due ${milestone.dueDate}` : ''}
                             </Typography>
-                          )}
-                        </Box>
-                      </Button>
-                    ))}
+                            {milestoneRisk && (
+                              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                                <PastelChip
+                                  label={`${milestoneRisk.scannerFindingCount} scanner ${milestoneRisk.scannerFindingCount === 1 ? 'finding' : 'findings'}`}
+                                  accent={severityAccent(milestoneRisk.highestSeverity)}
+                                  bg={milestoneRisk.highestSeverity === 'CRITICAL' || milestoneRisk.highestSeverity === 'HIGH' ? '#fff1f1' : '#fff4dc'}
+                                />
+                                <PastelChip
+                                  label={`${milestoneRisk.missingEvidenceCount} proof ${milestoneRisk.missingEvidenceCount === 1 ? 'gap' : 'gaps'}`}
+                                  accent={milestoneRisk.missingEvidenceCount ? appleColors.amber : appleColors.green}
+                                  bg={milestoneRisk.missingEvidenceCount ? '#fff4dc' : '#e7f8ee'}
+                                />
+                                {milestoneRisk.mappedServices.slice(0, 2).map((service) => (
+                                  <PastelChip key={service} label={service} accent={appleColors.cyan} bg="#e4f9fd" />
+                                ))}
+                              </Stack>
+                            )}
+                            {milestone.description && (
+                              <Typography variant="body2" sx={{ color: selected ? 'inherit' : 'text.secondary', mt: 0.75, lineHeight: 1.45 }}>
+                                {milestone.description}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Button>
+                      );
+                    })}
                   </Box>
                 ) : (
                   <EmptyState label="No milestones yet. Add the first production milestone for this workspace." />

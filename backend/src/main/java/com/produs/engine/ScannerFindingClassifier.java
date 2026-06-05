@@ -40,6 +40,17 @@ public class ScannerFindingClassifier {
                     0.86
             );
         }
+        if (contains(signal, "trivy", "container", "docker", "image", "runtime", "base image", "kubernetes", "helm")) {
+            return classification(
+                    "DEPLOYMENT_RUNTIME_RISK",
+                    "Deployment runtime",
+                    "cloud.deployment_setup",
+                    "Runtime or container gaps can make releases hard to repeat, observe, patch, or roll back.",
+                    "Attach staging/prod deployment notes, container scan results, rollback path, and owner-visible release evidence.",
+                    "Container or runtime scanner signals matched deployment readiness risk.",
+                    0.82
+            );
+        }
         if (contains(signal, "osv", "cve", "vulnerab", "dependency", "package", "supply chain", "npm audit", "maven", "gradle")) {
             return classification(
                     "DEPENDENCY_VULNERABILITY",
@@ -62,17 +73,6 @@ public class ScannerFindingClassifier {
                     0.84
             );
         }
-        if (contains(signal, "trivy", "container", "docker", "image", "runtime", "base image", "kubernetes", "helm")) {
-            return classification(
-                    "DEPLOYMENT_RUNTIME_RISK",
-                    "Deployment runtime",
-                    "cloud.deployment_setup",
-                    "Runtime or container gaps can make releases hard to repeat, observe, patch, or roll back.",
-                    "Attach staging/prod deployment notes, container scan results, rollback path, and owner-visible release evidence.",
-                    "Container or runtime scanner signals matched deployment readiness risk.",
-                    0.82
-            );
-        }
         if (contains(signal, "checkov", "terraform", "iam", "s3", "bucket", "public", "security group", "iac", "network", "cloudformation")) {
             return classification(
                     "INFRASTRUCTURE_EXPOSURE",
@@ -84,7 +84,7 @@ public class ScannerFindingClassifier {
                     0.82
             );
         }
-        if (contains(signal, "ci", "cd", "pipeline", "workflow", "github actions", "gitlab ci", "build failed", "release gate")) {
+        if (contains(signal, "ci/cd", "pipeline", "workflow", "github actions", "gitlab ci", "build failed", "release gate")) {
             return classification(
                     "RELEASE_PIPELINE_GAP",
                     "Release pipeline",
