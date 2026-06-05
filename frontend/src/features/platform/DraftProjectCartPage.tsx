@@ -342,73 +342,71 @@ export default function DraftProjectCartPage() {
             )}
           </Surface>
 
-          {currentCart ? (
-            <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fffaf1 100%)' }}>
-              <SectionTitle
-                title="Before You Start"
-                action={<StatusChip label={blockers ? `${blockers} service gaps` : 'Looks complete'} color={blockers ? 'error' : 'success'} />}
-              />
-              {blockingRecommendations.length > 0 ? (
-                <Alert severity="warning" sx={{ borderRadius: 1, mb: 1.5 }}>
-                  Add {blockingRecommendations.map((item) => item.recommendedModule.name).join(' and ')} before starting. These fill practical gaps in release automation or operational proof.
-                </Alert>
-              ) : (
-                <Alert severity={serviceCount ? 'success' : 'info'} sx={{ borderRadius: 1, mb: 1.5 }}>
-                  {serviceCount
-                    ? 'The selected services fit together for this draft. You can start the workspace when the product and service list are ready.'
-                    : 'Add productization services first. ProdUS will show service gaps here before you start the workspace.'}
-                </Alert>
-              )}
-              {currentCart.catalogEvaluation?.recommendations.length ? (
-                <Stack spacing={1.25}>
-                  {currentCart.catalogEvaluation.recommendations.slice(0, 5).map((item) => (
-                    <Box
-                      key={`${item.source}-${item.recommendedModule.id}`}
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', md: '1fr auto' },
-                        gap: 1.5,
-                        alignItems: 'center',
-                        p: 1.5,
-                        border: '1px solid',
-                        borderColor: item.severity === 'BLOCKER' ? '#fecdd3' : '#fde68a',
-                        borderRadius: 1,
-                        bgcolor: '#fff',
-                      }}
-                    >
-                      <Box>
-                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                          <Typography sx={{ fontWeight: 900 }}>{item.recommendedModule.name}</Typography>
-                          <StatusChip label={item.severity} color={item.severity === 'BLOCKER' ? 'error' : 'warning'} />
-                        </Stack>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
-                          {item.reason || item.recommendedModule.ownerOutcome || item.recommendedModule.description}
-                        </Typography>
-                      </Box>
-                      <Button
-                        variant="contained"
-                        startIcon={<AddShoppingCartOutlined />}
-                        disabled={addRecommendedService.isPending}
-                        onClick={() => addCatalogRecommendation(item)}
-                        sx={{ minHeight: 42, minWidth: 148 }}
-                      >
-                        Add service
-                      </Button>
+          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fffaf1 100%)' }}>
+            <SectionTitle
+              title="Before You Start"
+              action={<StatusChip label={blockers ? `${blockers} service gaps` : 'Looks complete'} color={blockers ? 'error' : 'success'} />}
+            />
+            {blockingRecommendations.length > 0 ? (
+              <Alert severity="warning" sx={{ borderRadius: 1, mb: 1.5 }}>
+                Add {blockingRecommendations.map((item) => item.recommendedModule.name).join(' and ')} before starting. These fill practical gaps in release automation or operational proof.
+              </Alert>
+            ) : (
+              <Alert severity={serviceCount ? 'success' : 'info'} sx={{ borderRadius: 1, mb: 1.5 }}>
+                {serviceCount
+                  ? 'The selected services fit together for this draft. You can start the workspace when the product and service list are ready.'
+                  : 'Add productization services first. ProdUS will show service gaps here before you start the workspace.'}
+              </Alert>
+            )}
+            {currentCart?.catalogEvaluation?.recommendations.length ? (
+              <Stack spacing={1.25}>
+                {currentCart.catalogEvaluation.recommendations.slice(0, 5).map((item) => (
+                  <Box
+                    key={`${item.source}-${item.recommendedModule.id}`}
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', md: '1fr auto' },
+                      gap: 1.5,
+                      alignItems: 'center',
+                      p: 1.5,
+                      border: '1px solid',
+                      borderColor: item.severity === 'BLOCKER' ? '#fecdd3' : '#fde68a',
+                      borderRadius: 1,
+                      bgcolor: '#fff',
+                    }}
+                  >
+                    <Box>
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                        <Typography sx={{ fontWeight: 900 }}>{item.recommendedModule.name}</Typography>
+                        <StatusChip label={item.severity} color={item.severity === 'BLOCKER' ? 'error' : 'warning'} />
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
+                        {item.reason || item.recommendedModule.ownerOutcome || item.recommendedModule.description}
+                      </Typography>
                     </Box>
+                    <Button
+                      variant="contained"
+                      startIcon={<AddShoppingCartOutlined />}
+                      disabled={addRecommendedService.isPending}
+                      onClick={() => addCatalogRecommendation(item)}
+                      sx={{ minHeight: 42, minWidth: 148 }}
+                    >
+                      Add service
+                    </Button>
+                  </Box>
+                ))}
+                <Stack spacing={0.75}>
+                  {(currentCart.catalogEvaluation.nextBestActions || []).map((action) => (
+                    <DotLabel key={action} label={action} color={blockers ? appleColors.red : appleColors.amber} />
                   ))}
-                  <Stack spacing={0.75}>
-                    {(currentCart.catalogEvaluation.nextBestActions || []).map((action) => (
-                      <DotLabel key={action} label={action} color={blockers ? appleColors.red : appleColors.amber} />
-                    ))}
-                  </Stack>
                 </Stack>
-              ) : (
-                <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-                  AI-ready metadata is attached when available, but no AI execution is performed from this panel.
-                </Typography>
-              )}
-            </Surface>
-          ) : null}
+              </Stack>
+            ) : (
+              <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
+                AI-ready metadata is attached when available, but no AI execution is performed from this panel.
+              </Typography>
+            )}
+          </Surface>
 
           <Surface>
             <SectionTitle title="Teams And Experts" action={<Button component={NextLink} href="/teams" variant="text" endIcon={<ArrowForwardOutlined />}>Add talent</Button>} />
