@@ -187,11 +187,32 @@ Implementation status:
 
 Purpose:
 
-Make repository and source understanding strong enough that the diagnosis feels project-specific.
+Make repository and source understanding strong enough that the diagnosis feels project-specific, without relying on AI as the only detector.
+
+The preferred technical model is:
+
+```text
+repo connection + scanners/tools
+  -> bounded raw facts
+  -> ProdUS repo signal normalization
+  -> LoomAI extraction/explanation from those facts
+  -> backend validation and storage
+  -> owner-facing repo readout and scanner focus
+```
+
+ProdUS should not ask an LLM to blindly inspect a whole repository as the source of truth. Scanners and repo tools should collect grounded facts. AI should turn those facts into a useful productization interpretation.
 
 Backend deliverables:
 
-- deterministic repository metadata extraction:
+- repo fact collection from available scanners/tools:
+  - GitHub/GitLab repository metadata and language stats, when available
+  - dependency/SBOM summaries from supported scanners such as Syft, cdxgen, Trivy, or equivalent
+  - security/config findings from supported scanners such as Trivy, Semgrep, OSV, or equivalent
+  - CI/CD workflow presence from `.github/workflows`, `.gitlab-ci.yml`, or connected provider metadata
+  - container/deployment file presence from Docker, compose, platform config, or CI deployment steps
+  - README/documentation summary from bounded safe files
+  - test/tooling signals from package manifests, test directories, and scanner output
+- deterministic repository metadata normalization:
   - primary language
   - framework signals
   - package managers
@@ -208,7 +229,23 @@ Backend deliverables:
   - `confidence`
   - `source`
   - `sourcePath`, when safe
+  - `sourceTool`, when derived from scanner output
+  - `evidenceKind`
+  - `ownerSafeEvidence`
   - `detectedAt`
+- compact repo intelligence request to LoomAI:
+  - owner brief
+  - product/repository URL
+  - language/framework/dependency facts
+  - scanner summary and top findings
+  - CI/CD, test, deploy, database, auth, and documentation signals
+  - service catalog snapshot
+  - explicit instruction to explain only from provided facts and identify missing evidence
+- backend validation for AI-extracted repo intelligence:
+  - reject invented scanner facts from stored signals
+  - reject invented catalog service module codes from persisted recommendations
+  - keep unsupported AI suggestions as `missingEvidence` or `missingCatalogCoverage`
+  - store confidence and source attribution for each accepted signal
 - repo source status states:
   - `READY`
   - `NEEDS_AUTH`
@@ -223,13 +260,26 @@ Frontend deliverables:
 - "Repo readout" panel on project and workspace pages
 - clear source status messages
 - tech stack chips with source labels
+- scanner/tool fact cards:
+  - dependency inventory
+  - CI/CD detected or missing
+  - test tooling detected or missing
+  - deploy/container signals
+  - documentation/readme signal
+- AI interpretation card:
+  - "What this repo appears to be"
+  - "What looks production-ready"
+  - "What is still unknown"
+  - "What to scan next"
 - "Run scanner" and "Refresh repo signals" actions
 
 Acceptance criteria:
 
 - A provided repo URL appears after project creation and is ready for scan when accessible.
-- Product pages show what ProdUS detected from the repo before AI explanation.
-- Scanner focus areas are informed by repo metadata.
+- Product pages show scanner/tool facts separately from AI interpretation.
+- Scanner focus areas are informed by repo metadata, scanner output, and validated AI extraction.
+- AI repo intelligence includes evidence references or marks the point as unverified.
+- Stored repo signals are grounded in scanner/tool facts or safe bounded repo files, not unverified AI claims.
 
 ### Sequence 3: AI Project Analysis Contract Upgrade
 
@@ -246,6 +296,13 @@ Backend deliverables:
   - `outcome`
   - `tags`
   - `requiredSignals`
+- compact repo/scanner facts snapshot passed to LoomAI when available:
+  - detected languages and frameworks
+  - package manager and dependency summary
+  - CI/CD, deploy, database, auth, test, and documentation signals
+  - scanner finding summary by severity/category
+  - owner-safe evidence references
+  - unverified or missing evidence list
 - high-quality prompt that asks LoomAI to return:
   - project description
   - business problem
@@ -297,6 +354,7 @@ Acceptance criteria:
 - AI analysis returns catalog module codes for recommendations when catalog support exists.
 - Project creation persists the validated recommended service modules.
 - The UI explains which parts came from AI and which came from deterministic backend signals.
+- AI analysis uses scanner/tool-derived repo facts as grounded context when those facts exist.
 
 ### Sequence 4: Scanner To Fix Path Hardening
 
