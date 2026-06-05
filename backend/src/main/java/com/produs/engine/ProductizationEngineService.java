@@ -802,9 +802,10 @@ public class ProductizationEngineService {
         DiagnosisResponse diagnosisResponse = diagnosis == null
                 ? null
                 : toDiagnosisResponse(diagnosis, findings);
+        ProductProfile product = workspaceProduct(workspace);
         return new WorkspaceScannerReadinessResponse(
                 workspace.getId(),
-                workspace.getPackageInstance() == null ? null : workspace.getPackageInstance().getProductProfile().getId(),
+                product == null ? null : product.getId(),
                 diagnosisResponse,
                 (int) mappedCount,
                 diagnosis == null ? 0 : diagnosis.getUnmappedFindingCount(),
@@ -1256,12 +1257,12 @@ public class ProductizationEngineService {
     }
 
     private DiagnosisResponse toDiagnosisResponse(ProductDiagnosis diagnosis, List<ProductFinding> findings) {
-        ProductProfile product = diagnosis.getProductProfile();
+        ProductProfile product = firstNonNull(diagnosis.getProductProfile(), workspaceProduct(diagnosis.getWorkspace()));
         return new DiagnosisResponse(
                 diagnosis.getId(),
                 diagnosis.getCreatedAt(),
-                product.getId(),
-                product.getName(),
+                product == null ? null : product.getId(),
+                product == null ? "Unknown product" : product.getName(),
                 diagnosis.getReadinessScore(),
                 diagnosis.getSummary(),
                 diagnosis.getAccessSignals(),
@@ -1276,6 +1277,17 @@ public class ProductizationEngineService {
                 diagnosis.isAiExecuted(),
                 findings.stream().map(this::toFindingResponse).toList()
         );
+    }
+
+    private ProductProfile workspaceProduct(ProjectWorkspace workspace) {
+        if (workspace == null || workspace.getPackageInstance() == null) {
+            return null;
+        }
+        return workspace.getPackageInstance().getProductProfile();
+    }
+
+    private static <T> T firstNonNull(T primary, T fallback) {
+        return primary != null ? primary : fallback;
     }
 
     private FindingResponse toFindingResponse(ProductFinding finding) {
