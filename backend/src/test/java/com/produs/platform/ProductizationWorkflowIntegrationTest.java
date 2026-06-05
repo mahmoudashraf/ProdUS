@@ -276,16 +276,22 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.serviceItems", hasSize(1)))
                 .andExpect(jsonPath("$.catalogEvaluation.blockerCount").value(1))
-                .andExpect(jsonPath("$.catalogEvaluation.recommendations[0].recommendedModule.name").value("Security Review"));
+                .andExpect(jsonPath("$.catalogEvaluation.recommendations[0].recommendedModule.name").value("Security Review"))
+                .andExpect(jsonPath("$.startReadiness.status").value("NEEDS_FIXES"))
+                .andExpect(jsonPath("$.startReadiness.ready").value(false))
+                .andExpect(jsonPath("$.startReadiness.gaps[0].title").value("Security Review"))
+                .andExpect(jsonPath("$.startReadiness.gaps[0].actionLabel").value("Add required service"));
 
         mockMvc.perform(post("/api/productization-cart/convert")
                         .with(auth(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 { "projectName": "Governance Cart OS workspace" }
-                                """))
+                """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value(containsString("Security Review")));
+                .andExpect(jsonPath("$.detail").value(containsString("Security Review")))
+                .andExpect(jsonPath("$.missingServices[0].name").value("Security Review"))
+                .andExpect(jsonPath("$.nextBestActions[0]").value(containsString("Resolve blocker dependencies")));
 
         mockMvc.perform(post("/api/productization-cart/templates/{templateId}/apply", template.getId())
                         .with(auth(owner))
@@ -293,7 +299,9 @@ class ProductizationWorkflowIntegrationTest {
                         .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.serviceItems", hasSize(2)))
-                .andExpect(jsonPath("$.catalogEvaluation.blockerCount").value(0));
+                .andExpect(jsonPath("$.catalogEvaluation.blockerCount").value(0))
+                .andExpect(jsonPath("$.startReadiness.status").value("READY"))
+                .andExpect(jsonPath("$.startReadiness.ready").value(true));
 
         mockMvc.perform(post("/api/productization-cart/templates/{templateId}/apply", template.getId())
                         .with(auth(owner))

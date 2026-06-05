@@ -124,11 +124,14 @@ export default function DraftProjectCartPage() {
   const hasPlaceholderProduct = isPlaceholderProduct(product);
   const serviceCount = currentCart?.serviceItems.length || 0;
   const talentCount = currentCart?.talentItems.length || 0;
-  const blockers = currentCart?.catalogEvaluation?.blockerCount || 0;
+  const startReadiness = currentCart?.startReadiness;
+  const startGaps = startReadiness?.gaps || [];
+  const blockers = startReadiness?.blockerCount ?? currentCart?.catalogEvaluation?.blockerCount ?? 0;
   const blockingRecommendations = (currentCart?.catalogEvaluation?.recommendations || []).filter(
     (item) => item.severity === 'BLOCKER' && !item.alreadySelected
   );
-  const canStartWorkspace = !!product && !hasPlaceholderProduct && serviceCount > 0 && blockers === 0;
+  const blockingStartGaps = startGaps.filter((gap) => gap.blocking);
+  const canStartWorkspace = !!product && !hasPlaceholderProduct && (startReadiness?.ready ?? (serviceCount > 0 && blockers === 0));
   const score = readinessScore(currentCart);
   const cartServiceIds = new Set((currentCart?.serviceItems || []).map((item) => item.serviceModule.id));
 
@@ -345,11 +348,18 @@ export default function DraftProjectCartPage() {
           <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fffaf1 100%)' }}>
             <SectionTitle
               title="Before You Start"
-              action={<StatusChip label={blockers ? `${blockers} service gaps` : 'Looks complete'} color={blockers ? 'error' : 'success'} />}
+              action={<StatusChip label={startReadiness?.status || (blockers ? `${blockers} service gaps` : 'Looks complete')} color={canStartWorkspace ? 'success' : blockers ? 'error' : 'warning'} />}
             />
-            {blockingRecommendations.length > 0 ? (
+            {startReadiness?.summary && (
+              <Typography color="text.secondary" sx={{ lineHeight: 1.65, mb: 1.5 }}>
+                {startReadiness.summary}
+              </Typography>
+            )}
+            {blockingStartGaps.length > 0 ? (
               <Alert severity="warning" sx={{ borderRadius: 1, mb: 1.5 }}>
-                Add {blockingRecommendations.map((item) => item.recommendedModule.name).join(' and ')} before starting. These fill practical gaps in release automation or operational proof.
+                {blockingStartGaps.length === 1
+                  ? `${blockingStartGaps[0]?.title} is needed before starting.`
+                  : `${blockingStartGaps.length} practical gaps need attention before starting.`}
               </Alert>
             ) : (
               <Alert severity={serviceCount ? 'success' : 'info'} sx={{ borderRadius: 1, mb: 1.5 }}>
@@ -358,11 +368,11 @@ export default function DraftProjectCartPage() {
                   : 'Add productization services first. ProdUS will show service gaps here before you start the workspace.'}
               </Alert>
             )}
-            {currentCart?.catalogEvaluation?.recommendations.length ? (
+            {startGaps.length ? (
               <Stack spacing={1.25}>
-                {currentCart.catalogEvaluation.recommendations.slice(0, 5).map((item) => (
+                {startGaps.slice(0, 6).map((gap) => (
                   <Box
-                    key={`${item.source}-${item.recommendedModule.id}`}
+                    key={`${gap.type}-${gap.serviceModule?.id || gap.title}`}
                     sx={{
                       display: 'grid',
                       gridTemplateColumns: { xs: '1fr', md: '1fr auto' },
@@ -370,33 +380,49 @@ export default function DraftProjectCartPage() {
                       alignItems: 'center',
                       p: 1.5,
                       border: '1px solid',
-                      borderColor: item.severity === 'BLOCKER' ? '#fecdd3' : '#fde68a',
+                      borderColor: gap.severity === 'BLOCKER' ? '#fecdd3' : '#fde68a',
                       borderRadius: 1,
                       bgcolor: '#fff',
                     }}
                   >
                     <Box>
                       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                        <Typography sx={{ fontWeight: 900 }}>{item.recommendedModule.name}</Typography>
-                        <StatusChip label={item.severity} color={item.severity === 'BLOCKER' ? 'error' : 'warning'} />
+                        <Typography sx={{ fontWeight: 900 }}>{gap.title}</Typography>
+                        <StatusChip label={gap.severity} color={gap.severity === 'BLOCKER' ? 'error' : 'warning'} />
                       </Stack>
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
-                        {item.reason || item.recommendedModule.ownerOutcome || item.recommendedModule.description}
+                        {gap.description || 'Recommended before this workspace starts.'}
                       </Typography>
                     </Box>
-                    <Button
-                      variant="contained"
-                      startIcon={<AddShoppingCartOutlined />}
-                      disabled={addRecommendedService.isPending}
-                      onClick={() => addCatalogRecommendation(item)}
-                      sx={{ minHeight: 42, minWidth: 148 }}
-                    >
-                      Add service
-                    </Button>
+                    {gap.serviceModule ? (
+                      <Button
+                        variant="contained"
+                        startIcon={<AddShoppingCartOutlined />}
+                        disabled={addRecommendedService.isPending}
+                        onClick={() =>
+                          addRecommendedService.mutate({
+                            serviceModuleId: gap.serviceModule!.id,
+                            notes: `Added from the start readiness path. ${gap.description || ''}`.trim(),
+                          })
+                        }
+                        sx={{ minHeight: 42, minWidth: 148 }}
+                      >
+                        {gap.actionLabel || 'Add service'}
+                      </Button>
+                    ) : (
+                      <Button
+                        component={NextLink}
+                        href={gap.type === 'PRODUCT' ? '/products/new' : '/services'}
+                        variant="outlined"
+                        sx={{ minHeight: 42, minWidth: 148 }}
+                      >
+                        {gap.actionLabel || 'Open'}
+                      </Button>
+                    )}
                   </Box>
                 ))}
                 <Stack spacing={0.75}>
-                  {(currentCart.catalogEvaluation.nextBestActions || []).map((action) => (
+                  {(startReadiness?.nextBestActions || currentCart?.catalogEvaluation?.nextBestActions || []).map((action) => (
                     <DotLabel key={action} label={action} color={blockers ? appleColors.red : appleColors.amber} />
                   ))}
                 </Stack>

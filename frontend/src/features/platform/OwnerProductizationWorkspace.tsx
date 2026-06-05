@@ -103,7 +103,6 @@ import {
   ScannerConnectorInstallation,
   ScannerEvidenceItem,
   SignedArtifactResponse,
-  CatalogRuleItem,
 } from './types';
 
 interface ProductProfilePayload {
@@ -269,6 +268,19 @@ interface StudioAssistantContext {
   workspaceId?: string | undefined;
   milestoneId?: string | undefined;
   findingId?: string | undefined;
+  startReadiness?: {
+    status?: string;
+    ready?: boolean;
+    summary?: string;
+    gaps?: {
+      type: string;
+      severity: string;
+      title: string;
+      description?: string | undefined;
+      serviceModuleId?: string | undefined;
+      serviceModuleCode?: string | undefined;
+    }[];
+  } | undefined;
 }
 
 interface StudioAssistantCardProps {
@@ -1454,11 +1466,30 @@ export default function OwnerProductizationWorkspace({
   const cartServiceItems = cart.data?.serviceItems || [];
   const cartTalentItems = cart.data?.talentItems || [];
   const cartServiceIds = new Set(cartServiceItems.map((item) => item.serviceModule.id));
-  const cartBlockers = cart.data?.catalogEvaluation?.blockerCount || 0;
+  const cartStartReadiness = cart.data?.startReadiness;
+  const cartStartGaps = cartStartReadiness?.gaps || [];
+  const cartBlockers = cartStartReadiness?.blockerCount ?? cart.data?.catalogEvaluation?.blockerCount ?? 0;
   const cartBlockingRecommendations = (cart.data?.catalogEvaluation?.recommendations || []).filter(
     (item) => item.severity === 'BLOCKER' && !item.alreadySelected
   );
-  const canStartProjectWorkspace = !!selectedProduct && cartServiceItems.length > 0 && cartBlockers === 0;
+  const cartBlockingGaps = cartStartGaps.filter((gap) => gap.blocking);
+  const canStartProjectWorkspace = !!selectedProduct && (cartStartReadiness?.ready ?? (cartServiceItems.length > 0 && cartBlockers === 0));
+  const cartStartContext = cartStartReadiness
+    ? {
+        status: cartStartReadiness.status,
+        ready: cartStartReadiness.ready,
+        summary: cartStartReadiness.summary,
+        gaps: cartStartGaps.slice(0, 8).map((gap) => ({
+          type: gap.type,
+          severity: gap.severity,
+          title: gap.title,
+          description: gap.description,
+          serviceModuleId: gap.serviceModule?.id,
+          serviceModuleCode: gap.serviceModule?.stableCode || gap.serviceModule?.slug,
+        })),
+      }
+    : undefined;
+  const cartStartPromptFacts = `Project start plan: status ${cartStartReadiness?.status || 'not evaluated'}, ready ${cartStartReadiness?.ready ? 'yes' : 'no'}, summary "${cartStartReadiness?.summary || 'not available'}". Selected services: ${cartServiceItems.map((item) => `${item.serviceModule.name}${item.serviceModule.stableCode ? ` (${item.serviceModule.stableCode})` : ''}`).join(', ') || 'none'}. Start gaps: ${cartStartGaps.slice(0, 8).map((gap) => `${gap.title} (${gap.severity}${gap.serviceModule?.stableCode ? `, ${gap.serviceModule.stableCode}` : ''}): ${gap.description || 'no description'}`).join('; ') || 'none'}. Next actions: ${(cartStartReadiness?.nextBestActions || []).join('; ') || 'none'}.`;
   const suggestedTeams = (teams.data || []).slice(0, 3);
   const suggestedExperts = (experts.data || []).filter((expert) => expert.active).slice(0, 3);
   const health = productHealth(selectedProduct, selectedPackage, packageModules.data);
@@ -1521,6 +1552,7 @@ export default function OwnerProductizationWorkspace({
     productId: selectedProduct?.id,
     packageId: selectedPackage?.id,
     workspaceId: selectedWorkspace?.id,
+    startReadiness: cartStartContext,
     ...overrides,
   });
   const assistantActionName = (action: Record<string, unknown>) =>
@@ -1540,7 +1572,7 @@ export default function OwnerProductizationWorkspace({
         return 'Add at least one lifecycle service to the draft cart first.';
       }
       if (cartBlockers > 0) {
-        return `Add required catalog services first: ${cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`;
+        return `Add required services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`;
       }
       return '';
     }
@@ -1564,7 +1596,7 @@ export default function OwnerProductizationWorkspace({
     if (name.includes('workspace.create')) {
       if (!(cart.data?.serviceItems || []).length) throw new Error('Add lifecycle services to the draft cart before creating a workspace.');
       if (cartBlockers > 0) {
-        throw new Error(`Add required catalog services first: ${cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`);
+        throw new Error(`Add required services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`);
       }
       await convertCart.mutateAsync();
       return;
@@ -1668,22 +1700,6 @@ export default function OwnerProductizationWorkspace({
     addServiceToCart.mutate({
       serviceModuleId: serviceModule.id,
       notes: categoryName ? `Owner selected from ${categoryName}.` : 'Owner selected from lifecycle services.',
-    });
-  };
-
-  const addCatalogGuardService = (item: CatalogRuleItem) => {
-    if (!selectedProduct?.id) return;
-    const businessGoal = `Add ${item.recommendedModule.name} to ${selectedProduct.name} so the project workspace has the required catalog dependency before kickoff.`;
-    if (cart.data?.productProfile?.id !== selectedProduct.id) {
-      updateCart.mutate({
-        productProfileId: selectedProduct.id,
-        title: `${selectedProduct.name} productization plan`,
-        businessGoal,
-      });
-    }
-    addServiceToCart.mutate({
-      serviceModuleId: item.recommendedModule.id,
-      notes: `Added from AI catalog guard (${formatLabel(item.source)}). ${item.reason || ''}`.trim(),
     });
   };
 
@@ -3115,7 +3131,7 @@ export default function OwnerProductizationWorkspace({
               <StudioAssistantCard
                 title="AI Service Selector"
                 description="Use catalog knowledge and current product context to narrow the services that belong in the draft cart."
-                prompt={`Recommend the most relevant lifecycle services for ${selectedProduct?.name || 'the selected product'}. Consider current diagnosis, scanner findings, product stage, cart services, dependencies, and launch readiness. Explain why each service should or should not be selected.`}
+                prompt={`Recommend the most relevant lifecycle services for ${selectedProduct?.name || 'the selected product'}. Consider current diagnosis, scanner findings, product stage, cart services, dependencies, and launch readiness. Use these visible project start facts directly: ${cartStartPromptFacts} Explain why each service should or should not be selected, identify which missing services are required before workspace start, and avoid proposing services that are already in the cart unless the owner should revisit scope.`}
                 conversationId={`studio-services-${selectedProduct?.id || 'none'}`}
                 context={assistantContext('service-selection')}
                 disabled={!selectedProduct}
@@ -3360,7 +3376,7 @@ export default function OwnerProductizationWorkspace({
                 <StudioAssistantCard
                   title="AI Package Recommendation"
                   description="Validate this service plan against product goals, dependencies, delivery evidence, and team-readiness."
-                  prompt={`Evaluate the service plan "${selectedPackage.name}" for ${selectedProduct?.name || 'this product'}. Explain whether the package sequence is appropriate, which dependencies or evidence gates matter, what a team should prove, and what the owner should decide next.`}
+                  prompt={`Evaluate the service plan "${selectedPackage.name}" for ${selectedProduct?.name || 'this product'}. Use these visible project start facts directly: ${cartStartPromptFacts} Explain whether the package sequence is appropriate, which dependencies or proof gates matter, what a team should prove, and what the owner should decide next. Keep the answer practical for an MVP or AI-built prototype owner.`}
                   conversationId={`studio-package-${selectedPackage.id}`}
                   context={assistantContext('package-recommendation')}
                   {...assistantActionProps}
@@ -3516,7 +3532,7 @@ export default function OwnerProductizationWorkspace({
           <Box id="project-cart" sx={{ scrollMarginTop: 96 }}>
           <Surface>
             <SectionTitle
-              title="Draft Project Cart"
+              title="Project Start Plan"
               action={<ShoppingCartOutlined sx={{ color: appleColors.purple }} />}
             />
             <Stack spacing={1.5}>
@@ -3532,8 +3548,13 @@ export default function OwnerProductizationWorkspace({
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                   <PastelChip label={`${cart.data?.serviceItems.length || 0} services`} accent={appleColors.purple} />
                   <PastelChip label={`${cart.data?.talentItems.length || 0} teams / experts`} accent={appleColors.cyan} bg="#e4f9fd" />
-                  {cartBlockers > 0 && <PastelChip label={`${cartBlockers} service gaps`} accent={appleColors.red} bg="#fff1f2" />}
+                  {cartStartReadiness?.status && <PastelChip label={formatLabel(cartStartReadiness.status)} accent={canStartProjectWorkspace ? appleColors.green : cartBlockers > 0 ? appleColors.red : appleColors.amber} bg={canStartProjectWorkspace ? '#e7f8ee' : cartBlockers > 0 ? '#fff1f2' : '#fff7ed'} />}
                 </Stack>
+                {cartStartReadiness?.summary && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.55 }}>
+                    {cartStartReadiness.summary}
+                  </Typography>
+                )}
               </Box>
 
               {(cart.data?.serviceItems || []).length ? (
@@ -3574,41 +3595,50 @@ export default function OwnerProductizationWorkspace({
                 </Typography>
               )}
 
-              {cartBlockingRecommendations.length > 0 && (
+              {cartBlockingGaps.length > 0 && (
                 <Surface sx={{ boxShadow: 'none', bgcolor: '#fff7ed', borderColor: '#fed7aa' }}>
                   <Stack spacing={1}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <AutoAwesomeOutlined sx={{ color: appleColors.amber }} />
                       <Box>
                         <Typography variant="body2" sx={{ fontWeight: 900 }}>
-                          Add these services before starting
+                          Before this becomes a workspace
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          These fill practical gaps so the workspace starts with release automation and operating proof.
+                          These practical gaps keep the first project workspace useful instead of vague.
                         </Typography>
                       </Box>
                     </Stack>
-                    {cartBlockingRecommendations.map((item) => (
+                    {cartBlockingGaps.map((gap) => (
                       <Box
-                        key={item.recommendedModule.id}
+                        key={`${gap.type}-${gap.serviceModule?.id || gap.title}`}
                         sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr auto' }, gap: 1, alignItems: 'center' }}
                       >
                         <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 900 }}>{item.recommendedModule.name}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 900 }}>{gap.title}</Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {item.reason || item.recommendedModule.ownerOutcome || item.recommendedModule.description}
+                            {gap.description || 'Required before starting.'}
                           </Typography>
                         </Box>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          startIcon={<AddShoppingCartOutlined />}
-                          disabled={addServiceToCart.isPending}
-                          onClick={() => addCatalogGuardService(item)}
-                          sx={{ minHeight: 36 }}
-                        >
-                          Add
-                        </Button>
+                        {gap.serviceModule ? (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            startIcon={<AddShoppingCartOutlined />}
+                            disabled={addServiceToCart.isPending}
+                            onClick={() => addServiceToCart.mutate({
+                              serviceModuleId: gap.serviceModule!.id,
+                              notes: `Added from the project start plan. ${gap.description || ''}`.trim(),
+                            })}
+                            sx={{ minHeight: 36 }}
+                          >
+                            Add
+                          </Button>
+                        ) : (
+                          <Button component={NextLink} href={gap.type === 'PRODUCT' ? '/products/new' : '/services'} size="small" variant="outlined" sx={{ minHeight: 36 }}>
+                            Open
+                          </Button>
+                        )}
                       </Box>
                     ))}
                   </Stack>
@@ -3664,7 +3694,7 @@ export default function OwnerProductizationWorkspace({
               {selectedProduct && !cartServiceItems.length && <DotLabel label="Add at least one productization service" color={appleColors.amber} />}
               {selectedProduct && cartServiceItems.length > 0 && cartBlockers > 0 && (
                 <DotLabel
-                  label={`Add these services first: ${cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}`}
+                  label={`Add these services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}`}
                   color={appleColors.red}
                 />
               )}

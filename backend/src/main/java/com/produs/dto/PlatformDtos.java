@@ -205,6 +205,28 @@ public final class PlatformDtos {
             boolean aiExecuted
     ) {}
 
+    public record ProductizationStartGapResponse(
+            String type,
+            String severity,
+            String title,
+            String description,
+            ServiceModuleResponse serviceModule,
+            String actionLabel,
+            boolean blocking
+    ) {}
+
+    public record ProductizationStartReadinessResponse(
+            String status,
+            boolean ready,
+            String summary,
+            boolean productSelected,
+            boolean serviceSelected,
+            int blockerCount,
+            int warningCount,
+            List<ProductizationStartGapResponse> gaps,
+            List<String> nextBestActions
+    ) {}
+
     public record ProductProfileResponse(
             UUID id,
             LocalDateTime createdAt,
@@ -385,7 +407,8 @@ public final class PlatformDtos {
             List<ProductizationCartTalentItemResponse> talentItems,
             PackageInstanceResponse convertedPackage,
             ProjectWorkspaceResponse convertedWorkspace,
-            CatalogRuleEvaluationResponse catalogEvaluation
+            CatalogRuleEvaluationResponse catalogEvaluation,
+            ProductizationStartReadinessResponse startReadiness
     ) {}
 
     public record ProductizationCartConvertResponse(
@@ -1193,7 +1216,8 @@ public final class PlatformDtos {
                 talentItems.stream().map(PlatformDtos::toProductizationCartTalentItemResponse).toList(),
                 toPackageInstanceResponse(cart.getConvertedPackage()),
                 toProjectWorkspaceResponse(cart.getConvertedWorkspace()),
-                null
+                null,
+                buildStartReadiness(cart, serviceItems, null)
         );
     }
 
@@ -1219,8 +1243,115 @@ public final class PlatformDtos {
                 talentItems.stream().map(PlatformDtos::toProductizationCartTalentItemResponse).toList(),
                 toPackageInstanceResponse(cart.getConvertedPackage()),
                 toProjectWorkspaceResponse(cart.getConvertedWorkspace()),
-                catalogEvaluation
+                catalogEvaluation,
+                buildStartReadiness(cart, serviceItems, catalogEvaluation)
         );
+    }
+
+    private static ProductizationStartReadinessResponse buildStartReadiness(
+            ProductizationCart cart,
+            List<ProductizationCartServiceItem> serviceItems,
+            CatalogRuleEvaluationResponse catalogEvaluation
+    ) {
+        if (cart == null) {
+            return null;
+        }
+        boolean productSelected = cart.getProductProfile() != null;
+        boolean serviceSelected = serviceItems != null && !serviceItems.isEmpty();
+        int blockerCount = catalogEvaluation == null ? 0 : catalogEvaluation.blockerCount();
+        int warningCount = catalogEvaluation == null ? 0 : catalogEvaluation.warningCount();
+        List<ProductizationStartGapResponse> gaps = buildStartGaps(productSelected, serviceSelected, catalogEvaluation);
+        boolean ready = productSelected && serviceSelected && blockerCount == 0;
+        String status;
+        String summary;
+        if (ready) {
+            status = "READY";
+            summary = "Ready to start a project workspace with the selected services.";
+        } else if (!productSelected) {
+            status = "NEEDS_PRODUCT";
+            summary = "Choose the product this start plan belongs to.";
+        } else if (!serviceSelected) {
+            status = "NEEDS_SERVICES";
+            summary = "Add at least one lifecycle service before starting the workspace.";
+        } else {
+            status = "NEEDS_FIXES";
+            summary = blockerCount == 1
+                    ? "Add the missing required service before starting."
+                    : "Add the missing required services before starting.";
+        }
+        List<String> nextActions = catalogEvaluation == null || catalogEvaluation.nextBestActions() == null
+                ? List.of()
+                : catalogEvaluation.nextBestActions();
+        return new ProductizationStartReadinessResponse(
+                status,
+                ready,
+                summary,
+                productSelected,
+                serviceSelected,
+                blockerCount,
+                warningCount,
+                gaps,
+                nextActions
+        );
+    }
+
+    private static List<ProductizationStartGapResponse> buildStartGaps(
+            boolean productSelected,
+            boolean serviceSelected,
+            CatalogRuleEvaluationResponse catalogEvaluation
+    ) {
+        java.util.ArrayList<ProductizationStartGapResponse> gaps = new java.util.ArrayList<>();
+        if (!productSelected) {
+            gaps.add(new ProductizationStartGapResponse(
+                    "PRODUCT",
+                    "BLOCKER",
+                    "Choose a product",
+                    "The workspace needs a concrete product so scanner results, services, and milestones have the right context.",
+                    null,
+                    "Choose product",
+                    true
+            ));
+        }
+        if (!serviceSelected) {
+            gaps.add(new ProductizationStartGapResponse(
+                    "SERVICE",
+                    "BLOCKER",
+                    "Add lifecycle services",
+                    "Start with the services that match the prototype's current risks, such as diagnosis, security, testing, launch, or support.",
+                    null,
+                    "Add services",
+                    true
+            ));
+        }
+        if (catalogEvaluation != null && catalogEvaluation.recommendations() != null) {
+            catalogEvaluation.recommendations().stream()
+                    .filter(item -> !item.alreadySelected())
+                    .map(item -> new ProductizationStartGapResponse(
+                            "CATALOG_RULE",
+                            item.severity().name(),
+                            item.recommendedModule().name(),
+                            firstNonBlank(
+                                    item.reason(),
+                                    item.recommendedModule().ownerOutcome(),
+                                    item.recommendedModule().description(),
+                                    "Recommended by the service catalog before starting the workspace."
+                            ),
+                            item.recommendedModule(),
+                            item.severity() == ServiceDependency.DependencySeverity.BLOCKER ? "Add required service" : "Add service",
+                            item.severity() == ServiceDependency.DependencySeverity.BLOCKER
+                    ))
+                    .forEach(gaps::add);
+        }
+        return gaps;
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     public static TeamShortlistResponse toTeamShortlistResponse(TeamShortlist shortlist) {

@@ -156,6 +156,28 @@ export interface CatalogRuleEvaluation {
   aiExecuted: boolean;
 }
 
+export interface ProductizationStartGap {
+  type: 'PRODUCT' | 'SERVICE' | 'CATALOG_RULE' | string;
+  severity: 'INFO' | 'RECOMMENDED' | 'WARNING' | 'BLOCKER' | string;
+  title: string;
+  description?: string;
+  serviceModule?: ServiceModule;
+  actionLabel?: string;
+  blocking: boolean;
+}
+
+export interface ProductizationStartReadiness {
+  status: 'READY' | 'NEEDS_PRODUCT' | 'NEEDS_SERVICES' | 'NEEDS_FIXES' | string;
+  ready: boolean;
+  summary: string;
+  productSelected: boolean;
+  serviceSelected: boolean;
+  blockerCount: number;
+  warningCount: number;
+  gaps: ProductizationStartGap[];
+  nextBestActions: string[];
+}
+
 export interface ProductProfile extends BaseRecord {
   name: string;
   summary?: string;
@@ -790,6 +812,7 @@ export interface ProductizationCart extends BaseRecord {
   convertedPackage?: PackageInstance;
   convertedWorkspace?: ProjectWorkspace;
   catalogEvaluation?: CatalogRuleEvaluation;
+  startReadiness?: ProductizationStartReadiness;
 }
 
 export interface ProductizationCartConvertResponse {
