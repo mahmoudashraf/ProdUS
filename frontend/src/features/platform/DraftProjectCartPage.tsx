@@ -211,6 +211,16 @@ export default function DraftProjectCartPage() {
                   value={hasPlaceholderProduct ? '' : product?.id || ''}
                   onChange={(event) => selectProduct(event.target.value)}
                   disabled={updateCart.isPending}
+                  InputLabelProps={{ shrink: true }}
+                  SelectProps={{ displayEmpty: true }}
+                  sx={{
+                    '& .MuiSelect-select': {
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      pr: 5
+                    }
+                  }}
                 >
                   <MenuItem value="" disabled>
                     Choose product
