@@ -163,6 +163,15 @@ const produs: NavItemType = {
       icon: icons.IconScan,
       roles: [UserRole.ADMIN],
       breadcrumbs: true
+    },
+    {
+      id: 'diagnosis-quality',
+      title: 'Diagnosis Quality',
+      type: 'item',
+      url: '/admin/diagnosis-quality',
+      icon: icons.IconChecklist,
+      roles: [UserRole.ADMIN],
+      breadcrumbs: true
     }
   ]
 };

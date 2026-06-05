@@ -1412,3 +1412,80 @@ export interface AuditEvent extends BaseRecord {
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   details?: string;
 }
+
+export interface DiagnosisQualityFixture {
+  id: string;
+  name: string;
+  sourceApp: string;
+  prototypeType: string;
+  description: string;
+  findingCount: number;
+  expectedServiceCodes: string[];
+  expectedReadinessAreas: string[];
+}
+
+export interface DiagnosisQualityFindingResult {
+  title: string;
+  sourceTool: string;
+  severity: ProductFinding['severity'];
+  expectedCategory: string;
+  actualCategory: string;
+  categoryMatched: boolean;
+  expectedServiceCode?: string;
+  actualServiceCode?: string;
+  serviceMatched: boolean;
+  catalogResolved: boolean;
+  resolvedServiceName?: string;
+  actualReadinessArea?: string;
+  businessRisk?: string;
+  evidenceRequired?: string;
+  mappingReason?: string;
+  mappingConfidence: number;
+}
+
+export interface DiagnosisQualityBadExample {
+  text: string;
+  caught: boolean;
+  issues: string[];
+}
+
+export interface DiagnosisQualityFixtureResult {
+  fixtureId: string;
+  name: string;
+  sourceApp: string;
+  prototypeType: string;
+  status: 'PASS' | 'WARN' | 'FAIL';
+  overallScore: number;
+  categoryScore: number;
+  serviceMappingScore: number;
+  catalogResolutionScore: number;
+  specificityScore: number;
+  nonGenericScore: number;
+  badExampleScore: number;
+  expectedServiceCodes: string[];
+  expectedReadinessAreas: string[];
+  actualServiceCodes: string[];
+  actualReadinessAreas: string[];
+  matchedServiceCodes: string[];
+  unresolvedCatalogCodes: string[];
+  generatedDiagnosis: string;
+  genericIssues: string[];
+  findings: DiagnosisQualityFindingResult[];
+  badDiagnosisExamples: DiagnosisQualityBadExample[];
+  reviewerNotes?: string;
+}
+
+export interface DiagnosisQualityRun {
+  generatedAt: string;
+  status: 'PASS' | 'WARN' | 'FAIL';
+  averageScore: number;
+  passCount: number;
+  warnCount: number;
+  failCount: number;
+  totalExpectedServices: number;
+  totalMatchedServices: number;
+  unresolvedCatalogCodeCount: number;
+  fixtureCount: number;
+  fixtures: DiagnosisQualityFixtureResult[];
+  nextActions: string[];
+}

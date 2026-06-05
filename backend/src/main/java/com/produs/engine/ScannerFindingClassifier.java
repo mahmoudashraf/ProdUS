@@ -84,6 +84,17 @@ public class ScannerFindingClassifier {
                     0.82
             );
         }
+        if (contains(signal, "test", "coverage", "junit", "playwright", "cypress", "flaky", "assertion", "qa")) {
+            return classification(
+                    "TESTING_GAP",
+                    "Testing and quality",
+                    "quality.test_strategy",
+                    "Testing gaps make release decisions fragile because critical flows lack proof.",
+                    "Attach test strategy, critical-path coverage, automation results, and release acceptance evidence.",
+                    "Testing and quality terms matched.",
+                    0.8
+            );
+        }
         if (contains(signal, "ci/cd", "pipeline", "workflow", "github actions", "gitlab ci", "build failed", "release gate")) {
             return classification(
                     "RELEASE_PIPELINE_GAP",
@@ -115,17 +126,6 @@ public class ScannerFindingClassifier {
                     "Attach benchmark traces, target thresholds, bottleneck list, and remediation plan.",
                     "Performance scanner or browser metric terms matched.",
                     0.82
-            );
-        }
-        if (contains(signal, "test", "coverage", "junit", "playwright", "cypress", "flaky", "assertion", "qa")) {
-            return classification(
-                    "TESTING_GAP",
-                    "Testing and quality",
-                    "quality.test_strategy",
-                    "Testing gaps make release decisions fragile because critical flows lack proof.",
-                    "Attach test strategy, critical-path coverage, automation results, and release acceptance evidence.",
-                    "Testing and quality terms matched.",
-                    0.8
             );
         }
         if (contains(signal, "launch", "go live", "go/no-go", "runbook", "handoff", "support", "documentation", "docs")) {
