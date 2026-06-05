@@ -1473,7 +1473,7 @@ export default function OwnerProductizationWorkspace({
   const scannerMappedFindings = latestScannerDiagnosis?.findings || [];
   const scannerMappedServices = Array.from(new Set(scannerMappedFindings.map((finding) => finding.recommendedModuleName).filter(Boolean)));
   const scannerReadinessPromptFacts = latestScannerDiagnosis
-    ? `Scanner readiness map: score ${latestScannerDiagnosis.readinessScore}/100, top blockers ${latestScannerDiagnosis.topBlockerCount || 0}, evidence items ${latestScannerDiagnosis.evidenceCount || 0}, unmapped findings ${latestScannerDiagnosis.unmappedFindingCount || 0}. Mapped services: ${scannerMappedServices.join(', ') || 'none'}. Top mapped findings: ${scannerMappedFindings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.readinessArea || 'unclassified'}, service ${finding.recommendedModuleName || 'unmapped'}): risk ${finding.businessRisk || finding.description}; evidence ${finding.evidenceRequired || 'not recorded'}`).join('; ') || 'none'}.`
+    ? `Scanner ship-readiness map: score ${latestScannerDiagnosis.readinessScore}/100, priority fixes ${latestScannerDiagnosis.topBlockerCount || 0}, proof items ${latestScannerDiagnosis.evidenceCount || 0}, unmapped findings ${latestScannerDiagnosis.unmappedFindingCount || 0}. Mapped services: ${scannerMappedServices.join(', ') || 'none'}. Top mapped findings: ${scannerMappedFindings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.readinessArea || 'unclassified'}, service ${finding.recommendedModuleName || 'unmapped'}): risk ${finding.businessRisk || finding.description}; proof ${finding.evidenceRequired || 'not recorded'}`).join('; ') || 'none'}.`
     : 'No scanner readiness diagnosis has been generated yet.';
   const diagnosisPromptFacts = latestDiagnosis
     ? `Visible diagnosis facts: readiness score ${latestDiagnosis.readinessScore}/100, status ${formatLabel(latestDiagnosis.status)}, source ${formatLabel(latestDiagnosis.diagnosisSource || 'MANUAL_DETERMINISTIC')}, AI state ${latestDiagnosis.aiExecuted ? 'AI executed' : 'AI-ready deterministic'}, finding count ${latestDiagnosis.findings.length}. Diagnosis summary: "${latestDiagnosis.summary || 'not recorded'}". Access signals: "${latestDiagnosis.accessSignals || 'not recorded'}". Top findings: ${latestDiagnosis.findings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.status}, area ${finding.readinessArea || 'not classified'}, recommended service ${finding.recommendedModuleName || 'not mapped'}): ${finding.businessRisk || finding.description}`).join('; ') || 'none recorded'}. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings; scanner top findings ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none open'}. ${scannerReadinessPromptFacts}`
@@ -1818,7 +1818,7 @@ export default function OwnerProductizationWorkspace({
                 <MetricTile label="Intakes" value={selectedProductRequirements.length} detail="Requirement records" accent={appleColors.purple} icon={<FactCheckOutlined />} />
                 <MetricTile label="Service plan" value={selectedPackage ? formatLabel(selectedPackage.status) : 'Not created'} detail={selectedPackage?.name || 'Create from brief or cart'} accent={statusAccent(selectedPackage?.status)} icon={<RocketLaunchOutlined />} />
                 <MetricTile label="Shortlist" value={activeShortlists.length || teamRecommendations.data?.length || productProposals.length} detail="Verified team options" accent={appleColors.cyan} icon={<CompareArrowsOutlined />} />
-                <MetricTile label="Blockers" value={blockedMilestones + productSupport.filter((request) => request.slaStatus === 'OVERDUE').length} detail="Milestones and support" accent={blockedMilestones ? appleColors.red : appleColors.green} icon={<CheckCircleOutlineOutlined />} />
+                <MetricTile label="Needs attention" value={blockedMilestones + productSupport.filter((request) => request.slaStatus === 'OVERDUE').length} detail="Milestones and support" accent={blockedMilestones ? appleColors.red : appleColors.green} icon={<CheckCircleOutlineOutlined />} />
               </Box>
             </Surface>
           ) : (
@@ -1845,7 +1845,7 @@ export default function OwnerProductizationWorkspace({
                     />
                     <TextField
                       size="small"
-                      label="Known blockers"
+                      label="Known rough edges"
                       value={diagnosisForm.values.currentProblems}
                       onChange={(event) => diagnosisForm.setValue('currentProblems', event.target.value)}
                       multiline
@@ -1881,8 +1881,8 @@ export default function OwnerProductizationWorkspace({
                       </Stack>
                       {latestDiagnosis.diagnosisSource === 'SCANNER_READINESS' && (
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
-                          <MetricTile label="Top blockers" value={latestDiagnosis.topBlockerCount || 0} detail="Critical/high scanner findings" accent={(latestDiagnosis.topBlockerCount || 0) ? appleColors.red : appleColors.green} icon={<BugReportOutlined />} />
-                          <MetricTile label="Evidence linked" value={latestDiagnosis.evidenceCount || 0} detail="Scanner evidence items" accent={appleColors.cyan} icon={<ArticleOutlined />} />
+                          <MetricTile label="Priority fixes" value={latestDiagnosis.topBlockerCount || 0} detail="Critical/high scanner findings" accent={(latestDiagnosis.topBlockerCount || 0) ? appleColors.red : appleColors.green} icon={<BugReportOutlined />} />
+                          <MetricTile label="Proof linked" value={latestDiagnosis.evidenceCount || 0} detail="Scanner proof items" accent={appleColors.cyan} icon={<ArticleOutlined />} />
                           <MetricTile label="Unmapped" value={latestDiagnosis.unmappedFindingCount || 0} detail="Need human classification" accent={(latestDiagnosis.unmappedFindingCount || 0) ? appleColors.amber : appleColors.green} icon={<InfoOutlined />} />
                         </Box>
                       )}
@@ -1914,7 +1914,7 @@ export default function OwnerProductizationWorkspace({
                                   )}
                                   {finding.evidenceRequired && (
                                     <Box sx={{ p: 1, borderRadius: 1, border: '1px solid', borderColor: '#dcfce7', bgcolor: '#fbfffd' }}>
-                                      <Typography variant="caption" color="text.secondary">Evidence required</Typography>
+                                      <Typography variant="caption" color="text.secondary">Proof needed</Typography>
                                       <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1.45 }}>{finding.evidenceRequired}</Typography>
                                     </Box>
                                   )}
@@ -1943,14 +1943,14 @@ export default function OwnerProductizationWorkspace({
               </Box>
               <Box sx={{ mt: 2 }}>
                 <StudioAssistantCard
-                  title="AI Diagnosis Explainer"
-                  description="Explain the current diagnosis, likely blockers, and which owner decision should happen next."
-                  prompt={`Do not call tools for this answer. Explain the productization diagnosis for ${selectedProduct.name} using these visible facts directly. ${diagnosisPromptFacts} Focus on readiness score, blockers, recommended lifecycle services, scanner signals, and the next owner decision. Do not certify production readiness; call out where human review is needed.`}
+                  title="Ask AI About This Diagnosis"
+                  description="Translate the diagnosis into practical fixes, tradeoffs, and the next owner decision."
+                  prompt={`Do not call tools for this answer. Explain the productization diagnosis for ${selectedProduct.name} using these visible facts directly. ${diagnosisPromptFacts} Focus on the ship-readiness score, priority fixes, recommended lifecycle services, scanner signals, and the next owner decision. Do not certify production readiness; call out where human review is needed.`}
                   conversationId={`studio-diagnosis-${selectedProduct.id}`}
                   context={assistantContext('product-diagnosis')}
                   {...assistantActionProps}
                   accent={appleColors.purple}
-                  cta="Explain Diagnosis"
+                  cta="Ask AI"
                 />
               </Box>
             </Surface>
@@ -1959,11 +1959,11 @@ export default function OwnerProductizationWorkspace({
           {selectedProduct && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
               <SectionTitle
-                title="Scanner Evidence And Readiness"
+                title="Scanner Proof And Fix Path"
                 action={<PastelChip label={`${scannerCounts?.total || 0} normalized findings`} accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green} bg={scannerOpenFindings.length ? '#fff4dc' : '#e7f8ee'} />}
               />
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '220px repeat(3, minmax(0, 1fr))' }, gap: 1.5, mb: 2 }}>
-                <MetricTile label="Readiness" value={`${scannerReadiness}%`} detail="Scanner-backed score" accent={scannerReadiness >= 80 ? appleColors.green : scannerReadiness >= 60 ? appleColors.amber : appleColors.red} icon={<ShieldOutlined />} />
+                <MetricTile label="Ship confidence" value={`${scannerReadiness}%`} detail="Scanner-backed signal" accent={scannerReadiness >= 80 ? appleColors.green : scannerReadiness >= 60 ? appleColors.amber : appleColors.red} icon={<ShieldOutlined />} />
                 <MetricTile label="Critical / High" value={`${scannerCounts?.critical || 0}/${scannerCounts?.high || 0}`} detail="Require owner review" accent={(scannerCounts?.critical || scannerCounts?.high) ? appleColors.red : appleColors.green} icon={<BugReportOutlined />} />
                 <MetricTile label="Open findings" value={scannerCounts?.open || 0} detail="New, open, or regressed" accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green} icon={<FactCheckOutlined />} />
                 <MetricTile label="Evidence sources" value={scannerSummary.data?.sources.length || 0} detail="CI, repo, runtime, or tool imports" accent={appleColors.cyan} icon={<CloudUploadOutlined />} />
@@ -2005,16 +2005,16 @@ export default function OwnerProductizationWorkspace({
                       <AutoAwesomeOutlined />
                     </Box>
                     <Box>
-                      <Typography sx={{ fontWeight: 950 }}>Readiness service map</Typography>
+                      <Typography sx={{ fontWeight: 950 }}>Fix path from scanner findings</Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                        Stored automatically when scanner evidence completes. Refresh only after catalog, finding, or risk-decision changes.
+                        Stored automatically when scanner proof completes. Refresh only after services, findings, or owner decisions change.
                       </Typography>
                     </Box>
                   </Stack>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
                     {latestScannerDiagnosis ? (
                       <>
-                        <PastelChip label={`${latestScannerDiagnosis.topBlockerCount || 0} top blockers`} accent={(latestScannerDiagnosis.topBlockerCount || 0) ? appleColors.red : appleColors.green} bg={(latestScannerDiagnosis.topBlockerCount || 0) ? '#fff1f2' : '#e7f8ee'} />
+                        <PastelChip label={`${latestScannerDiagnosis.topBlockerCount || 0} priority fixes`} accent={(latestScannerDiagnosis.topBlockerCount || 0) ? appleColors.red : appleColors.green} bg={(latestScannerDiagnosis.topBlockerCount || 0) ? '#fff1f2' : '#e7f8ee'} />
                         <PastelChip label={`${scannerMappedServices.length} services mapped`} accent={appleColors.purple} />
                         <PastelChip label={`${latestScannerDiagnosis.unmappedFindingCount || 0} unmapped`} accent={(latestScannerDiagnosis.unmappedFindingCount || 0) ? appleColors.amber : appleColors.green} bg={(latestScannerDiagnosis.unmappedFindingCount || 0) ? '#fff4dc' : '#e7f8ee'} />
                       </>
@@ -2067,7 +2067,7 @@ export default function OwnerProductizationWorkspace({
                             {finding.businessRisk || finding.description}
                           </Typography>
                           <Box sx={{ mt: 1, p: 1, borderRadius: 1, bgcolor: '#fbfdff', border: '1px solid', borderColor: appleColors.line }}>
-                            <Typography variant="caption" color="text.secondary">Evidence needed</Typography>
+                            <Typography variant="caption" color="text.secondary">Proof needed</Typography>
                             <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1.5 }}>
                               {finding.evidenceRequired || 'Owner review note and scanner rerun evidence.'}
                             </Typography>
@@ -2080,7 +2080,7 @@ export default function OwnerProductizationWorkspace({
                                 variant={inCart ? 'outlined' : 'contained'}
                                 disabled={inCart || addServiceToCart.isPending}
                                 startIcon={<AddShoppingCartOutlined />}
-                                onClick={() => addLifecycleService(recommendedModule, 'Readiness service map')}
+                                onClick={() => addLifecycleService(recommendedModule, 'Fix path from scanner findings')}
                                 sx={{ minHeight: 34, minWidth: 128 }}
                               >
                                 {inCart ? 'In Plan' : 'Add Service'}
@@ -2088,7 +2088,7 @@ export default function OwnerProductizationWorkspace({
                             </Stack>
                           ) : (
                             <Alert severity="warning" sx={{ mt: 1, borderRadius: 1 }}>
-                              Human review needed before this scanner signal can be mapped to a catalog service.
+                              Needs a quick review before this scanner signal can be mapped to a ProdUS service.
                             </Alert>
                           )}
                         </Box>
@@ -2106,14 +2106,14 @@ export default function OwnerProductizationWorkspace({
 
               <Box sx={{ mb: 2 }}>
                 <StudioAssistantCard
-                  title="AI Scanner Summary"
-                  description="Summarize scanner readiness, explain the highest-risk findings, and translate evidence into productization actions."
-                  prompt={`Do not call write actions for this answer. Summarize scanner readiness for ${selectedProduct.name}. Current scanner score is ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings. Top visible findings: ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none'}. ${scannerReadinessPromptFacts} Prioritize critical and high findings, explain the business risk, identify missing evidence, and recommend lifecycle services or milestone actions. Use the provided context and visible facts directly. Avoid raw artifact details.`}
+                  title="AI Fix Path Summary"
+                  description="Summarize scanner findings, explain the highest-risk fixes, and turn proof into practical productization actions."
+                  prompt={`Do not call write actions for this answer. Summarize scanner ship-readiness for ${selectedProduct.name}. Current scanner score is ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings. Top visible findings: ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none'}. ${scannerReadinessPromptFacts} Prioritize critical and high findings, explain the business risk in plain language, identify missing proof, and recommend lifecycle services or milestone actions. Use the provided context and visible facts directly. Avoid raw artifact details.`}
                   conversationId={`studio-scanner-${selectedProduct.id}-${selectedFinding?.id || 'summary'}`}
                   context={assistantContext('scanner-readiness', { findingId: selectedFinding?.id })}
                   {...assistantActionProps}
                   accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green}
-                  cta="Summarize Readiness"
+                  cta="Summarize Fixes"
                 />
               </Box>
 
@@ -3020,7 +3020,7 @@ export default function OwnerProductizationWorkspace({
                         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1, mt: 1.25 }}>
                           {selectedFinding.evidenceRequired && (
                             <Box sx={{ p: 1, border: '1px solid', borderColor: '#dcfce7', borderRadius: 1, bgcolor: '#fbfffd' }}>
-                              <Typography variant="caption" color="text.secondary">Evidence required</Typography>
+                          <Typography variant="caption" color="text.secondary">Proof needed</Typography>
                               <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.5 }}>{selectedFinding.evidenceRequired}</Typography>
                             </Box>
                           )}
@@ -3532,7 +3532,7 @@ export default function OwnerProductizationWorkspace({
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                   <PastelChip label={`${cart.data?.serviceItems.length || 0} services`} accent={appleColors.purple} />
                   <PastelChip label={`${cart.data?.talentItems.length || 0} teams / experts`} accent={appleColors.cyan} bg="#e4f9fd" />
-                  {cartBlockers > 0 && <PastelChip label={`${cartBlockers} required services missing`} accent={appleColors.red} bg="#fff1f2" />}
+                  {cartBlockers > 0 && <PastelChip label={`${cartBlockers} service gaps`} accent={appleColors.red} bg="#fff1f2" />}
                 </Stack>
               </Box>
 
@@ -3570,7 +3570,7 @@ export default function OwnerProductizationWorkspace({
                 </Stack>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  Use the add-to-cart buttons on lifecycle services to collect the work needed before this becomes a project.
+                  Use the add-to-cart buttons on productization services to collect the work needed before this becomes a project.
                 </Typography>
               )}
 
@@ -3581,10 +3581,10 @@ export default function OwnerProductizationWorkspace({
                       <AutoAwesomeOutlined sx={{ color: appleColors.amber }} />
                       <Box>
                         <Typography variant="body2" sx={{ fontWeight: 900 }}>
-                          AI guard found required services before workspace start
+                          Add these services before starting
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          Add these catalog dependencies so milestones include release automation and operational evidence.
+                          These fill practical gaps so the workspace starts with release automation and operating proof.
                         </Typography>
                       </Box>
                     </Stack>
@@ -3661,10 +3661,10 @@ export default function OwnerProductizationWorkspace({
                 {convertCart.isPending ? 'Creating...' : 'Start Project Workspace'}
               </Button>
               {!selectedProduct && <DotLabel label="Select a product before starting" color={appleColors.amber} />}
-              {selectedProduct && !cartServiceItems.length && <DotLabel label="Add at least one lifecycle service" color={appleColors.amber} />}
+              {selectedProduct && !cartServiceItems.length && <DotLabel label="Add at least one productization service" color={appleColors.amber} />}
               {selectedProduct && cartServiceItems.length > 0 && cartBlockers > 0 && (
                 <DotLabel
-                  label={`Add required services first: ${cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}`}
+                  label={`Add these services first: ${cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}`}
                   color={appleColors.red}
                 />
               )}

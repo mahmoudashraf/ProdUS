@@ -90,7 +90,7 @@ export default function DraftProjectCartPage() {
   const addRecommendedService = useMutation({
     mutationFn: (payload: { serviceModuleId: string; notes: string }) => postJson<ProductizationCart, { serviceModuleId: string; notes: string }>('/productization-cart/services', payload),
     onSuccess: async () => {
-      setNotice('Recommended service added from catalog dependency rules.');
+      setNotice('Recommended service added to the draft.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -98,7 +98,7 @@ export default function DraftProjectCartPage() {
     mutationFn: (templateId: string) => postJson<ProductizationCart, Record<string, never>>(`/productization-cart/templates/${templateId}/apply`, {}),
     onSuccess: async () => {
       setCreatedWorkspace(null);
-      setNotice('Package template applied to the draft cart. Review dependency guidance before starting the workspace.');
+      setNotice('Package template applied. Review the suggested next steps before starting the workspace.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -145,15 +145,15 @@ export default function DraftProjectCartPage() {
   const addCatalogRecommendation = (item: CatalogRuleItem) => {
     addRecommendedService.mutate({
       serviceModuleId: item.recommendedModule.id,
-      notes: `Added from AI catalog guard (${formatLabel(item.source)}). ${item.reason || ''}`.trim(),
+      notes: `Added from the suggested fix path (${formatLabel(item.source)}). ${item.reason || ''}`.trim(),
     });
   };
 
   return (
     <>
       <PageHeader
-        title="Draft Project Cart"
-        description="This is a temporary planning cart for one product. It collects lifecycle services plus teams or solo experts, then converts them into a real project workspace."
+        title="Project Start Plan"
+        description="Collect the services, teams, and experts that help this prototype become a real project workspace."
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button component={NextLink} href="/services" variant="outlined" startIcon={<AddShoppingCartOutlined />} sx={{ minHeight: 44 }}>
@@ -178,13 +178,13 @@ export default function DraftProjectCartPage() {
           <Surface sx={{ p: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
             <Box sx={{ p: { xs: 2.5, md: 3 }, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.75fr 1.25fr' }, gap: 3, alignItems: 'center' }}>
               <Stack spacing={2}>
-                <PastelChip label={hasPlaceholderProduct ? 'Needs product selection' : 'Draft only'} accent={hasPlaceholderProduct ? appleColors.amber : appleColors.purple} />
+                <PastelChip label={hasPlaceholderProduct ? 'Choose product' : 'Not started yet'} accent={hasPlaceholderProduct ? appleColors.amber : appleColors.purple} />
                 <Stack direction="row" spacing={2} alignItems="center">
                   <ProgressRing value={score} size={108} color={canStartWorkspace ? appleColors.green : appleColors.purple} label="ready" />
                   <Box>
                     <Typography variant="h2">{hasPlaceholderProduct ? 'Choose a real product for this draft' : currentCart?.title || 'Productization draft'}</Typography>
                     <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
-                      Nothing becomes a project until you press Start Project Workspace.
+                      Nothing starts until you press Start Project Workspace.
                     </Typography>
                   </Box>
                 </Stack>
@@ -338,19 +338,19 @@ export default function DraftProjectCartPage() {
                 })}
               </Stack>
             ) : (
-              <EmptyState label="No services yet. Add lifecycle services such as validation, security, cloud, database, launch readiness, or support." />
+            <EmptyState label="No services yet. Add productization services such as validation, security, cloud, database, launch, or support." />
             )}
           </Surface>
 
           {currentCart?.catalogEvaluation?.recommendations.length ? (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fffaf1 100%)' }}>
               <SectionTitle
-                title="AI Catalog Guard"
-                action={<StatusChip label={blockers ? `${blockers} blockers` : 'Dependency aware'} color={blockers ? 'error' : 'warning'} />}
+                title="Before You Start"
+                action={<StatusChip label={blockers ? `${blockers} service gaps` : 'Looks complete'} color={blockers ? 'error' : 'success'} />}
               />
               {blockingRecommendations.length > 0 && (
                 <Alert severity="warning" sx={{ borderRadius: 1, mb: 1.5 }}>
-                  Add {blockingRecommendations.map((item) => item.recommendedModule.name).join(' and ')} before starting the workspace. These are required because the selected services need release automation and operational evidence.
+                  Add {blockingRecommendations.map((item) => item.recommendedModule.name).join(' and ')} before starting. These fill practical gaps in release automation or operational proof.
                 </Alert>
               )}
               <Stack spacing={1.25}>
@@ -398,9 +398,9 @@ export default function DraftProjectCartPage() {
             </Surface>
           ) : serviceCount ? (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f6fff9)' }}>
-              <SectionTitle title="Catalog Recommendations" action={<StatusChip label="Complete" color="success" />} />
+              <SectionTitle title="Suggested Fix Path" action={<StatusChip label="Complete" color="success" />} />
               <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-                The selected lifecycle services are dependency-complete for the current catalog rules. AI-ready metadata is attached, but no AI execution is performed.
+                The selected services fit together for this draft. AI-ready metadata is attached, but no AI execution is performed.
               </Typography>
             </Surface>
           ) : null}
@@ -481,7 +481,7 @@ export default function DraftProjectCartPage() {
                     <Stack direction="row" spacing={1} alignItems="center">
                       <AutoAwesomeOutlined sx={{ color: appleColors.amber }} />
                       <Typography variant="body2" sx={{ fontWeight: 900 }}>
-                        AI guard found required services before workspace start
+                        Add these services before starting
                       </Typography>
                     </Stack>
                     {blockingRecommendations.map((item) => (
@@ -517,7 +517,7 @@ export default function DraftProjectCartPage() {
           </Surface>
 
           <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
-            <SectionTitle title="What This Cart Does" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
+            <SectionTitle title="What Happens When You Start" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
             <Stack spacing={1.25}>
               {[
                 'Services become the service plan modules and milestones.',

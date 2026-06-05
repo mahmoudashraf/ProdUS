@@ -650,7 +650,7 @@ export default function WorkspacesPage() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 2, mb: 2.5 }}>
         <MetricTile label="Active projects" value={activeWorkspaceCount} detail={`${workspaceList.length} total workspaces`} accent={appleColors.cyan} icon={<FactCheckOutlined />} />
         <MetricTile label="On-track milestones" value={completedMilestones} detail={`${milestoneList.length} in selected workspace`} accent={appleColors.green} icon={<TaskAltOutlined />} />
-        <MetricTile label="Blocked items" value={blockedWorkspaceCount + blockedSupportCount} detail="Workspace or SLA blockers" accent={appleColors.red} icon={<ErrorOutlineOutlined />} />
+        <MetricTile label="Needs attention" value={blockedWorkspaceCount + blockedSupportCount} detail="Workspace or support risk" accent={appleColors.red} icon={<ErrorOutlineOutlined />} />
         <MetricTile label="Upcoming deadlines" value={milestoneList.filter((milestone) => milestone.dueDate).length} detail="Dated milestones" accent={appleColors.purple} icon={<CalendarMonthOutlined />} />
       </Box>
       {selectedWorkspace && (

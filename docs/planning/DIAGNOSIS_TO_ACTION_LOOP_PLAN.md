@@ -1,10 +1,10 @@
-# ProdUS Diagnosis-To-Action Loop Plan
+# ProdUS Prototype-To-Product Diagnosis Loop Plan
 
 Date: 2026-06-05
 
 Audience: product, engineering, catalog, scanner, LoomAI, and delivery stakeholders
 
-Status: proposed for review
+Status: revised for MVPs, startups, and AI-created prototypes
 
 Primary references:
 
@@ -15,562 +15,585 @@ Primary references:
 
 ## 1. Product Bet
 
-ProdUS should win by making the owner trust the production-readiness diagnosis enough to act on it.
+ProdUS should help owners of MVPs, startup products, internal prototypes, and AI-created apps answer one practical question:
 
-The next product slice should make this loop feel complete:
+> What is stopping this from becoming a real product, and what should I do next?
+
+The next product slice should feel like a fast productization assistant, not an enterprise audit workflow.
+
+Target loop:
 
 ```text
-Owner creates project
-  -> repository and documents are attached
-  -> scanner evidence is collected
-  -> findings are converted into a credible diagnosis
-  -> diagnosis maps to real catalog services
-  -> owner sees missing dependencies before committing
-  -> workspace is created with repo, milestones, evidence needs, and next decisions
+Owner describes the prototype
+  -> repo/documents/links are attached
+  -> ProdUS runs scanner checks
+  -> findings become a plain-language product diagnosis
+  -> diagnosis maps to concrete ProdUS services
+  -> owner sees the fix path before starting a workspace
+  -> workspace starts with repo, services, milestones, proof tasks, and next decisions
 ```
 
-This plan intentionally narrows the focus. Team matching, marketplace growth, reputation, and community features remain useful, but they should not be the primary investment until the diagnosis-to-action loop is excellent.
+The backend can remain rigorous. The owner experience should feel lightweight, useful, and confidence-building.
 
-## 2. Why This Matters
+## 2. Positioning
 
-The owner does not need another dashboard. The owner needs a clear answer:
+### Primary Positioning
 
-> What is blocking this project from production, what needs to happen next, and what concrete service path gets us there?
+ProdUS helps product owners turn prototypes into production-ready products by diagnosing readiness gaps, recommending practical productization services, and creating a clear path to launch.
 
-ProdUS becomes useful when it can turn messy input into a concrete production plan:
+### Not The Primary Positioning
 
-- owner intent
-- repository evidence
-- uploaded project documents
-- scanner findings
-- service catalog modules
-- milestone/evidence readiness
-- optional AI explanation
+ProdUS governs enterprise production readiness workflows with evidence-backed lifecycle controls.
 
-The system should not merely describe a project. It should produce action-ready structure.
+That second statement may become relevant later for enterprise buyers. It should not drive the first product experience.
 
-## 3. Scope
+## 3. Target Users
+
+Primary users for this phase:
+
+- startup founder with a working prototype
+- product owner with an internal MVP
+- builder with an AI-generated app that needs cleanup
+- small team preparing a pilot for real users
+- operator trying to understand whether a repo is safe to ship
+
+Secondary users:
+
+- specialist team reviewing the fix path
+- LoomAI partner proposing AI enablement services
+- delivery lead using the workspace after the owner starts the project
+
+## 4. Product Tone
+
+Use practical language:
+
+- fix path
+- proof needed
+- ship confidence
+- ready-to-ship
+- known rough edges
+- needs attention
+- start workspace
+- productization services
+- launch checkpoints
+
+Avoid making the default UI feel like a compliance tool:
+
+- governance
+- guardrail
+- hard blocker
+- evidence requirement
+- lifecycle control
+- audit enforcement
+- enterprise readiness ceremony
+
+The system can still store strong evidence, perform permission checks, and keep audit records. Those are implementation strengths, not the first words the owner should see.
+
+## 5. Scope
 
 ### In Scope
 
-- Scanner-backed readiness diagnosis
-- Finding-to-service mapping
-- Missing dependency detection before workspace conversion
-- Owner action UI for adding recommended services
-- Workspace enrichment from scanner evidence
-- AI explanations triggered by the owner, not automatically on page load
-- Catalog-backed recommendations only
-- Clear traceability from finding -> readiness blocker -> service -> milestone -> evidence
+- prototype-to-product diagnosis
+- scanner-backed fix path
+- finding-to-service mapping
+- missing service gaps before workspace start
+- owner action UI for adding recommended services
+- workspace enrichment from scanner proof
+- user-triggered LoomAI explanations
+- catalog-backed service recommendations only
+- traceability from scanner finding -> fix path -> service -> milestone -> proof task
 
 ### Out Of Scope For This Plan
 
-- Full marketplace liquidity
-- Team bidding workflows
-- Public expert community improvements
-- AI write actions beyond the existing governed project creation path
-- Generic chatbot behavior unrelated to the active project/workspace
-- Automatic AI calls on every page load
+- full team marketplace expansion
+- public expert community growth
+- heavy enterprise approval chains
+- automatic AI calls on every page load
+- generic chat surfaces unrelated to the active project/workspace
+- AI mutation flows beyond the existing governed project creation action
 
-## 4. Operating Principles
+## 6. Experience Principles
 
-1. Diagnosis must be evidence-backed.
-   Every blocker should point to scanner findings, owner input, repo metadata, uploaded documents, or known missing evidence.
+1. Help the owner move.
+   The default outcome should be "here is what to fix next", not "you failed readiness."
 
-2. Services must be catalog-backed.
-   AI and deterministic rules may recommend services, but stored recommendations must resolve to real active catalog modules.
+2. Warn clearly, block rarely.
+   Hard blocks should be reserved for exposed secrets, missing repo/source access, impossible service dependencies, or owner-confirmed stop conditions.
 
-3. AI explains and assists, but deterministic state owns the workflow.
-   AI can help owners understand blockers and compare actions. It should not silently mutate project/workspace state.
+3. Keep recommendations concrete.
+   Every stored service recommendation must resolve to a real ProdUS service module.
 
-4. The owner should always know the next useful action.
-   Each diagnosis state should answer: fix, accept risk, request service, attach evidence, or re-run scan.
+4. Keep AI useful and bounded.
+   AI explains, summarizes, compares, and helps the owner understand decisions. It should not silently mutate project or workspace state.
 
-5. Re-running analysis should be explicit.
-   Deterministic mapping can refresh when new scanner evidence appears. LoomAI calls should be triggered intentionally by the user.
+5. Keep proof human-readable.
+   "Proof needed" should tell the owner what to attach, run, or confirm. It should not sound like a courtroom exhibit list.
 
-## 5. Target Owner Experience
+6. Make re-analysis explicit.
+   Deterministic refresh can happen when scanner data changes. LoomAI explanation should run only when the user asks.
 
-### Project Creation
+## 7. Target Owner Journey
 
-The owner provides:
+### Step 1: Create Productization Project
 
-- project description
-- product or app URL
+Owner provides:
+
+- prototype description
+- target users
+- product/app URL
 - repository URL
-- optional documents
-- optional AI opportunity analysis
+- optional README/spec/business notes
+- known rough edges
+- optional AI opportunities analysis
 
-ProdUS creates a project with:
+ProdUS returns:
 
-- product profile
-- repository source
-- project intelligence from AI analysis, if selected
-- recommended service modules, if resolved
+- project name and description
+- business problem
+- target users
+- core capabilities
+- business outcomes
+- ready-to-ship goals
 - scanner focus areas
-- initial readiness goals
+- recommended services from the catalog
+- LoomAI opportunities, when requested
+- document usage evidence, when files are shared
 
-### Scanner Run
+Desired feeling:
 
-The owner can run scanners from the project/workspace.
+> "ProdUS understood what I am building and turned it into an actionable productization plan."
 
-After scanner completion, ProdUS shows:
+### Step 2: Run Scanner
 
-- readiness score
-- top blockers
-- mapped findings
-- unmapped findings
-- evidence gaps
-- recommended catalog services
-- affected milestone or suggested milestone
+Owner connects repo or uses an existing source, then runs scanner checks.
 
-### Service Selection
+ProdUS should show:
 
-The owner can add recommended services directly from the diagnosis UI.
+- ship confidence score
+- highest-risk findings
+- scanner proof collected
+- findings that need a service
+- findings that need quick human review
+
+Desired feeling:
+
+> "I know what is risky and what is noise."
+
+### Step 3: Turn Findings Into Fix Path
+
+ProdUS maps findings to service modules.
+
+Example:
+
+```text
+Exposed token finding
+  -> security/secrets risk
+  -> Secrets review service
+  -> proof needed: rotated credential, clean scan, env handling note
+  -> launch checkpoint: security cleanup
+```
+
+Desired feeling:
+
+> "This scanner result is not just an error. It became a practical fix path."
+
+### Step 4: Add Services
+
+Owner adds recommended services to the start plan.
 
 The UI should show:
 
-- what blocker the service addresses
-- why the service is needed
-- what evidence it should produce
-- whether a dependency is missing
-- whether another service must happen first
+- what the service fixes
+- why it matters
+- what proof it should produce
+- whether it depends on another service
+- whether the owner can still start with known risk
 
-### Workspace Creation
+Desired feeling:
 
-Workspace conversion should not feel like a blind transition.
+> "I can choose the work I need without decoding the scanner myself."
 
-Before converting, ProdUS should show:
+### Step 5: Start Workspace
 
-- required services
-- unresolved dependencies
-- missing evidence expectations
-- scanner blockers that remain open
-- selected repo source
-- milestone plan
+Before workspace start, ProdUS should show a simple "Before you start" panel:
 
-If conversion is blocked, the error should be owner-readable and actionable.
+- selected product
+- selected repo
+- selected services
+- missing service gaps
+- proof tasks that will be created
+- first launch checkpoints
 
-Bad:
-
-```text
-Resolve required catalog services before starting a project: CI/CD setup, Monitoring setup
-```
-
-Better:
+If something stops the workspace from starting, the message should be direct:
 
 ```text
-This workspace needs two required services before it can start:
+Add these services before starting:
 
 1. CI/CD setup
-   Needed because scanner evidence found release pipeline risk.
+   Needed because the repo has release pipeline risk.
 
 2. Monitoring setup
-   Needed because no production monitoring evidence exists.
-
-Add both to the service plan, or mark them as accepted risk with an owner note.
+   Needed because production monitoring proof is missing.
 ```
 
-### Workspace Readiness
+Avoid:
 
-Inside the workspace, scanner readiness should stay visible:
+```text
+Resolve required catalog services before starting a project.
+```
 
-- current readiness state
-- milestone risks
-- scanner-backed evidence
-- unresolved blockers
+Desired feeling:
+
+> "I understand what is missing and can fix it in one click."
+
+### Step 6: Use Workspace
+
+Workspace should show:
+
+- scanner fix path
+- launch checkpoints
+- proof tasks
 - mapped services
-- AI explainer, triggered by owner
+- selected repo
+- AI explainer
+- readiness changes over time
 
-## 6. Implementation Sequence
+Desired feeling:
 
-### Sequence 1: Readiness Diagnosis Contract
+> "This is the place where the prototype becomes a managed productization effort."
 
-Create a stable diagnosis response used by project and workspace pages.
+## 8. Implementation Sequence
 
-Required fields:
+### Sequence 1: Language And UX Retune
 
-- readiness score
-- readiness status
-- summary
-- blocker count
-- mapped finding count
-- unmapped finding count
-- evidence gap count
-- affected service module IDs
-- affected milestone IDs
-- scanner run IDs
-- generated at
-- generation source: `DETERMINISTIC`, `AI_ASSISTED`, or `MIXED`
+Update visible product language:
 
-Diagnosis statuses:
-
-- `BLOCKED`
-- `NEEDS_REVIEW`
-- `READY_WITH_RISKS`
-- `READY`
+- "Scanner Readiness" -> "Scanner Fix Path" or "Ship Confidence"
+- "Evidence required" -> "Proof needed"
+- "Top blockers" -> "Priority fixes"
+- "Catalog guard" -> "Before you start"
+- "Blocked items" -> "Needs attention"
+- "Readiness goals" -> "Launch goals"
+- "Catalog recommendations" -> "Suggested fix path"
 
 Acceptance criteria:
 
-- API returns the same shape for project and workspace diagnosis surfaces.
-- Frontend can render diagnosis without special-casing scanner type.
-- Diagnosis can be persisted and refreshed.
+- UI feels approachable for a startup/prototype owner.
+- Risk remains visible without sounding like formal compliance.
+- Every button still maps to a real backend action.
 
-### Sequence 2: Finding-To-Service Mapping
+### Sequence 2: Product Diagnosis Contract
+
+Create or refine a stable diagnosis response for project and workspace views.
+
+Owner-facing fields:
+
+- ship confidence score
+- status
+- summary
+- priority fix count
+- mapped finding count
+- unmapped finding count
+- proof gap count
+- recommended service module IDs
+- suggested next step
+
+Internal fields may remain rigorous:
+
+- scanner run IDs
+- generation source
+- diagnosis source
+- evidence/proof IDs
+- owner/action trace IDs
+
+Acceptance criteria:
+
+- product and workspace diagnosis surfaces can share the same mental model
+- frontend does not need scanner-specific hacks for common diagnosis display
+- diagnosis can be persisted and refreshed
+
+### Sequence 3: Finding-To-Service Mapping
 
 Use deterministic backend mapping as the source of truth.
 
-Detailed mapping rules are defined in:
+Detailed mapping rules remain in:
 
 ```text
 docs/planning/SCANNER_READINESS_NEXT_STEPS.md
 ```
 
-Core mapping path:
+Core path:
 
 ```text
 Scanner finding
-  -> readiness area
-  -> business risk
-  -> service module code
-  -> required evidence
-  -> suggested milestone
+  -> risk area
+  -> owner-readable risk
+  -> ProdUS service module
+  -> proof needed
+  -> launch checkpoint
 ```
 
-Mapping must resolve only active catalog modules.
-
-Required output per mapped finding:
-
-- finding ID
-- readiness area
-- severity
-- business risk
-- mapped service module ID
-- mapped service module code
-- mapping confidence
-- mapping reason
-- suggested evidence
-- suggested milestone
+Mapping must resolve only active catalog modules. AI can explain the recommendation, but should not invent stored service names.
 
 Acceptance criteria:
 
-- no free-text-only service recommendation is persisted
-- unmapped findings are preserved and visible
-- owner can add mapped services to the plan
+- mapped findings point to real active service modules
+- unmapped findings remain visible
+- owner can add a mapped service directly from the UI
 
-### Sequence 3: Service Recommendation Aggregation
+### Sequence 4: Service Recommendation Aggregation
 
-Group mapped findings into owner-readable service recommendations.
+Group findings into a short owner-readable list of services.
 
-Aggregation rules:
+Rules:
 
 - one recommendation per unique service module
-- highest linked severity determines priority
-- linked finding count is visible
-- required evidence is merged and deduplicated
-- services already in the cart/workspace are not duplicated
-
-Recommended priority order:
-
-1. critical secrets/auth/security
-2. dependency/API/infrastructure
-3. deployment/monitoring/testing
-4. performance/documentation/launch
+- priority comes from highest linked severity and owner impact
+- merge repeated proof tasks
+- avoid duplicating services already in the plan
+- keep the first list short, with expandable detail
 
 Acceptance criteria:
 
-- owner sees a short list of services that clearly map to blockers
-- each recommendation can be added to the service cart or workspace plan
-- dependencies are shown before conversion
+- owner sees a practical fix path, not a raw issue dump
+- each recommendation explains what it fixes
+- each recommendation can be added to the start plan
 
-### Sequence 4: Dependency And Conversion Guardrails
+### Sequence 5: Before-You-Start Gaps
 
-Improve service plan conversion so it explains what is missing.
+Improve workspace start validation so missing dependencies are clear.
 
-Backend should return structured blocking details:
+Backend should return structured gap details:
 
 - missing service module code
-- missing service module name
-- reason
-- linked blocker/finding IDs
-- linked milestone, if known
-- owner available actions
-
-Example actions:
-
-- add service
-- accept risk
-- attach evidence
-- re-run scan
+- service name
+- plain-language reason
+- linked finding IDs, if known
+- linked launch checkpoint, if known
+- available action: add service, attach proof, or continue with known risk if allowed
 
 Acceptance criteria:
 
-- UI does not show raw backend validation text as the primary owner experience
-- blocked conversion explains how to unblock
-- owner can add missing services directly from the error panel
+- blocked start messages are understandable
+- owner can add missing services from the message
+- hard blocking is used sparingly
 
-### Sequence 5: Workspace Scanner Readiness UI
+### Sequence 6: Workspace Scanner Fix Path
 
-Build on the current workspace scanner readiness section.
+Build on the current scanner readiness implementation.
 
-The UI should support:
+Workspace UI should support:
 
-- persisted readiness state
-- blocker cards
-- mapped service cards
-- evidence gap checklist
+- ship confidence score
+- priority fix cards
+- mapped service chips
+- proof gap checklist
 - unmapped finding review
 - add service action
-- accepted risk action, if supported
-- re-run deterministic mapping
-- user-triggered AI explainer
-
-Design expectations:
-
-- Apple-like light interface
-- calm spacing
-- soft shadows and hairline borders
-- no dense spreadsheet layout
-- strong visual hierarchy around the next decision
-- responsive mobile layout
+- refresh deterministic fix path
+- user-triggered AI explanation
 
 Acceptance criteria:
 
-- owner understands the readiness state in less than 30 seconds
-- every button performs a backend action or opens a specific actionable panel
-- no AI request runs automatically on page load
+- owner understands the state in under 30 seconds
+- scanner results are translated into decisions
+- no LoomAI request runs automatically on page load
 
-### Sequence 6: AI Explainer Integration
+### Sequence 7: AI Explainer
 
-LoomAI should explain diagnosis and service path using page context.
+LoomAI should help owners understand the active project/workspace context.
 
-AI surfaces:
+AI should answer:
 
-- explain current diagnosis
-- explain why a blocker matters
-- compare recommended services
-- summarize evidence gaps
-- answer questions about scanner findings
-- explain workspace readiness before owner decision
+- What is the project?
+- What is the tech stack?
+- What did the attached document say?
+- What are the priority fixes?
+- Which services help?
+- What proof is missing?
+- Can I start the workspace?
 
 AI should receive:
 
-- diagnosis summary
-- mapped findings
-- recommended service module IDs and names
-- evidence gaps
-- milestone risks
-- selected product/workspace context
-- document usage evidence, when available
-
-AI should not receive:
-
-- raw secrets
-- private object storage URLs unless intentionally short-lived and selected
-- unrestricted project data
-- mutation permission for read-only explanation
+- product/project summary
+- current analysis result
+- scanner fix path
+- mapped service modules
+- proof gaps
+- selected repo/source
+- document usage evidence
+- workspace context when available
 
 Acceptance criteria:
 
-- analysis chat can answer project/workspace-specific questions
-- response cites available context where possible
-- readonly MCP actions are allowed in thinker mode
-- write actions remain governed and explicit
+- chat understands the active page context
+- thinker mode can use readonly actions
+- write actions remain governed
+- AI does not answer from generic catalog knowledge when project context is available
 
-### Sequence 7: Readiness History
+### Sequence 8: Readiness Trend
 
-Store readiness snapshots over time.
+Track changes over time without making it feel like enterprise reporting.
 
-This lets owners see whether work is improving production readiness.
+Owner-facing name:
 
-Snapshot fields:
+- ship confidence history
+
+Stored snapshot fields:
 
 - score
 - status
-- blocker count
+- priority fix count
 - mapped finding count
-- evidence gap count
+- proof gap count
 - scan run IDs
 - service plan version
 - created at
 
 Acceptance criteria:
 
-- owner can see readiness trend
-- diagnosis can explain what changed since last scan
-- scan-to-scan regressions are visible
+- owner can see whether the product is getting closer to launch
+- regressions are visible
+- AI can explain what changed since the last scan
 
-### Sequence 8: Demo Path Hardening
+### Sequence 9: Demo Path Hardening
 
-Create a clean internal demo dataset and verification path:
+Maintain one clean staging demo path:
 
 ```text
-Create project with AI
-  -> attach repository
+Create productization project
+  -> attach repo and README
   -> run scanner
-  -> view diagnosis
+  -> view scanner fix path
   -> add recommended services
-  -> resolve dependency guardrails
-  -> create workspace
-  -> review workspace readiness
-  -> ask AI about blockers
+  -> resolve before-you-start gaps
+  -> start workspace
+  -> review workspace fix path
+  -> ask AI why the next decision matters
 ```
 
 Acceptance criteria:
 
-- demo can be run from staging without manual database edits
+- no database edits required
 - every step has visible owner value
-- errors are owner-readable
-- screenshots show a polished, coherent product
+- errors are plain English
+- screenshots look polished and coherent
 
-## 7. Backend Work
+## 9. Backend Work
 
 Required backend capabilities:
 
-- stable readiness diagnosis API
+- stable diagnosis/fix-path API
 - persisted diagnosis snapshots
 - scanner finding classification
 - finding-to-service mapping
 - recommendation aggregation
-- structured conversion guardrail response
-- add recommended service to cart/workspace
-- accepted-risk hook or placeholder policy
-- readiness history
+- structured before-you-start gap response
+- add recommended service to start plan/workspace
+- optional continue-with-known-risk policy
 - page-context-safe AI payload builder
+- ship confidence history
 
-Recommended endpoints:
+Implementation can extend existing endpoints where that fits the codebase.
 
-```text
-GET  /api/products/{productId}/readiness-diagnosis
-POST /api/products/{productId}/readiness-diagnosis/refresh
-GET  /api/workspaces/{workspaceId}/readiness-diagnosis
-POST /api/workspaces/{workspaceId}/readiness-diagnosis/refresh
-POST /api/readiness-diagnosis/{diagnosisId}/services/{moduleId}/add
-POST /api/readiness-diagnosis/{diagnosisId}/risks/accept
-```
-
-Existing endpoints may be extended if that better matches the codebase.
-
-## 8. Frontend Work
+## 10. Frontend Work
 
 Required UI surfaces:
 
-- product diagnosis panel
-- scanner blocker panel
-- recommended services panel
-- dependency guardrail modal/panel
-- workspace readiness section
-- readiness history mini-chart
+- project diagnosis panel
+- scanner fix path panel
+- suggested service cards
+- before-you-start gap panel
+- workspace fix path section
+- ship confidence history
 - AI explainer entry point
-- mobile responsive view
+- responsive mobile view
 
 Every visible action must be real:
 
 - add service
 - view finding
-- view evidence need
-- refresh deterministic diagnosis
+- view proof need
+- refresh fix path
 - ask AI
 - open workspace
-- attach evidence, if available
+- attach proof, if supported
 
-Buttons that depend on unavailable functionality should be hidden or clearly disabled with a real reason.
+Do not show placeholder actions as if they work.
 
-## 9. AI And LoomAI Work
+## 11. LoomAI Usage
 
-ProdUS should keep AI usage bounded:
+ProdUS should use LoomAI where it improves judgment:
 
-- thinker mode for analysis, explanation, and readonly actions
-- executor mode only for governed write actions
-- frontend calls ProdUS backend only
-- backend signs private runtime assertions
-- page context should include the active diagnosis snapshot
+- explain project analysis
+- explain document usage
+- explain scanner findings
+- summarize the fix path
+- compare service choices
+- explain readiness changes
+- suggest LoomAI integration opportunities when explicitly requested
 
-LoomAI should support:
+ProdUS should not use LoomAI to:
 
-- diagnosis explanation
-- scanner blocker explanation
-- service path explanation
-- readiness change explanation
-- catalog-aware suggestions through readonly actions/context
+- invent stored services
+- auto-create workspace changes on page load
+- replace scanner results with vague advice
+- hide missing data behind confident prose
 
-ProdUS should not ask LoomAI to invent services. It should pass catalog-backed recommendations and let LoomAI explain tradeoffs.
-
-## 10. Data Model Additions
-
-Potential new or extended entities:
-
-- `ReadinessDiagnosis`
-- `ReadinessDiagnosisItem`
-- `FindingServiceRecommendation`
-- `ReadinessSnapshot`
-- `AcceptedReadinessRisk`
-
-These can be introduced as separate tables or folded into the existing diagnosis/governance tables if the current model already supports the relationships cleanly.
-
-## 11. Success Metrics
+## 12. Success Metrics
 
 Product success:
 
-- owner can identify top blockers within 30 seconds
-- owner can add recommended services without leaving the diagnosis flow
-- workspace conversion errors become self-explanatory
-- scanner findings are not just listed; they become decisions
+- owner can name the top 3 priority fixes in under 30 seconds
+- owner can add recommended services without leaving the flow
+- workspace start gaps are understandable and fixable
+- scanner findings become decisions, not noise
 
 Technical success:
 
-- 95 percent or more of high/critical findings map to a readiness area
-- unmapped findings are tracked and reviewable
-- service recommendations always reference valid catalog modules
-- diagnosis APIs are covered by backend tests
+- high/critical findings map to risk areas consistently
+- stored service recommendations always reference valid catalog modules
+- unmapped findings are reviewable
+- diagnosis APIs are tested
 - staging demo path passes browser verification
 
 AI success:
 
-- AI can answer "what is blocking this project?" from page context
-- AI can explain why each recommended service exists
-- AI does not answer from generic catalog knowledge when project context is available
-- AI does not mutate state without governed action flow
+- AI can answer active project questions from page context
+- AI can explain why each service was recommended
+- AI can reference uploaded documents when provided
+- AI remains clear about missing proof or uncertain context
 
-## 12. Review Questions
+## 13. Review Questions
 
-1. Should accepted risk be available in this phase, or should every blocker require service/evidence before workspace conversion?
-2. Should readiness scoring be strict by default, or should it allow `READY_WITH_RISKS` for lower-severity gaps?
-3. Should service recommendations be added to the project cart first, or directly to the workspace plan after conversion?
-4. Which scanner finding categories should be manually curated before automatic mapping is trusted?
-5. Should owner-visible diagnosis focus on the top 5 blockers or all blockers by default?
-
-## 13. Proposed Implementation Order
-
-1. Normalize readiness diagnosis contract across product and workspace.
-2. Persist scanner-backed diagnosis snapshots.
-3. Add structured conversion guardrail responses.
-4. Add owner action UI for missing services and mapped blockers.
-5. Add readiness history.
-6. Improve LoomAI page-context chat for diagnosis explanation.
-7. Run full staging demo and screenshot verification.
+1. Which issues should hard-stop workspace start, and which should allow "start with known risk"?
+2. Should the default owner score be "ship confidence" instead of "readiness" everywhere?
+3. Should service recommendations go to the draft start plan first, or directly into workspace after start?
+4. Which scanner categories need manual mapping review before we trust automation?
+5. Should the owner see all findings, or only the first few priority fixes by default?
 
 ## 14. Definition Of Done
 
-This phase is done when the owner can complete this journey on staging:
+This phase is done when a startup/prototype owner can complete this journey on staging:
 
 ```text
-Create project
-  -> attach repo
+Describe prototype
+  -> attach repo/document
   -> run scanner
-  -> see top production blockers
-  -> add recommended catalog services
-  -> understand missing dependencies
-  -> create workspace
-  -> see scanner-backed milestone readiness
-  -> ask AI why the next decision matters
+  -> see priority fixes
+  -> add recommended services
+  -> resolve before-you-start gaps
+  -> start workspace
+  -> see scanner-backed launch checkpoints
+  -> ask AI what to do next
 ```
 
-The final product feel should be:
+The product should feel:
 
-- clear
-- evidence-backed
-- action-oriented
-- catalog-grounded
-- not chat-first
-- not marketplace-first
-- polished enough to demo without apology
+- fast
+- practical
+- specific
+- owner-friendly
+- evidence-backed without sounding bureaucratic
+- AI-assisted without being chat-first
+- polished enough to demo to a founder without explaining away the UI

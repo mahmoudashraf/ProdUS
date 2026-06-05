@@ -92,14 +92,14 @@ const setupSteps = [
     accent: appleColors.purple,
   },
   {
-    title: 'Evidence links',
-    detail: 'Attach product and repository URLs so diagnosis and delivery work can stay grounded.',
+    title: 'Helpful links',
+    detail: 'Attach the app, repo, and notes so ProdUS can understand what is real.',
     icon: LinkOutlined,
     accent: appleColors.cyan,
   },
   {
-    title: 'Risks and constraints',
-    detail: 'Capture known blockers early so the created project starts with grounded analysis.',
+    title: 'Known rough edges',
+    detail: 'Capture what feels unfinished so the project starts with practical next steps.',
     icon: SecurityOutlined,
     accent: appleColors.amber,
   },
@@ -1081,7 +1081,7 @@ export default function ProductOnboardingWizard() {
         ? aiAnalysis.aiApplied
           ? `LoomAI returned structured project attributes${aiAnalysis.intent.analysisProviderRequestId ? ` with trace ${aiAnalysis.intent.analysisProviderRequestId}.` : '.'}`
           : `Fallback analysis is available${aiAnalysis.fallbackReason ? `: ${aiAnalysis.fallbackReason}` : '.'}`
-        : 'Run AI analysis to extract project fields, assumptions, missing evidence, and action payload.',
+        : 'Run AI analysis to extract project fields, assumptions, proof gaps, and the creation payload.',
       state: aiAnalysis ? (aiAnalysis.aiApplied ? 'ready' : 'attention') : 'blocked',
     },
     {
@@ -1089,7 +1089,7 @@ export default function ProductOnboardingWizard() {
       detail: aiAnalysis
         ? aiAnalysis.aiOpportunityReport
           ? `${compactCount(aiOpportunityCount, 'AI use case')} found and added to project creation context.`
-          : 'AI opportunities were requested, but no AI opportunity report was returned.'
+          : 'AI opportunities were requested, but no opportunity report was returned.'
         : fullAnalysisMode
           ? 'Full analysis will include AI opportunities and LoomAI integration guidance.'
           : 'AI integration-only mode will focus on opportunities and the LoomAI implementation overview.',
@@ -1132,11 +1132,11 @@ export default function ProductOnboardingWizard() {
       title: 'AI validation notes',
       detail: aiAnalysis
         ? aiMissingEvidence.length
-          ? `${compactCount(aiMissingEvidence.length, 'missing evidence item')} found. The project can be created, but the items should become follow-up evidence tasks.`
+          ? `${compactCount(aiMissingEvidence.length, 'proof gap')} found. The project can be created, but these should become follow-up tasks.`
           : aiAssumptions.length
             ? `${compactCount(aiAssumptions.length, 'assumption')} captured for owner review. No missing evidence was flagged for creation.`
             : 'AI did not flag missing evidence for the creation step.'
-        : 'AI validation notes appear after analysis.',
+        : 'AI review notes appear after analysis.',
       state: aiAnalysis ? (aiMissingEvidence.length ? 'attention' : 'ready') : 'blocked',
     },
     {
@@ -1212,7 +1212,7 @@ export default function ProductOnboardingWizard() {
           accent: appleColors.blue,
         },
         {
-          label: 'Risks and constraints',
+          label: 'Known rough edges',
           value: aiAnalysis.analysis.riskProfile || form.values.riskProfile,
           source: aiAnalysis.analysis.riskProfile ? 'AI' : 'Owner',
           accent: appleColors.red,
@@ -1336,7 +1336,7 @@ export default function ProductOnboardingWizard() {
                     multiline
                     minRows={5}
                     fullWidth
-                    placeholder="Describe the prototype, target users, links, risks, current blockers, and what production-ready should mean."
+                    placeholder="Describe the prototype, target users, links, rough edges, and what ready-to-ship should mean."
                   />
                   <Box
                     sx={{
@@ -1568,9 +1568,9 @@ export default function ProductOnboardingWizard() {
                             accent={appleColors.green}
                           />
                           <AiReviewList
-                            title="Readiness goals"
+                            title="Launch goals"
                             items={aiAnalysis.analysis.readinessGoals ?? []}
-                            empty="No readiness goals extracted yet."
+                            empty="No launch goals extracted yet."
                             accent={appleColors.blue}
                           />
                           <AiReviewList
@@ -1604,7 +1604,7 @@ export default function ProductOnboardingWizard() {
                             }}
                           >
                             <Typography variant="caption" sx={{ fontWeight: 950 }}>
-                              Catalog coverage gaps
+                              Service gaps
                             </Typography>
                             <Stack spacing={0.5} sx={{ mt: 0.75 }}>
                               {missingCatalogCoverage.slice(0, 4).map(item => (
@@ -1656,9 +1656,9 @@ export default function ProductOnboardingWizard() {
                             accent={appleColors.blue}
                           />
                           <AiReviewList
-                            title="Missing evidence"
+                            title="Missing proof"
                             items={aiAnalysis.analysis.missingEvidence}
-                            empty="No missing evidence returned."
+                            empty="No missing proof returned."
                             accent={appleColors.amber}
                           />
                         </Box>

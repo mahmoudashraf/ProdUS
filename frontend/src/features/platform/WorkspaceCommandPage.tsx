@@ -752,7 +752,7 @@ export default function WorkspaceCommandPage() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 2, mb: 2.5 }}>
         <MetricTile label="Active projects" value={activeWorkspaceCount} detail={`${workspaceList.length} total workspaces`} accent={appleColors.cyan} icon={<FactCheckOutlined />} />
         <MetricTile label="Milestones accepted" value={completedMilestones} detail={`${milestoneList.length} in selected workspace`} accent={appleColors.green} icon={<TaskAltOutlined />} />
-        <MetricTile label="Open blockers" value={blockedItems} detail="Workspace, SLA, or dispute risk" accent={appleColors.red} icon={<ErrorOutlineOutlined />} />
+        <MetricTile label="Needs attention" value={blockedItems} detail="Workspace, SLA, or dispute risk" accent={appleColors.red} icon={<ErrorOutlineOutlined />} />
         <MetricTile label="Dated milestones" value={milestoneList.filter((milestone) => milestone.dueDate).length} detail="Scheduled delivery checks" accent={appleColors.purple} icon={<CalendarMonthOutlined />} />
       </Box>
 
@@ -846,8 +846,8 @@ export default function WorkspaceCommandPage() {
               {(milestones.isFetching || deliverables.isFetching || supportRequests.isFetching || disputes.isFetching || attachments.isFetching) && <LinearProgress />}
 
               <PlatformAssistantCard
-                title="AI Proof Readiness Advisor"
-                description="Summarize supporting proof, missing review inputs, failed checks, and safe owner decisions before approval."
+                title="AI Launch Proof Advisor"
+                description="Summarize what is supported, what is still fuzzy, and what decision is safe next."
                 prompt={`Do not call tools for this answer. Use only the facts in this prompt and the supplied safe summaries. Create an owner-facing proof readiness note for the delivery named "${selectedWorkspace.name}". Product is ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}. Service plan is ${selectedWorkspace.packageInstance?.name || 'not recorded'}. Current review area is "${selectedMilestone?.title || 'not selected'}", status ${selectedMilestone?.status || 'unknown'}. Deliverables in focus: ${deliverableList.slice(0, 5).map((deliverable) => `${deliverable.title} (${deliverable.status})`).join('; ') || 'none'}. Acceptance checklist: ${selectedMilestoneCriteria.slice(0, 5).map((criterion) => `${criterion.title} (${criterion.status})`).join('; ') || 'none generated'}. Missing proof count is ${missingEvidenceCount}. Scanner proof count is ${scannerEvidenceList.length}. Explain what is already supported, what is still missing, what needs human review, and what owner decision is safe next. Do not certify production readiness.`}
                 conversationId={`workspace-evidence-advisor-${selectedWorkspace.id}-${selectedMilestone?.id || 'summary'}`}
                 context={{
@@ -873,16 +873,16 @@ export default function WorkspaceCommandPage() {
                     <Box sx={{ minWidth: 0 }}>
                       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                         <ShieldOutlined sx={{ color: readiness?.blockerCount ? appleColors.red : appleColors.cyan }} />
-                        <Typography variant="h3" sx={{ fontSize: { xs: 22, md: 26 } }}>Scanner Readiness</Typography>
+                        <Typography variant="h3" sx={{ fontSize: { xs: 22, md: 26 } }}>Scanner Fix Path</Typography>
                         <PastelChip label={readinessStatus} accent={readiness?.blockerCount ? appleColors.red : appleColors.green} bg={readiness?.blockerCount ? '#fff1f1' : '#e7f8ee'} />
                       </Stack>
                       <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6, maxWidth: 760 }}>
-                        Workspace scanner findings are translated into milestone blockers, mapped services, and evidence tasks. This is deterministic and stored; AI explanation only runs when you ask for it.
+                        Scanner findings become clear fix paths, suggested services, and proof tasks. This is stored and deterministic; AI explanation only runs when you ask for it.
                       </Typography>
                       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
                         <PastelChip label={`${readiness?.mappedFindingCount || 0} mapped`} accent={appleColors.green} bg="#e7f8ee" />
-                        <PastelChip label={`${readiness?.blockerCount || 0} blockers`} accent={readiness?.blockerCount ? appleColors.red : appleColors.green} bg={readiness?.blockerCount ? '#fff1f1' : '#e7f8ee'} />
-                        <PastelChip label={`${readiness?.missingEvidenceCount || 0} evidence gaps`} accent={readiness?.missingEvidenceCount ? appleColors.amber : appleColors.green} bg={readiness?.missingEvidenceCount ? '#fff4dc' : '#e7f8ee'} />
+                        <PastelChip label={`${readiness?.blockerCount || 0} priority fixes`} accent={readiness?.blockerCount ? appleColors.red : appleColors.green} bg={readiness?.blockerCount ? '#fff1f1' : '#e7f8ee'} />
+                        <PastelChip label={`${readiness?.missingEvidenceCount || 0} proof gaps`} accent={readiness?.missingEvidenceCount ? appleColors.amber : appleColors.green} bg={readiness?.missingEvidenceCount ? '#fff4dc' : '#e7f8ee'} />
                         <PastelChip label={`${readiness?.unmappedFindingCount || 0} unmapped`} accent={readiness?.unmappedFindingCount ? appleColors.amber : appleColors.cyan} bg={readiness?.unmappedFindingCount ? '#fff4dc' : '#e4f9fd'} />
                       </Stack>
                     </Box>
@@ -895,10 +895,10 @@ export default function WorkspaceCommandPage() {
                       onClick={() => enrichScannerReadiness.mutate()}
                       sx={{ minHeight: 42 }}
                     >
-                      Refresh Readiness
+                      Refresh Fix Path
                     </Button>
                     <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.55 }}>
-                      Refresh is deterministic and stored. Use the AI explainer below when you want a narrative readout.
+                      Refresh is deterministic and stored. Use the AI explainer below when you want a plain-English readout.
                     </Typography>
                   </Stack>
                 </Stack>
@@ -911,7 +911,7 @@ export default function WorkspaceCommandPage() {
                           <Box sx={{ minWidth: 0 }}>
                             <Typography sx={{ fontWeight: 900 }} noWrap>{risk.milestoneTitle}</Typography>
                             <Typography variant="caption" color="text.secondary">
-                              {risk.scannerFindingCount} scanner blocker{risk.scannerFindingCount === 1 ? '' : 's'} · {risk.missingEvidenceCount} proof gap{risk.missingEvidenceCount === 1 ? '' : 's'}
+                              {risk.scannerFindingCount} scanner finding{risk.scannerFindingCount === 1 ? '' : 's'} · {risk.missingEvidenceCount} proof gap{risk.missingEvidenceCount === 1 ? '' : 's'}
                             </Typography>
                           </Box>
                           <PastelChip label={risk.highestSeverity || 'Mapped'} accent={severityAccent(risk.highestSeverity)} bg={risk.highestSeverity === 'CRITICAL' || risk.highestSeverity === 'HIGH' ? '#fff1f1' : '#f1efff'} />
@@ -929,8 +929,8 @@ export default function WorkspaceCommandPage() {
                     <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'center' }}>
                       <Typography variant="body2" color="text.secondary">
                         {scannerEvidenceList.length
-                          ? 'Scanner evidence exists. Refresh readiness to materialize mapped milestone blockers and evidence tasks.'
-                          : 'Run or attach workspace-scoped scanner evidence to build a readiness map for this delivery.'}
+                          ? 'Scanner proof exists. Refresh the fix path to create mapped milestone risks and proof tasks.'
+                          : 'Run or attach workspace-scoped scanner proof to build a fix path for this delivery.'}
                       </Typography>
                       <AutoAwesomeOutlined sx={{ color: appleColors.purple }} />
                     </Stack>
@@ -939,9 +939,9 @@ export default function WorkspaceCommandPage() {
               </Surface>
 
               <PlatformAssistantCard
-                title="AI Scanner Explainer"
-                description="Explain mapped blockers and owner decisions from the stored scanner readiness map."
-                prompt={`Use thinker mode and read-only context only. Explain scanner readiness for workspace "${selectedWorkspace.name}". Product: ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}. Readiness score: ${readinessScore}. Status: ${readinessStatus}. Mapped findings: ${readiness?.mappedFindingCount || 0}. Blockers: ${readiness?.blockerCount || 0}. Missing evidence: ${readiness?.missingEvidenceCount || 0}. Unmapped findings: ${readiness?.unmappedFindingCount || 0}. Mapped services: ${(readiness?.milestoneRisks || []).flatMap((risk) => risk.mappedServices).slice(0, 8).join(', ') || 'none'}. Milestone risks: ${(readiness?.milestoneRisks || []).slice(0, 6).map((risk) => `${risk.milestoneTitle}: ${risk.scannerFindingCount} findings, ${risk.missingEvidenceCount} evidence gaps, highest ${risk.highestSeverity || 'none'}`).join('; ') || 'none'}. Tell the owner what blocks production, which service work addresses it, what proof is missing, and what decision is safe next. Do not mutate workspace state.`}
+                title="AI Fix Path Explainer"
+                description="Explain mapped findings and owner decisions from the stored scanner fix path."
+                prompt={`Use thinker mode and read-only context only. Explain the scanner fix path for workspace "${selectedWorkspace.name}". Product: ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}. Readiness score: ${readinessScore}. Status: ${readinessStatus}. Mapped findings: ${readiness?.mappedFindingCount || 0}. Priority fixes: ${readiness?.blockerCount || 0}. Missing proof: ${readiness?.missingEvidenceCount || 0}. Unmapped findings: ${readiness?.unmappedFindingCount || 0}. Mapped services: ${(readiness?.milestoneRisks || []).flatMap((risk) => risk.mappedServices).slice(0, 8).join(', ') || 'none'}. Milestone risks: ${(readiness?.milestoneRisks || []).slice(0, 6).map((risk) => `${risk.milestoneTitle}: ${risk.scannerFindingCount} findings, ${risk.missingEvidenceCount} proof gaps, highest ${risk.highestSeverity || 'none'}`).join('; ') || 'none'}. Tell the owner what could stop shipping, which service work addresses it, what proof is missing, and what decision is safe next. Do not mutate workspace state.`}
                 conversationId={`workspace-scanner-readiness-${selectedWorkspace.id}`}
                 context={{
                   pageType: 'workspace-scanner-readiness',
