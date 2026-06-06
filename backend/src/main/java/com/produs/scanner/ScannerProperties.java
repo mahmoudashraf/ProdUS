@@ -95,7 +95,7 @@ public class ScannerProperties {
         ));
         defaults.put("lighthouse", tool(
                 "Lighthouse",
-                "lighthouse {url} --output json --output-path {output} --quiet --chrome-flags=--headless",
+                "lighthouse {url} --output json --output-path {output} --quiet --chrome-flags=\"--headless --no-sandbox\"",
                 "lighthouse --version",
                 "JSON",
                 "runtime-url"

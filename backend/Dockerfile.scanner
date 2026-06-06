@@ -26,6 +26,7 @@ ENV APP_SCANNER_WORKER_ENABLED=true \
     APP_SCANNER_REQUIRE_RUNTIME_TOOL_AVAILABILITY=true \
     APP_SCANNER_WORK_ROOT=/var/lib/produs/scanner \
     JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom" \
+    CHROME_PATH=/usr/bin/google-chrome \
     NO_COLOR=1
 
 COPY --from=zap-runtime /zap /opt/zap
@@ -36,11 +37,18 @@ RUN apt-get update \
         ca-certificates \
         curl \
         git \
+        gnupg \
         jq \
         python3 \
         python3-pip \
         xz-utils \
         unzip \
+    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+        | gpg --dearmor -o /usr/share/keyrings/google-linux-signing-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-linux-signing-keyring.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
+        > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-chrome-stable \
     && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
         | tar -xJ -C /usr/local --strip-components=1 \
     && pip3 install --no-cache-dir semgrep==${SEMGREP_VERSION} checkov==${CHECKOV_VERSION} python-owasp-zap-v2.4 PyYAML \
@@ -64,7 +72,7 @@ RUN apt-get update \
     && useradd --system --gid produs --home-dir /home/produs --shell /usr/sbin/nologin produs \
     && mkdir -p /app /home/produs /var/lib/produs/scanner/cache/semgrep \
     && chown -R produs:produs /app /home/produs /var/lib/produs \
-    && apt-get purge -y --auto-remove unzip xz-utils \
+    && apt-get purge -y --auto-remove gnupg unzip xz-utils \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
 ENV HOME=/home/produs \
