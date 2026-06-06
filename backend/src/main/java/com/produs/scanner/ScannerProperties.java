@@ -102,7 +102,7 @@ public class ScannerProperties {
         ));
         ToolProperties zap = tool(
                 "OWASP ZAP Baseline",
-                "zap-baseline.py -t {url} -J {output}",
+                "zap-baseline.py --autooff -t {url} -J {output} -I",
                 "zap-baseline.py --version",
                 "JSON",
                 "runtime-url"

@@ -66,13 +66,14 @@ RUN apt-get update \
         | tar -xz -C /usr/local/bin grype \
     && curl -fsSL "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-x86_64" -o /usr/local/bin/hadolint \
     && chmod 0755 /usr/local/bin/hadolint \
+    && ln -s /opt/zap /zap \
     && chmod 0755 /opt/zap/zap-baseline.py /opt/zap/zap.sh \
     && ln -s /opt/zap/zap-baseline.py /usr/local/bin/zap-baseline.py \
     && ln -s /opt/zap/zap.sh /usr/local/bin/zap.sh \
     && groupadd --system produs \
     && useradd --system --gid produs --home-dir /home/produs --shell /usr/sbin/nologin produs \
-    && mkdir -p /app /home/produs /var/lib/produs/scanner/cache/semgrep \
-    && chown -R produs:produs /app /home/produs /var/lib/produs \
+    && mkdir -p /app /home/produs /var/lib/produs/scanner/cache/semgrep /opt/zap/wrk \
+    && chown -R produs:produs /app /home/produs /var/lib/produs /opt/zap/wrk \
     && apt-get purge -y --auto-remove gnupg unzip xz-utils \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
