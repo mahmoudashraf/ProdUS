@@ -36,11 +36,13 @@ export default function ShipConfidencePanel({
   isLoading = false,
   title = 'Ship Confidence',
   subtitle = 'Each diagnosis creates a checkpoint so owners can see whether the prototype is getting closer to a real launch.',
+  showScoreRing = true,
 }: {
   history?: ShipConfidenceHistory | undefined;
   isLoading?: boolean | undefined;
   title?: string | undefined;
   subtitle?: string | undefined;
+  showScoreRing?: boolean | undefined;
 }) {
   const latest = history?.latest;
   const snapshots = history?.snapshots || [];
@@ -70,7 +72,7 @@ export default function ShipConfidencePanel({
               </Typography>
             </Box>
           </Stack>
-          <ProgressRing value={latest?.shipConfidenceScore || 0} size={86} color={scoreColor(latest?.shipConfidenceScore)} label="ship" />
+          {showScoreRing && <ProgressRing value={latest?.shipConfidenceScore || 0} size={86} color={scoreColor(latest?.shipConfidenceScore)} label="ship" />}
         </Stack>
         {isLoading && <LinearProgress sx={{ mt: 1.5, borderRadius: 999 }} />}
       </Box>

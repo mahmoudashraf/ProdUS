@@ -2983,6 +2983,7 @@ export default function OwnerProductizationWorkspace({
                 isLoading={shipConfidence.isFetching}
                 title="Ship Confidence History"
                 subtitle="Every diagnosis and scanner map becomes a checkpoint, so this prototype has a visible path from rough edges to ready-to-ship."
+                showScoreRing={false}
               />
             </Surface>
           )}
