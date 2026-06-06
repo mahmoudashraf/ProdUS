@@ -424,6 +424,76 @@ class ScannerEvidenceIntegrationTest {
     }
 
     @Test
+    void fullHostedScanQueuesAllConfiguredScannerTargetsAndSummaryCoverage(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
+        assumeGitAvailable();
+        User owner = saveUser("scanner-full-suite-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        UUID productId = createProduct(owner);
+        Path repo = createGitRepository(tempDir.resolve("repo"));
+
+        MvcResult sourceResult = mockMvc.perform(post("/api/scanner/sources")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "providerType": "GITHUB",
+                                  "displayName": "Local authorized repository",
+                                  "externalReference": "%s",
+                                  "scopeNote": "Repository authorized for full scanner suite."
+                                }
+                                """.formatted(productId, repo.toUri())))
+                .andExpect(status().isOk())
+                .andReturn();
+        UUID sourceId = readId(sourceResult);
+
+        MvcResult fullSuiteResult = mockMvc.perform(post("/api/scanner/runs/hosted/full")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "sourceId": "%s",
+                                  "branchRef": "master",
+                                  "runtimeTargetUrl": "https://staging.example.test",
+                                  "containerImageRef": "alpine:3.20",
+                                  "authorizationConfirmed": true,
+                                  "runtimeAuthorizationConfirmed": true,
+                                  "reason": "Owner authorized full scanner suite coverage."
+                                }
+                                """.formatted(productId, sourceId)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode fullSuite = objectMapper.readTree(fullSuiteResult.getResponse().getContentAsString());
+        org.assertj.core.api.Assertions.assertThat(fullSuite.get("queuedRuns")).hasSize(3);
+        java.util.ArrayList<String> queuedTools = new java.util.ArrayList<>();
+        fullSuite.get("queuedToolKeys").forEach(node -> queuedTools.add(node.asText()));
+        org.assertj.core.api.Assertions.assertThat(queuedTools).containsExactlyInAnyOrder(
+                "gitleaks",
+                "osv-scanner",
+                "semgrep",
+                "trivy-fs",
+                "checkov",
+                "syft",
+                "grype",
+                "trivy-image",
+                "lighthouse",
+                "zap-baseline"
+        );
+        org.assertj.core.api.Assertions.assertThat(fullSuite.get("skippedTargets")).isEmpty();
+
+        MvcResult summaryResult = mockMvc.perform(get("/api/scanner/products/{productId}/summary", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode summary = objectMapper.readTree(summaryResult.getResponse().getContentAsString());
+        org.assertj.core.api.Assertions.assertThat(summary.get("toolCoverage")).hasSize(10);
+        org.assertj.core.api.Assertions.assertThat(coverageFor(summary, "gitleaks").get("latestStatus").asText()).isEqualTo("QUEUED");
+        org.assertj.core.api.Assertions.assertThat(coverageFor(summary, "syft").get("latestStatus").asText()).isEqualTo("QUEUED");
+        org.assertj.core.api.Assertions.assertThat(coverageFor(summary, "lighthouse").get("latestStatus").asText()).isEqualTo("QUEUED");
+        org.assertj.core.api.Assertions.assertThat(coverageFor(summary, "zap-baseline").get("applicable").asBoolean()).isTrue();
+    }
+
+    @Test
     void hostedScannerTreatsAcceptedNonZeroFindingExitAsCompleted(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
         assumeGitAvailable();
         User owner = saveUser("scanner-osv-owner@produs.test", User.UserRole.PRODUCT_OWNER);
@@ -773,9 +843,15 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
 
-        mockMvc.perform(get("/api/scanner/products/{productId}/summary", productId).with(auth(owner)))
+        MvcResult summaryResult = mockMvc.perform(get("/api/scanner/products/{productId}/summary", productId).with(auth(owner)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.schedules[0].id").value(scheduleId.toString()));
+                .andExpect(jsonPath("$.schedules[0].id").value(scheduleId.toString()))
+                .andReturn();
+        JsonNode summary = objectMapper.readTree(summaryResult.getResponse().getContentAsString());
+        JsonNode lighthouseCoverage = coverageFor(summary, "lighthouse");
+        org.assertj.core.api.Assertions.assertThat(lighthouseCoverage.get("latestStatus").asText()).isEqualTo("COMPLETED");
+        org.assertj.core.api.Assertions.assertThat(lighthouseCoverage.get("normalizedCount").asInt()).isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(lighthouseCoverage.get("mappedFindingCount").asInt()).isEqualTo(1);
     }
 
     @Test
@@ -986,6 +1062,15 @@ class ScannerEvidenceIntegrationTest {
     private UUID readId(MvcResult result) throws Exception {
         JsonNode json = objectMapper.readTree(result.getResponse().getContentAsString());
         return UUID.fromString(json.get("id").asText());
+    }
+
+    private JsonNode coverageFor(JsonNode summary, String toolKey) {
+        for (JsonNode coverage : summary.get("toolCoverage")) {
+            if (toolKey.equals(coverage.get("toolKey").asText())) {
+                return coverage;
+            }
+        }
+        throw new AssertionError("No scanner tool coverage found for " + toolKey);
     }
 
     private void assumeGitAvailable() {

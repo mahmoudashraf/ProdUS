@@ -106,9 +106,11 @@ import {
   AssistantSuggestionsResponse,
   ScannerConnectorInstallation,
   ScannerEvidenceItem,
+  ScannerToolCoverage,
   SignedArtifactResponse,
   ShipConfidenceHistory,
   LaunchReadinessReport,
+  FullHostedScanResponse,
 } from './types';
 
 interface ProductProfilePayload {
@@ -216,6 +218,18 @@ interface HostedScanPayload {
   runtimeAuthorizationConfirmed: boolean;
   reason: string;
   comparisonBaseRunId?: string;
+}
+
+interface FullHostedScanPayload {
+  productId: string;
+  workspaceId?: string;
+  sourceId?: string;
+  branchRef?: string;
+  runtimeTargetUrl?: string;
+  containerImageRef?: string;
+  authorizationConfirmed: boolean;
+  runtimeAuthorizationConfirmed: boolean;
+  reason: string;
 }
 
 interface ScannerSchedulePayload {
@@ -455,6 +469,50 @@ const hostedScanBlockReason = (
   if (!source && !product.repositoryUrl) return 'Connect an authorized repository source or add a repository URL to the product.';
   if (source && source.authorizationStatus !== 'AUTHORIZED') return 'Authorize the selected source before running hosted scanners.';
   return '';
+};
+
+const fullHostedScanBlockReason = (
+  product: ProductProfile | undefined,
+  source: ScanSource | undefined,
+  form: {
+    authorizationConfirmed: boolean;
+    runtimeAuthorizationConfirmed: boolean;
+    runtimeTargetUrl: string;
+    containerImageRef: string;
+    branchRef: string;
+    reason: string;
+  }
+) => {
+  if (!product) return 'Select a product first.';
+  if (!form.authorizationConfirmed) return 'Confirm that you are authorized to run the full scanner suite.';
+  if (!form.reason.trim()) return 'Add an audit reason for scanner execution.';
+  if (source && source.authorizationStatus !== 'AUTHORIZED') return 'Authorize the selected source before running hosted scanners.';
+  const repositoryTarget = product.repositoryUrl || ((source?.providerType === 'GITHUB' || source?.providerType === 'GITLAB') ? source.externalReference : '') || '';
+  if (!repositoryTarget.trim()) return 'Add a repository source or product repository URL for static scanners.';
+  const runtimeTarget = form.runtimeTargetUrl || (source?.providerType === 'RUNTIME_URL' ? source.externalReference : '') || product.productUrl || '';
+  if (!runtimeTarget.trim()) return 'Add an authorized runtime URL for Lighthouse and ZAP.';
+  if (!form.runtimeAuthorizationConfirmed) return 'Confirm runtime URL authorization for Lighthouse and ZAP.';
+  const imageTarget = form.containerImageRef || (source?.providerType === 'EXTERNAL_TOOL' ? source.externalReference : '') || '';
+  if (!imageTarget.trim()) return 'Add a container image reference for SBOM and image vulnerability scanners.';
+  return '';
+};
+
+const scannerCoverageAccent = (coverage?: ScannerToolCoverage) => {
+  if (!coverage) return appleColors.muted;
+  if (!coverage.enabled || !coverage.executableAvailable || coverage.latestStatus === 'FAILED') return appleColors.red;
+  if (coverage.latestStatus === 'COMPLETED') return appleColors.green;
+  if (coverage.latestStatus === 'RUNNING' || coverage.latestStatus === 'QUEUED') return appleColors.amber;
+  if (!coverage.applicable) return appleColors.muted;
+  return appleColors.blue;
+};
+
+const scannerCoverageStatusColor = (coverage?: ScannerToolCoverage): 'default' | 'success' | 'error' | 'warning' | 'primary' => {
+  if (!coverage) return 'default';
+  if (!coverage.enabled || !coverage.executableAvailable || coverage.latestStatus === 'FAILED') return 'error';
+  if (coverage.latestStatus === 'COMPLETED') return 'success';
+  if (coverage.latestStatus === 'RUNNING' || coverage.latestStatus === 'QUEUED') return 'warning';
+  if (coverage.applicable) return 'primary';
+  return 'default';
 };
 
 const productHealth = (product?: ProductProfile, packageInstance?: PackageInstance, modules?: PackageModule[]) => {
@@ -1647,6 +1705,30 @@ export default function OwnerProductizationWorkspace({
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
     },
   });
+  const startFullHostedScan = useMutation({
+    mutationFn: () => {
+      const payload: FullHostedScanPayload = {
+        productId: selectedProduct?.id || '',
+        authorizationConfirmed: hostedScanForm.authorizationConfirmed,
+        runtimeAuthorizationConfirmed: hostedScanForm.runtimeAuthorizationConfirmed,
+        reason: hostedScanForm.reason,
+      };
+      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
+      if (hostedScanForm.sourceId) payload.sourceId = hostedScanForm.sourceId;
+      if (hostedScanForm.branchRef.trim()) payload.branchRef = hostedScanForm.branchRef.trim();
+      if (hostedScanForm.runtimeTargetUrl.trim()) payload.runtimeTargetUrl = hostedScanForm.runtimeTargetUrl.trim();
+      if (hostedScanForm.containerImageRef.trim()) payload.containerImageRef = hostedScanForm.containerImageRef.trim();
+      return postJson<FullHostedScanResponse, FullHostedScanPayload>('/scanner/runs/hosted/full', payload);
+    },
+    onSuccess: async (response) => {
+      setCartNotice(`Full scanner suite queued ${response.queuedToolKeys.length} tool${response.queuedToolKeys.length === 1 ? '' : 's'} across ${response.queuedRuns.length} run${response.queuedRuns.length === 1 ? '' : 's'}.`);
+      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
+      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
+      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
+      await queryClient.invalidateQueries({ queryKey: ['repo-signals', selectedProduct?.id] });
+      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
+    },
+  });
   const cancelScannerRun = useMutation({
     mutationFn: (runId: string) => postJson<ScanRun, { reason: string }>(`/scanner/runs/${runId}/cancel`, { reason: 'Owner canceled scanner run from Studio.' }),
     onSuccess: async () => {
@@ -1778,6 +1860,11 @@ export default function OwnerProductizationWorkspace({
   const activeScanRun = scannerSummary.data?.recentRuns.find((run) => run.status === 'QUEUED' || run.status === 'RUNNING');
   const selectedScanSource = (scannerSummary.data?.sources || []).find((source) => source.id === hostedScanForm.sourceId);
   const hostedScanBlockedReason = hostedScanBlockReason(selectedProduct, selectedScanSource, hostedScanForm);
+  const fullHostedScanBlockedReason = fullHostedScanBlockReason(selectedProduct, selectedScanSource, hostedScanForm);
+  const scannerToolCoverage = scannerSummary.data?.toolCoverage || [];
+  const latestCoveredTools = scannerToolCoverage.filter((tool) => !!tool.latestStatus).length;
+  const latestMappedToolFindings = scannerToolCoverage.reduce((total, tool) => total + (tool.mappedFindingCount || 0), 0);
+  const unavailableScannerTools = scannerToolCoverage.filter((tool) => tool.enabled && !tool.executableAvailable).length;
   const selectedConnectorPermission = (connectorPermissions.data || []).find((permission) => permission.providerType === scanSourceForm.providerType);
   const activeProviderInstallations = (scannerConnectors.data || []).filter(
     (connector) => connector.providerType === scanSourceForm.providerType && connector.status === 'ACTIVE'
@@ -2308,6 +2395,47 @@ export default function OwnerProductizationWorkspace({
                 })}
               </Box>
 
+              {scannerToolCoverage.length ? (
+                <Box sx={{ mb: 2, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, p: 1.5, bgcolor: '#fff' }}>
+                  <SectionTitle
+                    title="Scanner Suite Coverage"
+                    action={
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        <PastelChip label={`${latestCoveredTools}/${scanToolOptions.length} latest`} accent={latestCoveredTools === scanToolOptions.length ? appleColors.green : appleColors.amber} bg={latestCoveredTools === scanToolOptions.length ? '#e7f8ee' : '#fff4dc'} />
+                        <PastelChip label={`${latestMappedToolFindings} mapped findings`} accent={latestMappedToolFindings ? appleColors.purple : appleColors.muted} />
+                        {unavailableScannerTools > 0 && <PastelChip label={`${unavailableScannerTools} unavailable`} accent={appleColors.red} bg="#fff1f2" />}
+                      </Stack>
+                    }
+                  />
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
+                    {scannerToolCoverage.map((tool) => {
+                      const accent = scannerCoverageAccent(tool);
+                      const statusLabel = tool.latestStatus || (!tool.enabled ? 'DISABLED' : !tool.executableAvailable ? 'UNAVAILABLE' : tool.applicable ? 'READY' : 'TARGET_NEEDED');
+                      return (
+                        <Box key={tool.toolKey} sx={{ p: 1.1, borderRadius: 1, border: '1px solid', borderColor: `${accent}35`, bgcolor: tool.latestStatus === 'COMPLETED' ? '#fbfffd' : '#fbfdff', minHeight: 132 }}>
+                          <Stack spacing={0.9} sx={{ height: '100%' }}>
+                            <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 950 }} noWrap>{tool.displayName}</Typography>
+                                <Typography variant="caption" color="text.secondary" noWrap>{formatLabel(tool.depth)} · {formatLabel(tool.targetType)}</Typography>
+                              </Box>
+                              <StatusChip label={statusLabel} color={scannerCoverageStatusColor(tool)} />
+                            </Stack>
+                            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                              <PastelChip label={`${tool.normalizedCount || 0} findings`} accent={tool.normalizedCount ? severityAccent('HIGH') : appleColors.green} bg={tool.normalizedCount ? '#fff1f2' : '#e7f8ee'} />
+                              <PastelChip label={`${tool.mappedFindingCount || 0} mapped`} accent={tool.mappedFindingCount ? appleColors.purple : appleColors.muted} />
+                            </Stack>
+                            <Typography variant="caption" color={tool.latestErrorSummary ? 'error' : 'text.secondary'} sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.35 }}>
+                              {tool.latestErrorSummary || (tool.latestCompletedAt ? `Latest ${shortDateTime(tool.latestCompletedAt)}` : tool.applicabilityReason || 'Awaiting first run.')}
+                            </Typography>
+                          </Stack>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              ) : null}
+
               <Box sx={{ mb: 2, p: 1.5, borderRadius: 1, border: '1px solid', borderColor: '#dbeafe', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
                 <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ lg: 'center' }}>
                   <Stack direction="row" spacing={1.25} alignItems="center">
@@ -2705,6 +2833,9 @@ export default function OwnerProductizationWorkspace({
                         />
                       )}
                       {hostedScanBlockedReason && <Alert severity="info" sx={{ borderRadius: 1 }}>{hostedScanBlockedReason}</Alert>}
+                      {fullHostedScanBlockedReason && fullHostedScanBlockedReason !== hostedScanBlockedReason && (
+                        <Alert severity="info" sx={{ borderRadius: 1 }}>Full suite: {fullHostedScanBlockedReason}</Alert>
+                      )}
                       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                         <Button
                           type="submit"
@@ -2715,6 +2846,20 @@ export default function OwnerProductizationWorkspace({
                         >
                           Start Scan
                         </Button>
+                        <Tooltip title={fullHostedScanBlockedReason || 'Queue every configured scanner across repository, image, and runtime targets.'}>
+                          <span style={{ flex: 1 }}>
+                            <Button
+                              type="button"
+                              variant="outlined"
+                              startIcon={<ShieldOutlined />}
+                              disabled={!!fullHostedScanBlockedReason || !!activeScanRun || startFullHostedScan.isPending}
+                              onClick={() => startFullHostedScan.mutate()}
+                              sx={{ minHeight: 44, width: '100%' }}
+                            >
+                              Run Full Suite
+                            </Button>
+                          </span>
+                        </Tooltip>
                         {activeScanRun && (
                           <Button
                             variant="outlined"
@@ -3016,7 +3161,7 @@ export default function OwnerProductizationWorkspace({
                 </Stack>
 
                 <Stack spacing={1.5}>
-                  {(scannerSummary.isFetching || createScannerReadinessDiagnosis.isPending || createProviderSource.isPending || requestConnectorInstall.isPending || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending || openSignedEvidence.isPending || createEvidenceExport.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
+                  {(scannerSummary.isFetching || createScannerReadinessDiagnosis.isPending || createProviderSource.isPending || requestConnectorInstall.isPending || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || startFullHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending || openSignedEvidence.isPending || createEvidenceExport.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
                   {scannerSummary.data?.sources.length ? (
                     <Stack spacing={1}>
                       <FormControlLabel

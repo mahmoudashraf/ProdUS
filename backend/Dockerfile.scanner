@@ -19,6 +19,7 @@ ARG HADOLINT_VERSION=2.12.0
 ARG NODE_VERSION=20.18.1
 ARG SEMGREP_VERSION=1.106.0
 ARG CHECKOV_VERSION=3.2.337
+ARG ZAP_VERSION=2.16.1
 
 ENV APP_SCANNER_WORKER_ENABLED=true \
     APP_SCANNER_REQUIRE_RUNTIME_TOOL_AVAILABILITY=true \
@@ -53,6 +54,11 @@ RUN apt-get update \
         | tar -xz -C /usr/local/bin grype \
     && curl -fsSL "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-x86_64" -o /usr/local/bin/hadolint \
     && chmod 0755 /usr/local/bin/hadolint \
+    && curl -fsSL "https://github.com/zaproxy/zaproxy/releases/download/v${ZAP_VERSION}/ZAP_${ZAP_VERSION}_Linux.tar.gz" \
+        | tar -xz -C /opt \
+    && chmod 0755 "/opt/ZAP_${ZAP_VERSION}/zap-baseline.py" "/opt/ZAP_${ZAP_VERSION}/zap.sh" \
+    && ln -s "/opt/ZAP_${ZAP_VERSION}/zap-baseline.py" /usr/local/bin/zap-baseline.py \
+    && ln -s "/opt/ZAP_${ZAP_VERSION}/zap.sh" /usr/local/bin/zap.sh \
     && groupadd --system produs \
     && useradd --system --gid produs --home-dir /home/produs --shell /usr/sbin/nologin produs \
     && mkdir -p /app /home/produs /var/lib/produs/scanner/cache/semgrep \

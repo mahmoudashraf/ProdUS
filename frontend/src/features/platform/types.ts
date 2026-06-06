@@ -556,6 +556,39 @@ export interface ScannerSummaryCounts {
   info: number;
 }
 
+export interface ScannerToolCoverage {
+  toolKey: string;
+  displayName: string;
+  depth: ScanRun['depth'];
+  targetType: string;
+  enabled: boolean;
+  executableAvailable: boolean;
+  applicable: boolean;
+  applicabilityReason?: string;
+  latestScanRunId?: string;
+  latestToolRunId?: string;
+  latestStatus?: ToolRun['status'];
+  latestCompletedAt?: string;
+  normalizedCount: number;
+  mappedFindingCount: number;
+  latestErrorSummary?: string;
+}
+
+export interface SkippedScanTarget {
+  depth: ScanRun['depth'];
+  toolKeys: string[];
+  reason: string;
+}
+
+export interface FullHostedScanResponse {
+  productId: string;
+  workspaceId?: string;
+  queuedRuns: ScanRun[];
+  skippedTargets: SkippedScanTarget[];
+  queuedToolKeys: string[];
+  skippedToolKeys: string[];
+}
+
 export interface ProductScannerSummary {
   product: ProductProfile;
   readinessScore: number;
@@ -566,6 +599,7 @@ export interface ProductScannerSummary {
   evidence: ScannerEvidenceItem[];
   imports: ScannerImportRun[];
   schedules: ScannerSchedule[];
+  toolCoverage: ScannerToolCoverage[];
 }
 
 export type RepoSignalType =

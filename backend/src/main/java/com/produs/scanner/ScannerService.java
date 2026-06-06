@@ -553,6 +553,48 @@ public class ScannerService {
     }
 
     @Transactional
+    public FullHostedScanResponse startFullHostedScan(User actor, StartFullHostedScanRequest request) {
+        ProductProfile product = productRepository.findById(request.productId())
+                .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
+        ProjectWorkspace workspace = resolveWorkspace(request.workspaceId(), product);
+        requireProductOrWorkspaceWrite(actor, product, workspace);
+        if (!request.authorizationConfirmed()) {
+            throw new IllegalArgumentException("Full scanner suite requires explicit repository, image, and URL authorization confirmation");
+        }
+
+        ScanSource requestedSource = resolveOptionalAuthorizedSource(product, request.sourceId());
+        List<ScanSource> productSources = sourceRepository.findByProductProfileIdOrderByCreatedAtDesc(product.getId());
+        List<ScanRunResponse> queuedRuns = new ArrayList<>();
+        List<SkippedScanTargetResponse> skippedTargets = new ArrayList<>();
+        queueFullSuiteDepth(actor, request, product, requestedSource, productSources, ScanRun.ScanDepth.SAFE_STATIC, queuedRuns, skippedTargets);
+        queueFullSuiteDepth(actor, request, product, requestedSource, productSources, ScanRun.ScanDepth.DEPENDENCY_CONTAINER, queuedRuns, skippedTargets);
+        queueFullSuiteDepth(actor, request, product, requestedSource, productSources, ScanRun.ScanDepth.RUNTIME_BASELINE, queuedRuns, skippedTargets);
+
+        List<String> queuedToolKeys = queuedRuns.stream()
+                .flatMap(run -> run.toolRuns().stream())
+                .map(ToolRunResponse::toolKey)
+                .filter(key -> key != null && !key.isBlank())
+                .distinct()
+                .toList();
+        List<String> skippedToolKeys = skippedTargets.stream()
+                .flatMap(target -> target.toolKeys().stream())
+                .filter(key -> !queuedToolKeys.contains(key))
+                .distinct()
+                .toList();
+        audit(actor, "SCANNER_FULL_SUITE_QUEUED", "PRODUCT_PROFILE", product.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Queued full scanner suite for product %s. Runs=%d skippedTargets=%d tools=%s"
+                        .formatted(product.getId(), queuedRuns.size(), skippedTargets.size(), queuedToolKeys));
+        return new FullHostedScanResponse(
+                product.getId(),
+                workspace == null ? null : workspace.getId(),
+                queuedRuns,
+                skippedTargets,
+                queuedToolKeys,
+                skippedToolKeys
+        );
+    }
+
+    @Transactional
     public ScanRunResponse cancelScanRun(User actor, UUID runId, ScanCancelRequest request) {
         ScanRun run = scanRunRepository.findById(runId)
                 .orElseThrow(() -> new ResourceNotFoundException("Scan run not found"));
@@ -642,14 +684,19 @@ public class ScannerService {
         ProductProfile product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
         requireProductOwnerOrAdmin(actor, product);
-        List<ScanSourceResponse> sources = sourceRepository.findByProductProfileIdOrderByCreatedAtDesc(productId).stream()
+        List<ScanSource> productSources = sourceRepository.findByProductProfileIdOrderByCreatedAtDesc(productId);
+        List<ScanSourceResponse> sources = productSources.stream()
                 .map(this::toSourceResponse)
                 .toList();
-        List<ScanRunResponse> runs = scanRunRepository.findByProductProfileIdOrderByCreatedAtDesc(productId).stream()
+        List<ScanRun> allRuns = scanRunRepository.findByProductProfileIdOrderByCreatedAtDesc(productId);
+        List<UUID> allRunIds = allRuns.stream().map(ScanRun::getId).toList();
+        List<ToolRun> allToolRuns = allRunIds.isEmpty() ? List.of() : toolRunRepository.findByScanRunIdInOrderByCreatedAtAsc(allRunIds);
+        List<NormalizedFinding> allFindings = findingRepository.findByProductProfileIdOrderBySeverityDescCreatedAtDesc(productId);
+        List<ScanRunResponse> runs = allRuns.stream()
                 .limit(8)
                 .map(run -> toScanRunResponse(run, toolRunRepository.findByScanRunIdOrderByCreatedAtAsc(run.getId())))
                 .toList();
-        List<NormalizedFindingResponse> findings = findingRepository.findByProductProfileIdOrderBySeverityDescCreatedAtDesc(productId).stream()
+        List<NormalizedFindingResponse> findings = allFindings.stream()
                 .limit(30)
                 .map(this::toFindingResponse)
                 .toList();
@@ -665,7 +712,7 @@ public class ScannerService {
                 .limit(8)
                 .map(this::toScheduleResponse)
                 .toList();
-        ScannerSummaryCounts counts = counts(findingRepository.findByProductProfileIdOrderBySeverityDescCreatedAtDesc(productId));
+        ScannerSummaryCounts counts = counts(allFindings);
         return new ProductScannerSummaryResponse(
                 toProductProfileResponse(product),
                 readinessScore(counts),
@@ -675,7 +722,8 @@ public class ScannerService {
                 findings,
                 evidence,
                 imports,
-                schedules
+                schedules,
+                scannerToolCoverage(product, productSources, allRuns, allToolRuns, allFindings)
         );
     }
 
@@ -2014,6 +2062,166 @@ public class ScannerService {
         return sourceRepository.save(source);
     }
 
+    private ScanSource resolveOptionalAuthorizedSource(ProductProfile product, UUID sourceId) {
+        if (sourceId == null) {
+            return null;
+        }
+        ScanSource source = sourceRepository.findById(sourceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scan source not found"));
+        if (!source.getProductProfile().getId().equals(product.getId())) {
+            throw new IllegalArgumentException("Scan source belongs to another product");
+        }
+        if (source.getAuthorizationStatus() != ScanSource.AuthorizationStatus.AUTHORIZED) {
+            throw new IllegalArgumentException("Scan source must be authorized before hosted execution");
+        }
+        return source;
+    }
+
+    private void queueFullSuiteDepth(
+            User actor,
+            StartFullHostedScanRequest request,
+            ProductProfile product,
+            ScanSource requestedSource,
+            List<ScanSource> productSources,
+            ScanRun.ScanDepth depth,
+            List<ScanRunResponse> queuedRuns,
+            List<SkippedScanTargetResponse> skippedTargets
+    ) {
+        List<String> toolKeys = selectedToolKeys(null, depth);
+        String skipReason = fullSuiteSkipReason(product, requestedSource, productSources, request, depth);
+        if (!isBlank(skipReason)) {
+            skippedTargets.add(new SkippedScanTargetResponse(depth, toolKeys, skipReason));
+            return;
+        }
+        ScanSource source = sourceForDepth(depth, requestedSource, productSources);
+        String runtimeTargetUrl = depth == ScanRun.ScanDepth.RUNTIME_BASELINE
+                ? runtimeTargetForFullSuite(product, requestedSource, productSources, request.runtimeTargetUrl())
+                : null;
+        String containerImageRef = depth == ScanRun.ScanDepth.DEPENDENCY_CONTAINER
+                ? containerImageForFullSuite(requestedSource, productSources, request.containerImageRef())
+                : null;
+        StartHostedScanRequest depthRequest = new StartHostedScanRequest(
+                product.getId(),
+                request.workspaceId(),
+                source == null ? null : source.getId(),
+                depth,
+                toolKeys,
+                request.branchRef(),
+                runtimeTargetUrl,
+                containerImageRef,
+                true,
+                depth == ScanRun.ScanDepth.RUNTIME_BASELINE,
+                defaultString(request.reason(), "Owner authorized full scanner suite execution for productization readiness."),
+                null
+        );
+        try {
+            queuedRuns.add(startHostedScan(actor, depthRequest));
+        } catch (RuntimeException ex) {
+            skippedTargets.add(new SkippedScanTargetResponse(depth, toolKeys, safeScannerFailure(ex)));
+        }
+    }
+
+    private String fullSuiteSkipReason(
+            ProductProfile product,
+            ScanSource requestedSource,
+            List<ScanSource> productSources,
+            StartFullHostedScanRequest request,
+            ScanRun.ScanDepth depth
+    ) {
+        if (scanRunRepository.existsByProductProfileIdAndDepthAndStatusIn(
+                product.getId(),
+                depth,
+                List.of(ScanRun.RunStatus.QUEUED, ScanRun.RunStatus.RUNNING)
+        )) {
+            return "A %s scan is already queued or running for this product.".formatted(depth.name());
+        }
+        if (depth == ScanRun.ScanDepth.SAFE_STATIC) {
+            ScanSource source = sourceForDepth(depth, requestedSource, productSources);
+            return source == null && isBlank(product.getRepositoryUrl())
+                    ? "Connect an authorized repository source or add a product repository URL."
+                    : null;
+        }
+        if (depth == ScanRun.ScanDepth.DEPENDENCY_CONTAINER) {
+            return isBlank(containerImageForFullSuite(requestedSource, productSources, request.containerImageRef()))
+                    ? "Add an authorized container image reference."
+                    : null;
+        }
+        if (depth == ScanRun.ScanDepth.RUNTIME_BASELINE) {
+            if (isBlank(runtimeTargetForFullSuite(product, requestedSource, productSources, request.runtimeTargetUrl()))) {
+                return "Add an authorized runtime URL.";
+            }
+            if (!request.runtimeAuthorizationConfirmed()) {
+                return "Confirm runtime URL/domain authorization.";
+            }
+        }
+        return null;
+    }
+
+    private ScanSource sourceForDepth(ScanRun.ScanDepth depth, ScanSource requestedSource, List<ScanSource> productSources) {
+        if (depth == ScanRun.ScanDepth.SAFE_STATIC) {
+            if (sourceSupportsRepositoryScan(requestedSource)) {
+                return requestedSource;
+            }
+            return firstAuthorizedSource(productSources, ScanSource.ProviderType.GITHUB, ScanSource.ProviderType.GITLAB);
+        }
+        if (depth == ScanRun.ScanDepth.RUNTIME_BASELINE) {
+            if (sourceHasProvider(requestedSource, ScanSource.ProviderType.RUNTIME_URL)) {
+                return requestedSource;
+            }
+            return firstAuthorizedSource(productSources, ScanSource.ProviderType.RUNTIME_URL);
+        }
+        if (depth == ScanRun.ScanDepth.DEPENDENCY_CONTAINER) {
+            if (sourceHasProvider(requestedSource, ScanSource.ProviderType.EXTERNAL_TOOL)) {
+                return requestedSource;
+            }
+            return firstAuthorizedSource(productSources, ScanSource.ProviderType.EXTERNAL_TOOL);
+        }
+        return null;
+    }
+
+    private ScanSource firstAuthorizedSource(List<ScanSource> sources, ScanSource.ProviderType... providerTypes) {
+        Set<ScanSource.ProviderType> allowed = Set.of(providerTypes);
+        return sources.stream()
+                .filter(source -> source.getAuthorizationStatus() == ScanSource.AuthorizationStatus.AUTHORIZED)
+                .filter(source -> allowed.contains(source.getProviderType()))
+                .filter(source -> !isBlank(source.getExternalReference()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean sourceSupportsRepositoryScan(ScanSource source) {
+        return sourceHasProvider(source, ScanSource.ProviderType.GITHUB)
+                || sourceHasProvider(source, ScanSource.ProviderType.GITLAB);
+    }
+
+    private boolean sourceHasProvider(ScanSource source, ScanSource.ProviderType providerType) {
+        return source != null
+                && source.getAuthorizationStatus() == ScanSource.AuthorizationStatus.AUTHORIZED
+                && source.getProviderType() == providerType
+                && !isBlank(source.getExternalReference());
+    }
+
+    private String runtimeTargetForFullSuite(ProductProfile product, ScanSource requestedSource, List<ScanSource> productSources, String runtimeTargetUrl) {
+        String target = trimToNull(runtimeTargetUrl);
+        if (!isBlank(target)) {
+            return target;
+        }
+        ScanSource source = sourceForDepth(ScanRun.ScanDepth.RUNTIME_BASELINE, requestedSource, productSources);
+        if (source != null && !isBlank(source.getExternalReference())) {
+            return trimToNull(source.getExternalReference());
+        }
+        return trimToNull(product.getProductUrl());
+    }
+
+    private String containerImageForFullSuite(ScanSource requestedSource, List<ScanSource> productSources, String containerImageRef) {
+        String image = trimToNull(containerImageRef);
+        if (!isBlank(image)) {
+            return image;
+        }
+        ScanSource source = sourceForDepth(ScanRun.ScanDepth.DEPENDENCY_CONTAINER, requestedSource, productSources);
+        return source == null ? null : trimToNull(source.getExternalReference());
+    }
+
     private List<String> selectedToolKeys(List<String> requested, ScanRun.ScanDepth depth) {
         List<String> defaults = switch (depth) {
             case SAFE_STATIC -> List.of("gitleaks", "osv-scanner", "semgrep", "trivy-fs", "checkov");
@@ -2237,6 +2445,125 @@ public class ScannerService {
         long penalty = counts.critical() * 18 + counts.high() * 10 + counts.medium() * 5 + counts.low() * 2;
         long resolvedCredit = Math.min(12, counts.resolved() * 2);
         return (int) Math.max(0, Math.min(100, 100 - penalty + resolvedCredit));
+    }
+
+    private List<ScannerToolCoverageResponse> scannerToolCoverage(
+            ProductProfile product,
+            List<ScanSource> sources,
+            List<ScanRun> runs,
+            List<ToolRun> toolRuns,
+            List<NormalizedFinding> findings
+    ) {
+        Map<UUID, ScanRun> runById = new LinkedHashMap<>();
+        runs.forEach(run -> runById.put(run.getId(), run));
+        Map<UUID, List<NormalizedFinding>> findingsByToolRun = new LinkedHashMap<>();
+        for (NormalizedFinding finding : findings) {
+            if (finding.getToolRun() != null && finding.getToolRun().getId() != null) {
+                findingsByToolRun.computeIfAbsent(finding.getToolRun().getId(), ignored -> new ArrayList<>()).add(finding);
+            }
+        }
+        Map<String, ToolRun> latestByToolKey = new LinkedHashMap<>();
+        for (ToolRun toolRun : toolRuns) {
+            if (isBlank(toolRun.getToolKey())) {
+                continue;
+            }
+            ToolRun current = latestByToolKey.get(toolRun.getToolKey());
+            if (current == null || isAfter(toolRunTime(toolRun), toolRunTime(current))) {
+                latestByToolKey.put(toolRun.getToolKey(), toolRun);
+            }
+        }
+
+        return scannerProperties.getTools().entrySet().stream()
+                .map(entry -> {
+                    String toolKey = entry.getKey();
+                    ScannerProperties.ToolProperties tool = entry.getValue();
+                    ToolRun latestToolRun = latestByToolKey.get(toolKey);
+                    ScanRun latestRun = latestToolRun == null ? null : runById.get(latestToolRun.getScanRun().getId());
+                    List<NormalizedFinding> toolFindings = latestToolRun == null ? List.of() : findingsByToolRun.getOrDefault(latestToolRun.getId(), List.of());
+                    long mappedFindingCount = toolFindings.stream()
+                            .filter(finding -> !isBlank(finding.getMappingSource())
+                                    || !isBlank(finding.getFindingCategory())
+                                    || finding.getRecommendedModule() != null)
+                            .count();
+                    ToolApplicability applicability = toolApplicability(product, sources, runs, tool.getTargetType());
+                    String executable = firstCommandToken(tool.getCommand());
+                    return new ScannerToolCoverageResponse(
+                            toolKey,
+                            defaultString(tool.getDisplayName(), toolKey),
+                            latestRun == null ? defaultDepthForTool(tool).name() : latestRun.getDepth().name(),
+                            defaultString(tool.getTargetType(), "repository"),
+                            tool.isEnabled(),
+                            scannerProcessRunner.isExecutableAvailable(executable),
+                            applicability.applicable(),
+                            applicability.reason(),
+                            latestRun == null ? null : latestRun.getId(),
+                            latestToolRun == null ? null : latestToolRun.getId(),
+                            latestToolRun == null ? null : latestToolRun.getStatus(),
+                            latestToolRun == null ? null : latestToolRun.getCompletedAt(),
+                            latestToolRun == null ? 0 : latestToolRun.getNormalizedCount(),
+                            mappedFindingCount,
+                            latestToolRun == null ? null : latestToolRun.getErrorSummary()
+                    );
+                })
+                .toList();
+    }
+
+    private ToolApplicability toolApplicability(ProductProfile product, List<ScanSource> sources, List<ScanRun> runs, String targetType) {
+        String target = defaultString(targetType, "repository");
+        if (target.equals("runtime-url")) {
+            boolean hasRuntimeTarget = !isBlank(product.getProductUrl())
+                    || firstAuthorizedSource(sources, ScanSource.ProviderType.RUNTIME_URL) != null
+                    || runs.stream().anyMatch(run -> !isBlank(run.getRuntimeTargetUrl()));
+            return new ToolApplicability(
+                    hasRuntimeTarget,
+                    hasRuntimeTarget ? "Runtime URL available." : "Add a product or authorized runtime URL."
+            );
+        }
+        if (target.equals("container-image")) {
+            boolean hasImageTarget = firstAuthorizedSource(sources, ScanSource.ProviderType.EXTERNAL_TOOL) != null
+                    || runs.stream().anyMatch(run -> !isBlank(run.getContainerImageRef()));
+            return new ToolApplicability(
+                    hasImageTarget,
+                    hasImageTarget ? "Container image target available." : "Add a container image reference."
+            );
+        }
+        boolean hasRepositoryTarget = !isBlank(product.getRepositoryUrl())
+                || firstAuthorizedSource(sources, ScanSource.ProviderType.GITHUB, ScanSource.ProviderType.GITLAB) != null;
+        return new ToolApplicability(
+                hasRepositoryTarget,
+                hasRepositoryTarget ? "Repository source available." : "Connect an authorized repository source or add a product repository URL."
+        );
+    }
+
+    private ScanRun.ScanDepth defaultDepthForTool(ScannerProperties.ToolProperties tool) {
+        String targetType = defaultString(tool.getTargetType(), "repository");
+        if (targetType.equals("runtime-url")) {
+            return ScanRun.ScanDepth.RUNTIME_BASELINE;
+        }
+        if (targetType.equals("container-image")) {
+            return ScanRun.ScanDepth.DEPENDENCY_CONTAINER;
+        }
+        return ScanRun.ScanDepth.SAFE_STATIC;
+    }
+
+    private LocalDateTime toolRunTime(ToolRun toolRun) {
+        if (toolRun.getCompletedAt() != null) {
+            return toolRun.getCompletedAt();
+        }
+        if (toolRun.getUpdatedAt() != null) {
+            return toolRun.getUpdatedAt();
+        }
+        return toolRun.getCreatedAt();
+    }
+
+    private boolean isAfter(LocalDateTime left, LocalDateTime right) {
+        if (left == null) {
+            return false;
+        }
+        if (right == null) {
+            return true;
+        }
+        return left.isAfter(right);
     }
 
     private ScanSourceResponse toSourceResponse(ScanSource source) {
@@ -2608,6 +2935,18 @@ public class ScannerService {
             UUID comparisonBaseRunId
     ) {}
 
+    public record StartFullHostedScanRequest(
+            @NotNull UUID productId,
+            UUID workspaceId,
+            UUID sourceId,
+            String branchRef,
+            String runtimeTargetUrl,
+            String containerImageRef,
+            boolean authorizationConfirmed,
+            boolean runtimeAuthorizationConfirmed,
+            String reason
+    ) {}
+
     public record ScanCancelRequest(String reason) {}
 
     public record RescanRequest(List<String> toolKeys, String reason) {}
@@ -2698,6 +3037,21 @@ public class ScannerService {
             ScanRunResponse scanRun
     ) {}
 
+    public record FullHostedScanResponse(
+            UUID productId,
+            UUID workspaceId,
+            List<ScanRunResponse> queuedRuns,
+            List<SkippedScanTargetResponse> skippedTargets,
+            List<String> queuedToolKeys,
+            List<String> skippedToolKeys
+    ) {}
+
+    public record SkippedScanTargetResponse(
+            ScanRun.ScanDepth depth,
+            List<String> toolKeys,
+            String reason
+    ) {}
+
     public record ProductScannerSummaryResponse(
             ProductProfileResponse product,
             int readinessScore,
@@ -2707,7 +3061,26 @@ public class ScannerService {
             List<NormalizedFindingResponse> findings,
             List<ScannerEvidenceItemResponse> evidence,
             List<ScannerImportRunResponse> imports,
-            List<ScannerScheduleResponse> schedules
+            List<ScannerScheduleResponse> schedules,
+            List<ScannerToolCoverageResponse> toolCoverage
+    ) {}
+
+    public record ScannerToolCoverageResponse(
+            String toolKey,
+            String displayName,
+            String depth,
+            String targetType,
+            boolean enabled,
+            boolean executableAvailable,
+            boolean applicable,
+            String applicabilityReason,
+            UUID latestScanRunId,
+            UUID latestToolRunId,
+            ToolRun.ToolStatus latestStatus,
+            LocalDateTime latestCompletedAt,
+            int normalizedCount,
+            long mappedFindingCount,
+            String latestErrorSummary
     ) {}
 
     public record ScannerSummaryCounts(
@@ -2885,6 +3258,8 @@ public class ScannerService {
             String confidenceBasis,
             boolean redacted
     ) {}
+
+    private record ToolApplicability(boolean applicable, String reason) {}
 
     private record Redaction(String value, boolean redacted) {}
 }

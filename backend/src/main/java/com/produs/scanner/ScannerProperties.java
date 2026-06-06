@@ -100,13 +100,15 @@ public class ScannerProperties {
                 "JSON",
                 "runtime-url"
         ));
-        defaults.put("zap-baseline", tool(
+        ToolProperties zap = tool(
                 "OWASP ZAP Baseline",
                 "zap-baseline.py -t {url} -J {output}",
                 "zap-baseline.py --version",
                 "JSON",
                 "runtime-url"
-        ));
+        );
+        zap.setAcceptedExitCodes(List.of(0, 1, 2));
+        defaults.put("zap-baseline", zap);
         return defaults;
     }
 

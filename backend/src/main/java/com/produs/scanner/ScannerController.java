@@ -10,6 +10,7 @@ import com.produs.scanner.ScannerService.CreateScanSourceRequest;
 import com.produs.scanner.ScannerService.DisconnectScanSourceRequest;
 import com.produs.scanner.ScannerService.ExternalImportRequest;
 import com.produs.scanner.ScannerService.FindingStatusRequest;
+import com.produs.scanner.ScannerService.FullHostedScanResponse;
 import com.produs.scanner.ScannerService.NormalizedFindingResponse;
 import com.produs.scanner.ScannerService.ProductScannerSummaryResponse;
 import com.produs.scanner.ScannerService.RescanRequest;
@@ -20,6 +21,7 @@ import com.produs.scanner.ScannerService.ScannerScheduleResponse;
 import com.produs.scanner.ScannerService.ScannerAdminHealthResponse;
 import com.produs.scanner.ScannerService.ScannerEvidenceItemResponse;
 import com.produs.scanner.ScannerService.ScannerImportRunResponse;
+import com.produs.scanner.ScannerService.StartFullHostedScanRequest;
 import com.produs.scanner.ScannerService.StartHostedScanRequest;
 import com.produs.scanner.ScannerService.ToolRunResponse;
 import com.produs.scanner.ScannerService.UpdateScannerScheduleRequest;
@@ -145,6 +147,14 @@ public class ScannerController {
             @Valid @RequestBody StartHostedScanRequest request
     ) {
         return scannerService.startHostedScan(user, request);
+    }
+
+    @PostMapping("/runs/hosted/full")
+    public FullHostedScanResponse startFullHostedScan(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody StartFullHostedScanRequest request
+    ) {
+        return scannerService.startFullHostedScan(user, request);
     }
 
     @PostMapping("/runs/{runId}/cancel")
