@@ -568,6 +568,58 @@ export interface ProductScannerSummary {
   schedules: ScannerSchedule[];
 }
 
+export type RepoSignalType =
+  | 'REPOSITORY_SOURCE'
+  | 'SOURCE_AUTHORIZATION'
+  | 'DEFAULT_BRANCH'
+  | 'PRODUCT_URL'
+  | 'DECLARED_TECH_STACK'
+  | 'LANGUAGE'
+  | 'FRAMEWORK'
+  | 'DATABASE'
+  | 'AUTH'
+  | 'CI_CD'
+  | 'TESTING'
+  | 'DEPLOYMENT'
+  | 'DOCUMENTATION'
+  | 'DEPENDENCY'
+  | 'SECURITY'
+  | 'RUNTIME'
+  | 'SCANNER_STATUS'
+  | 'SCANNER_FINDING'
+  | 'UNKNOWN';
+
+export interface RepoSignal extends BaseRecord {
+  signalType: RepoSignalType;
+  signalValue: string;
+  confidence: number;
+  source: 'PRODUCT_PROFILE' | 'SCAN_SOURCE' | 'SCAN_RUN' | 'SCANNER_FINDING' | 'BACKEND_INFERENCE';
+  sourceTool?: string;
+  sourcePath?: string;
+  evidenceKind:
+    | 'OWNER_PROVIDED'
+    | 'AUTHORIZED_CONNECTOR'
+    | 'SCANNER_RESULT'
+    | 'RUNTIME_TARGET'
+    | 'INFERRED'
+    | 'UNKNOWN';
+  ownerSafeEvidence?: string;
+  detectedAt?: string;
+}
+
+export interface RepoSignalSummary {
+  productId: string;
+  workspaceId?: string;
+  refreshedAt?: string;
+  sourceStatus: 'NOT_REFRESHED' | 'AUTHORIZED_SOURCE' | 'OWNER_PROVIDED_SOURCE' | 'SOURCE_UNKNOWN' | string;
+  signals: RepoSignal[];
+  detectedStack: RepoSignal[];
+  scannerFacts: RepoSignal[];
+  unknowns: RepoSignal[];
+  nextActions: string[];
+  aiContextFacts: Record<string, unknown>;
+}
+
 export interface ScannerToolHealth {
   key: string;
   displayName: string;

@@ -49,3 +49,5 @@ databaseChangeLog:
       file: db/changelog/V024__project_ai_intelligence.yaml
   - include:
       file: db/changelog/V025__scanner_readiness_diagnosis_mapping.yaml
+  - include:
+      file: db/changelog/V026__repo_signals.yaml

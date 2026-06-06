@@ -1,0 +1,96 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2600
+      author: produs
+      changes:
+        - createTable:
+            tableName: repo_signals
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+              - column:
+                  name: product_profile_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: workspace_id
+                  type: UUID
+              - column:
+                  name: signal_type
+                  type: VARCHAR(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: signal_value
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: confidence
+                  type: DOUBLE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source
+                  type: VARCHAR(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_tool
+                  type: VARCHAR(255)
+              - column:
+                  name: source_path
+                  type: VARCHAR(1000)
+              - column:
+                  name: evidence_kind
+                  type: VARCHAR(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: owner_safe_evidence
+                  type: TEXT
+              - column:
+                  name: detected_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: repo_signals
+            baseColumnNames: product_profile_id
+            constraintName: fk_repo_signals_product_profile
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: repo_signals
+            baseColumnNames: workspace_id
+            constraintName: fk_repo_signals_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - createIndex:
+            tableName: repo_signals
+            indexName: idx_repo_signals_product
+            columns:
+              - column: { name: product_profile_id }
+        - createIndex:
+            tableName: repo_signals
+            indexName: idx_repo_signals_workspace
+            columns:
+              - column: { name: workspace_id }
+        - createIndex:
+            tableName: repo_signals
+            indexName: idx_repo_signals_type
+            columns:
+              - column: { name: signal_type }

@@ -4,7 +4,7 @@ Date: 2026-06-05
 
 Audience: product, engineering, design, AI integration, catalog, scanner, and delivery stakeholders
 
-Status: implementation plan; Sequence 1 implemented; Sequence 2 is the next build slice
+Status: implementation plan; Sequence 1 implemented; Sequence 2 implemented; Sequence 3 is the next build slice
 
 Primary references:
 
@@ -181,9 +181,9 @@ Build rule:
 - Keep expensive AI calls user-triggered.
 - Validate every persisted AI-derived service/module/reference against backend data.
 
-## 9. Immediate Next Build Slice
+## 9. Implemented Build Slice
 
-The next implementation slice is **Sequence 2: Repo And Scanner Fact Understanding**.
+**Sequence 2: Repo And Scanner Fact Understanding** is implemented.
 
 Goal:
 
@@ -233,10 +233,51 @@ Frontend scope:
 
 Verification scope:
 
-- backend tests for signal normalization and safe redaction
+- backend tests for signal normalization, owner access, scanner-backed facts, and safe unknowns
 - frontend build/type-check
-- Playwright product page check with a mock product/repo
-- staging smoke with `mahmoudashraf/ProdUS`
+- live product page verification with `mahmoudashraf/ProdUS`
+
+Implemented artifacts:
+
+- `repo_signals` database table and Liquibase migration
+- product endpoints:
+  - `GET /api/products/{productId}/repo-signals`
+  - `POST /api/products/{productId}/repo-signals/refresh`
+- workspace endpoints:
+  - `GET /api/workspaces/{workspaceId}/repo-signals`
+  - `POST /api/workspaces/{workspaceId}/repo-signals/refresh`
+- deterministic repo signal builder using product profile, scanner sources, scanner runs, and normalized findings
+- compact `aiContextFacts` response for future LoomAI context enrichment
+- owner Productization Workspace Repo Readout panel with manual refresh
+
+## 9A. Immediate Next Build Slice
+
+The next implementation slice is **Sequence 3: AI Analysis Contract Upgrade**.
+
+Goal:
+
+> Project analysis should use grounded repo/scanner facts and a compact service catalog snapshot so AI output becomes actionable project intelligence, not descriptive text.
+
+Backend scope:
+
+- include repo signal `aiContextFacts` when a product/workspace already exists
+- keep project-creation analysis grounded in owner input, temporary document URLs, repository URL, and the compact service catalog snapshot
+- require recommended services to return real catalog module codes/slugs
+- validate all AI-returned catalog references before persistence
+- persist only owner-approved project intelligence during project creation
+
+Frontend scope:
+
+- show which project intelligence fields will be persisted when the owner creates the project
+- show AI-recommended services as selectable catalog-backed chips/cards
+- separate "AI observed", "Owner confirmed", and "Still missing" in the creation UI
+- keep AI analysis user-triggered.
+
+Verification scope:
+
+- test analysis contract parsing and catalog validation
+- verify project creation stores service recommendations and repo source correctly
+- verify AI analysis does not block project creation only because document usage proof is inconclusive unless the explicit config says so
 
 ## 10. Implementation Sequence
 

@@ -84,6 +84,8 @@ import {
   ProjectWorkspace,
   QuoteProposal,
   RequirementIntake,
+  RepoSignal,
+  RepoSignalSummary,
   ServiceCategory,
   ServiceModule,
   SupportRequest,
@@ -466,6 +468,205 @@ const severityAccent = (severity?: string) => {
   if (severity === 'LOW') return appleColors.blue;
   return appleColors.muted;
 };
+
+const repoSignalAccent = (signal?: Pick<RepoSignal, 'signalType' | 'evidenceKind'>) => {
+  if (!signal) return appleColors.purple;
+  if (signal.signalType === 'UNKNOWN') return appleColors.amber;
+  if (signal.signalType === 'SECURITY' || signal.signalType === 'SCANNER_FINDING') return appleColors.red;
+  if (signal.signalType === 'TESTING' || signal.signalType === 'CI_CD' || signal.signalType === 'DEPLOYMENT') return appleColors.cyan;
+  if (signal.evidenceKind === 'AUTHORIZED_CONNECTOR' || signal.evidenceKind === 'SCANNER_RESULT') return appleColors.green;
+  if (signal.signalType === 'FRAMEWORK' || signal.signalType === 'LANGUAGE' || signal.signalType === 'DATABASE') return appleColors.blue;
+  return appleColors.purple;
+};
+
+const repoSourceStatusLabel = (status?: string) => {
+  if (status === 'AUTHORIZED_SOURCE') return 'Repo connected';
+  if (status === 'OWNER_PROVIDED_SOURCE') return 'Owner-provided repo';
+  if (status === 'SOURCE_UNKNOWN') return 'Repo unknown';
+  return 'Not refreshed';
+};
+
+const repoSignalConfidence = (confidence?: number) => `${Math.round((confidence || 0) * 100)}%`;
+
+function RepoSignalRow({ signal }: { signal: RepoSignal }) {
+  const accent = repoSignalAccent(signal);
+  return (
+    <Box
+      sx={{
+        p: 1,
+        borderRadius: 1,
+        border: '1px solid',
+        borderColor: `${accent}28`,
+        bgcolor: '#fff',
+        minWidth: 0,
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
+        <Box sx={{ minWidth: 0 }}>
+          <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+            <PastelChip label={formatLabel(signal.signalType)} accent={accent} bg={`${accent}12`} />
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900 }}>
+              {repoSignalConfidence(signal.confidence)}
+            </Typography>
+          </Stack>
+          <Typography variant="body2" sx={{ mt: 0.65, fontWeight: 900, overflowWrap: 'anywhere' }}>
+            {signal.signalValue}
+          </Typography>
+          {signal.ownerSafeEvidence && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.45, display: 'block', lineHeight: 1.45 }}>
+              {signal.ownerSafeEvidence}
+            </Typography>
+          )}
+        </Box>
+      </Stack>
+    </Box>
+  );
+}
+
+function RepoSignalColumn({
+  title,
+  empty,
+  signals,
+}: {
+  title: string;
+  empty: string;
+  signals: RepoSignal[];
+}) {
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 950, mb: 1 }}>
+        {title}
+      </Typography>
+      {signals.length ? (
+        <Stack spacing={0.9}>
+          {signals.slice(0, 5).map((signal) => (
+            <RepoSignalRow key={signal.id} signal={signal} />
+          ))}
+        </Stack>
+      ) : (
+        <Box sx={{ p: 1.25, borderRadius: 1, border: '1px dashed', borderColor: appleColors.line, bgcolor: '#fbfdff' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+            {empty}
+          </Typography>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function RepoReadoutPanel({
+  summary,
+  scannerSummary,
+  isFetching,
+  isRefreshing,
+  onRefresh,
+}: {
+  summary: RepoSignalSummary | undefined;
+  scannerSummary: ProductScannerSummary | undefined;
+  isFetching: boolean;
+  isRefreshing: boolean;
+  onRefresh: () => void;
+}) {
+  const sourceSignal = summary?.signals.find((signal) => signal.signalType === 'REPOSITORY_SOURCE');
+  const branchSignal = summary?.signals.find((signal) => signal.signalType === 'DEFAULT_BRANCH');
+  const scannerStatus = summary?.signals.find((signal) => signal.signalType === 'SCANNER_STATUS');
+  const unknownCount = summary?.unknowns.length || 0;
+  const stackValues = Array.from(new Set((summary?.detectedStack || []).map((signal) => signal.signalValue))).slice(0, 6);
+  const proofSignals = (summary?.scannerFacts || []).filter((signal) => signal.signalType !== 'REPOSITORY_SOURCE' && signal.signalType !== 'SOURCE_AUTHORIZATION');
+  const topUnknowns = summary?.unknowns || [];
+  const sourceStatus = repoSourceStatusLabel(summary?.sourceStatus);
+  const accent = summary?.sourceStatus === 'AUTHORIZED_SOURCE'
+    ? appleColors.green
+    : summary?.sourceStatus === 'OWNER_PROVIDED_SOURCE'
+      ? appleColors.blue
+      : appleColors.amber;
+
+  return (
+    <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fbfdff 50%, #f7fff9 100%)' }}>
+      <SectionTitle
+        title="Repo Readout"
+        action={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <PastelChip label={sourceStatus} accent={accent} bg={`${accent}12`} />
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<RefreshOutlined />}
+              disabled={isRefreshing}
+              onClick={onRefresh}
+              sx={{ minHeight: 36 }}
+            >
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </Stack>
+        }
+      />
+      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65, mb: 1.5 }}>
+        ProdUS turns owner input, connected repo sources, scanner runs, and normalized findings into a compact set of facts. This does not call AI; it keeps the diagnosis grounded before service choices or workspace decisions.
+      </Typography>
+      {(isFetching || isRefreshing) && <LinearProgress sx={{ borderRadius: 999, mb: 1.5 }} />}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.25, mb: 1.5 }}>
+        <MetricTile
+          label="Repository"
+          value={sourceSignal?.signalValue || 'Unknown'}
+          detail={branchSignal?.signalValue ? `Branch ${branchSignal.signalValue}` : 'Attach repo or source'}
+          accent={sourceSignal ? repoSignalAccent(sourceSignal) : appleColors.amber}
+          icon={<Inventory2Outlined />}
+        />
+        <MetricTile
+          label="Stack signals"
+          value={stackValues.length}
+          detail={stackValues.length ? stackValues.join(', ') : 'Not detected yet'}
+          accent={stackValues.length ? appleColors.blue : appleColors.amber}
+          icon={<ScienceOutlined />}
+        />
+        <MetricTile
+          label="Scanner proof"
+          value={scannerStatus?.signalValue || `${scannerSummary?.recentRuns.length || 0} runs`}
+          detail={`${scannerSummary?.findings.length || 0} findings available`}
+          accent={scannerStatus ? repoSignalAccent(scannerStatus) : appleColors.cyan}
+          icon={<ShieldOutlined />}
+        />
+        <MetricTile
+          label="Still unknown"
+          value={unknownCount}
+          detail={unknownCount ? 'Needs evidence' : 'No gaps detected'}
+          accent={unknownCount ? appleColors.amber : appleColors.green}
+          icon={<InfoOutlined />}
+        />
+      </Box>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
+        <RepoSignalColumn
+          title="Detected by ProdUS"
+          empty="Refresh after adding a repository URL or scanner source."
+          signals={summary?.detectedStack || []}
+        />
+        <RepoSignalColumn
+          title="Scanner-backed facts"
+          empty="Run a scanner or import CI evidence to ground this project."
+          signals={proofSignals}
+        />
+        <RepoSignalColumn
+          title="Still unknown"
+          empty="No major unknowns from the latest readout."
+          signals={topUnknowns}
+        />
+      </Box>
+      {!!summary?.nextActions.length && (
+        <Box sx={{ mt: 1.5, p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#dbeafe', bgcolor: '#fbfdff' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 950, mb: 0.75 }}>
+            Next proof steps
+          </Typography>
+          <Stack spacing={0.65}>
+            {summary.nextActions.slice(0, 4).map((action) => (
+              <DotLabel key={action} label={action} color={appleColors.blue} />
+            ))}
+          </Stack>
+        </Box>
+      )}
+    </Surface>
+  );
+}
 
 const findingStatusAccent = (status?: string) => {
   if (status === 'RESOLVED') return appleColors.green;
@@ -934,6 +1135,11 @@ export default function OwnerProductizationWorkspace({
       return data?.recentRuns.some((run) => run.status === 'QUEUED' || run.status === 'RUNNING') ? 5000 : false;
     },
   });
+  const repoSignals = useQuery({
+    queryKey: ['repo-signals', selectedProductId],
+    enabled: !!selectedProductId,
+    queryFn: () => getJson<RepoSignalSummary>(`/products/${selectedProductId}/repo-signals`),
+  });
   const latestCompletedScannerRunId = scannerSummary.data?.recentRuns.find((run) => run.status === 'COMPLETED')?.id || '';
   useEffect(() => {
     if (!selectedProductId || !latestCompletedScannerRunId || latestCompletedScannerRunId === lastDiagnosisRefreshRunId) return;
@@ -941,6 +1147,7 @@ export default function OwnerProductizationWorkspace({
     queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProductId, 'diagnoses'] });
     queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProductId, 'ship-confidence'] });
     queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
+    queryClient.invalidateQueries({ queryKey: ['repo-signals', selectedProductId] });
   }, [latestCompletedScannerRunId, lastDiagnosisRefreshRunId, queryClient, selectedProductId]);
   const connectorPermissions = useQuery({
     queryKey: ['scanner-connector-permissions'],
@@ -1254,6 +1461,17 @@ export default function OwnerProductizationWorkspace({
       await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
       await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
+    },
+  });
+  const refreshRepoSignals = useMutation({
+    mutationFn: () => {
+      if (!selectedProduct?.id) {
+        throw new Error('Select a product before refreshing repo signals.');
+      }
+      return postJson<RepoSignalSummary, Record<string, never>>(`/products/${selectedProduct.id}/repo-signals/refresh`, {});
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['repo-signals', selectedProduct?.id] });
     },
   });
   const createScanSource = useMutation({
@@ -1656,8 +1874,8 @@ export default function OwnerProductizationWorkspace({
     }
   });
 
-  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, scannerSummary, scannerConnectors].some((query) => query.isLoading);
-  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, scannerSummary, scannerConnectors, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
+  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, scannerSummary, repoSignals, scannerConnectors].some((query) => query.isLoading);
+  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, scannerSummary, repoSignals, scannerConnectors, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
     || createProduct.error
     || createRequirement.error
     || buildPackage.error
@@ -1671,6 +1889,7 @@ export default function OwnerProductizationWorkspace({
     || convertCart.error
     || createDiagnosis.error
     || createScannerReadinessDiagnosis.error
+    || refreshRepoSignals.error
     || createScanSource.error
     || requestConnectorInstall.error
     || createProviderSource.error
@@ -1851,6 +2070,16 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           ) : (
             <EmptyState label="Create a product profile to start the owner productization workflow." />
+          )}
+
+          {selectedProduct && (
+            <RepoReadoutPanel
+              summary={repoSignals.data}
+              scannerSummary={scannerSummary.data}
+              isFetching={repoSignals.isFetching}
+              isRefreshing={refreshRepoSignals.isPending}
+              onRefresh={() => refreshRepoSignals.mutate()}
+            />
           )}
 
           {selectedProduct && (
