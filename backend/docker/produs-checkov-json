@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+if [[ $# -ne 2 ]]; then
+    echo "Usage: produs-checkov-json <target-dir> <output-file>" >&2
+    exit 2
+fi
+
+target_dir="$1"
+output_file="$2"
+output_dir="${output_file}.checkov"
+
+rm -rf "$output_dir"
+mkdir -p "$output_dir"
+
+checkov -d "$target_dir" -o json --output-file-path "$output_dir" --soft-fail >/dev/null
+status=$?
+
+if [[ -s "$output_dir/results_json.json" ]]; then
+    cp "$output_dir/results_json.json" "$output_file"
+fi
+
+exit "$status"

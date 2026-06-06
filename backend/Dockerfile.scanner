@@ -81,7 +81,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
 COPY docker/produs-zap-baseline /usr/local/bin/produs-zap-baseline
-RUN chmod 0755 /usr/local/bin/produs-zap-baseline
+COPY docker/produs-checkov-json /usr/local/bin/produs-checkov-json
+RUN chmod 0755 /usr/local/bin/produs-zap-baseline /usr/local/bin/produs-checkov-json
 
 ENV HOME=/home/produs \
     XDG_CACHE_HOME=/var/lib/produs/scanner/cache \

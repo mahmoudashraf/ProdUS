@@ -65,7 +65,7 @@ public class ScannerProperties {
         ));
         ToolProperties checkov = tool(
                 "Checkov",
-                "checkov -d {target} -o json --output-file-path {output} --soft-fail",
+                "produs-checkov-json {target} {output}",
                 "checkov --version",
                 "JSON",
                 "repository"
