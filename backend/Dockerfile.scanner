@@ -8,6 +8,8 @@ COPY pom.xml .
 COPY src ./src
 RUN mvn -q -DskipTests package
 
+FROM ghcr.io/zaproxy/zaproxy:stable AS zap-runtime
+
 FROM eclipse-temurin:21-jre-jammy AS scanner-runtime
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG GITLEAKS_VERSION=8.24.3
@@ -19,13 +21,14 @@ ARG HADOLINT_VERSION=2.12.0
 ARG NODE_VERSION=20.18.1
 ARG SEMGREP_VERSION=1.106.0
 ARG CHECKOV_VERSION=3.2.337
-ARG ZAP_VERSION=2.16.1
 
 ENV APP_SCANNER_WORKER_ENABLED=true \
     APP_SCANNER_REQUIRE_RUNTIME_TOOL_AVAILABILITY=true \
     APP_SCANNER_WORK_ROOT=/var/lib/produs/scanner \
     JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom" \
     NO_COLOR=1
+
+COPY --from=zap-runtime /zap /opt/zap
 
 # hadolint ignore=DL3008
 RUN apt-get update \
@@ -40,7 +43,7 @@ RUN apt-get update \
         unzip \
     && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
         | tar -xJ -C /usr/local --strip-components=1 \
-    && pip3 install --no-cache-dir semgrep==${SEMGREP_VERSION} checkov==${CHECKOV_VERSION} \
+    && pip3 install --no-cache-dir semgrep==${SEMGREP_VERSION} checkov==${CHECKOV_VERSION} python-owasp-zap-v2.4 PyYAML \
     && npm install -g lighthouse@12.3.0 \
     && curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
         | tar -xz -C /usr/local/bin gitleaks \
@@ -54,11 +57,9 @@ RUN apt-get update \
         | tar -xz -C /usr/local/bin grype \
     && curl -fsSL "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-x86_64" -o /usr/local/bin/hadolint \
     && chmod 0755 /usr/local/bin/hadolint \
-    && curl -fsSL "https://github.com/zaproxy/zaproxy/releases/download/v${ZAP_VERSION}/ZAP_${ZAP_VERSION}_Linux.tar.gz" \
-        | tar -xz -C /opt \
-    && chmod 0755 "/opt/ZAP_${ZAP_VERSION}/zap-baseline.py" "/opt/ZAP_${ZAP_VERSION}/zap.sh" \
-    && ln -s "/opt/ZAP_${ZAP_VERSION}/zap-baseline.py" /usr/local/bin/zap-baseline.py \
-    && ln -s "/opt/ZAP_${ZAP_VERSION}/zap.sh" /usr/local/bin/zap.sh \
+    && chmod 0755 /opt/zap/zap-baseline.py /opt/zap/zap.sh \
+    && ln -s /opt/zap/zap-baseline.py /usr/local/bin/zap-baseline.py \
+    && ln -s /opt/zap/zap.sh /usr/local/bin/zap.sh \
     && groupadd --system produs \
     && useradd --system --gid produs --home-dir /home/produs --shell /usr/sbin/nologin produs \
     && mkdir -p /app /home/produs /var/lib/produs/scanner/cache/semgrep \
