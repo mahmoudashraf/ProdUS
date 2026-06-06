@@ -9,10 +9,8 @@ import {
   AutoAwesomeOutlined,
   BugReportOutlined,
   CancelOutlined,
-  CheckCircleOutlineOutlined,
   CloudUploadOutlined,
   ContentCopyOutlined,
-  CompareArrowsOutlined,
   DeleteOutlineOutlined,
   EventRepeatOutlined,
   FactCheckOutlined,
@@ -45,6 +43,8 @@ import {
   LinearProgress,
   MenuItem,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -72,6 +72,18 @@ import {
 } from './PlatformComponents';
 import ShipConfidencePanel from './ShipConfidencePanel';
 import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
+import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
+import {
+  WorkspaceTab,
+  buildOwnerLaunchStatus,
+  ownerActionForCategory,
+  ownerCategoryFromSignal,
+  ownerImpactForCategory,
+  ownerProofLine,
+  scannerEvidenceCategories,
+  severityWeight,
+  workspaceTabs,
+} from './ownerWorkspaceModel';
 import {
   AIRecommendation,
   Milestone,
@@ -1309,6 +1321,8 @@ export default function OwnerProductizationWorkspace({
     nextRunAt: '',
     reason: 'Scheduled evidence refresh for productization readiness.',
   });
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('overview');
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [selectedFindingId, setSelectedFindingId] = useState('');
   const [evidenceFilter, setEvidenceFilter] = useState<'ALL' | 'FINDINGS' | 'MILESTONES' | 'REDACTED'>('ALL');
   const [findingReasonById, setFindingReasonById] = useState<Record<string, string>>({});
@@ -1863,6 +1877,7 @@ export default function OwnerProductizationWorkspace({
   const fullHostedScanBlockedReason = fullHostedScanBlockReason(selectedProduct, selectedScanSource, hostedScanForm);
   const scannerToolCoverage = scannerSummary.data?.toolCoverage || [];
   const latestCoveredTools = scannerToolCoverage.filter((tool) => !!tool.latestStatus).length;
+  const latestCompletedTools = scannerToolCoverage.filter((tool) => tool.latestStatus === 'COMPLETED').length;
   const latestMappedToolFindings = scannerToolCoverage.reduce((total, tool) => total + (tool.mappedFindingCount || 0), 0);
   const unavailableScannerTools = scannerToolCoverage.filter((tool) => tool.enabled && !tool.executableAvailable).length;
   const selectedConnectorPermission = (connectorPermissions.data || []).find((permission) => permission.providerType === scanSourceForm.providerType);
@@ -1890,6 +1905,185 @@ export default function OwnerProductizationWorkspace({
     { label: 'Workspace', complete: !!selectedWorkspace, active: !!selectedPackage && !selectedWorkspace },
     { label: 'Evidence', complete: !!scannerSummary.data?.evidence.length, active: !!selectedWorkspace && !scannerSummary.data?.evidence.length },
     { label: 'Handoff', complete: selectedWorkspace?.status === 'SUPPORT_HANDOFF' || selectedWorkspace?.status === 'DELIVERED' || selectedWorkspace?.status === 'CLOSED', active: selectedWorkspace?.status === 'SUPPORT_HANDOFF' },
+  ];
+  const ownerRiskPool = [
+    ...scannerMappedFindings.map((finding) => ({
+      id: finding.id,
+      title: finding.title,
+      severity: finding.severity,
+      status: finding.status,
+      description: finding.description,
+      businessRisk: finding.businessRisk,
+      readinessArea: finding.readinessArea,
+      evidenceRequired: finding.evidenceRequired,
+      recommendedModuleName: finding.recommendedModuleName,
+      sourceTool: finding.sourceSignal || finding.mappingSource || 'Scanner readiness map',
+      sourceRuleId: finding.normalizedFindingId,
+    })),
+    ...scannerOpenFindings.map((finding) => ({
+      id: finding.id,
+      title: finding.title,
+      severity: finding.severity,
+      status: finding.status,
+      description: finding.description,
+      businessRisk: finding.businessRisk,
+      readinessArea: finding.readinessArea,
+      evidenceRequired: finding.evidenceRequired,
+      recommendedModuleName: finding.recommendedModule?.name,
+      sourceTool: finding.sourceTool,
+      sourceRuleId: finding.sourceRuleId,
+    })),
+  ];
+  const ownerRiskMap = new Map<string, typeof ownerRiskPool[number]>();
+  ownerRiskPool.forEach((risk) => {
+    const key = `${risk.title}-${risk.sourceTool || ''}`.toLowerCase();
+    if (!ownerRiskMap.has(key) || severityWeight(risk.severity) > severityWeight(ownerRiskMap.get(key)?.severity)) {
+      ownerRiskMap.set(key, risk);
+    }
+  });
+  const topOwnerRisks = Array.from(ownerRiskMap.values())
+    .sort((left, right) => {
+      const severityDelta = severityWeight(right.severity) - severityWeight(left.severity);
+      if (severityDelta !== 0) return severityDelta;
+      const leftRuntime = ownerCategoryFromSignal(left.sourceTool, left.readinessArea, left.title) === 'Runtime baseline' ? 1 : 0;
+      const rightRuntime = ownerCategoryFromSignal(right.sourceTool, right.readinessArea, right.title) === 'Runtime baseline' ? 1 : 0;
+      return rightRuntime - leftRuntime;
+    })
+    .slice(0, 5);
+  const launchBlockerCount = latestScannerDiagnosis?.topBlockerCount
+    ?? scannerOpenFindings.filter((finding) => finding.severity === 'CRITICAL' || finding.severity === 'HIGH').length;
+  const launchImprovementCount = Math.max(
+    0,
+    (scannerOpenFindings.length || latestMappedToolFindings || scannerCounts?.open || 0) - launchBlockerCount
+  );
+  const hasLaunchEvidenceContext = !!scannerSummary.data || !!latestDiagnosis || !!launchReadinessReport.data || hasCompletedScannerRun || latestMappedToolFindings > 0;
+  const launchStatus = buildOwnerLaunchStatus({
+    hasProduct: !!selectedProduct,
+    hasEvidenceContext: hasLaunchEvidenceContext,
+    productHealthScore: health,
+    scannerReadinessScore: scannerReadiness,
+    blockerCount: launchBlockerCount,
+    improvementCount: launchImprovementCount,
+    criticalCount: scannerCounts?.critical || 0,
+    openFindingCount: scannerOpenFindings.length,
+    mappedFindingCount: latestMappedToolFindings,
+    completedTools: latestCompletedTools,
+    totalTools: scanToolOptions.length,
+  });
+  const scannerCoverageGroups = scannerEvidenceCategories.map((category) => {
+    const tools = category.tools.map((toolKey) => scannerToolCoverage.find((tool) => tool.toolKey === toolKey)).filter(Boolean) as ScannerToolCoverage[];
+    const completed = tools.filter((tool) => tool.latestStatus === 'COMPLETED').length;
+    const latest = tools.filter((tool) => !!tool.latestStatus).length;
+    const normalizedCount = tools.reduce((total, tool) => total + (tool.normalizedCount || 0), 0);
+    const mappedFindingCount = tools.reduce((total, tool) => total + (tool.mappedFindingCount || 0), 0);
+    const hasFailure = tools.some((tool) => tool.latestStatus === 'FAILED' || !tool.executableAvailable);
+    return {
+      ...category,
+      tools,
+      expectedLabels: category.tools.map((toolKey) => scanToolOptions.find((tool) => tool.key === toolKey)?.label || toolKey),
+      completed,
+      latest,
+      normalizedCount,
+      mappedFindingCount,
+      status: hasFailure ? 'Needs attention' : completed === category.tools.length ? 'Completed' : latest ? 'Partial' : 'Waiting',
+      accent: hasFailure ? appleColors.red : completed === category.tools.length ? appleColors.green : latest ? appleColors.amber : appleColors.muted,
+    };
+  });
+  const evidenceReadme = (repoSignals.data?.signals || []).find((signal) => signal.signalType === 'DOCUMENTATION')
+    || (scannerSummary.data?.evidence || []).find((item) => /readme|documentation/i.test(`${item.title} ${item.summary || ''}`));
+  const primarySource = scannerSummary.data?.sources[0];
+  const runtimeTarget = hostedScanForm.runtimeTargetUrl || selectedProduct?.productUrl || scannerSummary.data?.sources.find((source) => source.providerType === 'RUNTIME_URL')?.externalReference || '';
+  const evidenceSummaryItems = [
+    { label: 'Repository', value: selectedProduct?.repositoryUrl || primarySource?.externalReference || 'Not connected', accent: selectedProduct?.repositoryUrl || primarySource ? appleColors.green : appleColors.amber },
+    { label: 'Document', value: evidenceReadme ? 'README or documentation evidence found' : 'No README evidence shown', accent: evidenceReadme ? appleColors.green : appleColors.amber },
+    { label: 'Runtime', value: runtimeTarget || 'Runtime URL missing', accent: runtimeTarget ? appleColors.green : appleColors.amber },
+    { label: 'Scanner suite', value: `${latestCompletedTools}/${scanToolOptions.length} checks completed`, accent: latestCompletedTools === scanToolOptions.length ? appleColors.green : latestCompletedTools ? appleColors.amber : appleColors.muted },
+  ];
+  const topRecommendedServiceName = scannerMappedServices[0] || selectedPackage?.name || cartServiceItems[0]?.serviceModule.name || '';
+  const ownerActionGroups: {
+    label: string;
+    accent: string;
+    items: {
+      title: string;
+      detail: string;
+      action: string;
+      proof?: string;
+      service?: string;
+    }[];
+  }[] = [
+    {
+      label: 'Do now',
+      accent: appleColors.red,
+      items: topOwnerRisks.slice(0, 3).map((risk, index) => {
+        const category = ownerCategoryFromSignal(risk.sourceTool, risk.readinessArea, risk.title);
+        return {
+          title: risk.title,
+          detail: ownerImpactForCategory(category),
+          action: index === 0 && topRecommendedServiceName
+            ? `${ownerActionForCategory(category)} Use ${topRecommendedServiceName} as the owner-visible fix path.`
+            : ownerActionForCategory(category),
+          proof: ownerProofLine({ sourceTool: risk.sourceTool, sourceRuleId: risk.sourceRuleId, category }),
+          service: index === 0 ? topRecommendedServiceName : '',
+        };
+      }),
+    },
+    {
+      label: 'Schedule this week',
+      accent: appleColors.purple,
+      items: (scannerMappedServices.length ? scannerMappedServices : cartStartGaps.map((gap) => gap.title)).slice(0, 3).map((item) => ({
+        title: String(item),
+        detail: 'Turn this into planned productization work with a clear owner.',
+        action: 'Add or confirm the service in the project start plan.',
+      })),
+    },
+    {
+      label: 'Monitor',
+      accent: appleColors.cyan,
+      items: [
+        {
+          title: 'Rerun the full evidence check after fixes',
+          detail: `${latestCompletedTools}/${scanToolOptions.length} checks currently have completed results.`,
+          action: 'Use Findings technical proof to rerun the full suite after remediation.',
+        },
+        {
+          title: 'Export owner proof before sharing externally',
+          detail: `${filteredScannerEvidence.length} evidence item${filteredScannerEvidence.length === 1 ? '' : 's'} available for the report.`,
+          action: 'Use Findings proof to export stored evidence.',
+        },
+      ],
+    },
+  ];
+  const groupedFindings = [
+    {
+      label: 'Launch blockers',
+      findings: (scannerSummary.data?.findings || []).filter((finding) => ['CRITICAL', 'HIGH'].includes(finding.severity) && ['NEW', 'OPEN', 'REGRESSED'].includes(finding.status)),
+      accent: appleColors.red,
+    },
+    {
+      label: 'High-priority technical risks',
+      findings: (scannerSummary.data?.findings || []).filter((finding) => finding.severity === 'MEDIUM' && ['NEW', 'OPEN', 'REGRESSED', 'INSUFFICIENT_EVIDENCE'].includes(finding.status)),
+      accent: appleColors.amber,
+    },
+    {
+      label: 'Medium-priority improvements',
+      findings: (scannerSummary.data?.findings || []).filter((finding) => ['LOW', 'INFO'].includes(finding.severity) && ['NEW', 'OPEN', 'REGRESSED', 'INSUFFICIENT_EVIDENCE'].includes(finding.status)),
+      accent: appleColors.blue,
+    },
+    {
+      label: 'Resolved or accepted',
+      findings: (scannerSummary.data?.findings || []).filter((finding) => ['RESOLVED', 'ACCEPTED_RISK', 'FALSE_POSITIVE'].includes(finding.status)),
+      accent: appleColors.green,
+    },
+  ];
+  const workspaceTimeline = [
+    { label: 'Product created', status: selectedProduct ? 'Done' : 'Waiting', detail: selectedProduct?.createdAt ? shortDateTime(selectedProduct.createdAt) : selectedProduct?.name || 'Select a product', accent: selectedProduct ? appleColors.green : appleColors.muted },
+    { label: 'Repository authorized', status: selectedProduct?.repositoryUrl || primarySource ? 'Done' : 'Needed', detail: selectedProduct?.repositoryUrl || primarySource?.displayName || 'Add repository evidence', accent: selectedProduct?.repositoryUrl || primarySource ? appleColors.green : appleColors.amber },
+    { label: 'README attached', status: evidenceReadme ? 'Found' : 'Needed', detail: evidenceReadme ? ('title' in evidenceReadme ? evidenceReadme.title : evidenceReadme.signalValue) : 'Attach documentation evidence', accent: evidenceReadme ? appleColors.green : appleColors.amber },
+    { label: 'Scanner suite completed', status: latestCompletedTools === scanToolOptions.length ? 'Done' : 'Partial', detail: `${latestCompletedTools}/${scanToolOptions.length} checks completed`, accent: latestCompletedTools === scanToolOptions.length ? appleColors.green : appleColors.amber },
+    { label: 'Findings normalized', status: scannerCounts?.total ? 'Done' : 'Waiting', detail: `${scannerCounts?.total || 0} findings`, accent: scannerCounts?.total ? appleColors.green : appleColors.muted },
+    { label: 'Findings mapped', status: latestMappedToolFindings ? 'Done' : 'Needed', detail: `${latestMappedToolFindings} mapped to readiness`, accent: latestMappedToolFindings ? appleColors.green : appleColors.amber },
+    { label: 'Service plan', status: selectedPackage ? 'Created' : 'Needed', detail: selectedPackage?.name || 'Create or confirm plan', accent: selectedPackage ? appleColors.green : appleColors.amber },
+    { label: 'Workspace', status: selectedWorkspace ? 'Created' : 'Pending', detail: selectedWorkspace?.name || 'Start once plan is ready', accent: selectedWorkspace ? appleColors.green : appleColors.muted },
   ];
   const selectedMilestone = (milestones.data || []).find((milestone) => milestone.status === 'BLOCKED')
     || (milestones.data || []).find((milestone) => milestone.status === 'SUBMITTED' || milestone.status === 'IN_PROGRESS')
@@ -2161,36 +2355,485 @@ export default function OwnerProductizationWorkspace({
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 340px' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
           {selectedProduct ? (
-            <Surface>
-              <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} alignItems={{ lg: 'center' }} justifyContent="space-between">
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
-                  <Box sx={{ width: 64, height: 64, borderRadius: 1, bgcolor: '#f1efff', color: appleColors.purple, display: 'grid', placeItems: 'center' }}>
+            <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 55%, #f6fff9 100%)' }}>
+              <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} alignItems={{ lg: 'flex-start' }} justifyContent="space-between">
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'flex-start' }} sx={{ minWidth: 0 }}>
+                  <Box sx={{ width: 64, height: 64, borderRadius: 1, bgcolor: '#f1efff', color: appleColors.purple, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                     <Inventory2Outlined />
                   </Box>
-                  <Box>
+                  <Box sx={{ minWidth: 0 }}>
                     <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                       <Typography variant="h2">{selectedProduct.name}</Typography>
                       <PastelChip label={formatLabel(selectedProduct.businessStage)} accent={appleColors.purple} />
+                      <PastelChip label={launchStatus.label} accent={launchStatus.accent} bg={`${launchStatus.accent}12`} />
                     </Stack>
                     <Typography color="text.secondary" sx={{ maxWidth: 760, lineHeight: 1.7, mt: 0.75 }}>
                       {selectedProduct.summary || 'Capture a concise product summary to drive service recommendations.'}
                     </Typography>
                   </Box>
                 </Stack>
-                <ProgressRing value={health} size={104} color={statusAccent(selectedPackage?.status)} label="health" />
+                <Stack direction="row" spacing={1.5} alignItems="center" justifyContent={{ xs: 'flex-start', lg: 'flex-end' }}>
+                  <ProgressRing value={launchStatus.score} size={104} color={launchStatus.accent} label="ready" />
+                  <Box sx={{ minWidth: 150 }}>
+                    <Typography variant="caption" color="text.secondary">Launch decision</Typography>
+                    <Typography variant="h4" sx={{ color: launchStatus.accent }}>{launchStatus.label}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>{launchStatus.confidence}</Typography>
+                  </Box>
+                </Stack>
               </Stack>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1.5, mt: 2.5 }}>
-                <MetricTile label="Intakes" value={selectedProductRequirements.length} detail="Requirement records" accent={appleColors.purple} icon={<FactCheckOutlined />} />
-                <MetricTile label="Service plan" value={selectedPackage ? formatLabel(selectedPackage.status) : 'Not created'} detail={selectedPackage?.name || 'Create from brief or cart'} accent={statusAccent(selectedPackage?.status)} icon={<RocketLaunchOutlined />} />
-                <MetricTile label="Shortlist" value={activeShortlists.length || teamRecommendations.data?.length || productProposals.length} detail="Verified team options" accent={appleColors.cyan} icon={<CompareArrowsOutlined />} />
-                <MetricTile label="Needs attention" value={blockedMilestones + productSupport.filter((request) => request.slaStatus === 'OVERDUE').length} detail="Milestones and support" accent={blockedMilestones ? appleColors.red : appleColors.green} icon={<CheckCircleOutlineOutlined />} />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)' }, gap: 1.5, mt: 2.25 }}>
+                <Box sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: `${launchStatus.accent}35`, bgcolor: '#fff' }}>
+                  <Typography variant="caption" color="text.secondary">Status reason</Typography>
+                  <Typography variant="h4" sx={{ mt: 0.5, color: appleColors.ink }}>
+                    {launchStatus.headline}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
+                    {launchStatus.reason}
+                  </Typography>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 1.5 }}>
+                    <Button
+                      variant="contained"
+                      startIcon={<RocketLaunchOutlined />}
+                      onClick={() => setWorkspaceTab(topOwnerRisks.length ? 'actions' : 'services')}
+                      sx={{ minHeight: 42 }}
+                    >
+                      {topOwnerRisks.length ? 'Review launch blockers' : 'Plan next service'}
+                    </Button>
+                    <Button variant="outlined" startIcon={<ShieldOutlined />} onClick={() => setWorkspaceTab('findings')} sx={{ minHeight: 42 }}>
+                      View scanner proof
+                    </Button>
+                    <Button variant="outlined" startIcon={<CloudUploadOutlined />} onClick={() => createEvidenceExport.mutate()} disabled={createEvidenceExport.isPending} sx={{ minHeight: 42 }}>
+                      Export report
+                    </Button>
+                  </Stack>
+                </Box>
+                <Box sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: appleColors.line, bgcolor: '#fff' }}>
+                  <Typography variant="caption" color="text.secondary">Top risks</Typography>
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    {topOwnerRisks.slice(0, 3).length ? topOwnerRisks.slice(0, 3).map((risk) => {
+                      const category = ownerCategoryFromSignal(risk.sourceTool, risk.readinessArea, risk.title);
+                      return (
+                        <Box key={risk.id} sx={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', gap: 1, alignItems: 'flex-start' }}>
+                          <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: severityAccent(risk.severity), mt: 0.65 }} />
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 900, lineHeight: 1.35 }}>{risk.title}</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                              {ownerProofLine({ sourceTool: risk.sourceTool, sourceRuleId: risk.sourceRuleId, category })}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      );
+                    }) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+                        No launch blockers are visible from the latest stored evidence.
+                      </Typography>
+                    )}
+                  </Stack>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1.25, mt: 1.5 }}>
+                {evidenceSummaryItems.map((item) => (
+                  <Box key={item.label} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: `${item.accent}32`, bgcolor: '#fff', minHeight: 84 }}>
+                    <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+                    <Typography variant="body2" sx={{ mt: 0.55, fontWeight: 900, lineHeight: 1.35, overflowWrap: 'anywhere' }}>{item.value}</Typography>
+                  </Box>
+                ))}
               </Box>
             </Surface>
           ) : (
             <EmptyState label="Create a product profile to start the owner productization workflow." />
           )}
 
-          {selectedProduct && (
+          <Surface sx={{ p: { xs: 1, md: 1 }, boxShadow: 'none', position: { xl: 'sticky' }, top: { xl: 76 }, zIndex: 2 }}>
+            <Tabs
+              value={workspaceTab}
+              onChange={(_, value) => setWorkspaceTab(value as WorkspaceTab)}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                minHeight: 44,
+                '& .MuiTab-root': {
+                  minHeight: 44,
+                  textTransform: 'none',
+                  fontWeight: 850,
+                  letterSpacing: 0,
+                  borderRadius: 1,
+                },
+              }}
+            >
+              {workspaceTabs.map((tab) => (
+                <Tab key={tab.value} value={tab.value} label={tab.label} />
+              ))}
+            </Tabs>
+          </Surface>
+
+          {selectedProduct && workspaceTab === 'overview' && (
+            <Stack spacing={2.5}>
+              <Surface>
+                <SectionTitle
+                  title="Launch Decision"
+                  action={<PastelChip label={launchStatus.confidence} accent={launchStatus.accent} bg={`${launchStatus.accent}12`} />}
+                />
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 320px' }, gap: 2, alignItems: 'start' }}>
+                  <Stack spacing={1.5}>
+                    <Box>
+                      <Typography variant="h3" sx={{ color: launchStatus.accent }}>{launchStatus.headline}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        The canonical readiness score is shown once in the page header. These counts explain the verdict.
+                      </Typography>
+                    </Box>
+                    <Typography variant="body1" sx={{ lineHeight: 1.75, fontWeight: 700 }}>
+                      {launchStatus.reason}
+                    </Typography>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
+                      <MetricTile label="Blockers" value={launchStatus.blockerCount} detail="Must fix before launch" accent={launchStatus.blockerCount ? appleColors.red : appleColors.green} icon={<BugReportOutlined />} />
+                      <MetricTile label="Improvements" value={launchStatus.improvementCount} detail="Can be scheduled" accent={launchStatus.improvementCount ? appleColors.amber : appleColors.green} icon={<FactCheckOutlined />} />
+                      <MetricTile label="Evidence checks" value={`${latestCompletedTools}/${scanToolOptions.length}`} detail="Completed scanner tools" accent={latestCompletedTools === scanToolOptions.length ? appleColors.green : appleColors.amber} icon={<ShieldOutlined />} />
+                    </Box>
+                  </Stack>
+                  <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: '#fbfdff' }}>
+                    <Typography variant="caption" color="text.secondary">Primary next step</Typography>
+                    <Typography variant="h4" sx={{ mt: 0.5 }}>{launchStatus.blockerCount ? 'Fix launch blockers' : topRecommendedServiceName ? 'Confirm launch plan' : 'Add evidence'}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
+                      {topRecommendedServiceName
+                        ? `${topRecommendedServiceName} should carry the highest-priority action so the service plan follows the verdict.`
+                        : 'Connect proof or run the full scanner suite so ProdUS can make a stronger launch call.'}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={topRecommendedServiceName ? <AddShoppingCartOutlined /> : <ShieldOutlined />}
+                      onClick={() => setWorkspaceTab(topRecommendedServiceName ? 'services' : 'findings')}
+                      sx={{ mt: 1.25, minHeight: 40 }}
+                    >
+                      {topRecommendedServiceName ? 'Review service path' : 'Open proof'}
+                    </Button>
+                    <Button
+                      variant="text"
+                      startIcon={<EventRepeatOutlined />}
+                      onClick={() => setTimelineOpen(true)}
+                      sx={{ mt: 0.75, minHeight: 36, alignSelf: 'flex-start' }}
+                    >
+                      View product timeline
+                    </Button>
+                  </Box>
+                </Box>
+              </Surface>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.1fr) minmax(320px, 0.9fr)' }, gap: 2.5 }}>
+                <Surface>
+                  <SectionTitle title="Top Risks" action={<PastelChip label={`${topOwnerRisks.slice(0, 3).length} shown`} accent={topOwnerRisks.length ? appleColors.amber : appleColors.green} bg={topOwnerRisks.length ? '#fff4dc' : '#e7f8ee'} />} />
+                  {topOwnerRisks.length ? (
+                    <Stack spacing={1.25}>
+                      {topOwnerRisks.slice(0, 3).map((risk) => {
+                        const category = ownerCategoryFromSignal(risk.sourceTool, risk.readinessArea, risk.title);
+                        return (
+                          <Box key={risk.id} sx={{ p: 1.35, borderRadius: 1, bgcolor: '#fff' }}>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'flex-start' }}>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="caption" sx={{ color: severityAccent(risk.severity), fontWeight: 900 }}>
+                                  {category} · {formatLabel(risk.severity)}
+                                </Typography>
+                                <Typography sx={{ mt: 0.55, fontWeight: 950, lineHeight: 1.35 }}>{risk.title}</Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.55, lineHeight: 1.55 }}>
+                                  {risk.businessRisk || ownerImpactForCategory(category)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.55, lineHeight: 1.45 }}>
+                                  Evidence: {ownerProofLine({ sourceTool: risk.sourceTool, sourceRuleId: risk.sourceRuleId, category })}
+                                </Typography>
+                              </Box>
+                              <Button size="small" variant="outlined" onClick={() => setWorkspaceTab('findings')} sx={{ minHeight: 34, minWidth: 112 }}>
+                                Inspect
+                              </Button>
+                            </Stack>
+                            <Box sx={{ mt: 1, p: 1, borderRadius: 1, bgcolor: '#fbfdff' }}>
+                              <Typography variant="caption" color="text.secondary">Recommended owner action</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.5 }}>{ownerActionForCategory(category)}</Typography>
+                            </Box>
+                          </Box>
+                        );
+                      })}
+                    </Stack>
+                  ) : (
+                    <EmptyState label="No launch blockers are visible. Keep final human review, evidence export, and a clean rerun before public launch." />
+                  )}
+                </Surface>
+
+                <Surface>
+                  <SectionTitle title="Recommended Next Actions" action={<PastelChip label="Owner plan" accent={appleColors.purple} />} />
+                  <Stack spacing={1.25}>
+                    {ownerActionGroups.map((group) => (
+                      <Box key={group.label} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: `${group.accent}32`, bgcolor: '#fff' }}>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.9 }}>
+                          <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: group.accent }} />
+                          <Typography variant="body2" sx={{ fontWeight: 950 }}>{group.label}</Typography>
+                        </Stack>
+                        <Stack spacing={0.8}>
+                          {group.items.length ? group.items.slice(0, 2).map((item) => (
+                            <Box key={`${group.label}-${item.title}`}>
+                              <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.35 }}>{item.title}</Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, lineHeight: 1.45 }}>{item.action}</Typography>
+                              {'proof' in item && item.proof && (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, lineHeight: 1.45 }}>
+                                  Evidence: {item.proof}
+                                </Typography>
+                              )}
+                            </Box>
+                          )) : (
+                            <Typography variant="body2" color="text.secondary">No action needed in this group right now.</Typography>
+                          )}
+                        </Stack>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Surface>
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) minmax(320px, 0.8fr)' }, gap: 2.5 }}>
+                <Surface>
+                  <SectionTitle
+                    title="Evidence Checks"
+                    action={<PastelChip label={`${latestCompletedTools}/${scanToolOptions.length} completed`} accent={latestCompletedTools === scanToolOptions.length ? appleColors.green : appleColors.amber} bg={latestCompletedTools === scanToolOptions.length ? '#e7f8ee' : '#fff4dc'} />}
+                  />
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
+                    {scannerCoverageGroups.map((group) => (
+                      <Box key={group.key} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: `${group.accent}32`, bgcolor: '#fff' }}>
+                        <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 950 }}>{group.label}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {group.tools.length ? group.tools.map((tool) => tool.displayName).join(', ') : group.expectedLabels.join(', ')}
+                            </Typography>
+                          </Box>
+                          <PastelChip label={group.status} accent={group.accent} bg={`${group.accent}12`} />
+                        </Stack>
+                        <Typography variant="body2" sx={{ mt: 1, fontWeight: 850 }}>
+                          {group.normalizedCount ? `${group.normalizedCount} findings` : 'No findings'}
+                          {group.mappedFindingCount ? ` · ${group.mappedFindingCount} mapped` : ''}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Surface>
+
+                <Surface>
+                  <SectionTitle title="Top Service Recommendation" action={<PastelChip label={selectedPackage ? 'Plan exists' : 'Next step'} accent={selectedPackage ? appleColors.green : appleColors.amber} bg={selectedPackage ? '#e7f8ee' : '#fff4dc'} />} />
+                  {selectedPackage ? (
+                    <Stack spacing={1}>
+                      <Typography variant="h4">{selectedPackage.name}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>{selectedPackage.summary}</Typography>
+                      <Button variant="outlined" startIcon={<OpenInNewOutlined />} onClick={() => setWorkspaceTab('services')} sx={{ minHeight: 40, alignSelf: 'flex-start' }}>
+                        Review services
+                      </Button>
+                    </Stack>
+                  ) : scannerMappedServices.length ? (
+                    <Stack spacing={1}>
+                      <Typography variant="h4">{scannerMappedServices[0]}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                        This service appears because scanner findings mapped to launch-readiness work.
+                      </Typography>
+                      <Button variant="contained" startIcon={<AddShoppingCartOutlined />} onClick={() => setWorkspaceTab('services')} sx={{ minHeight: 40, alignSelf: 'flex-start' }}>
+                        Add services
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <EmptyState label="Run or map scanner evidence to generate a service recommendation." />
+                  )}
+                </Surface>
+              </Box>
+            </Stack>
+          )}
+
+          {selectedProduct && workspaceTab === 'actions' && (
+            <Surface>
+              <SectionTitle title="Action Plan" action={<PastelChip label="Do now / week / monitor" accent={appleColors.purple} />} />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
+                {ownerActionGroups.map((group) => (
+                  <Box key={group.label} sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: `${group.accent}35`, bgcolor: '#fff', minHeight: 220 }}>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.25 }}>
+                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: group.accent }} />
+                      <Typography variant="h4">{group.label}</Typography>
+                    </Stack>
+                    <Stack spacing={1.25}>
+                      {group.items.length ? group.items.map((item) => (
+                        <Box key={`${group.label}-${item.title}`} sx={{ borderTop: '1px solid', borderColor: appleColors.line, pt: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 950, lineHeight: 1.35 }}>{item.title}</Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4, lineHeight: 1.5 }}>{item.detail}</Typography>
+                          <Typography variant="caption" sx={{ display: 'block', color: group.accent, fontWeight: 900, mt: 0.5 }}>{item.action}</Typography>
+                          {'proof' in item && item.proof && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.4, lineHeight: 1.45 }}>
+                              Evidence: {item.proof}
+                            </Typography>
+                          )}
+                          {'service' in item && item.service && (
+                            <Button size="small" variant="outlined" onClick={() => setWorkspaceTab('services')} sx={{ mt: 0.75, minHeight: 32 }}>
+                              Review {item.service}
+                            </Button>
+                          )}
+                        </Box>
+                      )) : (
+                        <Typography variant="body2" color="text.secondary">No action needed.</Typography>
+                      )}
+                    </Stack>
+                  </Box>
+                ))}
+              </Box>
+            </Surface>
+          )}
+
+          {selectedProduct && workspaceTab === 'findings' && (
+            <Surface>
+              <SectionTitle
+                title="Findings"
+                action={<PastelChip label={`${scannerSummary.data?.findings.length || 0} total`} accent={(scannerSummary.data?.findings.length || 0) ? appleColors.amber : appleColors.green} bg={(scannerSummary.data?.findings.length || 0) ? '#fff4dc' : '#e7f8ee'} />}
+              />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 360px' }, gap: 2 }}>
+                <Stack spacing={1.5}>
+                  {groupedFindings.map((group) => (
+                    <Box key={group.label} sx={{ border: '1px solid', borderColor: `${group.accent}30`, borderRadius: 1, bgcolor: '#fff', overflow: 'hidden' }}>
+                      <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center" sx={{ px: 1.5, py: 1.15, bgcolor: `${group.accent}0f`, borderBottom: '1px solid', borderColor: `${group.accent}20` }}>
+                        <Typography sx={{ fontWeight: 950 }}>{group.label}</Typography>
+                        <PastelChip label={`${group.findings.length}`} accent={group.accent} bg="#fff" />
+                      </Stack>
+                      {group.findings.length ? (
+                        <Stack spacing={0} divider={<Divider />}>
+                          {group.findings.slice(0, 8).map((finding) => {
+                            const category = ownerCategoryFromSignal(finding.sourceTool, finding.readinessArea, finding.title);
+                            return (
+                              <Box key={finding.id} sx={{ p: 1.35 }}>
+                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'flex-start' }}>
+                                  <Box sx={{ minWidth: 0 }}>
+                                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                                      <PastelChip label={formatLabel(finding.severity)} accent={severityAccent(finding.severity)} bg={`${severityAccent(finding.severity)}12`} />
+                                      <PastelChip label={category} accent={group.accent} bg={`${group.accent}12`} />
+                                    </Stack>
+                                    <Typography sx={{ mt: 0.8, fontWeight: 950, lineHeight: 1.35 }}>{finding.title}</Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>{finding.businessRisk || finding.description || ownerImpactForCategory(category)}</Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45 }}>
+                                      {finding.sourceTool}{finding.sourceRuleId ? ` · ${finding.sourceRuleId}` : ''}
+                                    </Typography>
+                                  </Box>
+                                  <Button size="small" variant={selectedFinding?.id === finding.id ? 'contained' : 'outlined'} onClick={() => setSelectedFindingId(finding.id)} sx={{ minHeight: 34, minWidth: 112 }}>
+                                    Review
+                                  </Button>
+                                </Stack>
+                              </Box>
+                            );
+                          })}
+                        </Stack>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>No findings in this group.</Typography>
+                      )}
+                    </Box>
+                  ))}
+                </Stack>
+
+                <Box sx={{ position: { xl: 'sticky' }, top: { xl: 148 }, alignSelf: 'start' }}>
+                  {selectedFinding ? (
+                    <Surface sx={{ boxShadow: 'none' }}>
+                      <SectionTitle title="Technical Detail" action={<PastelChip label={formatLabel(selectedFinding.status)} accent={findingStatusAccent(selectedFinding.status)} bg={`${findingStatusAccent(selectedFinding.status)}12`} />} />
+                      <Typography sx={{ fontWeight: 950, lineHeight: 1.35 }}>{selectedFinding.title}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.7, lineHeight: 1.6 }}>{selectedFinding.businessRisk || selectedFinding.description}</Typography>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, mt: 1.25 }}>
+                        <Box sx={{ p: 1, borderRadius: 1, border: '1px solid', borderColor: appleColors.line, bgcolor: '#fbfdff' }}>
+                          <Typography variant="caption" color="text.secondary">Source</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFinding.sourceTool}</Typography>
+                        </Box>
+                        <Box sx={{ p: 1, borderRadius: 1, border: '1px solid', borderColor: appleColors.line, bgcolor: '#fbfdff' }}>
+                          <Typography variant="caption" color="text.secondary">Evidence</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFindingEvidence.length} linked</Typography>
+                        </Box>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.25 }}>Recommended action</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.5 }}>
+                        {ownerActionForCategory(ownerCategoryFromSignal(selectedFinding.sourceTool, selectedFinding.readinessArea, selectedFinding.title))}
+                      </Typography>
+                    </Surface>
+                  ) : (
+                    <EmptyState label="Select a finding to inspect scanner details." />
+                  )}
+                </Box>
+              </Box>
+            </Surface>
+          )}
+
+          {selectedProduct && workspaceTab === 'findings' && (
+            <Surface>
+              <SectionTitle
+                title="Evidence and Stored Proof"
+                action={
+                  <Button size="small" variant="outlined" startIcon={<CloudUploadOutlined />} disabled={createEvidenceExport.isPending} onClick={() => createEvidenceExport.mutate()} sx={{ minHeight: 36 }}>
+                    Export
+                  </Button>
+                }
+              />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.25, mb: 2 }}>
+                {evidenceSummaryItems.map((item) => (
+                  <Box key={item.label} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: `${item.accent}32`, bgcolor: '#fff', minHeight: 88 }}>
+                    <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+                    <Typography variant="body2" sx={{ mt: 0.55, fontWeight: 900, lineHeight: 1.35, overflowWrap: 'anywhere' }}>{item.value}</Typography>
+                  </Box>
+                ))}
+              </Box>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '340px minmax(0, 1fr)' }, gap: 2 }}>
+                <Stack spacing={1.25}>
+                  <Typography sx={{ fontWeight: 950 }}>Sources</Typography>
+                  {(scannerSummary.data?.sources || []).length ? (scannerSummary.data?.sources || []).map((source) => (
+                    <Box key={source.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: source.authorizationStatus === 'AUTHORIZED' ? '#c8f2da' : appleColors.line, bgcolor: '#fff' }}>
+                      <Stack direction="row" spacing={1} justifyContent="space-between">
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{source.displayName}</Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap>{source.externalReference || formatLabel(source.providerType)}</Typography>
+                        </Box>
+                        <StatusChip label={source.authorizationStatus} color={source.authorizationStatus === 'AUTHORIZED' ? 'success' : 'warning'} />
+                      </Stack>
+                    </Box>
+                  )) : (
+                    <EmptyState label="No scanner source is attached yet." />
+                  )}
+                </Stack>
+                <Stack spacing={1.25}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+                    <Typography sx={{ fontWeight: 950 }}>Stored Proof</Typography>
+                    <TextField
+                      select
+                      size="small"
+                      label="Filter"
+                      value={evidenceFilter}
+                      onChange={(event) => setEvidenceFilter(event.target.value as typeof evidenceFilter)}
+                      sx={{ minWidth: { xs: '100%', sm: 180 } }}
+                    >
+                      <MenuItem value="ALL">All evidence</MenuItem>
+                      <MenuItem value="FINDINGS">Finding-linked</MenuItem>
+                      <MenuItem value="MILESTONES">Milestone-linked</MenuItem>
+                      <MenuItem value="REDACTED">Redacted</MenuItem>
+                    </TextField>
+                  </Stack>
+                  {filteredScannerEvidence.length ? filteredScannerEvidence.slice(0, 10).map((evidence) => (
+                    <Box key={evidence.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e5edf7', bgcolor: evidence.redactionStatus === 'NONE' ? '#fbfdff' : '#fff7f8' }}>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                            <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{evidence.title}</Typography>
+                            <PastelChip label={confidenceDots(evidence.confidenceLevel)} accent={evidence.confidenceLevel === 'HIGH' ? appleColors.green : evidence.confidenceLevel === 'MEDIUM' ? appleColors.amber : appleColors.muted} />
+                          </Stack>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45, lineHeight: 1.45 }}>
+                            {evidence.summary || evidence.source} · {shortDateTime(evidence.createdAt)}
+                          </Typography>
+                        </Box>
+                        <Button size="small" variant="outlined" startIcon={<VisibilityOutlined />} disabled={(!evidence.storageKey && !evidence.artifactRef) || openSignedEvidence.isPending} onClick={() => openEvidenceArtifact(evidence)} sx={{ minHeight: 34 }}>
+                          Open
+                        </Button>
+                      </Stack>
+                    </Box>
+                  )) : (
+                    <EmptyState label="No stored scanner proof matches this filter." />
+                  )}
+                </Stack>
+              </Box>
+            </Surface>
+          )}
+
+          {selectedProduct && workspaceTab === 'findings' && (
             <RepoReadoutPanel
               summary={repoSignals.data}
               scannerSummary={scannerSummary.data}
@@ -2200,7 +2843,7 @@ export default function OwnerProductizationWorkspace({
             />
           )}
 
-          {selectedProduct && (
+          {selectedProduct && workspaceTab === 'actions' && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
               <SectionTitle
                 title="Product Diagnosis"
@@ -2243,7 +2886,9 @@ export default function OwnerProductizationWorkspace({
                     <>
                       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between">
                         <Stack direction="row" spacing={1.5} alignItems="center">
-                          <ProgressRing value={latestDiagnosis.readinessScore} size={82} color={latestDiagnosis.readinessScore >= 70 ? appleColors.green : appleColors.amber} label="ready" />
+                          <Box sx={{ width: 54, height: 54, borderRadius: 1, bgcolor: '#f8f7ff', color: appleColors.purple, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                            <FactCheckOutlined />
+                          </Box>
                           <Box>
                             <Typography variant="h4">{latestDiagnosis.productName}</Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>{latestDiagnosis.summary}</Typography>
@@ -2331,7 +2976,7 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          {selectedProduct && (
+          {selectedProduct && workspaceTab === 'overview' && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f9fcff 100%)' }}>
               <ShipConfidencePanel
                 history={shipConfidence.data}
@@ -2342,7 +2987,7 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          {selectedProduct && (
+          {selectedProduct && workspaceTab === 'overview' && (
             <LaunchReadinessReportPanel
               report={launchReadinessReport.data ?? null}
               isLoading={launchReadinessReport.isFetching}
@@ -2353,10 +2998,10 @@ export default function OwnerProductizationWorkspace({
             />
           )}
 
-          {selectedProduct && (
+          {selectedProduct && workspaceTab === 'findings' && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
               <SectionTitle
-                title="Scanner Fix Path"
+                title="Technical Proof and Scanner Fix Path"
                 action={<PastelChip label={`${scannerCounts?.total || 0} normalized findings`} accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green} bg={scannerOpenFindings.length ? '#fff4dc' : '#e7f8ee'} />}
               />
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '220px repeat(3, minmax(0, 1fr))' }, gap: 1.5, mb: 2 }}>
@@ -3564,22 +4209,24 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          <Surface>
-            <SectionTitle title="Lifecycle Services" action={<PastelChip label={`${categories.data?.length || 0} service families`} accent={appleColors.purple} />} />
-            <Box sx={{ mb: 1.5 }}>
-              <StudioAssistantCard
-                title="AI Service Selector"
-                description="Use catalog knowledge and current product context to narrow the services that belong in the draft cart."
-                prompt={`Recommend the most relevant lifecycle services for ${selectedProduct?.name || 'the selected product'}. Consider current diagnosis, scanner findings, product stage, cart services, dependencies, and launch readiness. Use these visible project start facts directly: ${cartStartPromptFacts} Explain why each service should or should not be selected, identify which missing services are required before workspace start, and avoid proposing services that are already in the cart unless the owner should revisit scope.`}
-                conversationId={`studio-services-${selectedProduct?.id || 'none'}`}
-                context={assistantContext('service-selection')}
-                disabled={!selectedProduct}
-                {...assistantActionProps}
-                accent={appleColors.cyan}
-                cta="Recommend Services"
-              />
-            </Box>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 1.5 }}>
+          {workspaceTab === 'services' && (
+            <>
+              <Surface>
+                <SectionTitle title="Lifecycle Services" action={<PastelChip label={`${categories.data?.length || 0} service families`} accent={appleColors.purple} />} />
+                <Box sx={{ mb: 1.5 }}>
+                  <StudioAssistantCard
+                    title="AI Service Selector"
+                    description="Use catalog knowledge and current product context to narrow the services that belong in the draft cart."
+                    prompt={`Recommend the most relevant lifecycle services for ${selectedProduct?.name || 'the selected product'}. Consider current diagnosis, scanner findings, product stage, cart services, dependencies, and launch readiness. Use these visible project start facts directly: ${cartStartPromptFacts} Explain why each service should or should not be selected, identify which missing services are required before workspace start, and avoid proposing services that are already in the cart unless the owner should revisit scope.`}
+                    conversationId={`studio-services-${selectedProduct?.id || 'none'}`}
+                    context={assistantContext('service-selection')}
+                    disabled={!selectedProduct}
+                    {...assistantActionProps}
+                    accent={appleColors.cyan}
+                    cta="Recommend Services"
+                  />
+                </Box>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 1.5 }}>
               {(categories.data || []).map((category, index) => {
                 const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
                 const categoryModules = (catalogModules.data || []).filter((module) => module.category?.id === category.id);
@@ -3674,10 +4321,10 @@ export default function OwnerProductizationWorkspace({
                   </Box>
                 );
               })}
-            </Box>
-          </Surface>
+                </Box>
+              </Surface>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: showProductCreation ? '420px 1fr' : '1fr' }, gap: 2.5 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: showProductCreation ? '420px 1fr' : '1fr' }, gap: 2.5 }}>
             {showProductCreation && (
               <Surface>
                 <SectionTitle
@@ -3798,9 +4445,9 @@ export default function OwnerProductizationWorkspace({
                 )}
               </Stack>
             </Surface>
-          </Box>
+              </Box>
 
-          <Surface>
+              <Surface>
             <SectionTitle title="Service Plan" action={selectedPackage && <StatusChip label={selectedPackage.status} />} />
             {selectedPackage ? (
               <Stack spacing={2}>
@@ -3839,9 +4486,9 @@ export default function OwnerProductizationWorkspace({
             ) : (
               <EmptyState label="No service plan exists for this product yet. Create one from a product brief or convert the cart into a project workspace." />
             )}
-          </Surface>
+              </Surface>
 
-          <Surface>
+              <Surface>
             <SectionTitle title="Team Shortlist and Compare" action={<PastelChip label={`${teamRecommendations.data?.length || 0} matches`} accent={appleColors.cyan} />} />
             {teamRecommendations.data?.length ? (
               <Stack spacing={1.5}>
@@ -3964,7 +4611,9 @@ export default function OwnerProductizationWorkspace({
                 </Box>
               </Stack>
             )}
-          </Surface>
+              </Surface>
+            </>
+          )}
         </Stack>
 
         <Stack spacing={2.5}>
@@ -4168,8 +4817,10 @@ export default function OwnerProductizationWorkspace({
                 </Stack>
               }
             />
-            <Stack direction="row" spacing={2} alignItems="center">
-              <ProgressRing value={health || 68} size={92} color={appleColors.purple} label="/100" />
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Box sx={{ width: 52, height: 52, borderRadius: 1, bgcolor: '#f1efff', color: appleColors.purple, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <AutoAwesomeOutlined />
+              </Box>
               <Box>
                 <Typography variant="h4">Productization clarity</Typography>
                 <Typography color="success.main" sx={{ fontWeight: 800 }}>Evidence-led next steps</Typography>
@@ -4208,6 +4859,7 @@ export default function OwnerProductizationWorkspace({
             )}
           </Surface>
 
+          {workspaceTab === 'services' && (
           <Surface>
             <SectionTitle title="Delivery Workspace" action={selectedWorkspace && <StatusChip label={selectedWorkspace.status} />} />
             {selectedWorkspace ? (
@@ -4241,7 +4893,9 @@ export default function OwnerProductizationWorkspace({
               <Typography variant="body2" color="text.secondary">A workspace appears after service plan handoff.</Typography>
             )}
           </Surface>
+          )}
 
+          {workspaceTab === 'services' && (
           <Surface sx={{ background: productSupport.some((request) => request.slaStatus === 'OVERDUE') ? '#fff7f8' : '#f6fffb' }}>
             <SectionTitle title="Support and Risk" />
             {productSupport.length ? (
@@ -4260,6 +4914,7 @@ export default function OwnerProductizationWorkspace({
               <Typography variant="body2" color="text.secondary">No support requests are attached to this product.</Typography>
             )}
           </Surface>
+          )}
 
           <Surface>
             <SectionTitle title="Next Decision" />
@@ -4276,6 +4931,11 @@ export default function OwnerProductizationWorkspace({
           </Surface>
         </Stack>
       </Box>
+      <OwnerWorkspaceTimelineDialog
+        open={timelineOpen}
+        items={workspaceTimeline}
+        onClose={() => setTimelineOpen(false)}
+      />
     </>
   );
 }
