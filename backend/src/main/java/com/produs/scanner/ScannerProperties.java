@@ -71,6 +71,7 @@ public class ScannerProperties {
                 "repository"
         );
         checkov.setRequiresIac(true);
+        checkov.setAcceptedExitCodes(List.of(0, 1, 2));
         defaults.put("checkov", checkov);
         defaults.put("syft", tool(
                 "Syft",

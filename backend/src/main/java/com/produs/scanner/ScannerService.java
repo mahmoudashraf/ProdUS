@@ -1760,22 +1760,30 @@ public class ScannerService {
     }
 
     private List<ParsedFinding> parseCheckov(JsonNode root, String toolName) {
-        JsonNode failed = root.path("results").path("failed_checks");
-        if (!failed.isArray()) {
-            failed = firstArray(root, "failed_checks");
-        }
         List<ParsedFinding> findings = new ArrayList<>();
-        if (!failed.isArray()) return findings;
-        for (JsonNode node : failed) {
-            findings.add(new ParsedFinding(
-                    toolName,
-                    firstText(node, "check_id", "bc_check_id"),
-                    defaultString(firstText(node, "check_name"), "IaC policy failure"),
-                    defaultString(firstText(node, "guideline", "check_name"), "Checkov reported an IaC policy failure."),
-                    firstText(node, "severity"),
-                    location(firstText(node, "file_path"), firstText(node, "file_line_range")),
-                    "Checkov IaC policy result"
-            ));
+        List<JsonNode> resultRoots = new ArrayList<>();
+        if (root.isArray()) {
+            root.forEach(resultRoots::add);
+        } else {
+            resultRoots.add(root);
+        }
+        for (JsonNode resultRoot : resultRoots) {
+            JsonNode failed = resultRoot.path("results").path("failed_checks");
+            if (!failed.isArray()) {
+                failed = firstArray(resultRoot, "failed_checks");
+            }
+            if (!failed.isArray()) continue;
+            for (JsonNode node : failed) {
+                findings.add(new ParsedFinding(
+                        toolName,
+                        firstText(node, "check_id", "bc_check_id"),
+                        defaultString(firstText(node, "check_name"), "IaC policy failure"),
+                        defaultString(firstText(node, "guideline", "check_name"), "Checkov reported an IaC policy failure."),
+                        firstText(node, "severity"),
+                        location(firstText(node, "file_path"), firstText(node, "file_line_range")),
+                        "Checkov IaC policy result"
+                ));
+            }
         }
         return findings;
     }
