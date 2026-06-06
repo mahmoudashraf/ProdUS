@@ -16,6 +16,8 @@ import com.produs.engine.ProductizationEngineService.IntegrationConnectionReques
 import com.produs.engine.ProductizationEngineService.IntegrationConnectionResponse;
 import com.produs.engine.ProductizationEngineService.IntegrationSignalRequest;
 import com.produs.engine.ProductizationEngineService.IntegrationSignalResponse;
+import com.produs.engine.ProductizationEngineService.LaunchReadinessReportRequest;
+import com.produs.engine.ProductizationEngineService.LaunchReadinessReportResponse;
 import com.produs.engine.ProductizationEngineService.ReviewDecisionRequest;
 import com.produs.engine.ProductizationEngineService.ReviewDecisionResponse;
 import com.produs.engine.ProductizationEngineService.ScannerReadinessDiagnosisRequest;
@@ -52,6 +54,20 @@ public class ProductizationEngineController {
     @GetMapping("/products/{productId}/ship-confidence")
     public ShipConfidenceHistoryResponse productShipConfidence(@AuthenticationPrincipal User user, @PathVariable UUID productId) {
         return engineService.productShipConfidence(user, productId);
+    }
+
+    @GetMapping("/products/{productId}/launch-readiness-report/latest")
+    public LaunchReadinessReportResponse latestProductLaunchReadinessReport(@AuthenticationPrincipal User user, @PathVariable UUID productId) {
+        return engineService.latestProductLaunchReadinessReport(user, productId);
+    }
+
+    @PostMapping("/products/{productId}/launch-readiness-report")
+    public LaunchReadinessReportResponse generateProductLaunchReadinessReport(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID productId,
+            @RequestBody(required = false) LaunchReadinessReportRequest request
+    ) {
+        return engineService.generateProductLaunchReadinessReport(user, productId, request);
     }
 
     @PostMapping("/products/{productId}/diagnoses")
@@ -122,6 +138,20 @@ public class ProductizationEngineController {
     @GetMapping("/workspaces/{workspaceId}/ship-confidence")
     public ShipConfidenceHistoryResponse workspaceShipConfidence(@AuthenticationPrincipal User user, @PathVariable UUID workspaceId) {
         return engineService.workspaceShipConfidence(user, workspaceId);
+    }
+
+    @GetMapping("/workspaces/{workspaceId}/launch-readiness-report/latest")
+    public LaunchReadinessReportResponse latestWorkspaceLaunchReadinessReport(@AuthenticationPrincipal User user, @PathVariable UUID workspaceId) {
+        return engineService.latestWorkspaceLaunchReadinessReport(user, workspaceId);
+    }
+
+    @PostMapping("/workspaces/{workspaceId}/launch-readiness-report")
+    public LaunchReadinessReportResponse generateWorkspaceLaunchReadinessReport(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @RequestBody(required = false) LaunchReadinessReportRequest request
+    ) {
+        return engineService.generateWorkspaceLaunchReadinessReport(user, workspaceId, request);
     }
 
     @PostMapping("/workspaces/{workspaceId}/scanner-readiness/enrich")

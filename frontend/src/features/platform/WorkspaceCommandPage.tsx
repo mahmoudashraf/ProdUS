@@ -22,6 +22,7 @@ import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
 import PlatformAssistantCard from './PlatformAssistantCard';
 import ShipConfidencePanel from './ShipConfidencePanel';
+import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
 import { sortWorkspacesForOwner } from './displayOrder';
 import {
   DotLabel,
@@ -49,6 +50,7 @@ import {
   HandoffDocument,
   IntegrationConnection,
   IntegrationSignal,
+  LaunchReadinessReport,
   Milestone,
   PackageInstance,
   ProductHealthReview,
@@ -374,6 +376,21 @@ export default function WorkspaceCommandPage() {
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<ShipConfidenceHistory>(`/productization-engine/workspaces/${selectedWorkspace?.id}/ship-confidence`),
   });
+  const launchReadinessReport = useQuery({
+    queryKey: ['productization-engine', 'workspace-launch-readiness-report', selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+    retry: false,
+    queryFn: async () => {
+      try {
+        return await getJson<LaunchReadinessReport>(`/productization-engine/workspaces/${selectedWorkspace?.id}/launch-readiness-report/latest`);
+      } catch (error: any) {
+        if (error?.response?.status === 400 && String(error?.response?.data?.detail || '').includes('No launch readiness report')) {
+          return null;
+        }
+        throw error;
+      }
+    },
+  });
 
   const attachmentsByScope = useMemo(
     () =>
@@ -468,6 +485,7 @@ export default function WorkspaceCommandPage() {
     await queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-governance', selectedWorkspace?.id] });
     await queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-scanner-readiness', selectedWorkspace?.id] });
     await queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-ship-confidence', selectedWorkspace?.id] });
+    await queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-launch-readiness-report', selectedWorkspace?.id] });
     await queryClient.invalidateQueries({ queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'] });
   };
   const generateCriteria = useMutation({
@@ -558,6 +576,16 @@ export default function WorkspaceCommandPage() {
       setGovernanceNotice('Workspace scanner readiness refreshed and linked to milestone evidence.');
       await refreshGovernance();
       await queryClient.invalidateQueries({ queryKey: ['scanner-evidence', selectedWorkspace?.id] });
+    },
+  });
+  const generateLaunchReadinessReport = useMutation({
+    mutationFn: () =>
+      postJson<LaunchReadinessReport, { focus: string }>(`/productization-engine/workspaces/${selectedWorkspace?.id}/launch-readiness-report`, {
+        focus: 'Summarize launch readiness for a prototype-to-product owner decision using current workspace proof, scanner findings, and selected services.',
+      }),
+    onSuccess: async () => {
+      setGovernanceNotice('Launch readiness report generated from this workspace evidence.');
+      await refreshGovernance();
     },
   });
   const uploadScannerEvidence = useMutation({
@@ -712,7 +740,7 @@ export default function WorkspaceCommandPage() {
         description="One focused place to turn a prototype into a shippable product: fixes, proof, people, and next launch decisions."
       />
       <QueryState
-        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || milestones.isLoading || deliverables.isLoading || participants.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading || governance.isLoading || scannerEvidence.isLoading || workspaceScannerReadiness.isLoading || shipConfidence.isLoading}
+        isLoading={packages.isLoading || workspaces.isLoading || teams.isLoading || milestones.isLoading || deliverables.isLoading || participants.isLoading || supportRequests.isLoading || disputes.isLoading || attachments.isLoading || governance.isLoading || scannerEvidence.isLoading || workspaceScannerReadiness.isLoading || shipConfidence.isLoading || launchReadinessReport.isLoading}
         error={
           packages.error
           || workspaces.error
@@ -727,6 +755,7 @@ export default function WorkspaceCommandPage() {
           || scannerEvidence.error
           || workspaceScannerReadiness.error
           || shipConfidence.error
+          || launchReadinessReport.error
           || createWorkspace.error
           || createMilestone.error
           || createDeliverable.error
@@ -745,6 +774,7 @@ export default function WorkspaceCommandPage() {
           || createIntegration.error
           || createIntegrationSignal.error
           || enrichScannerReadiness.error
+          || generateLaunchReadinessReport.error
           || uploadScannerEvidence.error
         }
       />
@@ -955,6 +985,15 @@ export default function WorkspaceCommandPage() {
                   subtitle="Workspace scanner maps become checkpoints, so the owner can see whether this prototype is moving closer to launch."
                 />
               </Surface>
+
+              <LaunchReadinessReportPanel
+                report={launchReadinessReport.data ?? null}
+                isLoading={launchReadinessReport.isFetching}
+                isGenerating={generateLaunchReadinessReport.isPending}
+                onGenerate={() => generateLaunchReadinessReport.mutate()}
+                title="Workspace Launch Report"
+                subtitle="Generate a shareable launch decision snapshot from workspace scanner proof, service milestones, checks, and remaining rough edges."
+              />
 
               <PlatformAssistantCard
                 title="AI Fix Path Explainer"

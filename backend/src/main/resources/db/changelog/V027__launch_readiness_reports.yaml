@@ -1,0 +1,74 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2700
+      author: produs
+      changes:
+        - createTable:
+            tableName: launch_readiness_reports
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: workspace_id, type: UUID }
+              - column: { name: source_diagnosis_id, type: UUID }
+              - column: { name: generated_by, type: UUID, constraints: { nullable: false } }
+              - column: { name: report_version, type: INT, defaultValueNumeric: 1, constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: ship_confidence_score, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: status_label, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: summary, type: TEXT, constraints: { nullable: false } }
+              - column: { name: ready_summary, type: TEXT }
+              - column: { name: risk_summary, type: TEXT }
+              - column: { name: next_owner_decision, type: TEXT }
+              - column: { name: ready_items_json, type: TEXT }
+              - column: { name: risk_items_json, type: TEXT }
+              - column: { name: selected_services_json, type: TEXT }
+              - column: { name: proof_collected_json, type: TEXT }
+              - column: { name: proof_missing_json, type: TEXT }
+              - column: { name: source_snapshot_json, type: TEXT }
+              - column: { name: status, type: VARCHAR(40), defaultValue: GENERATED, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            baseTableName: launch_readiness_reports
+            baseColumnNames: product_profile_id
+            constraintName: fk_launch_readiness_reports_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: launch_readiness_reports
+            baseColumnNames: workspace_id
+            constraintName: fk_launch_readiness_reports_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: launch_readiness_reports
+            baseColumnNames: source_diagnosis_id
+            constraintName: fk_launch_readiness_reports_diagnosis
+            referencedTableName: product_diagnoses
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: launch_readiness_reports
+            baseColumnNames: generated_by
+            constraintName: fk_launch_readiness_reports_generated_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: launch_readiness_reports
+            indexName: idx_launch_readiness_reports_product
+            columns:
+              - column: { name: product_profile_id }
+        - createIndex:
+            tableName: launch_readiness_reports
+            indexName: idx_launch_readiness_reports_workspace
+            columns:
+              - column: { name: workspace_id }
+        - createIndex:
+            tableName: launch_readiness_reports
+            indexName: idx_launch_readiness_reports_diagnosis
+            columns:
+              - column: { name: source_diagnosis_id }

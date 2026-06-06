@@ -3,6 +3,8 @@ package com.produs.product;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.ai.LoomAIIntegrationService;
 import com.produs.cart.ProductizationCartService;
+import com.produs.catalog.ServiceCategory;
+import com.produs.catalog.ServiceModule;
 import com.produs.catalog.ServiceModuleRepository;
 import com.produs.scanner.ScanSourceRepository;
 import com.produs.service.AuditService;
@@ -18,6 +20,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AiAssistedProductCreationServiceTest {
 
@@ -444,7 +447,98 @@ class AiAssistedProductCreationServiceTest {
         assertThat(fields.documentUsage()).isEmpty();
     }
 
+    @Test
+    void validatesCatalogBackedServiceRecommendationsBeforeCreationPayload() throws Exception {
+        ServiceModuleRepository moduleRepository = mock(ServiceModuleRepository.class);
+        ServiceCategory security = new ServiceCategory();
+        security.setName("Security");
+        security.setSlug("security");
+        ServiceModule apiReview = new ServiceModule();
+        apiReview.setName("API security review");
+        apiReview.setSlug("api-security-review");
+        apiReview.setStableCode("security.api_review");
+        apiReview.setCategory(security);
+        apiReview.setOwnerOutcome("API risk is understood before launch.");
+        when(moduleRepository.findByStableCode("security.api_review")).thenReturn(Optional.of(apiReview));
+        when(moduleRepository.findByStableCode("imaginary.audit")).thenReturn(Optional.empty());
+        when(moduleRepository.findBySlug("imaginary.audit")).thenReturn(Optional.empty());
+        when(moduleRepository.findByActiveTrueAndVisibleTrueOrderBySortOrderAscNameAsc()).thenReturn(List.of(apiReview));
+
+        AiAssistedProductCreationService service = service(moduleRepository);
+        AiAssistedProductCreationService.ProductCreationFields fields =
+                new AiAssistedProductCreationService.ProductCreationFields(
+                        "ProdUS Launch",
+                        "Owner wants production readiness.",
+                        "Productization project.",
+                        "Launch readiness is unclear.",
+                        "Startup product owner.",
+                        "PROTOTYPE",
+                        "Spring Boot, Next.js",
+                        "",
+                        "https://github.com/mahmoudashraf/ProdUS",
+                        "",
+                        "LoomAI analyzed the intake.",
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of("Free text validation"),
+                        List.of(
+                                new AiAssistedProductCreationService.ServiceModuleRecommendation(
+                                        "security.api_review",
+                                        "Security API Review",
+                                        "",
+                                        "must",
+                                        4,
+                                        "",
+                                        List.of("Repository URL provided"),
+                                        "",
+                                        0.82,
+                                        true
+                                ),
+                                new AiAssistedProductCreationService.ServiceModuleRecommendation(
+                                        "imaginary.audit",
+                                        "Imaginary audit",
+                                        "",
+                                        "SHOULD",
+                                        5,
+                                        "AI invented a module.",
+                                        List.of(),
+                                        "",
+                                        0.6,
+                                        true
+                                )
+                        ),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of()
+                );
+
+        Method validator = AiAssistedProductCreationService.class
+                .getDeclaredMethod("validateCatalogBackedServiceRecommendations", AiAssistedProductCreationService.ProductCreationFields.class);
+        validator.setAccessible(true);
+
+        AiAssistedProductCreationService.ProductCreationFields validated =
+                (AiAssistedProductCreationService.ProductCreationFields) validator.invoke(service, fields);
+
+        assertThat(validated.recommendedServiceModules()).hasSize(1);
+        assertThat(validated.recommendedServiceModules().get(0).moduleCode()).isEqualTo("security.api_review");
+        assertThat(validated.recommendedServiceModules().get(0).moduleName()).isEqualTo("API security review");
+        assertThat(validated.recommendedServiceModules().get(0).categorySlug()).isEqualTo("security");
+        assertThat(validated.recommendedServiceModules().get(0).priority()).isEqualTo("MUST");
+        assertThat(validated.recommendedServices()).contains("API security review");
+        assertThat(validated.missingCatalogCoverage()).hasSize(1);
+        assertThat(validated.missingCatalogCoverage().get(0).need()).isEqualTo("Imaginary audit");
+    }
+
     private AiAssistedProductCreationService service() {
+        return service(mock(ServiceModuleRepository.class));
+    }
+
+    private AiAssistedProductCreationService service(ServiceModuleRepository serviceModuleRepository) {
         return new AiAssistedProductCreationService(
                 mock(ProductProfileRepository.class),
                 mock(ProductCreationIntentRepository.class),
@@ -455,7 +549,7 @@ class AiAssistedProductCreationServiceTest {
                 mock(ProductReadinessTaskRepository.class),
                 mock(ProductProjectAttachmentService.class),
                 mock(LoomAIIntegrationService.class),
-                mock(ServiceModuleRepository.class),
+                serviceModuleRepository,
                 mock(ProductizationCartService.class),
                 mock(ScanSourceRepository.class),
                 mock(AuditService.class),

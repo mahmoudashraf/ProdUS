@@ -38,6 +38,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -120,6 +121,7 @@ public class AiAssistedProductCreationService {
         ProductCreationFields creationReadyFields = analysisMode.includesProjectAnalysis()
                 ? ensureCreationReadyPlan(fields, request)
                 : fields;
+        creationReadyFields = validateCatalogBackedServiceRecommendations(creationReadyFields);
         ProductCreationFields documentReadyFields = ensureDocumentUsage(creationReadyFields, start.documentReferences());
 
         AiOpportunityReport aiOpportunityReport = null;
@@ -130,6 +132,7 @@ public class AiAssistedProductCreationService {
             aiOpportunityReport = opportunityBundle.aiOpportunityReport();
             loomAIIntegrationOverview = opportunityBundle.loomAIIntegrationOverview();
             finalFields = mergeAiOpportunityAnalysis(documentReadyFields, aiOpportunityReport, loomAIIntegrationOverview);
+            finalFields = validateCatalogBackedServiceRecommendations(finalFields);
         }
         AssistantQueryResponse finalAssistant = analysisMode.includesProjectAnalysis()
                 ? normalizeAssistantForUsefulAnalysis(assistant, finalFields, parsedFields.isPresent())
@@ -1200,6 +1203,164 @@ public class AiAssistedProductCreationService {
         return firstNonBlank(recommendation.moduleCode(), recommendation.moduleName())
                 .trim()
                 .toLowerCase(Locale.ROOT);
+    }
+
+    private ProductCreationFields validateCatalogBackedServiceRecommendations(ProductCreationFields fields) {
+        if (fields == null) {
+            return null;
+        }
+        List<ServiceModuleRecommendation> canonicalRecommendations = new ArrayList<>();
+        List<MissingCatalogCoverage> missingCoverage = new ArrayList<>(listOrEmpty(fields.missingCatalogCoverage()));
+        Set<String> seen = new LinkedHashSet<>();
+        List<ServiceModuleRecommendation> recommendations = listOrEmpty(fields.recommendedServiceModules()).stream()
+                .filter(Objects::nonNull)
+                .filter(ServiceModuleRecommendation::acceptedOrDefault)
+                .sorted(Comparator.comparingInt(ServiceModuleRecommendation::sequenceOrDefault))
+                .toList();
+        for (ServiceModuleRecommendation recommendation : recommendations) {
+            Optional<ServiceModule> module = findServiceModuleForRecommendation(recommendation);
+            if (module.isEmpty()) {
+                addMissingCatalogCoverage(
+                        missingCoverage,
+                        firstNonBlank(recommendation.moduleName(), recommendation.moduleCode(), "Unknown service need"),
+                        "AI recommended a service that is not available in the active ProdUS catalog.",
+                        "Review the owner need and either select a supported lifecycle service or add a new catalog module."
+                );
+                continue;
+            }
+            ServiceModule serviceModule = module.orElseThrow();
+            String canonicalCode = moduleCode(serviceModule);
+            String key = canonicalCode.toLowerCase(Locale.ROOT);
+            if (!seen.add(key)) {
+                continue;
+            }
+            canonicalRecommendations.add(new ServiceModuleRecommendation(
+                    canonicalCode,
+                    firstNonBlank(serviceModule.getName(), recommendation.moduleName(), canonicalCode),
+                    serviceModule.getCategory() == null
+                            ? firstNonBlank(recommendation.categorySlug())
+                            : firstNonBlank(serviceModule.getCategory().getSlug(), recommendation.categorySlug()),
+                    normalizePriority(recommendation.priority()),
+                    canonicalRecommendations.size() + 1,
+                    firstNonBlank(
+                            recommendation.reason(),
+                            "Selected from the active ProdUS lifecycle catalog based on owner intake and repo-readiness needs."
+                    ),
+                    listOrEmpty(recommendation.evidenceBasis()),
+                    firstNonBlank(
+                            recommendation.expectedOutcome(),
+                            serviceModule.getOwnerOutcome(),
+                            serviceModule.getExpectedDeliverables(),
+                            "Owner receives a concrete production-readiness outcome for this service area."
+                    ),
+                    normalizeConfidence(recommendation.confidence()),
+                    recommendation.accepted()
+            ));
+        }
+        List<String> recommendedServices = mergeTextValues(
+                fields.recommendedServices(),
+                canonicalRecommendations.stream()
+                        .map(ServiceModuleRecommendation::moduleName)
+                        .filter(Objects::nonNull)
+                        .toList()
+        );
+        return new ProductCreationFields(
+                fields.productName(),
+                fields.summary(),
+                fields.projectDescription(),
+                fields.businessProblem(),
+                fields.targetUsers(),
+                fields.businessStage(),
+                fields.techStack(),
+                fields.productUrl(),
+                fields.repositoryUrl(),
+                fields.riskProfile(),
+                fields.aiCreationSummary(),
+                fields.coreCapabilities(),
+                fields.businessOutcomes(),
+                fields.readinessGoals(),
+                recommendedServices,
+                canonicalRecommendations,
+                dedupeMissingCatalogCoverage(missingCoverage),
+                fields.scannerFocusAreas(),
+                fields.suggestedNextSteps(),
+                fields.sourceInsights(),
+                fields.assumptions(),
+                fields.missingEvidence(),
+                fields.documentUsage()
+        );
+    }
+
+    private Optional<ServiceModule> findServiceModuleForRecommendation(ServiceModuleRecommendation recommendation) {
+        if (recommendation == null) {
+            return Optional.empty();
+        }
+        Optional<ServiceModule> byCode = findServiceModule(recommendation.moduleCode());
+        if (byCode.isPresent()) {
+            return byCode;
+        }
+        Optional<ServiceModule> byNameAsCode = findServiceModule(recommendation.moduleName());
+        if (byNameAsCode.isPresent()) {
+            return byNameAsCode;
+        }
+        String slug = slugCandidate(recommendation.moduleName());
+        Optional<ServiceModule> bySlug = findServiceModule(slug);
+        if (bySlug.isPresent()) {
+            return bySlug;
+        }
+        String name = firstNonBlank(recommendation.moduleName()).trim();
+        if (name.isBlank()) {
+            return Optional.empty();
+        }
+        return listOrEmpty(serviceModuleRepository.findByActiveTrueAndVisibleTrueOrderBySortOrderAscNameAsc()).stream()
+                .filter(module -> module != null && name.equalsIgnoreCase(firstNonBlank(module.getName()).trim()))
+                .findFirst();
+    }
+
+    private String slugCandidate(String value) {
+        return firstNonBlank(value).trim().toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
+    }
+
+    private void addMissingCatalogCoverage(
+            List<MissingCatalogCoverage> coverage,
+            String need,
+            String reason,
+            String suggestedCatalogAction
+    ) {
+        String cleanNeed = trim(need, NAME_LIMIT);
+        if (cleanNeed.isBlank()) {
+            return;
+        }
+        boolean exists = listOrEmpty(coverage).stream()
+                .anyMatch(item -> item != null && cleanNeed.equalsIgnoreCase(firstNonBlank(item.need()).trim()));
+        if (!exists) {
+            coverage.add(new MissingCatalogCoverage(
+                    cleanNeed,
+                    trim(reason, TEXT_LIMIT),
+                    trim(suggestedCatalogAction, TEXT_LIMIT)
+            ));
+        }
+    }
+
+    private List<MissingCatalogCoverage> dedupeMissingCatalogCoverage(List<MissingCatalogCoverage> coverage) {
+        List<MissingCatalogCoverage> result = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (MissingCatalogCoverage item : listOrEmpty(coverage)) {
+            if (item == null || !hasText(item.need())) {
+                continue;
+            }
+            String key = item.need().trim().toLowerCase(Locale.ROOT);
+            if (seen.add(key)) {
+                result.add(new MissingCatalogCoverage(
+                        trim(item.need(), NAME_LIMIT),
+                        trim(item.reason(), TEXT_LIMIT),
+                        trim(item.suggestedCatalogAction(), TEXT_LIMIT)
+                ));
+            }
+        }
+        return result.stream().limit(8).toList();
     }
 
     private List<String> mergeTextValues(List<String> preferred, List<String> fallback) {

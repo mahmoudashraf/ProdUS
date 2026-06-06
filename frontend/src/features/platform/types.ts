@@ -1324,6 +1324,29 @@ export interface ShipConfidenceHistory {
   snapshots: DiagnosisSnapshot[];
 }
 
+export interface LaunchReadinessReport extends BaseRecord {
+  productId?: string;
+  productName: string;
+  workspaceId?: string;
+  workspaceName?: string;
+  sourceDiagnosisId?: string;
+  reportVersion: number;
+  title: string;
+  shipConfidenceScore: number;
+  statusLabel: string;
+  summary: string;
+  readySummary?: string;
+  riskSummary?: string;
+  nextOwnerDecision?: string;
+  readyItems: string[];
+  riskItems: string[];
+  selectedServices: string[];
+  proofCollected: string[];
+  proofMissing: string[];
+  sourceSnapshotJson?: string;
+  status: 'GENERATED' | 'SHARED' | 'ARCHIVED';
+}
+
 export interface EvidenceRequirement extends BaseRecord {
   criterionId: string;
   evidenceType: string;

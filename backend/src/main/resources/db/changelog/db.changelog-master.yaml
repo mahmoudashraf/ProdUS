@@ -51,3 +51,5 @@ databaseChangeLog:
       file: db/changelog/V025__scanner_readiness_diagnosis_mapping.yaml
   - include:
       file: db/changelog/V026__repo_signals.yaml
+  - include:
+      file: db/changelog/V027__launch_readiness_reports.yaml

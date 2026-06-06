@@ -27,6 +27,9 @@ import com.produs.workspace.ProjectWorkspace;
 import com.produs.workspace.ProjectWorkspaceRepository;
 import com.produs.workspace.WorkspaceParticipant;
 import com.produs.workspace.WorkspaceParticipantRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -74,8 +77,10 @@ public class ProductizationEngineService {
     private final ScannerEvidenceItemRepository scannerEvidenceItemRepository;
     private final ScanRunRepository scanRunRepository;
     private final ProductServiceRecommendationRepository serviceRecommendationRepository;
+    private final LaunchReadinessReportRepository launchReadinessReportRepository;
     private final ScannerFindingClassifier scannerFindingClassifier;
     private final AuditService auditService;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public DiagnosisResponse createDiagnosis(User user, UUID productId, DiagnosisRequest request) {
@@ -140,6 +145,36 @@ public class ProductizationEngineService {
         requireProductOwner(user, product);
         List<ProductDiagnosis> diagnoses = diagnosisRepository.findByProductProfileIdOrderByCreatedAtDesc(productId);
         return buildShipConfidenceHistory(product, null, diagnoses);
+    }
+
+    @Transactional(readOnly = true)
+    public LaunchReadinessReportResponse latestProductLaunchReadinessReport(User user, UUID productId) {
+        ProductProfile product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        requireProductOwner(user, product);
+        LaunchReadinessReport report = launchReadinessReportRepository.findFirstByProductProfileIdOrderByCreatedAtDesc(productId)
+                .orElseThrow(() -> new IllegalArgumentException("No launch readiness report has been generated yet"));
+        return toLaunchReadinessReportResponse(report);
+    }
+
+    @Transactional
+    public LaunchReadinessReportResponse generateProductLaunchReadinessReport(User user, UUID productId, LaunchReadinessReportRequest request) {
+        ProductProfile product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        requireProductOwner(user, product);
+        ProjectWorkspace workspace = null;
+        if (request != null && request.workspaceId() != null) {
+            workspace = workspaceRepository.findById(request.workspaceId())
+                    .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+            if (!workspace.getPackageInstance().getProductProfile().getId().equals(productId)) {
+                throw new IllegalArgumentException("Workspace belongs to another product");
+            }
+            requireWorkspaceViewer(user, workspace);
+        }
+        LaunchReadinessReport saved = buildAndSaveLaunchReadinessReport(user, product, workspace, request == null ? null : request.focus());
+        auditService.logAction(user.getId(), "GENERATE_LAUNCH_READINESS_REPORT", "LAUNCH_READINESS_REPORT", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Generated launch readiness report for product " + product.getId());
+        return toLaunchReadinessReportResponse(saved);
     }
 
     @Transactional
@@ -378,6 +413,31 @@ public class ProductizationEngineService {
         ProductProfile product = workspaceProduct(workspace);
         List<ProductDiagnosis> diagnoses = diagnosisRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId);
         return buildShipConfidenceHistory(product, workspace, diagnoses);
+    }
+
+    @Transactional(readOnly = true)
+    public LaunchReadinessReportResponse latestWorkspaceLaunchReadinessReport(User user, UUID workspaceId) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceViewer(user, workspace);
+        LaunchReadinessReport report = launchReadinessReportRepository.findFirstByWorkspaceIdOrderByCreatedAtDesc(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("No launch readiness report has been generated yet"));
+        return toLaunchReadinessReportResponse(report);
+    }
+
+    @Transactional
+    public LaunchReadinessReportResponse generateWorkspaceLaunchReadinessReport(User user, UUID workspaceId, LaunchReadinessReportRequest request) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceViewer(user, workspace);
+        ProductProfile product = workspaceProduct(workspace);
+        if (product == null) {
+            throw new IllegalArgumentException("Workspace is not attached to a product");
+        }
+        LaunchReadinessReport saved = buildAndSaveLaunchReadinessReport(user, product, workspace, request == null ? null : request.focus());
+        auditService.logAction(user.getId(), "GENERATE_WORKSPACE_LAUNCH_READINESS_REPORT", "LAUNCH_READINESS_REPORT", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Generated launch readiness report for workspace " + workspace.getId());
+        return toLaunchReadinessReportResponse(saved);
     }
 
     @Transactional
@@ -863,6 +923,261 @@ public class ProductizationEngineService {
                 trendSummary(latest, delta),
                 snapshots
         );
+    }
+
+    private LaunchReadinessReport buildAndSaveLaunchReadinessReport(
+            User user,
+            ProductProfile product,
+            ProjectWorkspace workspace,
+            String focus
+    ) {
+        List<ProductDiagnosis> diagnoses = workspace == null
+                ? diagnosisRepository.findByProductProfileIdOrderByCreatedAtDesc(product.getId())
+                : diagnosisRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId());
+        ProductDiagnosis latestDiagnosis = diagnoses.isEmpty() ? null : diagnoses.get(0);
+        List<ProductFinding> findings = latestDiagnosis == null
+                ? List.of()
+                : findingRepository.findByDiagnosisIdOrderByCreatedAtAsc(latestDiagnosis.getId());
+        ShipConfidenceHistoryResponse confidence = buildShipConfidenceHistory(product, workspace, diagnoses);
+        DiagnosisSnapshotResponse latestSnapshot = confidence.latest();
+        List<ScannerEvidenceItem> evidenceItems = workspace == null
+                ? scannerEvidenceItemRepository.findByProductProfileIdOrderByCreatedAtDesc(product.getId())
+                : scannerEvidenceItemRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId());
+        List<String> selectedServices = launchReportSelectedServices(product, workspace, findings);
+        List<String> readyItems = launchReportReadyItems(product, workspace, latestSnapshot, evidenceItems, selectedServices);
+        List<String> riskItems = launchReportRiskItems(findings, latestDiagnosis);
+        List<String> proofCollected = launchReportProofCollected(workspace, evidenceItems);
+        List<String> proofMissing = launchReportProofMissing(workspace, findings);
+        String nextDecision = launchReportNextDecision(latestSnapshot, riskItems, proofMissing, selectedServices);
+
+        LaunchReadinessReport report = new LaunchReadinessReport();
+        report.setProductProfile(product);
+        report.setWorkspace(workspace);
+        report.setSourceDiagnosis(latestDiagnosis);
+        report.setGeneratedBy(user);
+        report.setReportVersion((int) launchReadinessReportRepository.countByProductProfileId(product.getId()) + 1);
+        report.setTitle((workspace == null ? product.getName() : workspace.getName()) + " launch readiness report");
+        report.setShipConfidenceScore(latestSnapshot == null ? 0 : latestSnapshot.shipConfidenceScore());
+        report.setStatusLabel(latestSnapshot == null ? "Needs first diagnosis" : latestSnapshot.statusLabel());
+        report.setSummary(launchReportSummary(product, workspace, latestSnapshot, focus));
+        report.setReadySummary(readyItems.isEmpty()
+                ? "ProdUS has not collected enough proof yet to mark a launch area as supported."
+                : "Current proof supports " + readyItems.size() + " launch-readiness signal(s).");
+        report.setRiskSummary(riskItems.isEmpty()
+                ? "No open high-priority launch blockers are visible in the latest diagnosis."
+                : riskItems.size() + " risk item(s) should be reviewed before the next user-facing launch.");
+        report.setNextOwnerDecision(nextDecision);
+        report.setReadyItemsJson(toJson(readyItems));
+        report.setRiskItemsJson(toJson(riskItems));
+        report.setSelectedServicesJson(toJson(selectedServices));
+        report.setProofCollectedJson(toJson(proofCollected));
+        report.setProofMissingJson(toJson(proofMissing));
+        report.setSourceSnapshotJson(toJson(Map.of(
+                "productId", product.getId().toString(),
+                "workspaceId", workspace == null ? "" : workspace.getId().toString(),
+                "diagnosisId", latestDiagnosis == null ? "" : latestDiagnosis.getId().toString(),
+                "diagnosisSource", latestDiagnosis == null ? "" : latestDiagnosis.getDiagnosisSource().name(),
+                "scannerEvidenceCount", evidenceItems.size(),
+                "selectedServiceCount", selectedServices.size(),
+                "generatedFrom", "ProdUS deterministic readiness snapshot"
+        )));
+        return launchReadinessReportRepository.save(report);
+    }
+
+    private List<String> launchReportSelectedServices(
+            ProductProfile product,
+            ProjectWorkspace workspace,
+            List<ProductFinding> findings
+    ) {
+        LinkedHashMap<String, String> services = new LinkedHashMap<>();
+        if (workspace != null && workspace.getPackageInstance() != null) {
+            packageModuleRepository.findByPackageInstanceIdOrderBySequenceOrderAsc(workspace.getPackageInstance().getId()).stream()
+                    .map(PackageModule::getServiceModule)
+                    .filter(module -> module != null)
+                    .forEach(module -> services.putIfAbsent(firstNonBlank(module.getStableCode(), module.getSlug(), module.getName()), module.getName()));
+        }
+        if (product != null) {
+            serviceRecommendationRepository.findByProductProfileIdOrderBySequenceNumberAscCreatedAtAsc(product.getId()).stream()
+                    .map(ProductServiceRecommendation::getServiceModule)
+                    .filter(module -> module != null)
+                    .forEach(module -> services.putIfAbsent(firstNonBlank(module.getStableCode(), module.getSlug(), module.getName()), module.getName()));
+        }
+        findings.stream()
+                .map(ProductFinding::getRecommendedModule)
+                .filter(module -> module != null)
+                .forEach(module -> services.putIfAbsent(firstNonBlank(module.getStableCode(), module.getSlug(), module.getName()), module.getName()));
+        return services.values().stream().limit(12).toList();
+    }
+
+    private List<String> launchReportReadyItems(
+            ProductProfile product,
+            ProjectWorkspace workspace,
+            DiagnosisSnapshotResponse latestSnapshot,
+            List<ScannerEvidenceItem> evidenceItems,
+            List<String> selectedServices
+    ) {
+        List<String> items = new ArrayList<>();
+        if (product.getRepositoryUrl() != null && !product.getRepositoryUrl().isBlank()) {
+            items.add("Repository source is attached for scanner-backed review.");
+        }
+        if (product.getProductUrl() != null && !product.getProductUrl().isBlank()) {
+            items.add("Product URL is recorded for launch context.");
+        }
+        if (!selectedServices.isEmpty()) {
+            items.add("Lifecycle services are selected: " + String.join(", ", selectedServices.stream().limit(4).toList()) + ".");
+        }
+        if (!evidenceItems.isEmpty()) {
+            items.add(evidenceItems.size() + " scanner or evidence item(s) are attached.");
+        }
+        if (workspace != null) {
+            long acceptedMilestones = milestoneRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspace.getId()).stream()
+                    .filter(milestone -> milestone.getStatus() == Milestone.MilestoneStatus.ACCEPTED)
+                    .count();
+            if (acceptedMilestones > 0) {
+                items.add(acceptedMilestones + " milestone(s) are accepted.");
+            }
+        }
+        if (latestSnapshot != null && latestSnapshot.priorityFixCount() == 0 && latestSnapshot.shipConfidenceScore() >= 65) {
+            items.add("Latest ship-confidence checkpoint has no critical priority fixes.");
+        }
+        return items.stream().limit(8).toList();
+    }
+
+    private List<String> launchReportRiskItems(List<ProductFinding> findings, ProductDiagnosis latestDiagnosis) {
+        List<String> items = findings.stream()
+                .filter(finding -> finding.getStatus() != ProductFinding.FindingStatus.RESOLVED
+                        && finding.getStatus() != ProductFinding.FindingStatus.DISMISSED)
+                .sorted(Comparator.comparing((ProductFinding finding) -> productFindingSeverityRank(finding.getSeverity())).reversed())
+                .limit(8)
+                .map(finding -> finding.getTitle() + " (" + finding.getSeverity() + "): "
+                        + firstNonBlank(finding.getBusinessRisk(), finding.getDescription(), "Review before launch."))
+                .toList();
+        if (items.isEmpty() && latestDiagnosis != null && latestDiagnosis.getUnmappedFindingCount() > 0) {
+            return List.of(latestDiagnosis.getUnmappedFindingCount() + " finding(s) still need service mapping review.");
+        }
+        return items;
+    }
+
+    private List<String> launchReportProofCollected(ProjectWorkspace workspace, List<ScannerEvidenceItem> evidenceItems) {
+        LinkedHashMap<String, String> proof = new LinkedHashMap<>();
+        evidenceItems.stream()
+                .limit(8)
+                .forEach(item -> proof.putIfAbsent(item.getId().toString(),
+                        item.getTitle() + " (" + item.getEvidenceType() + ", " + item.getConfidenceLevel() + " confidence)"));
+        if (workspace != null) {
+            automatedCheckRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspace.getId()).stream()
+                    .filter(check -> check.getStatus() == AutomatedCheck.CheckStatus.PASSED)
+                    .limit(6)
+                    .forEach(check -> proof.putIfAbsent(check.getId().toString(),
+                            firstNonBlank(check.getSummary(), check.getCheckType()) + " (passed check)"));
+        }
+        return proof.values().stream().limit(10).toList();
+    }
+
+    private List<String> launchReportProofMissing(ProjectWorkspace workspace, List<ProductFinding> findings) {
+        LinkedHashMap<String, String> missing = new LinkedHashMap<>();
+        findings.stream()
+                .filter(finding -> finding.getEvidenceRequired() != null && !finding.getEvidenceRequired().isBlank())
+                .filter(finding -> finding.getStatus() != ProductFinding.FindingStatus.RESOLVED
+                        && finding.getStatus() != ProductFinding.FindingStatus.DISMISSED)
+                .limit(8)
+                .forEach(finding -> missing.putIfAbsent(finding.getId().toString(),
+                        finding.getTitle() + ": " + finding.getEvidenceRequired()));
+        if (workspace != null) {
+            milestoneRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspace.getId()).stream()
+                    .flatMap(milestone -> evidenceRequirementRepository.findByMilestoneIdOrderByCreatedAtAsc(milestone.getId()).stream())
+                    .filter(requirement -> requirement.isRequired() && requirement.getStatus() == EvidenceRequirement.EvidenceStatus.MISSING)
+                    .limit(8)
+                    .forEach(requirement -> missing.putIfAbsent(requirement.getId().toString(),
+                            requirement.getMilestone().getTitle() + ": " + firstNonBlank(requirement.getDescription(), requirement.getEvidenceType())));
+        }
+        return missing.values().stream().limit(10).toList();
+    }
+
+    private static String launchReportSummary(
+            ProductProfile product,
+            ProjectWorkspace workspace,
+            DiagnosisSnapshotResponse latestSnapshot,
+            String focus
+    ) {
+        String context = workspace == null
+                ? product.getName()
+                : workspace.getName() + " for " + product.getName();
+        String score = latestSnapshot == null
+                ? "No ship-confidence checkpoint exists yet"
+                : "Ship confidence is " + latestSnapshot.shipConfidenceScore() + "/100 (" + latestSnapshot.statusLabel() + ")";
+        return context + " is being reviewed for prototype-to-product readiness. " + score + ". "
+                + firstNonBlank(focus, "Use this report to decide the next practical fix before exposing the product to more users.");
+    }
+
+    private static String launchReportNextDecision(
+            DiagnosisSnapshotResponse latestSnapshot,
+            List<String> riskItems,
+            List<String> proofMissing,
+            List<String> selectedServices
+    ) {
+        if (!riskItems.isEmpty()) {
+            return "Decide which top risk must be fixed before the next pilot, demo, or customer-facing launch.";
+        }
+        if (!proofMissing.isEmpty()) {
+            return "Attach the missing proof, then rerun scanner/readiness checks before expanding usage.";
+        }
+        if (selectedServices.isEmpty()) {
+            return "Select the smallest useful service plan so the next launch step has an owner and deliverable.";
+        }
+        if (latestSnapshot != null && latestSnapshot.shipConfidenceScore() >= 80) {
+            return "Prepare a controlled launch or pilot checkpoint with support and rollback notes.";
+        }
+        return "Run a scanner or refresh the fix path to turn this report into a sharper launch decision.";
+    }
+
+    private LaunchReadinessReportResponse toLaunchReadinessReportResponse(LaunchReadinessReport report) {
+        ProductProfile product = report.getProductProfile();
+        ProjectWorkspace workspace = report.getWorkspace();
+        ProductDiagnosis diagnosis = report.getSourceDiagnosis();
+        return new LaunchReadinessReportResponse(
+                report.getId(),
+                report.getCreatedAt(),
+                product == null ? null : product.getId(),
+                product == null ? "Unknown product" : product.getName(),
+                workspace == null ? null : workspace.getId(),
+                workspace == null ? null : workspace.getName(),
+                diagnosis == null ? null : diagnosis.getId(),
+                report.getReportVersion(),
+                report.getTitle(),
+                report.getShipConfidenceScore(),
+                report.getStatusLabel(),
+                report.getSummary(),
+                report.getReadySummary(),
+                report.getRiskSummary(),
+                report.getNextOwnerDecision(),
+                readStringList(report.getReadyItemsJson()),
+                readStringList(report.getRiskItemsJson()),
+                readStringList(report.getSelectedServicesJson()),
+                readStringList(report.getProofCollectedJson()),
+                readStringList(report.getProofMissingJson()),
+                report.getSourceSnapshotJson(),
+                report.getStatus()
+        );
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException ex) {
+            return value instanceof List<?> ? "[]" : "{}";
+        }
+    }
+
+    private List<String> readStringList(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+        } catch (JsonProcessingException ex) {
+            return List.of();
+        }
     }
 
     private DiagnosisSnapshotResponse toDiagnosisSnapshotResponse(ProductDiagnosis diagnosis, Integer previousScore) {
@@ -1762,6 +2077,8 @@ public class ProductizationEngineService {
     public record WorkspaceScannerReadinessRequest(Boolean createCriteria, Boolean createServiceRecommendations, Boolean includeAcceptedRisk, String summary) {}
     public record WorkspaceScannerReadinessResponse(UUID workspaceId, UUID productId, DiagnosisResponse diagnosis, int mappedFindingCount, int unmappedFindingCount, int scannerEvidenceCount, int missingEvidenceCount, int blockerCount, int enrichedCriterionCount, List<MilestoneRiskResponse> milestoneRisks) {}
     public record MilestoneRiskResponse(UUID milestoneId, String milestoneTitle, Milestone.MilestoneStatus milestoneStatus, int scannerFindingCount, int mappedServiceCount, String highestSeverity, int missingEvidenceCount, List<String> mappedServices) {}
+    public record LaunchReadinessReportRequest(UUID workspaceId, String focus) {}
+    public record LaunchReadinessReportResponse(UUID id, LocalDateTime createdAt, UUID productId, String productName, UUID workspaceId, String workspaceName, UUID sourceDiagnosisId, int reportVersion, String title, int shipConfidenceScore, String statusLabel, String summary, String readySummary, String riskSummary, String nextOwnerDecision, List<String> readyItems, List<String> riskItems, List<String> selectedServices, List<String> proofCollected, List<String> proofMissing, String sourceSnapshotJson, LaunchReadinessReport.ReportStatus status) {}
     public record HandoffRequest(String title, String runbook, String accessChecklist, String knownIssues, String supportScope, HandoffDocument.HandoffStatus status) {}
     public record HandoffResponse(UUID id, UUID workspaceId, String title, String runbook, String accessChecklist, String knownIssues, String supportScope, HandoffDocument.HandoffStatus status) {}
     public record HealthReviewRequest(UUID supportSubscriptionId, LocalDate periodStart, LocalDate periodEnd, Integer healthScore, String summary, String risks, String actions, ProductHealthReview.ReviewStatus status) {}

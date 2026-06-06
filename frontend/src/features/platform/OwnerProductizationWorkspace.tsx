@@ -71,6 +71,7 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import ShipConfidencePanel from './ShipConfidencePanel';
+import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
 import {
   AIRecommendation,
   Milestone,
@@ -107,6 +108,7 @@ import {
   ScannerEvidenceItem,
   SignedArtifactResponse,
   ShipConfidenceHistory,
+  LaunchReadinessReport,
 } from './types';
 
 interface ProductProfilePayload {
@@ -1126,6 +1128,21 @@ export default function OwnerProductizationWorkspace({
     enabled: !!selectedProductId,
     queryFn: () => getJson<ShipConfidenceHistory>(`/productization-engine/products/${selectedProductId}/ship-confidence`),
   });
+  const launchReadinessReport = useQuery({
+    queryKey: ['productization-engine', selectedProductId, 'launch-readiness-report'],
+    enabled: !!selectedProductId,
+    retry: false,
+    queryFn: async () => {
+      try {
+        return await getJson<LaunchReadinessReport>(`/productization-engine/products/${selectedProductId}/launch-readiness-report/latest`);
+      } catch (error: any) {
+        if (error?.response?.status === 400 && String(error?.response?.data?.detail || '').includes('No launch readiness report')) {
+          return null;
+        }
+        throw error;
+      }
+    },
+  });
   const scannerSummary = useQuery({
     queryKey: ['scanner-summary', selectedProductId],
     enabled: !!selectedProductId,
@@ -1461,6 +1478,19 @@ export default function OwnerProductizationWorkspace({
       await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
       await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
+    },
+  });
+  const generateLaunchReadinessReport = useMutation({
+    mutationFn: () => {
+      const payload: { workspaceId?: string; focus: string } = {
+        focus: 'Give the owner a practical launch, pilot, or paid-beta decision from the current diagnosis, services, scanner proof, and workspace context.',
+      };
+      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
+      return postJson<LaunchReadinessReport, typeof payload>(`/productization-engine/products/${selectedProduct?.id}/launch-readiness-report`, payload);
+    },
+    onSuccess: async () => {
+      setCartNotice('Launch readiness report generated from the latest diagnosis, scanner proof, and service plan.');
+      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'launch-readiness-report'] });
     },
   });
   const refreshRepoSignals = useMutation({
@@ -1874,8 +1904,8 @@ export default function OwnerProductizationWorkspace({
     }
   });
 
-  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, scannerSummary, repoSignals, scannerConnectors].some((query) => query.isLoading);
-  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, scannerSummary, repoSignals, scannerConnectors, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
+  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, launchReadinessReport, scannerSummary, repoSignals, scannerConnectors].some((query) => query.isLoading);
+  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, launchReadinessReport, scannerSummary, repoSignals, scannerConnectors, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
     || createProduct.error
     || createRequirement.error
     || buildPackage.error
@@ -1889,6 +1919,7 @@ export default function OwnerProductizationWorkspace({
     || convertCart.error
     || createDiagnosis.error
     || createScannerReadinessDiagnosis.error
+    || generateLaunchReadinessReport.error
     || refreshRepoSignals.error
     || createScanSource.error
     || requestConnectorInstall.error
@@ -2222,6 +2253,17 @@ export default function OwnerProductizationWorkspace({
                 subtitle="Every diagnosis and scanner map becomes a checkpoint, so this prototype has a visible path from rough edges to ready-to-ship."
               />
             </Surface>
+          )}
+
+          {selectedProduct && (
+            <LaunchReadinessReportPanel
+              report={launchReadinessReport.data ?? null}
+              isLoading={launchReadinessReport.isFetching}
+              isGenerating={generateLaunchReadinessReport.isPending}
+              onGenerate={() => generateLaunchReadinessReport.mutate()}
+              title="Launch Readiness Report"
+              subtitle="Create a shareable snapshot for the next pilot, paid beta, customer demo, or launch decision. This is deterministic and only updates when you generate it."
+            />
           )}
 
           {selectedProduct && (

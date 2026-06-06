@@ -35,6 +35,7 @@ import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
 import com.produs.product.AiAssistedProductCreationService.AiOpportunityReport;
 import com.produs.product.AiAssistedProductCreationService.ProductCreationFields;
+import com.produs.repo.RepoSignalService;
 import com.produs.scanner.NormalizedFinding;
 import com.produs.scanner.NormalizedFindingRepository;
 import com.produs.scanner.ScanRun;
@@ -160,6 +161,7 @@ public class LoomAIIntegrationService {
     private final TeamRepository teamRepository;
     private final TeamCapabilityRepository teamCapabilityRepository;
     private final ExpertProfileRepository expertProfileRepository;
+    private final RepoSignalService repoSignalService;
     private volatile RuntimeAssignmentCache runtimeAssignmentCache;
     private final HttpClient publicLinkHttpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(2))
@@ -1254,8 +1256,28 @@ public class LoomAIIntegrationService {
         if (scopedProduct != null) {
             safe.put("diagnosisSummary", diagnosisSummary(scopedProduct));
             safe.put("scannerSummary", scannerSummary(scopedProduct, scopedWorkspace));
+            addRepoSignalSnapshot(safe, user, scopedProduct, scopedWorkspace);
         }
         return safe;
+    }
+
+    private void addRepoSignalSnapshot(
+            Map<String, Object> safe,
+            User user,
+            ProductProfile scopedProduct,
+            ProjectWorkspace scopedWorkspace
+    ) {
+        try {
+            if (scopedWorkspace != null) {
+                safe.put("repoSignalSnapshot", repoSignalService.compactAiFactsForWorkspace(user, scopedWorkspace.getId()));
+                return;
+            }
+            if (scopedProduct != null) {
+                safe.put("repoSignalSnapshot", repoSignalService.compactAiFactsForProduct(user, scopedProduct.getId()));
+            }
+        } catch (RuntimeException exception) {
+            log.debug("Repo signal snapshot omitted from LoomAI safe context: {}", exception.getMessage());
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -1394,6 +1416,7 @@ public class LoomAIIntegrationService {
                 "redaction", "redact-obvious-secret-like-values-before-provider-context"
         ));
         context.put("publicLinkInsights", publicLinkInsights);
+        context.put("repoSignalSnapshot", projectCreationRepoSignalSnapshot(request, publicLinkInsights));
         context.put("serviceCatalogSnapshot", projectCreationServiceCatalogSnapshot(request, publicLinkInsights));
         context.put("documentSharingPolicy", Map.of(
                 "scope", "project-creation-analysis-only",
@@ -1454,6 +1477,53 @@ public class LoomAIIntegrationService {
                 "businessStageValues", List.of("IDEA", "PROTOTYPE", "VALIDATED", "LIVE", "SCALING")
         ));
         return context;
+    }
+
+    private Map<String, Object> projectCreationRepoSignalSnapshot(
+            ProjectCreationAssistantRequest request,
+            List<Map<String, Object>> publicLinkInsights
+    ) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("sourceStatus", blank(request.repositoryUrl()) ? "SOURCE_UNKNOWN" : "OWNER_PROVIDED_SOURCE");
+        snapshot.put("repository", safePublicText(request.repositoryUrl(), FIELD_LIMIT));
+        snapshot.put("productUrl", safePublicText(request.productUrl(), FIELD_LIMIT));
+        snapshot.put("techStackHint", safeText(request.techStack(), FIELD_LIMIT));
+        snapshot.put("knownRiskHint", safeText(request.knownRisks(), SUMMARY_LIMIT));
+        snapshot.put("scannerFacts", List.of());
+        snapshot.put("publicLinkFacts", publicLinkInsights == null ? List.of() : publicLinkInsights.stream()
+                .limit(MAX_PUBLIC_LINKS)
+                .map(insight -> Map.of(
+                        "url", safePublicText(mapText(insight, "url"), FIELD_LIMIT),
+                        "source", safeText(mapText(insight, "source"), FIELD_LIMIT),
+                        "contentStatus", safeText(mapText(insight, "contentStatus"), FIELD_LIMIT),
+                        "contentType", safeText(mapText(insight, "contentType"), FIELD_LIMIT),
+                        "reason", safeText(mapText(insight, "reason"), FIELD_LIMIT)
+                ))
+                .toList());
+        List<String> unknowns = new ArrayList<>();
+        if (blank(request.repositoryUrl())) {
+            unknowns.add("Repository source is missing");
+        }
+        if (blank(request.techStack())) {
+            unknowns.add("Tech stack needs scanner, document, or public-link evidence");
+        }
+        unknowns.add("No scanner run has been recorded");
+        unknowns.add("CI/CD proof is unknown");
+        unknowns.add("Test evidence is unknown");
+        unknowns.add("Deployment path is unknown");
+        if (blank(request.knownRisks())) {
+            unknowns.add("Known product risks were not described by the owner");
+        }
+        snapshot.put("unknowns", unknowns.stream().distinct().limit(8).toList());
+        snapshot.put("nextActions", List.of(
+                blank(request.repositoryUrl())
+                        ? "Ask the owner to attach a repository before scanner setup."
+                        : "Use the owner-provided repository as the first scanner source after project creation.",
+                "Use missing repo/scanner facts to shape scannerFocusAreas and missingEvidence.",
+                "Do not claim CI, test, or deployment proof until scanner or document evidence confirms it."
+        ));
+        snapshot.put("evidenceBoundary", "owner-intake-facts-only-before-project-creation");
+        return snapshot;
     }
 
     private Map<String, Object> aiOpportunityContext(User user, AiOpportunityAssistantRequest request) {
@@ -2139,6 +2209,8 @@ public class LoomAIIntegrationService {
                 Use context.serviceCatalogSnapshot to recommend concrete ProdUS service modules.
                 Recommend only moduleCode values present in context.serviceCatalogSnapshot.candidateModules.
                 Do not invent service names. If the owner needs a capability that does not match a listed module, put it in missingCatalogCoverage instead of recommendedServiceModules.
+                Use context.repoSignalSnapshot as the owner-safe repo/scanner fact boundary. If repo, CI, testing, scanner, or deployment proof is unknown, say so in scannerFocusAreas, missingEvidence, or suggestedNextSteps instead of inventing maturity.
+                If a repository URL is present but no scanner run exists yet, make scanner setup and first evidence pass a concrete next step.
                 For every selected document, your provider adapter must pass temporaryAccessUrl as a typed file/document URL input, such as OpenAI Responses API input_file.file_url.
                 The URL returns the document bytes directly from ProdUS with no browser credentials, no custom headers, no HTML preview, and no storage redirect.
                 Do not use MCP tools to read intake documents. Do not use prompt-injected document excerpts; ProdUS only provides file URLs for this flow.
@@ -2178,6 +2250,8 @@ public class LoomAIIntegrationService {
                 Optional risk hint: %s
                 Public link insights:
                 %s
+                Repo and scanner fact snapshot:
+                %s
                 Service catalog snapshot:
                 %s
                 Owner-selected documents:
@@ -2188,6 +2262,7 @@ public class LoomAIIntegrationService {
                 safeText(request.techStack(), SUMMARY_LIMIT),
                 safeText(request.knownRisks(), SUMMARY_LIMIT),
                 projectCreationPublicLinkPromptSection(context.get("publicLinkInsights")),
+                writeJson(context.get("repoSignalSnapshot")),
                 writeJson(context.get("serviceCatalogSnapshot")),
                 projectCreationDocumentPromptSection(request.documents())
         );

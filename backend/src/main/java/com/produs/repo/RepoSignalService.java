@@ -101,6 +101,11 @@ public class RepoSignalService {
         return getProductSignals(actor, productId).aiContextFacts();
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> compactAiFactsForWorkspace(User actor, UUID workspaceId) {
+        return getWorkspaceSignals(actor, workspaceId).aiContextFacts();
+    }
+
     private List<RepoSignal> buildSignals(
             ProductProfile product,
             ProjectWorkspace workspace,

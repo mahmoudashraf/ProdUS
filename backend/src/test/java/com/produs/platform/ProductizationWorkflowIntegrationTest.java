@@ -1233,9 +1233,30 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.integrations", hasSize(1)))
                 .andExpect(jsonPath("$.integrations[0].signals", hasSize(1)));
 
+        mockMvc.perform(post("/api/productization-engine/workspaces/{id}/launch-readiness-report", workspaceId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "focus": "Prepare the owner for a controlled customer pilot."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value(containsString("launch readiness report")))
+                .andExpect(jsonPath("$.shipConfidenceScore").isNumber())
+                .andExpect(jsonPath("$.selectedServices", hasSize(greaterThan(0))))
+                .andExpect(jsonPath("$.proofCollected", hasSize(greaterThan(0))))
+                .andExpect(jsonPath("$.nextOwnerDecision").isString());
+
+        mockMvc.perform(get("/api/productization-engine/workspaces/{id}/launch-readiness-report/latest", workspaceId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reportVersion").value(1))
+                .andExpect(jsonPath("$.workspaceId").value(workspaceId.toString()));
+
         mockMvc.perform(get("/api/admin/audit-events").with(auth(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.action == 'CREATE_DIAGNOSIS')]", hasSize(greaterThan(0))))
+                .andExpect(jsonPath("$[?(@.action == 'GENERATE_WORKSPACE_LAUNCH_READINESS_REPORT')]", hasSize(greaterThan(0))))
                 .andExpect(jsonPath("$[?(@.action == 'CREATE_INTEGRATION_SIGNAL')]", hasSize(greaterThan(0))));
 
         mockMvc.perform(post("/api/workspaces/{id}/milestones", workspaceId)

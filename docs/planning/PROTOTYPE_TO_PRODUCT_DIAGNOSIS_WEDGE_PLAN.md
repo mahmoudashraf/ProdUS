@@ -4,7 +4,7 @@ Date: 2026-06-05
 
 Audience: product, engineering, design, AI integration, catalog, scanner, and delivery stakeholders
 
-Status: implementation plan; Sequence 1 implemented; Sequence 2 implemented; Sequence 3 is the next build slice
+Status: implementation plan with core slices implemented; Sequences 1-6 are backend/frontend implemented and covered by targeted automated tests; Sequence 7-8 remain the staging validation and measurement loop
 
 Primary references:
 
@@ -181,9 +181,31 @@ Build rule:
 - Keep expensive AI calls user-triggered.
 - Validate every persisted AI-derived service/module/reference against backend data.
 
-## 9. Implemented Build Slice
+## 9. Current Implementation Status
 
-**Sequence 2: Repo And Scanner Fact Understanding** is implemented.
+This plan is now implemented through the core product wedge:
+
+```text
+AI project analysis
+  -> repo/scanner signal grounding
+  -> catalog-backed service recommendations
+  -> scanner finding to fix-path mapping
+  -> service plan dependency guidance
+  -> workspace start context
+  -> launch readiness report
+```
+
+The remaining work is not another disconnected feature batch. It is the external proof loop:
+
+- run the full staging journey with real prototype repositories
+- inspect diagnosis specificity and service mapping quality
+- record unmapped findings and missing service coverage
+- tune the catalog, scanner classifiers, and LoomAI prompts from observed failures
+- add the measurement events needed for weekly review
+
+### Sequence 1: Diagnosis Quality Harness
+
+### Sequence 2: Repo And Scanner Fact Understanding
 
 Goal:
 
@@ -250,9 +272,7 @@ Implemented artifacts:
 - compact `aiContextFacts` response for future LoomAI context enrichment
 - owner Productization Workspace Repo Readout panel with manual refresh
 
-## 9A. Immediate Next Build Slice
-
-The next implementation slice is **Sequence 3: AI Analysis Contract Upgrade**.
+### Sequence 3: AI Analysis Contract Upgrade
 
 Goal:
 
@@ -278,6 +298,42 @@ Verification scope:
 - test analysis contract parsing and catalog validation
 - verify project creation stores service recommendations and repo source correctly
 - verify AI analysis does not block project creation only because document usage proof is inconclusive unless the explicit config says so
+
+Implementation status:
+
+- Project creation analysis includes a compact repo signal snapshot for owner-intake repository/product URLs before a product exists.
+- Existing product/workspace LoomAI context includes stored repo signal facts where available.
+- The project-analysis prompt now tells LoomAI to separate verified facts from unknowns and to treat scanner setup as a concrete next step when no scanner run exists.
+- AI-recommended service modules are validated against the active visible catalog before persistence.
+- Invalid AI service suggestions are retained as `missingCatalogCoverage` instead of becoming stored recommendations.
+- Tests cover catalog-backed service recommendation validation and green-field action payload behavior.
+
+### Sequence 4: Scanner To Fix Path Hardening
+
+Implementation status:
+
+- Scanner finding classification and readiness mapping are implemented as deterministic backend behavior.
+- Findings can be mapped into owner-readable blocker/fix-path groups with service recommendations.
+- Mapping results are stored and can be refreshed intentionally rather than recalculated only in a transient UI action.
+- The owner UI exposes mapped blockers, proof needs, unmapped findings, and add-service actions without triggering AI automatically on page load.
+
+### Sequence 5: Service Plan From Diagnosis
+
+Implementation status:
+
+- Catalog-backed service recommendations are persisted from AI analysis and scanner mappings.
+- Workspace conversion checks required service dependencies and returns structured missing-service information.
+- The owner UI shows dependency gaps and lets the owner add missing lifecycle services instead of seeing raw backend errors.
+- Service recommendations remain traceable to catalog modules and diagnosis/scanner context.
+
+### Sequence 6: Launch Readiness Report
+
+Implementation status:
+
+- Backend launch-readiness report persistence is implemented with product/workspace scope, source diagnosis, selected services, proof collected, proof missing, and next owner decision.
+- Product and workspace endpoints support latest-report reads and user-triggered report generation.
+- Owner product and workspace pages include an Apple-like Launch Readiness Report panel with score, ready items, risks, selected services, proof state, and next decision.
+- Workflow integration tests cover report generation and latest-report retrieval from the workspace path.
 
 ## 10. Implementation Sequence
 
