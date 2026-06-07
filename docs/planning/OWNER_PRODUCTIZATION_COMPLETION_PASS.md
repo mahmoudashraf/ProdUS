@@ -411,6 +411,43 @@ Status:
 
 - Complete locally. No extra deployment was required because this removed unused source, not live route behavior.
 
+### Current Pass: Team Profile Studio Completion
+
+Problem:
+
+- The authenticated team-manager/specialist `/teams` profile studio still behaved like a long internal profile console.
+- Team identity, edit form, members, invitations, join requests, solo expert profile, incoming invitations, and join/create actions were stacked in one page.
+- `TeamProfilesPage.tsx` was still large enough that the next UX pass would keep adding density to the route file.
+
+Solution:
+
+- Reframe the profile studio as four focused, URL-backed jobs:
+  - Profile: maintain the public team identity.
+  - People: manage members, invitations, and join requests.
+  - Expert: maintain solo expert proof and availability.
+  - Access: respond to invitations or request to join teams.
+- Keep the same team, expert profile, invitation, and join-request API contracts.
+- Split the page into granular panels so the route orchestrates state instead of owning all JSX.
+- Remove ambiguous step-card transitions so only the active studio step reads as selected.
+
+Status:
+
+- Implemented locally and verified against staging data using a Playwright API proxy.
+- `TeamProfilesPage.tsx` is now 360 lines, with profile studio views split into:
+  - `TeamProfileStudioNavigation.tsx`
+  - `TeamProfileIdentityPanel.tsx`
+  - `TeamProfilePeoplePanel.tsx`
+  - `ExpertProfileStudioPanel.tsx`
+  - `TeamAccessPanel.tsx`
+  - `ProfileHeroPanel.tsx`
+  - `teamProfileStudioTypes.ts`
+- Focused local verification passed with screenshots:
+  - `tmp/live-verification/2026-06-07/104-team-profile-studio-profile-local.png`
+  - `tmp/live-verification/2026-06-07/105-team-profile-studio-people-local.png`
+  - `tmp/live-verification/2026-06-07/106-team-profile-studio-expert-local.png`
+  - `tmp/live-verification/2026-06-07/107-team-profile-studio-access-local.png`
+  - `tmp/live-verification/2026-06-07/108-mobile-team-profile-studio-local.png`
+
 ## Implementation Loop
 
 For each slice:
