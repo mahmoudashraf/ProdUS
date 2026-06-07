@@ -15,8 +15,6 @@ import {
   clampScore,
   formatLabel,
 } from './PlatformComponents';
-import ShipConfidencePanel from './ShipConfidencePanel';
-import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
 import { type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import OwnerFindingReviewDrawer from './OwnerFindingReviewDrawer';
@@ -26,7 +24,7 @@ import OwnerActionPlanPanel from './OwnerActionPlanPanel';
 import OwnerFindingsEvidencePanel from './OwnerFindingsEvidencePanel';
 import OwnerFindingsRiskPanel from './OwnerFindingsRiskPanel';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
-import OwnerOverviewDecisionPanel from './OwnerOverviewDecisionPanel';
+import OwnerWorkspaceOverviewPane from './OwnerWorkspaceOverviewPane';
 import OwnerProductDiagnosisPanel from './OwnerProductDiagnosisPanel';
 import OwnerScannerProofCompanionPanel from './OwnerScannerProofCompanionPanel';
 import OwnerScannerProofOperationsPanel from './OwnerScannerProofOperationsPanel';
@@ -47,7 +45,6 @@ import {
 import { findingStatusAccent } from './ownerFindingPresentation';
 import {
   OwnerControlPanel,
-  OwnerLaunchReadyCelebration,
   OwnerReadinessVerdictReveal,
   VerdictRisk,
 } from './OwnerJourneyCards';
@@ -1718,36 +1715,50 @@ export default function OwnerProductizationWorkspace({
           />
 
           {selectedProduct && workspaceTab === 'overview' && (
-            <Stack spacing={2.5}>
-              <OwnerLaunchReadyCelebration
-                readinessScore={launchStatus.score}
-                blockerCount={launchStatus.blockerCount}
-                improvementCount={launchStatus.improvementCount}
-                completedChecks={latestCompletedTools}
-                totalChecks={scanToolOptions.length}
-                isGenerating={generateLaunchReadinessReport.isPending}
-                onGenerateReport={() => generateLaunchReadinessReport.mutate()}
-              />
-
-              {workspaceDetailOpen && overviewView === 'decision' && (
-                <OwnerOverviewDecisionPanel
-                  launchStatus={launchStatus}
-                  latestCompletedTools={latestCompletedTools}
-                  totalScanTools={scanToolOptions.length}
-                  topRecommendedServiceName={topRecommendedServiceName}
-                  topOwnerRisks={topOwnerRisks}
-                  ownerActionGroups={ownerActionGroups}
-                  scannerCoverageGroups={scannerCoverageGroups}
-                  selectedPackage={selectedPackage}
-                  scannerMappedServices={scannerMappedServices}
-                  onOpenServicesRecommend={() => openServicesView('recommend')}
-                  onOpenServicesPlan={() => openServicesView('plan')}
-                  onOpenFindingsEvidence={() => openFindingsView('evidence')}
-                  onOpenFindingsRisks={() => openFindingsView('risks')}
-                  onOpenTimeline={() => setTimelineOpen(true)}
-                />
-              )}
-            </Stack>
+            <OwnerWorkspaceOverviewPane
+              view={overviewView}
+              detailOpen={workspaceDetailOpen}
+              launchCelebration={{
+                readinessScore: launchStatus.score,
+                blockerCount: launchStatus.blockerCount,
+                improvementCount: launchStatus.improvementCount,
+                completedChecks: latestCompletedTools,
+                totalChecks: scanToolOptions.length,
+                isGenerating: generateLaunchReadinessReport.isPending,
+                onGenerateReport: () => generateLaunchReadinessReport.mutate(),
+              }}
+              decision={{
+                launchStatus,
+                latestCompletedTools,
+                totalScanTools: scanToolOptions.length,
+                topRecommendedServiceName,
+                topOwnerRisks,
+                ownerActionGroups,
+                scannerCoverageGroups,
+                selectedPackage,
+                scannerMappedServices,
+                onOpenServicesRecommend: () => openServicesView('recommend'),
+                onOpenServicesPlan: () => openServicesView('plan'),
+                onOpenFindingsEvidence: () => openFindingsView('evidence'),
+                onOpenFindingsRisks: () => openFindingsView('risks'),
+                onOpenTimeline: () => setTimelineOpen(true),
+              }}
+              shipConfidence={{
+                history: shipConfidence.data,
+                isLoading: shipConfidence.isFetching,
+                title: 'Ship Confidence History',
+                subtitle: 'Every diagnosis and scanner map becomes a checkpoint, so this prototype has a visible path from rough edges to ready-to-ship.',
+                showScoreRing: false,
+              }}
+              launchReadinessReport={{
+                report: launchReadinessReport.data ?? null,
+                isLoading: launchReadinessReport.isFetching,
+                isGenerating: generateLaunchReadinessReport.isPending,
+                onGenerate: () => generateLaunchReadinessReport.mutate(),
+                title: 'Launch Readiness Report',
+                subtitle: 'Create a shareable snapshot for the next pilot, paid beta, customer demo, or launch decision. This is deterministic and only updates when you generate it.',
+              }}
+            />
           )}
 
           {selectedProduct && workspaceTab === 'actions' && workspaceDetailOpen && actionView === 'plan' && (
@@ -1810,29 +1821,6 @@ export default function OwnerProductizationWorkspace({
               isAddingService={addServiceToCart.isPending}
               onCreateDiagnosis={() => createDiagnosis.mutate()}
               onAddService={addLifecycleService}
-            />
-          )}
-
-          {selectedProduct && workspaceTab === 'overview' && workspaceDetailOpen && overviewView === 'progress' && (
-            <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f9fcff 100%)' }}>
-              <ShipConfidencePanel
-                history={shipConfidence.data}
-                isLoading={shipConfidence.isFetching}
-                title="Ship Confidence History"
-                subtitle="Every diagnosis and scanner map becomes a checkpoint, so this prototype has a visible path from rough edges to ready-to-ship."
-                showScoreRing={false}
-              />
-            </Surface>
-          )}
-
-          {selectedProduct && workspaceTab === 'overview' && workspaceDetailOpen && overviewView === 'progress' && (
-            <LaunchReadinessReportPanel
-              report={launchReadinessReport.data ?? null}
-              isLoading={launchReadinessReport.isFetching}
-              isGenerating={generateLaunchReadinessReport.isPending}
-              onGenerate={() => generateLaunchReadinessReport.mutate()}
-              title="Launch Readiness Report"
-              subtitle="Create a shareable snapshot for the next pilot, paid beta, customer demo, or launch decision. This is deterministic and only updates when you generate it."
             />
           )}
 
