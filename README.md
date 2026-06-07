@@ -31,6 +31,16 @@ The owner should not need to understand scanner names, security acronyms, or int
 Can I launch this, and what should I do next?
 ```
 
+For the current MVP, the product should feel like a guided productization partner for a startup owner, not a scanner console. The owner sees one verdict, the blockers that affect that verdict, the proof behind each claim, and the service path that can move the product forward.
+
+The UI should avoid long pages that place every technical detail in one scroll. ProdUS uses a hub-and-spoke journey instead:
+
+- Overview answers the launch question.
+- Action Plan shows what to fix first.
+- Findings explains blocker and improvement detail.
+- Services ties the next paid or assigned work to the highest-value blocker.
+- Workspace turns the approved plan into delivery, proof, owners, and handoff.
+
 ## Current MVP Focus
 
 The MVP is focused on proving the productization loop end to end:
@@ -52,14 +62,21 @@ For a prototype or early product, the ideal owner journey is:
 Create product -> attach proof -> scan -> get verdict -> fix blockers -> create workspace
 ```
 
-The product workspace should lead with:
+The product workspace should lead with the owner decision, not implementation machinery:
 
 - Launch verdict: the plain-language answer.
 - Blockers: what must be fixed before launch.
 - Improvements: what can be scheduled later.
-- Evidence: what ProdUS inspected.
-- Services: the recommended way to resolve the gaps.
-- Technical proof: scanner details for an engineer or reviewer.
+- Evidence: what ProdUS inspected, shown beside the claims it supports.
+- Services: the recommended way to resolve the current blockers.
+- Technical proof: scanner details for an engineer or reviewer, available after the owner answer.
+
+The MVP should make a startup owner feel:
+
+- Clear on whether to launch, beta, demo, or pause.
+- Confident that the answer came from real product evidence.
+- Able to see which fixes are mandatory and which can wait.
+- Ready to approve a launch-hardening plan without reading raw scanner output.
 
 ## ProdUS And LoomAI
 
