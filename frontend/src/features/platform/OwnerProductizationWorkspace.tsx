@@ -10,7 +10,6 @@ import {
   EmptyState,
   PageHeader,
   QueryState,
-  Surface,
   appleColors,
   clampScore,
   formatLabel,
@@ -18,33 +17,17 @@ import {
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
 import { type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import OwnerFindingReviewDrawer from './OwnerFindingReviewDrawer';
-import RepoReadoutPanel from './RepoReadoutPanel';
 import StudioAssistantCard, { assistantRecordText, type StudioAssistantContext } from './StudioAssistantCard';
-import OwnerActionPlanPanel from './OwnerActionPlanPanel';
-import OwnerFindingsEvidencePanel from './OwnerFindingsEvidencePanel';
-import OwnerFindingsRiskPanel from './OwnerFindingsRiskPanel';
+import OwnerWorkspaceActionsPane from './OwnerWorkspaceActionsPane';
+import OwnerWorkspaceFindingsPane from './OwnerWorkspaceFindingsPane';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import OwnerWorkspaceOverviewPane from './OwnerWorkspaceOverviewPane';
-import OwnerProductDiagnosisPanel from './OwnerProductDiagnosisPanel';
-import OwnerScannerProofCompanionPanel from './OwnerScannerProofCompanionPanel';
-import OwnerScannerProofOperationsPanel from './OwnerScannerProofOperationsPanel';
-import ScannerCoverageGrid from './ScannerCoverageGrid';
-import ScannerFixPathPanel from './ScannerFixPathPanel';
-import ScannerProofRunway from './ScannerProofRunway';
-import OwnerServicesRecommendationPanel, { type OwnerServiceRiskSummary } from './OwnerServicesRecommendationPanel';
-import OwnerProjectStartPanel from './OwnerProjectStartPanel';
-import OwnerTeamMatchPanel from './OwnerTeamMatchPanel';
-import OwnerServicePlanPanel from './OwnerServicePlanPanel';
+import type { OwnerServiceRiskSummary } from './OwnerServicesRecommendationPanel';
+import OwnerWorkspaceServicesPane from './OwnerWorkspaceServicesPane';
 import OwnerWorkspaceNavigationPanel from './OwnerWorkspaceNavigationPanel';
-import {
-  OwnerAiBriefPanel,
-  OwnerDeliveryWorkspacePanel,
-  OwnerNextDecisionPanel,
-  OwnerSupportRiskPanel,
-} from './OwnerWorkspaceSideRailPanels';
+import OwnerWorkspaceSideRailPane from './OwnerWorkspaceSideRailPane';
 import { findingStatusAccent } from './ownerFindingPresentation';
 import {
-  OwnerControlPanel,
   OwnerReadinessVerdictReveal,
   VerdictRisk,
 } from './OwnerJourneyCards';
@@ -1761,377 +1744,344 @@ export default function OwnerProductizationWorkspace({
             />
           )}
 
-          {selectedProduct && workspaceTab === 'actions' && workspaceDetailOpen && actionView === 'plan' && (
-            <OwnerActionPlanPanel
-              ownerActionGroups={ownerActionGroups}
-              onOpenServicesRecommend={() => openServicesView('recommend')}
-            />
-          )}
-
-          {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'risks' && (
-            <OwnerFindingsRiskPanel
-              groups={groupedFindings}
-              totalFindingCount={scannerSummary.data?.findings.length || 0}
-              openGroups={openFindingGroups}
-              onGroupToggle={(label, expanded) => setOpenFindingGroups((current) => ({ ...current, [label]: expanded }))}
-              onReviewFinding={(findingId) => {
-                setSelectedFindingId(findingId);
-                setFindingDrawerOpen(true);
+          {selectedProduct && workspaceTab === 'actions' && (
+            <OwnerWorkspaceActionsPane
+              view={actionView}
+              detailOpen={workspaceDetailOpen}
+              actionPlan={{
+                ownerActionGroups,
+                onOpenServicesRecommend: () => openServicesView('recommend'),
               }}
-              onOpenTechnicalProof={() => openFindingsView('technical')}
+              diagnosis={{
+                product: selectedProduct,
+                diagnosisForm,
+                latestDiagnosis,
+                catalogModules: catalogModules.data || [],
+                cartServiceIds,
+                diagnosisPromptFacts,
+                assistantContext: assistantContext('product-diagnosis'),
+                assistantActions: assistantActionProps,
+                isCreatingDiagnosis: createDiagnosis.isPending,
+                isAddingService: addServiceToCart.isPending,
+                onCreateDiagnosis: () => createDiagnosis.mutate(),
+                onAddService: addLifecycleService,
+              }}
             />
           )}
 
-          {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'evidence' && (
-            <OwnerFindingsEvidencePanel
-              summaryItems={evidenceSummaryItems}
-              sources={scannerSummary.data?.sources || []}
-              evidence={filteredScannerEvidence}
-              evidenceFilter={evidenceFilter}
-              isExporting={createEvidenceExport.isPending}
-              isOpeningEvidence={openSignedEvidence.isPending}
-              onEvidenceFilterChange={setEvidenceFilter}
-              onExport={() => createEvidenceExport.mutate()}
-              onOpenEvidence={openEvidenceArtifact}
-              formatDateTime={shortDateTime}
-            />
-          )}
-
-          {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'evidence' && (
-            <RepoReadoutPanel
-              summary={repoSignals.data}
-              scannerSummary={scannerSummary.data}
-              isFetching={repoSignals.isFetching}
-              isRefreshing={refreshRepoSignals.isPending}
-              onRefresh={() => refreshRepoSignals.mutate()}
-            />
-          )}
-
-          {selectedProduct && workspaceTab === 'actions' && workspaceDetailOpen && actionView === 'diagnosis' && (
-            <OwnerProductDiagnosisPanel
-              product={selectedProduct}
-              diagnosisForm={diagnosisForm}
-              latestDiagnosis={latestDiagnosis}
-              catalogModules={catalogModules.data || []}
-              cartServiceIds={cartServiceIds}
-              diagnosisPromptFacts={diagnosisPromptFacts}
-              assistantContext={assistantContext('product-diagnosis')}
-              assistantActions={assistantActionProps}
-              isCreatingDiagnosis={createDiagnosis.isPending}
-              isAddingService={addServiceToCart.isPending}
-              onCreateDiagnosis={() => createDiagnosis.mutate()}
-              onAddService={addLifecycleService}
-            />
-          )}
-
-          {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'technical' && (
-            <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
-              <ScannerProofRunway
-                scannerReadiness={scannerReadiness}
-                criticalCount={scannerCounts?.critical || 0}
-                highCount={scannerCounts?.high || 0}
-                openFindingCount={scannerCounts?.open || 0}
-                sourceCount={scannerSummary.data?.sources.length || 0}
-                evidenceCount={filteredScannerEvidence.length}
-                latestCoveredTools={latestCoveredTools}
-                totalTools={scanToolOptions.length}
-                normalizedFindingCount={scannerCounts?.total || 0}
-                activeScanRun={Boolean(activeScanRun)}
-                fullSuiteBlockedReason={fullHostedScanBlockedReason}
-                isStartingFullSuite={startFullHostedScan.isPending}
-                isExporting={createEvidenceExport.isPending}
-                onRunFullSuite={() => startFullHostedScan.mutate()}
-                onReviewBlockers={() => openFindingsView('risks')}
-                onExportProof={() => createEvidenceExport.mutate()}
-              />
-
-              <ScannerCoverageGrid
-                tools={scannerToolCoverage}
-                latestCoveredTools={latestCoveredTools}
-                totalTools={scanToolOptions.length}
-                latestMappedToolFindings={latestMappedToolFindings}
-                unavailableScannerTools={unavailableScannerTools}
-              />
-
-              <ScannerFixPathPanel
-                diagnosis={latestScannerDiagnosis}
-                mappedFindings={scannerMappedFindings}
-                mappedServiceNames={scannerMappedServices}
-                serviceModules={catalogModules.data || []}
-                cartServiceIds={cartServiceIds}
-                hasCompletedScannerRun={hasCompletedScannerRun}
-                isRefreshing={createScannerReadinessDiagnosis.isPending}
-                isAddingService={addServiceToCart.isPending}
-                onRefreshMap={() =>
-                  createScannerReadinessDiagnosis.mutate({
-                    ...(selectedWorkspace?.id ? { workspaceId: selectedWorkspace.id } : {}),
-                    createServiceRecommendations: true,
-                    includeAcceptedRisk: false,
-                    summary: `Scanner-backed readiness map for ${selectedProduct.name}.`,
-                  })
-                }
-                onAddService={addLifecycleService}
-              />
-
-              <Box sx={{ mb: 2 }}>
-                <StudioAssistantCard
-                  title="AI Fix Path Summary"
-                  description="Summarize scanner findings, explain the highest-risk fixes, and turn proof into practical productization actions."
-                  prompt={`Do not call write actions for this answer. Summarize scanner ship-readiness for ${selectedProduct.name}. Current scanner score is ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings. Top visible findings: ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none'}. ${scannerReadinessPromptFacts} Prioritize critical and high findings, explain the business risk in plain language, identify missing proof, and recommend lifecycle services or milestone actions. Use the provided context and visible facts directly. Avoid raw artifact details.`}
-                  conversationId={`studio-scanner-${selectedProduct.id}-${selectedFinding?.id || 'summary'}`}
-                  context={assistantContext('scanner-readiness', { findingId: selectedFinding?.id })}
-                  {...assistantActionProps}
-                  accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green}
-                  cta="Summarize Fixes"
-                />
-              </Box>
-
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: 2 }}>
-                <OwnerScannerProofOperationsPanel
-                  selectedProduct={selectedProduct}
-                  selectedWorkspace={selectedWorkspace}
-                  milestones={milestones.data || []}
-                  scannerSources={scannerSummary.data?.sources || []}
-                  scanToolOptions={scanToolOptions}
-                  externalImportProviders={externalImportProviders}
-                  selectedConnectorPermission={selectedConnectorPermission}
-                  activeProviderInstallations={activeProviderInstallations}
-                  activeScanRun={activeScanRun}
-                  hostedScanBlockedReason={hostedScanBlockedReason}
-                  fullHostedScanBlockedReason={fullHostedScanBlockedReason}
-                  scheduleBlockedReason={scheduleBlockedReason}
-                  scanSourceForm={scanSourceForm}
-                  setScanSourceForm={setScanSourceForm}
-                  providerSourceForm={providerSourceForm}
-                  setProviderSourceForm={setProviderSourceForm}
-                  hostedScanForm={hostedScanForm}
-                  setHostedScanForm={setHostedScanForm}
-                  scheduleForm={scheduleForm}
-                  setScheduleForm={setScheduleForm}
-                  scannerUploadForm={scannerUploadForm}
-                  setScannerUploadForm={setScannerUploadForm}
-                  externalImportForm={externalImportForm}
-                  setExternalImportForm={setExternalImportForm}
-                  ciTemplateType={ciTemplateType}
-                  setCiTemplateType={setCiTemplateType}
-                  ciTemplate={ciTemplate}
-                  isCreatingSource={createScanSource.isPending}
-                  isRequestingConnectorInstall={requestConnectorInstall.isPending}
-                  isCreatingProviderSource={createProviderSource.isPending}
-                  isStartingHostedScan={startHostedScan.isPending}
-                  isStartingFullHostedScan={startFullHostedScan.isPending}
-                  isCancelingScan={cancelScannerRun.isPending}
-                  isCreatingSchedule={createScannerSchedule.isPending}
-                  isUploadingEvidence={uploadScannerEvidence.isPending}
-                  isImportingExternalEvidence={importExternalEvidence.isPending}
-                  isFetchingCiTemplate={fetchCiTemplate.isPending}
-                  onCreateScanSource={() => createScanSource.mutate()}
-                  onRequestConnectorInstall={(provider) => requestConnectorInstall.mutate(provider)}
-                  onCreateProviderSource={() => createProviderSource.mutate()}
-                  onStartHostedScan={() => startHostedScan.mutate()}
-                  onStartFullHostedScan={() => startFullHostedScan.mutate()}
-                  onCancelScan={(runId) => cancelScannerRun.mutate(runId)}
-                  onCreateSchedule={() => createScannerSchedule.mutate()}
-                  onUploadScannerEvidence={() => uploadScannerEvidence.mutate()}
-                  onImportExternalEvidence={() => importExternalEvidence.mutate()}
-                  onFetchCiTemplate={() => selectedProduct && fetchCiTemplate.mutate()}
-                  defaultToolsForDepth={defaultToolsForDepth}
-                />
-
-                <OwnerScannerProofCompanionPanel
-                  scannerSummary={scannerSummary.data}
-                  filteredScannerEvidence={filteredScannerEvidence}
-                  evidenceFilter={evidenceFilter}
-                  selectedFinding={selectedFinding}
-                  cartServiceIds={cartServiceIds}
-                  findingReasonById={findingReasonById}
-                  findingReviewDueById={findingReviewDueById}
-                  deleteArtifactsOnDisconnect={deleteArtifactsOnDisconnect}
-                  activeScanRun={activeScanRun}
-                  hasProduct={!!selectedProduct}
-                  isBusy={scannerSummary.isFetching || createScannerReadinessDiagnosis.isPending || createProviderSource.isPending || requestConnectorInstall.isPending || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || startFullHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending || openSignedEvidence.isPending || createEvidenceExport.isPending}
-                  isDisconnectingSource={disconnectScanSource.isPending}
-                  isUpdatingSchedule={updateScannerSchedule.isPending}
-                  isOpeningEvidence={openSignedEvidence.isPending}
-                  isExportingEvidence={createEvidenceExport.isPending}
-                  isUpdatingFindingStatus={updateFindingStatus.isPending}
-                  isAddingService={addServiceToCart.isPending}
-                  isCancelingScan={cancelScannerRun.isPending}
-                  isRescanning={rescanRun.isPending}
-                  onDeleteArtifactsChange={setDeleteArtifactsOnDisconnect}
-                  onDisconnectSource={(sourceId) => disconnectScanSource.mutate(sourceId)}
-                  onToggleSchedule={(scheduleId, active) => updateScannerSchedule.mutate({ scheduleId, active })}
-                  onEvidenceFilterChange={setEvidenceFilter}
-                  onExportEvidence={() => createEvidenceExport.mutate()}
-                  onOpenEvidence={openEvidenceArtifact}
-                  onSelectFinding={(findingId) => {
+          {selectedProduct && workspaceTab === 'findings' && (
+            <OwnerWorkspaceFindingsPane
+              view={findingsView}
+              detailOpen={workspaceDetailOpen}
+              risks={{
+                groups: groupedFindings,
+                totalFindingCount: scannerSummary.data?.findings.length || 0,
+                openGroups: openFindingGroups,
+                onGroupToggle: (label, expanded) => setOpenFindingGroups((current) => ({ ...current, [label]: expanded })),
+                onReviewFinding: (findingId) => {
+                  setSelectedFindingId(findingId);
+                  setFindingDrawerOpen(true);
+                },
+                onOpenTechnicalProof: () => openFindingsView('technical'),
+              }}
+              evidence={{
+                summaryItems: evidenceSummaryItems,
+                sources: scannerSummary.data?.sources || [],
+                evidence: filteredScannerEvidence,
+                evidenceFilter,
+                isExporting: createEvidenceExport.isPending,
+                isOpeningEvidence: openSignedEvidence.isPending,
+                onEvidenceFilterChange: setEvidenceFilter,
+                onExport: () => createEvidenceExport.mutate(),
+                onOpenEvidence: openEvidenceArtifact,
+                formatDateTime: shortDateTime,
+              }}
+              repoReadout={{
+                summary: repoSignals.data,
+                scannerSummary: scannerSummary.data,
+                isFetching: repoSignals.isFetching,
+                isRefreshing: refreshRepoSignals.isPending,
+                onRefresh: () => refreshRepoSignals.mutate(),
+              }}
+              technical={{
+                runway: {
+                  scannerReadiness,
+                  criticalCount: scannerCounts?.critical || 0,
+                  highCount: scannerCounts?.high || 0,
+                  openFindingCount: scannerCounts?.open || 0,
+                  sourceCount: scannerSummary.data?.sources.length || 0,
+                  evidenceCount: filteredScannerEvidence.length,
+                  latestCoveredTools,
+                  totalTools: scanToolOptions.length,
+                  normalizedFindingCount: scannerCounts?.total || 0,
+                  activeScanRun: Boolean(activeScanRun),
+                  fullSuiteBlockedReason: fullHostedScanBlockedReason,
+                  isStartingFullSuite: startFullHostedScan.isPending,
+                  isExporting: createEvidenceExport.isPending,
+                  onRunFullSuite: () => startFullHostedScan.mutate(),
+                  onReviewBlockers: () => openFindingsView('risks'),
+                  onExportProof: () => createEvidenceExport.mutate(),
+                },
+                coverage: {
+                  tools: scannerToolCoverage,
+                  latestCoveredTools,
+                  totalTools: scanToolOptions.length,
+                  latestMappedToolFindings,
+                  unavailableScannerTools,
+                },
+                fixPath: {
+                  diagnosis: latestScannerDiagnosis,
+                  mappedFindings: scannerMappedFindings,
+                  mappedServiceNames: scannerMappedServices,
+                  serviceModules: catalogModules.data || [],
+                  cartServiceIds,
+                  hasCompletedScannerRun,
+                  isRefreshing: createScannerReadinessDiagnosis.isPending,
+                  isAddingService: addServiceToCart.isPending,
+                  onRefreshMap: () =>
+                    createScannerReadinessDiagnosis.mutate({
+                      ...(selectedWorkspace?.id ? { workspaceId: selectedWorkspace.id } : {}),
+                      createServiceRecommendations: true,
+                      includeAcceptedRisk: false,
+                      summary: `Scanner-backed readiness map for ${selectedProduct.name}.`,
+                    }),
+                  onAddService: addLifecycleService,
+                },
+                assistant: {
+                  title: 'AI Fix Path Summary',
+                  description: 'Summarize scanner findings, explain the highest-risk fixes, and turn proof into practical productization actions.',
+                  prompt: `Do not call write actions for this answer. Summarize scanner ship-readiness for ${selectedProduct.name}. Current scanner score is ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings. Top visible findings: ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none'}. ${scannerReadinessPromptFacts} Prioritize critical and high findings, explain the business risk in plain language, identify missing proof, and recommend lifecycle services or milestone actions. Use the provided context and visible facts directly. Avoid raw artifact details.`,
+                  conversationId: `studio-scanner-${selectedProduct.id}-${selectedFinding?.id || 'summary'}`,
+                  context: assistantContext('scanner-readiness', { findingId: selectedFinding?.id }),
+                  ...assistantActionProps,
+                  accent: scannerOpenFindings.length ? appleColors.amber : appleColors.green,
+                  cta: 'Summarize Fixes',
+                },
+                operations: {
+                  selectedProduct,
+                  selectedWorkspace,
+                  milestones: milestones.data || [],
+                  scannerSources: scannerSummary.data?.sources || [],
+                  scanToolOptions,
+                  externalImportProviders,
+                  selectedConnectorPermission,
+                  activeProviderInstallations,
+                  activeScanRun,
+                  hostedScanBlockedReason,
+                  fullHostedScanBlockedReason,
+                  scheduleBlockedReason,
+                  scanSourceForm,
+                  setScanSourceForm,
+                  providerSourceForm,
+                  setProviderSourceForm,
+                  hostedScanForm,
+                  setHostedScanForm,
+                  scheduleForm,
+                  setScheduleForm,
+                  scannerUploadForm,
+                  setScannerUploadForm,
+                  externalImportForm,
+                  setExternalImportForm,
+                  ciTemplateType,
+                  setCiTemplateType,
+                  ciTemplate,
+                  isCreatingSource: createScanSource.isPending,
+                  isRequestingConnectorInstall: requestConnectorInstall.isPending,
+                  isCreatingProviderSource: createProviderSource.isPending,
+                  isStartingHostedScan: startHostedScan.isPending,
+                  isStartingFullHostedScan: startFullHostedScan.isPending,
+                  isCancelingScan: cancelScannerRun.isPending,
+                  isCreatingSchedule: createScannerSchedule.isPending,
+                  isUploadingEvidence: uploadScannerEvidence.isPending,
+                  isImportingExternalEvidence: importExternalEvidence.isPending,
+                  isFetchingCiTemplate: fetchCiTemplate.isPending,
+                  onCreateScanSource: () => createScanSource.mutate(),
+                  onRequestConnectorInstall: (provider) => requestConnectorInstall.mutate(provider),
+                  onCreateProviderSource: () => createProviderSource.mutate(),
+                  onStartHostedScan: () => startHostedScan.mutate(),
+                  onStartFullHostedScan: () => startFullHostedScan.mutate(),
+                  onCancelScan: (runId) => cancelScannerRun.mutate(runId),
+                  onCreateSchedule: () => createScannerSchedule.mutate(),
+                  onUploadScannerEvidence: () => uploadScannerEvidence.mutate(),
+                  onImportExternalEvidence: () => importExternalEvidence.mutate(),
+                  onFetchCiTemplate: () => fetchCiTemplate.mutate(),
+                  defaultToolsForDepth,
+                },
+                companion: {
+                  scannerSummary: scannerSummary.data,
+                  filteredScannerEvidence,
+                  evidenceFilter,
+                  selectedFinding,
+                  cartServiceIds,
+                  findingReasonById,
+                  findingReviewDueById,
+                  deleteArtifactsOnDisconnect,
+                  activeScanRun,
+                  hasProduct: !!selectedProduct,
+                  isBusy: scannerSummary.isFetching || createScannerReadinessDiagnosis.isPending || createProviderSource.isPending || requestConnectorInstall.isPending || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || startFullHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending || openSignedEvidence.isPending || createEvidenceExport.isPending,
+                  isDisconnectingSource: disconnectScanSource.isPending,
+                  isUpdatingSchedule: updateScannerSchedule.isPending,
+                  isOpeningEvidence: openSignedEvidence.isPending,
+                  isExportingEvidence: createEvidenceExport.isPending,
+                  isUpdatingFindingStatus: updateFindingStatus.isPending,
+                  isAddingService: addServiceToCart.isPending,
+                  isCancelingScan: cancelScannerRun.isPending,
+                  isRescanning: rescanRun.isPending,
+                  onDeleteArtifactsChange: setDeleteArtifactsOnDisconnect,
+                  onDisconnectSource: (sourceId) => disconnectScanSource.mutate(sourceId),
+                  onToggleSchedule: (scheduleId, active) => updateScannerSchedule.mutate({ scheduleId, active }),
+                  onEvidenceFilterChange: setEvidenceFilter,
+                  onExportEvidence: () => createEvidenceExport.mutate(),
+                  onOpenEvidence: openEvidenceArtifact,
+                  onSelectFinding: (findingId) => {
                     setSelectedFindingId(findingId);
                     setFindingDrawerOpen(true);
-                  }}
-                  onFindingReasonChange={(findingId, value) => setFindingReasonById((current) => ({ ...current, [findingId]: value }))}
-                  onFindingReviewDueChange={(findingId, value) => setFindingReviewDueById((current) => ({ ...current, [findingId]: value }))}
-                  onAddService={addLifecycleService}
-                  onRecordFindingDecision={recordFindingDecision}
-                  onCancelRun={(runId) => cancelScannerRun.mutate(runId)}
-                  onRescanRun={(runId) => rescanRun.mutate(runId)}
-                  formatDateTime={shortDateTime}
-                />
-              </Box>
-            </Surface>
+                  },
+                  onFindingReasonChange: (findingId, value) => setFindingReasonById((current) => ({ ...current, [findingId]: value })),
+                  onFindingReviewDueChange: (findingId, value) => setFindingReviewDueById((current) => ({ ...current, [findingId]: value })),
+                  onAddService: addLifecycleService,
+                  onRecordFindingDecision: recordFindingDecision,
+                  onCancelRun: (runId) => cancelScannerRun.mutate(runId),
+                  onRescanRun: (runId) => rescanRun.mutate(runId),
+                  formatDateTime: shortDateTime,
+                },
+              }}
+            />
           )}
 
-          {workspaceTab === 'services' && workspaceDetailOpen && (
-            <>
-              {servicesView === 'recommend' && (
-                <OwnerServicesRecommendationPanel
-                  product={selectedProduct}
-                  categories={categories.data || []}
-                  catalogModules={catalogModules.data || []}
-                  recommendedServices={recommendedServices}
-                  cartServiceItems={cartServiceItems}
-                  cartServiceIds={cartServiceIds}
-                  blockerCount={launchStatus.blockerCount}
-                  improvementCount={launchStatus.improvementCount}
-                  mappedServiceNames={scannerMappedServices}
-                  ownerRisks={serviceRiskItems}
-                  cartStartPromptFacts={cartStartPromptFacts}
-                  assistantContext={assistantContext('service-selection')}
-                  assistantActions={assistantActionProps}
-                  isAddingService={addServiceToCart.isPending}
-                  isRemovingService={removeServiceFromCart.isPending}
-                  onAddService={addLifecycleService}
-                  onRemoveService={(itemId) => removeServiceFromCart.mutate(itemId)}
-                />
-              )}
-
-              {servicesView === 'plan' && (
-                <OwnerServicePlanPanel
-                  showProductCreation={showProductCreation}
-                  selectedProduct={selectedProduct}
-                  productFormValues={productForm.values}
-                  requirementFormValues={requirementForm.values}
-                  selectedProductRequirements={selectedProductRequirements}
-                  catalogModules={catalogModules.data || []}
-                  selectedPackage={selectedPackage}
-                  packageModules={packageModules.data || []}
-                  isPackageFetching={packageModules.isFetching}
-                  isTeamRecommendationsFetching={teamRecommendations.isFetching}
-                  isCreatingProduct={createProduct.isPending}
-                  isCreatingRequirement={createRequirement.isPending}
-                  isBuildingPackage={buildPackage.isPending}
-                  cartStartPromptFacts={cartStartPromptFacts}
-                  packageAssistantContext={assistantContext('package-recommendation')}
-                  assistantActions={assistantActionProps}
-                  onProductValueChange={(key, value) => productForm.setValue(key as keyof ProductProfilePayload, value as any)}
-                  onRequirementValueChange={(key, value) => requirementForm.setValue(key as keyof RequirementPayload, value as any)}
-                  onSubmitProduct={submitProduct}
-                  onSubmitRequirement={submitRequirement}
-                  onBuildPackage={(requirementId) => buildPackage.mutate(requirementId)}
-                />
-              )}
-
-              {servicesView === 'team' && (
-                <OwnerTeamMatchPanel
-                  recommendations={teamRecommendations.data || []}
-                  productProposals={productProposals}
-                  cartTalentItems={cartTalentItems}
-                  activeShortlists={activeShortlists}
-                  suggestedTeams={suggestedTeams}
-                  suggestedExperts={suggestedExperts}
-                  hasServicePlan={!!selectedPackage}
-                  isAddingTalent={addTalentToCart.isPending}
-                  isRemovingTalent={removeTalentFromCart.isPending}
-                  isShortlisting={upsertShortlist.isPending}
-                  isAcceptingProposal={acceptProposal.isPending}
-                  onAddRecommendationTeam={addRecommendationTeamToCart}
-                  onAddTeam={addTeamToCart}
-                  onAddExpert={addExpertToCart}
-                  onRemoveTalent={(itemId) => removeTalentFromCart.mutate(itemId)}
-                  onRecordShortlist={recordShortlist}
-                  onAcceptProposal={(proposalId) => acceptProposal.mutate(proposalId)}
-                />
-              )}
-            </>
+          {workspaceTab === 'services' && (
+            <OwnerWorkspaceServicesPane
+              view={servicesView}
+              detailOpen={workspaceDetailOpen}
+              recommend={{
+                product: selectedProduct,
+                categories: categories.data || [],
+                catalogModules: catalogModules.data || [],
+                recommendedServices,
+                cartServiceItems,
+                cartServiceIds,
+                blockerCount: launchStatus.blockerCount,
+                improvementCount: launchStatus.improvementCount,
+                mappedServiceNames: scannerMappedServices,
+                ownerRisks: serviceRiskItems,
+                cartStartPromptFacts,
+                assistantContext: assistantContext('service-selection'),
+                assistantActions: assistantActionProps,
+                isAddingService: addServiceToCart.isPending,
+                isRemovingService: removeServiceFromCart.isPending,
+                onAddService: addLifecycleService,
+                onRemoveService: (itemId) => removeServiceFromCart.mutate(itemId),
+              }}
+              plan={{
+                showProductCreation,
+                selectedProduct,
+                productFormValues: productForm.values,
+                requirementFormValues: requirementForm.values,
+                selectedProductRequirements,
+                catalogModules: catalogModules.data || [],
+                selectedPackage,
+                packageModules: packageModules.data || [],
+                isPackageFetching: packageModules.isFetching,
+                isTeamRecommendationsFetching: teamRecommendations.isFetching,
+                isCreatingProduct: createProduct.isPending,
+                isCreatingRequirement: createRequirement.isPending,
+                isBuildingPackage: buildPackage.isPending,
+                cartStartPromptFacts,
+                packageAssistantContext: assistantContext('package-recommendation'),
+                assistantActions: assistantActionProps,
+                onProductValueChange: (key, value) => productForm.setValue(key as keyof ProductProfilePayload, value as any),
+                onRequirementValueChange: (key, value) => requirementForm.setValue(key as keyof RequirementPayload, value as any),
+                onSubmitProduct: submitProduct,
+                onSubmitRequirement: submitRequirement,
+                onBuildPackage: (requirementId) => buildPackage.mutate(requirementId),
+              }}
+              team={{
+                recommendations: teamRecommendations.data || [],
+                productProposals,
+                cartTalentItems,
+                activeShortlists,
+                suggestedTeams,
+                suggestedExperts,
+                hasServicePlan: !!selectedPackage,
+                isAddingTalent: addTalentToCart.isPending,
+                isRemovingTalent: removeTalentFromCart.isPending,
+                isShortlisting: upsertShortlist.isPending,
+                isAcceptingProposal: acceptProposal.isPending,
+                onAddRecommendationTeam: addRecommendationTeamToCart,
+                onAddTeam: addTeamToCart,
+                onAddExpert: addExpertToCart,
+                onRemoveTalent: (itemId) => removeTalentFromCart.mutate(itemId),
+                onRecordShortlist: recordShortlist,
+                onAcceptProposal: (proposalId) => acceptProposal.mutate(proposalId),
+              }}
+            />
           )}
         </Stack>
 
-        <Stack spacing={2.5}>
-          {selectedProduct && (
-            <OwnerControlPanel
-              status={launchStatus}
-              primaryAction={launchStatus.blockerCount ? 'Open action plan' : topRecommendedServiceName ? 'Review service path' : 'Open proof'}
-              lastScanLabel={scannerSummary.data?.recentRuns[0]?.completedAt ? shortDateTime(scannerSummary.data.recentRuns[0].completedAt) : latestCompletedTools ? `${latestCompletedTools} checks completed` : 'No completed check yet'}
-              evidenceLabel={`${latestCompletedTools}/${scanToolOptions.length} checks`}
-              onPrimaryAction={() => launchStatus.blockerCount ? openActionView('plan') : topRecommendedServiceName ? openServicesView('recommend') : openFindingsView('evidence')}
-              secondary={
-                <Button variant="outlined" startIcon={<EventRepeatOutlined />} onClick={() => setTimelineOpen(true)} sx={{ minHeight: 38 }}>
-                  View timeline
-                </Button>
-              }
-            />
-          )}
-
-          {workspaceTab === 'services' && workspaceDetailOpen && (servicesView === 'plan' || servicesView === 'team') && (
-            <OwnerProjectStartPanel
-              product={selectedProduct}
-              cart={cart.data}
-              notice={cartNotice}
-              canStartWorkspace={canStartProjectWorkspace}
-              blockers={cartBlockers}
-              blockingGaps={cartBlockingGaps}
-              blockingRecommendationNames={cartBlockingRecommendations.map((item) => item.recommendedModule.name)}
-              projectName={projectName}
-              hasWorkspace={!!(selectedWorkspace || cart.data?.convertedWorkspace)}
-              isAddingService={addServiceToCart.isPending}
-              isRemovingService={removeServiceFromCart.isPending}
-              isRemovingTalent={removeTalentFromCart.isPending}
-              isConverting={convertCart.isPending}
-              onNoticeClose={() => setCartNotice('')}
-              onProjectNameChange={setProjectName}
-              onAddGapService={(serviceModule, notes) => addServiceToCart.mutate({ serviceModuleId: serviceModule.id, notes })}
-              onRemoveService={(itemId) => removeServiceFromCart.mutate(itemId)}
-              onRemoveTalent={(itemId) => removeTalentFromCart.mutate(itemId)}
-              onConvert={() => convertCart.mutate()}
-            />
-          )}
-
-          {workspaceDetailOpen && (workspaceTab === 'overview' || workspaceTab === 'actions') && (
-            <OwnerAiBriefPanel
-              fallbackReason={assistantSuggestions.data?.fallbackReason}
-              isDisabled={!selectedProduct?.id}
-              isFetching={assistantSuggestions.isFetching}
-              mode={assistantSuggestions.data?.mode}
-              recommendationRationale={recommendations.data?.[0]?.rationale}
-              suggestions={assistantSuggestions.data?.suggestions || []}
-              onSuggest={() => assistantSuggestions.refetch()}
-            />
-          )}
-
-          {workspaceTab === 'services' && workspaceDetailOpen && servicesView === 'team' && (
-            <OwnerDeliveryWorkspacePanel
-              assistantActions={assistantActionProps}
-              assistantContext={assistantContext('milestone-evidence-readiness', { milestoneId: selectedMilestone?.id })}
-              blockedMilestoneCount={blockedMilestones}
-              milestones={milestones.data || []}
-              selectedMilestone={selectedMilestone}
-              workspace={selectedWorkspace}
-            />
-          )}
-
-          {workspaceTab === 'services' && workspaceDetailOpen && servicesView === 'team' && (
-            <OwnerSupportRiskPanel supportRequests={productSupport} />
-          )}
-
-          <OwnerNextDecisionPanel
-            blockedMilestoneCount={blockedMilestones}
-            buildTargetRequirementId={buildTargetRequirementId || undefined}
-            hasServicePlan={!!selectedPackage}
-            hasWorkspace={!!selectedWorkspace}
-            isBuilding={buildPackage.isPending}
-            proposals={productProposals}
-            onBuildPlan={(requirementId) => buildPackage.mutate(requirementId)}
-          />
-        </Stack>
+        <OwnerWorkspaceSideRailPane
+          control={selectedProduct ? {
+            status: launchStatus,
+            primaryAction: launchStatus.blockerCount ? 'Open action plan' : topRecommendedServiceName ? 'Review service path' : 'Open proof',
+            lastScanLabel: scannerSummary.data?.recentRuns[0]?.completedAt ? shortDateTime(scannerSummary.data.recentRuns[0].completedAt) : latestCompletedTools ? `${latestCompletedTools} checks completed` : 'No completed check yet',
+            evidenceLabel: `${latestCompletedTools}/${scanToolOptions.length} checks`,
+            onPrimaryAction: () => launchStatus.blockerCount ? openActionView('plan') : topRecommendedServiceName ? openServicesView('recommend') : openFindingsView('evidence'),
+            secondary: (
+              <Button variant="outlined" startIcon={<EventRepeatOutlined />} onClick={() => setTimelineOpen(true)} sx={{ minHeight: 38 }}>
+                View timeline
+              </Button>
+            ),
+          } : undefined}
+          projectStart={workspaceTab === 'services' && workspaceDetailOpen && (servicesView === 'plan' || servicesView === 'team') ? {
+            product: selectedProduct,
+            cart: cart.data,
+            notice: cartNotice,
+            canStartWorkspace: canStartProjectWorkspace,
+            blockers: cartBlockers,
+            blockingGaps: cartBlockingGaps,
+            blockingRecommendationNames: cartBlockingRecommendations.map((item) => item.recommendedModule.name),
+            projectName,
+            hasWorkspace: !!(selectedWorkspace || cart.data?.convertedWorkspace),
+            isAddingService: addServiceToCart.isPending,
+            isRemovingService: removeServiceFromCart.isPending,
+            isRemovingTalent: removeTalentFromCart.isPending,
+            isConverting: convertCart.isPending,
+            onNoticeClose: () => setCartNotice(''),
+            onProjectNameChange: setProjectName,
+            onAddGapService: (serviceModule, notes) => addServiceToCart.mutate({ serviceModuleId: serviceModule.id, notes }),
+            onRemoveService: (itemId) => removeServiceFromCart.mutate(itemId),
+            onRemoveTalent: (itemId) => removeTalentFromCart.mutate(itemId),
+            onConvert: () => convertCart.mutate(),
+          } : undefined}
+          aiBrief={workspaceDetailOpen && (workspaceTab === 'overview' || workspaceTab === 'actions') ? {
+            fallbackReason: assistantSuggestions.data?.fallbackReason,
+            isDisabled: !selectedProduct?.id,
+            isFetching: assistantSuggestions.isFetching,
+            mode: assistantSuggestions.data?.mode,
+            recommendationRationale: recommendations.data?.[0]?.rationale,
+            suggestions: assistantSuggestions.data?.suggestions || [],
+            onSuggest: () => assistantSuggestions.refetch(),
+          } : undefined}
+          deliveryWorkspace={workspaceTab === 'services' && workspaceDetailOpen && servicesView === 'team' ? {
+            assistantActions: assistantActionProps,
+            assistantContext: assistantContext('milestone-evidence-readiness', { milestoneId: selectedMilestone?.id }),
+            blockedMilestoneCount: blockedMilestones,
+            milestones: milestones.data || [],
+            selectedMilestone,
+            workspace: selectedWorkspace,
+          } : undefined}
+          supportRisk={workspaceTab === 'services' && workspaceDetailOpen && servicesView === 'team' ? {
+            supportRequests: productSupport,
+          } : undefined}
+          nextDecision={{
+            blockedMilestoneCount: blockedMilestones,
+            buildTargetRequirementId: buildTargetRequirementId || undefined,
+            hasServicePlan: !!selectedPackage,
+            hasWorkspace: !!selectedWorkspace,
+            isBuilding: buildPackage.isPending,
+            proposals: productProposals,
+            onBuildPlan: (requirementId) => buildPackage.mutate(requirementId),
+          }}
+        />
       </Box>
       <OwnerFindingReviewDrawer
         open={findingDrawerOpen}
