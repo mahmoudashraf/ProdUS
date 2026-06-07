@@ -4,8 +4,8 @@ Date: 2026-06-07
 
 Baseline:
 
-- Latest live-verified UI commit in the Copy/Mobile/Documentation close pass: `344ce61`.
-- Latest live-verified Coolify frontend trigger in the Copy/Mobile/Documentation close pass: `coolify-force-2026-06-07T20-11Z`.
+- Latest live-verified UI commit in the Copy/Mobile/Documentation close pass: `8b90310`.
+- Latest live-verified Coolify frontend trigger in the Copy/Mobile/Documentation close pass: `coolify-force-2026-06-07T20-31Z`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
 - Live verification script: `tmp/live-verification/2026-06-07/live-owner-hub-spoke-navigation.js`.
 - Current largest owner-facing active files after the completed splits:
@@ -58,7 +58,7 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - Workspace Command now has Team/Risk and Handoff substeps, with route orchestration split into focused hooks and panels.
 - Technical Proof now opens as a four-step proof journey instead of one long scanner workspace.
 - Start Plan mobile now opens with choose-service/team/expert actions and a compact service/team/status summary.
-- Latest live verification at commit `344ce61` confirmed the full journey and all 10 scanners completed, including `zap-baseline`; all nonzero scanner findings were normalized and mapped in latest coverage.
+- Latest live verification at commit `8b90310` confirmed the full journey and all 10 scanners completed, including `zap-baseline`; all nonzero scanner findings were normalized and mapped in latest coverage.
 
 ## Completion Sequence
 
@@ -259,7 +259,7 @@ Immediate implementation target:
 
 Status:
 
-- Complete and live-verified at UI commit `344ce61`, Coolify frontend trigger `coolify-force-2026-06-07T20-11Z`.
+- Complete and live-verified at UI commit `8b90310`, Coolify frontend trigger `coolify-force-2026-06-07T20-31Z`.
 - Top Start Plan actions now read `Choose services`, `Choose teams`, and `Find experts`.
 - Mobile Start Plan hides the secondary product summary card, keeps a smaller readiness ring, and shows a compact service/team/status strip before the journey cards.
 - README business language now describes Project Start Plans instead of project carts.
