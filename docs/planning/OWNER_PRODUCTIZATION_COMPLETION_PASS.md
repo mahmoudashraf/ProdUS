@@ -305,6 +305,37 @@ Next:
 - Batch this service-plan slice with the next owner-facing route if another small route is ready before deploying.
 - Otherwise deploy and live-verify `/packages` plus the full owner journey.
 
+### Current Pass: Service Catalog Completion
+
+Problem:
+
+- `/services` still behaved like a long catalog page.
+- Package templates, service categories, AI contract metadata, and visual layout notes were stacked together.
+- Service selection copy still leaned on `Add...` language, which made the owner journey feel like filling a basket instead of choosing a launch-hardening path.
+
+Solution:
+
+- Reframe Service Catalog as a focused discovery hub:
+  - Launch Templates: bundled paths for quick owner starts.
+  - Service Workstreams: individual services grouped by owner need.
+  - AI Contracts: what the assistant can safely explain or recommend.
+- Replace remaining visible service-selection copy with `Choose` / `Use` / `in plan` language.
+- Remove visible layout-description text from the app.
+- Split catalog visuals into granular template, workstream, and focus/AI panels.
+
+Status:
+
+- Locally implemented and verified against staging data with Playwright API proxy screenshots:
+  - `tmp/live-verification/2026-06-07/86-service-catalog-templates-local.png`
+  - `tmp/live-verification/2026-06-07/87-service-catalog-workstreams-local.png`
+  - `tmp/live-verification/2026-06-07/88-service-catalog-ai-contracts-local.png`
+  - `tmp/live-verification/2026-06-07/89-mobile-service-catalog-templates-local.png`
+  - `tmp/live-verification/2026-06-07/local-service-catalog-redefinition.js`
+
+Next:
+
+- Run local build, commit the service-catalog slice, deploy once, and live-verify `/services` together with the full owner journey.
+
 ## Implementation Loop
 
 For each slice:
