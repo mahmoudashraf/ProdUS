@@ -1,13 +1,11 @@
 'use client';
 
-import NextLink from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   AddOutlined,
   AddShoppingCartOutlined,
   ArticleOutlined,
-  AutoAwesomeOutlined,
   BugReportOutlined,
   CancelOutlined,
   CloudUploadOutlined,
@@ -18,7 +16,6 @@ import {
   OpenInNewOutlined,
   PlayArrowOutlined,
   RefreshOutlined,
-  SendOutlined,
   ShieldOutlined,
 } from '@mui/icons-material';
 import {
@@ -42,7 +39,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import { deleteJson, getJson, patchJson, postJson, putJson } from './api';
 import {
-  DotLabel,
   EmptyState,
   MetricTile,
   PageHeader,
@@ -75,6 +71,12 @@ import OwnerServicesRecommendationPanel, { type OwnerServiceRiskSummary } from '
 import OwnerProjectStartPanel from './OwnerProjectStartPanel';
 import OwnerTeamMatchPanel from './OwnerTeamMatchPanel';
 import OwnerServicePlanPanel from './OwnerServicePlanPanel';
+import {
+  OwnerAiBriefPanel,
+  OwnerDeliveryWorkspacePanel,
+  OwnerNextDecisionPanel,
+  OwnerSupportRiskPanel,
+} from './OwnerWorkspaceSideRailPanels';
 import { findingStatusAccent, severityAccent } from './ownerFindingPresentation';
 import {
   OwnerControlPanel,
@@ -367,14 +369,6 @@ const externalImportProviders: { value: ExternalImportProvider; label: string; t
   { value: 'SARIF', label: 'SARIF', toolName: 'SARIF Import', format: 'SARIF' },
   { value: 'GENERIC_JSON', label: 'Generic scanner JSON', toolName: 'External Scanner JSON', format: 'JSON' },
 ];
-
-const statusAccent = (status?: string) => {
-  if (!status) return appleColors.purple;
-  if (status.includes('BLOCK') || status.includes('REJECT') || status.includes('URGENT')) return appleColors.red;
-  if (status.includes('REVIEW') || status.includes('NEGOTIATION') || status.includes('AWAITING') || status.includes('SUBMITTED')) return appleColors.amber;
-  if (status.includes('ACTIVE') || status.includes('ACCEPT') || status.includes('DELIVER') || status.includes('SIGNED') || status.includes('ON_TRACK')) return appleColors.green;
-  return appleColors.purple;
-};
 
 const packageScore = (packageInstance?: PackageInstance, modules?: PackageModule[]) => {
   if (!packageInstance) return 54;
@@ -3192,141 +3186,41 @@ export default function OwnerProductizationWorkspace({
           )}
 
           {workspaceDetailOpen && (workspaceTab === 'overview' || workspaceTab === 'actions') && (
-          <Surface>
-            <SectionTitle
-              title="AI Owner Brief"
-              action={
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <PastelChip
-                    label={assistantSuggestions.data ? (assistantSuggestions.data.mode !== 'FALLBACK' ? 'LoomAI live' : 'ProdUS fallback') : 'On demand'}
-                    accent={assistantSuggestions.data && assistantSuggestions.data.mode !== 'FALLBACK' ? appleColors.purple : appleColors.blue}
-                  />
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<AutoAwesomeOutlined />}
-                    disabled={!selectedProduct?.id || assistantSuggestions.isFetching}
-                    onClick={() => assistantSuggestions.refetch()}
-                    sx={{ minHeight: 34 }}
-                  >
-                    {assistantSuggestions.isFetching ? 'Thinking...' : 'Suggest'}
-                  </Button>
-                </Stack>
-              }
+            <OwnerAiBriefPanel
+              fallbackReason={assistantSuggestions.data?.fallbackReason}
+              isDisabled={!selectedProduct?.id}
+              isFetching={assistantSuggestions.isFetching}
+              mode={assistantSuggestions.data?.mode}
+              recommendationRationale={recommendations.data?.[0]?.rationale}
+              suggestions={assistantSuggestions.data?.suggestions || []}
+              onSuggest={() => assistantSuggestions.refetch()}
             />
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <Box sx={{ width: 52, height: 52, borderRadius: 1, bgcolor: '#f1efff', color: appleColors.purple, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                <AutoAwesomeOutlined />
-              </Box>
-              <Box>
-                <Typography variant="h4">Productization clarity</Typography>
-                <Typography color="success.main" sx={{ fontWeight: 800 }}>Evidence-led next steps</Typography>
-              </Box>
-            </Stack>
-            <Typography color="text.secondary" sx={{ mt: 2, lineHeight: 1.7 }}>
-              {recommendations.data?.[0]?.rationale || 'Use lifecycle services, plan evidence, and verified teams to keep productization decisions concrete.'}
-            </Typography>
-            <Stack spacing={1} sx={{ mt: 2 }}>
-              {(assistantSuggestions.data?.suggestions || [
-                'Explain productization readiness',
-                'Recommend lifecycle services from evidence',
-                'Prepare the next package action',
-              ]).slice(0, 3).map((suggestion) => (
-                <Box
-                  key={suggestion}
-                  sx={{
-                    p: 1.25,
-                    border: '1px solid',
-                    borderColor: appleColors.line,
-                    borderRadius: 1,
-                    background: 'rgba(248, 250, 252, 0.78)',
-                  }}
-                >
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <AutoAwesomeOutlined sx={{ color: appleColors.purple, fontSize: 18 }} />
-                    <Typography variant="body2" sx={{ fontWeight: 800 }}>{suggestion}</Typography>
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
-            {assistantSuggestions.data?.fallbackReason && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-                {formatLabel(assistantSuggestions.data.fallbackReason)}. Suggestions are generated by the ProdUS deterministic fallback until LoomAI is configured.
-              </Typography>
-            )}
-          </Surface>
           )}
 
           {workspaceTab === 'services' && workspaceDetailOpen && servicesView === 'team' && (
-          <Surface>
-            <SectionTitle title="Delivery Workspace" action={selectedWorkspace && <StatusChip label={selectedWorkspace.status} />} />
-            {selectedWorkspace ? (
-              <Stack spacing={1.5}>
-                <Typography sx={{ fontWeight: 900 }}>{selectedWorkspace.name}</Typography>
-                {(milestones.data || []).slice(0, 5).map((milestone) => (
-                  <Stack key={milestone.id} direction="row" spacing={1} justifyContent="space-between" sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 800 }}>{milestone.title}</Typography>
-                      <Typography variant="caption" color="text.secondary">{milestone.dueDate || 'No date'}</Typography>
-                    </Box>
-                    <StatusChip label={milestone.status} />
-                  </Stack>
-                ))}
-                <StudioAssistantCard
-                  title="AI Milestone Evidence"
-                  description="Check what the current milestone needs before owner approval or team handoff."
-                  prompt={`Do not call tools for this answer. Review milestone and evidence readiness for ${selectedMilestone?.title || selectedWorkspace.name}. Visible workspace "${selectedWorkspace.name}" is ${selectedWorkspace.status}. Current milestone details: title "${selectedMilestone?.title || 'workspace summary'}", status "${selectedMilestone?.status || selectedWorkspace.status}", due date "${selectedMilestone?.dueDate || 'not recorded'}", description "${selectedMilestone?.description || 'not recorded'}". Explain missing acceptance evidence, scanner proof, owner review risks, and the next safe decision. Do not approve the milestone automatically.`}
-                  conversationId={`studio-milestone-${selectedWorkspace.id}-${selectedMilestone?.id || 'summary'}`}
-                  context={assistantContext('milestone-evidence-readiness', { milestoneId: selectedMilestone?.id })}
-                  {...assistantActionProps}
-                  accent={blockedMilestones ? appleColors.red : appleColors.green}
-                  compact
-                  cta="Check Evidence"
-                />
-                <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>
-                  Manage workspace
-                </Button>
-              </Stack>
-            ) : (
-              <Typography variant="body2" color="text.secondary">A workspace appears after service plan handoff.</Typography>
-            )}
-          </Surface>
+            <OwnerDeliveryWorkspacePanel
+              assistantActions={assistantActionProps}
+              assistantContext={assistantContext('milestone-evidence-readiness', { milestoneId: selectedMilestone?.id })}
+              blockedMilestoneCount={blockedMilestones}
+              milestones={milestones.data || []}
+              selectedMilestone={selectedMilestone}
+              workspace={selectedWorkspace}
+            />
           )}
 
           {workspaceTab === 'services' && workspaceDetailOpen && servicesView === 'team' && (
-          <Surface sx={{ background: productSupport.some((request) => request.slaStatus === 'OVERDUE') ? '#fff7f8' : '#f6fffb' }}>
-            <SectionTitle title="Support and Risk" />
-            {productSupport.length ? (
-              <Stack spacing={1.25}>
-                {productSupport.slice(0, 4).map((request) => (
-                  <Stack key={request.id} direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 800 }}>{request.title}</Typography>
-                      <Typography variant="caption" color="text.secondary">{formatLabel(request.status)} · {formatLabel(request.slaStatus)}</Typography>
-                    </Box>
-                    <PastelChip label={formatLabel(request.priority)} accent={statusAccent(request.priority)} />
-                  </Stack>
-                ))}
-              </Stack>
-            ) : (
-              <Typography variant="body2" color="text.secondary">No support requests are attached to this product.</Typography>
-            )}
-          </Surface>
+            <OwnerSupportRiskPanel supportRequests={productSupport} />
           )}
 
-          <Surface>
-            <SectionTitle title="Next Decision" />
-            <Stack spacing={1.25}>
-              {!selectedPackage && <DotLabel label="Create the service plan" color={appleColors.amber} />}
-              {selectedPackage && !productProposals.some((proposal) => proposal.status === 'OWNER_ACCEPTED') && <DotLabel label="Compare and accept a team proposal" color={appleColors.purple} />}
-              {selectedPackage && selectedWorkspace && <DotLabel label="Review milestone evidence" color={blockedMilestones ? appleColors.red : appleColors.green} />}
-              {buildTargetRequirementId && !selectedPackage && (
-                <Button variant="contained" startIcon={<SendOutlined />} onClick={() => buildPackage.mutate(buildTargetRequirementId)} disabled={buildPackage.isPending}>
-                  Create service plan
-                </Button>
-              )}
-            </Stack>
-          </Surface>
+          <OwnerNextDecisionPanel
+            blockedMilestoneCount={blockedMilestones}
+            buildTargetRequirementId={buildTargetRequirementId || undefined}
+            hasServicePlan={!!selectedPackage}
+            hasWorkspace={!!selectedWorkspace}
+            isBuilding={buildPackage.isPending}
+            proposals={productProposals}
+            onBuildPlan={(requirementId) => buildPackage.mutate(requirementId)}
+          />
         </Stack>
       </Box>
       <OwnerFindingReviewDrawer
