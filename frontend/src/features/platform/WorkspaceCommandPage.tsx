@@ -2,13 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AddOutlined,
   CalendarMonthOutlined,
   ErrorOutlineOutlined,
   FactCheckOutlined,
   TaskAltOutlined,
 } from '@mui/icons-material';
-import { Alert, Box, Button, LinearProgress, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, LinearProgress, Link, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import FileUpload from '@/components/ui-component/FileUpload';
 import { useAdvancedForm } from '@/hooks/enterprise';
@@ -23,6 +22,7 @@ import WorkspaceAcceptanceReviewPanel from './WorkspaceAcceptanceReviewPanel';
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
 import WorkspaceCommandHero from './WorkspaceCommandHero';
 import WorkspaceCommandJourneyNav, { type WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
+import WorkspaceCommandSidebar from './WorkspaceCommandSidebar';
 import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
 import WorkspaceProofEvidencePanel from './WorkspaceProofEvidencePanel';
 import WorkspaceProofMilestonesPanel from './WorkspaceProofMilestonesPanel';
@@ -34,7 +34,6 @@ import {
   PageHeader,
   PastelChip,
   QueryState,
-  SectionTitle,
   Surface,
   appleColors,
   formatLabel,
@@ -796,57 +795,18 @@ export default function WorkspaceCommandPage() {
           alignItems: 'start',
         }}
       >
-        <Stack spacing={2}>
-          <Surface sx={{ maxHeight: { lg: 'calc(100vh - 260px)' }, overflow: { lg: 'auto' } }}>
-            <SectionTitle title="Workspaces" action={<PastelChip label={`${workspaceList.length}`} accent={appleColors.cyan} bg="#e4f9fd" />} />
-            {workspaceList.length ? (
-              <Stack spacing={1}>
-                {workspaceList.map((workspace) => (
-                  <Button
-                    key={workspace.id}
-                    variant={selectedWorkspace?.id === workspace.id ? 'contained' : 'outlined'}
-                    color={selectedWorkspace?.id === workspace.id ? 'primary' : 'inherit'}
-                    onClick={() => {
-                      setSelectedWorkspaceId(workspace.id);
-                      setSelectedMilestoneId('');
-                    }}
-                    sx={{ justifyContent: 'space-between', minHeight: 56, textAlign: 'left', borderRadius: 1, gap: 1.5 }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workspace.name}</Typography>
-                      <Typography variant="caption" sx={{ display: 'block', color: selectedWorkspace?.id === workspace.id ? 'inherit' : 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {workspace.packageInstance?.productProfile?.name || workspace.packageInstance?.name || 'Service plan'}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: workspaceAccent(workspace.status), flex: '0 0 auto' }} />
-                  </Button>
-                ))}
-              </Stack>
-            ) : (
-              <EmptyState label="No workspaces have been opened yet." />
-            )}
-          </Surface>
-
-          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
-            <SectionTitle title="Create Workspace" action={<AddOutlined sx={{ color: appleColors.purple }} />} />
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.6 }}>
-              Use this when a service plan exists and delivery needs its own workspace.
-            </Typography>
-            <Box component="form" onSubmit={workspaceForm.handleSubmit(() => createWorkspace.mutate())}>
-              <Stack spacing={1.5}>
-                <TextField select fullWidth label="Service plan" value={workspaceForm.values.packageInstanceId} onChange={(event) => workspaceForm.setValue('packageInstanceId', event.target.value)}>
-                  {(packages.data || []).map((item) => (
-                    <MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>
-                  ))}
-                </TextField>
-                <TextField fullWidth label="Workspace name" value={workspaceForm.values.name} onChange={(event) => workspaceForm.setValue('name', event.target.value)} />
-                <Button type="submit" variant="contained" disabled={!workspaceForm.values.packageInstanceId || createWorkspace.isPending} sx={{ minHeight: 42 }}>
-                  Create workspace
-                </Button>
-              </Stack>
-            </Box>
-          </Surface>
-        </Stack>
+        <WorkspaceCommandSidebar
+          packages={packages.data || []}
+          workspaceList={workspaceList}
+          selectedWorkspace={selectedWorkspace}
+          workspaceForm={workspaceForm}
+          isCreatingWorkspace={createWorkspace.isPending}
+          onSelectWorkspace={(workspaceId) => {
+            setSelectedWorkspaceId(workspaceId);
+            setSelectedMilestoneId('');
+          }}
+          onCreateWorkspace={() => createWorkspace.mutate()}
+        />
 
         <Stack spacing={2}>
           {selectedWorkspace ? (
