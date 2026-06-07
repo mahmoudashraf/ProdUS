@@ -2,6 +2,7 @@
 
 import NextLink from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   AddOutlined,
   AddShoppingCartOutlined,
@@ -13,6 +14,7 @@ import {
   ContentCopyOutlined,
   DeleteOutlineOutlined,
   EventRepeatOutlined,
+  ExpandMoreOutlined,
   FactCheckOutlined,
   GroupAddOutlined,
   InfoOutlined,
@@ -30,6 +32,9 @@ import {
 } from '@mui/icons-material';
 import {
   Alert,
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
   Checkbox,
@@ -38,6 +43,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Drawer,
   FormControlLabel,
   IconButton,
   LinearProgress,
@@ -73,7 +79,7 @@ import {
 import ShipConfidencePanel from './ShipConfidencePanel';
 import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
-import { OwnerWorkspaceJourneyNav, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import {
   OwnerControlPanel,
   OwnerLaunchReadyCelebration,
@@ -136,6 +142,19 @@ type OverviewJourneyView = 'decision' | 'progress';
 type ActionJourneyView = 'plan' | 'diagnosis';
 type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
 type ServicesJourneyView = 'recommend' | 'plan' | 'team';
+
+const workspaceViewValues: Record<WorkspaceTab, string[]> = {
+  overview: ['decision', 'progress'],
+  actions: ['plan', 'diagnosis'],
+  findings: ['risks', 'evidence', 'technical'],
+  services: ['recommend', 'plan', 'team'],
+};
+
+const isWorkspaceTabValue = (value: string | null): value is WorkspaceTab =>
+  !!value && workspaceTabs.some((tab) => tab.value === value);
+
+const isWorkspaceViewValue = (tab: WorkspaceTab, value: string | null) =>
+  !!value && workspaceViewValues[tab].includes(value);
 
 interface ProductProfilePayload {
   name: string;
@@ -1180,6 +1199,9 @@ export default function OwnerProductizationWorkspace({
   productId?: string;
   showProductCreation?: boolean;
 } = {}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const requirements = useQuery({ queryKey: ['requirements'], queryFn: () => getJson<RequirementIntake[]>('/requirements') });
@@ -1338,8 +1360,11 @@ export default function OwnerProductizationWorkspace({
   const [actionView, setActionView] = useState<ActionJourneyView>('plan');
   const [findingsView, setFindingsView] = useState<FindingsJourneyView>('risks');
   const [servicesView, setServicesView] = useState<ServicesJourneyView>('recommend');
+  const [workspaceDetailOpen, setWorkspaceDetailOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [selectedFindingId, setSelectedFindingId] = useState('');
+  const [findingDrawerOpen, setFindingDrawerOpen] = useState(false);
+  const [openFindingGroups, setOpenFindingGroups] = useState<Record<string, boolean>>({ 'Launch blockers': true });
   const [evidenceFilter, setEvidenceFilter] = useState<'ALL' | 'FINDINGS' | 'MILESTONES' | 'REDACTED'>('ALL');
   const [findingReasonById, setFindingReasonById] = useState<Record<string, string>>({});
   const [findingReviewDueById, setFindingReviewDueById] = useState<Record<string, string>>({});
@@ -1872,7 +1897,15 @@ export default function OwnerProductizationWorkspace({
   const scannerOpenFindings = (scannerSummary.data?.findings || []).filter((finding) => ['NEW', 'OPEN', 'REGRESSED'].includes(finding.status));
   const hasCompletedScannerRun = !!scannerSummary.data?.recentRuns.some((run) => run.status === 'COMPLETED');
   const selectedFinding = (scannerSummary.data?.findings || []).find((finding) => finding.id === selectedFindingId) || scannerOpenFindings[0] || scannerSummary.data?.findings?.[0];
+  const selectedFindingOwnerCategory = selectedFinding
+    ? ownerCategoryFromSignal(selectedFinding.sourceTool, selectedFinding.readinessArea, selectedFinding.title)
+    : 'Product risk';
   const selectedFindingEvidence = (scannerSummary.data?.evidence || []).filter((item) => item.findingId && item.findingId === selectedFinding?.id);
+  const selectedFindingReason = selectedFinding ? findingReasonById[selectedFinding.id] || '' : '';
+  const selectedFindingReviewDue = selectedFinding ? findingReviewDueById[selectedFinding.id] || '' : '';
+  const selectedFindingCanResolve = !!selectedFindingReason.trim();
+  const selectedFindingCanAcceptRisk = !!selectedFindingReason.trim() && !!selectedFindingReviewDue;
+  const selectedFindingRecommendedInCart = !!selectedFinding?.recommendedModule && cartServiceIds.has(selectedFinding.recommendedModule.id);
   const scannerMappedFindings = latestScannerDiagnosis?.findings || [];
   const scannerMappedServices = Array.from(new Set(scannerMappedFindings.map((finding) => finding.recommendedModuleName).filter(Boolean)));
   const scannerReadinessPromptFacts = latestScannerDiagnosis
@@ -2358,24 +2391,63 @@ export default function OwnerProductizationWorkspace({
     }
   }, [cart.data?.businessGoal, cart.data?.productProfile?.id, cart.data?.status, selectedProduct?.id]);
 
-  const openOverviewView = (view: OverviewJourneyView) => {
-    setOverviewView(view);
-    setWorkspaceTab('overview');
+  const searchParamString = searchParams?.toString() || '';
+
+  useEffect(() => {
+    const currentParams = new URLSearchParams(searchParamString);
+    const tabParam = currentParams.get('tab');
+    const viewParam = currentParams.get('view');
+    const nextTab = isWorkspaceTabValue(tabParam) ? tabParam : 'overview';
+
+    setWorkspaceTab(nextTab);
+    if (isWorkspaceViewValue(nextTab, viewParam)) {
+      setWorkspaceDetailOpen(true);
+      if (nextTab === 'overview') setOverviewView(viewParam as OverviewJourneyView);
+      if (nextTab === 'actions') setActionView(viewParam as ActionJourneyView);
+      if (nextTab === 'findings') setFindingsView(viewParam as FindingsJourneyView);
+      if (nextTab === 'services') setServicesView(viewParam as ServicesJourneyView);
+    } else {
+      setWorkspaceDetailOpen(false);
+    }
+  }, [searchParamString]);
+
+  const pushWorkspaceLocation = (tab: WorkspaceTab, view?: string) => {
+    const next = new URLSearchParams(searchParamString);
+    next.set('tab', tab);
+    if (view) {
+      next.set('view', view);
+    } else {
+      next.delete('view');
+    }
+    router.push(`${pathname}?${next.toString()}`, { scroll: false });
+  };
+
+  const openWorkspaceArea = (tab: WorkspaceTab) => {
+    setWorkspaceTab(tab);
+    setWorkspaceDetailOpen(false);
+    pushWorkspaceLocation(tab);
+  };
+
+  const openWorkspaceDetail = (tab: WorkspaceTab, view: string) => {
+    setWorkspaceTab(tab);
+    setWorkspaceDetailOpen(true);
+    if (tab === 'overview') setOverviewView(view as OverviewJourneyView);
+    if (tab === 'actions') setActionView(view as ActionJourneyView);
+    if (tab === 'findings') setFindingsView(view as FindingsJourneyView);
+    if (tab === 'services') setServicesView(view as ServicesJourneyView);
+    pushWorkspaceLocation(tab, view);
   };
 
   const openActionView = (view: ActionJourneyView) => {
-    setActionView(view);
-    setWorkspaceTab('actions');
+    openWorkspaceDetail('actions', view);
   };
 
   const openFindingsView = (view: FindingsJourneyView) => {
-    setFindingsView(view);
-    setWorkspaceTab('findings');
+    openWorkspaceDetail('findings', view);
   };
 
   const openServicesView = (view: ServicesJourneyView) => {
-    setServicesView(view);
-    setWorkspaceTab('services');
+    openWorkspaceDetail('services', view);
   };
 
   const overviewJourneyItems: JourneyStepItem<OverviewJourneyView>[] = [
@@ -2459,6 +2531,24 @@ export default function OwnerProductizationWorkspace({
       meta: <PastelChip label={`${teamRecommendations.data?.length || 0} matches`} accent={appleColors.cyan} bg="#e4f9fd" />,
     },
   ];
+  const currentJourneyItems: JourneyStepItem<string>[] =
+    workspaceTab === 'overview'
+      ? overviewJourneyItems
+      : workspaceTab === 'actions'
+        ? actionJourneyItems
+        : workspaceTab === 'findings'
+          ? findingsJourneyItems
+          : servicesJourneyItems;
+  const currentJourneyValue: string =
+    workspaceTab === 'overview'
+      ? overviewView
+      : workspaceTab === 'actions'
+        ? actionView
+        : workspaceTab === 'findings'
+          ? findingsView
+          : servicesView;
+  const currentAreaLabel = workspaceTabs.find((tab) => tab.value === workspaceTab)?.label || 'Workspace';
+  const currentDetailLabel = currentJourneyItems.find((item) => item.value === currentJourneyValue)?.label || currentAreaLabel;
 
   return (
     <>
@@ -2595,7 +2685,7 @@ export default function OwnerProductizationWorkspace({
           <Surface sx={{ p: { xs: 1, md: 1 }, boxShadow: 'none', position: { xl: 'sticky' }, top: { xl: 76 }, zIndex: 2 }}>
             <Tabs
               value={workspaceTab}
-              onChange={(_, value) => setWorkspaceTab(value as WorkspaceTab)}
+              onChange={(_, value) => openWorkspaceArea(value as WorkspaceTab)}
               variant="scrollable"
               scrollButtons="auto"
               sx={{
@@ -2615,6 +2705,28 @@ export default function OwnerProductizationWorkspace({
             </Tabs>
           </Surface>
 
+          {selectedProduct && (
+            workspaceDetailOpen ? (
+              <WorkspaceBreadcrumbs
+                items={[
+                  { label: 'Workspace', onClick: () => openWorkspaceArea('overview') },
+                  { label: selectedProduct.name, onClick: () => openWorkspaceArea('overview') },
+                  { label: currentAreaLabel, onClick: () => openWorkspaceArea(workspaceTab) },
+                  { label: currentDetailLabel },
+                ]}
+                backLabel={`${currentAreaLabel} hub`}
+                onBack={() => openWorkspaceArea(workspaceTab)}
+              />
+            ) : (
+              <OwnerWorkspaceJourneyNav
+                label={`${currentAreaLabel} hub`}
+                value={currentJourneyValue}
+                items={currentJourneyItems}
+                onChange={(value) => openWorkspaceDetail(workspaceTab, value)}
+              />
+            )
+          )}
+
           {selectedProduct && workspaceTab === 'overview' && (
             <Stack spacing={2.5}>
               <OwnerLaunchReadyCelebration
@@ -2627,14 +2739,7 @@ export default function OwnerProductizationWorkspace({
                 onGenerateReport={() => generateLaunchReadinessReport.mutate()}
               />
 
-              <OwnerWorkspaceJourneyNav
-                label="Overview journey"
-                value={overviewView}
-                items={overviewJourneyItems}
-                onChange={openOverviewView}
-              />
-
-              {overviewView === 'decision' && (
+              {workspaceDetailOpen && overviewView === 'decision' && (
                 <>
               <Surface>
                 <SectionTitle
@@ -2812,16 +2917,7 @@ export default function OwnerProductizationWorkspace({
             </Stack>
           )}
 
-          {selectedProduct && workspaceTab === 'actions' && (
-            <OwnerWorkspaceJourneyNav
-              label="Action journey"
-              value={actionView}
-              items={actionJourneyItems}
-              onChange={setActionView}
-            />
-          )}
-
-          {selectedProduct && workspaceTab === 'actions' && actionView === 'plan' && (
+          {selectedProduct && workspaceTab === 'actions' && workspaceDetailOpen && actionView === 'plan' && (
             <Surface>
               <SectionTitle title="Action Plan" action={<PastelChip label="Do now / week / monitor" accent={appleColors.purple} />} />
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
@@ -2858,32 +2954,55 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          {selectedProduct && workspaceTab === 'findings' && (
-            <OwnerWorkspaceJourneyNav
-              label="Findings journey"
-              value={findingsView}
-              items={findingsJourneyItems}
-              onChange={setFindingsView}
-            />
-          )}
-
-          {selectedProduct && workspaceTab === 'findings' && findingsView === 'risks' && (
+          {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'risks' && (
             <Surface>
               <SectionTitle
                 title="Findings"
                 action={<PastelChip label={`${scannerSummary.data?.findings.length || 0} total`} accent={(scannerSummary.data?.findings.length || 0) ? appleColors.amber : appleColors.green} bg={(scannerSummary.data?.findings.length || 0) ? '#fff4dc' : '#e7f8ee'} />}
               />
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 360px' }, gap: 2 }}>
-                <Stack spacing={1.5}>
-                  {groupedFindings.map((group) => (
-                    <Box key={group.label} sx={{ border: '1px solid', borderColor: `${group.accent}30`, borderRadius: 1, bgcolor: '#fff', overflow: 'hidden' }}>
-                      <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center" sx={{ px: 1.5, py: 1.15, bgcolor: `${group.accent}0f`, borderBottom: '1px solid', borderColor: `${group.accent}20` }}>
-                        <Typography sx={{ fontWeight: 950 }}>{group.label}</Typography>
+              <Stack spacing={1.25}>
+                {groupedFindings.map((group) => (
+                  <Accordion
+                    key={group.label}
+                    expanded={!!openFindingGroups[group.label]}
+                    onChange={(_, expanded) => setOpenFindingGroups((current) => ({ ...current, [group.label]: expanded }))}
+                    disableGutters
+                    sx={{
+                      border: '1px solid',
+                      borderColor: `${group.accent}30`,
+                      borderRadius: 1,
+                      bgcolor: '#fff',
+                      overflow: 'hidden',
+                      boxShadow: 'none',
+                      '&:before': { display: 'none' },
+                    }}
+                  >
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreOutlined />}
+                      sx={{
+                        px: 1.5,
+                        py: 0.35,
+                        bgcolor: `${group.accent}0f`,
+                        borderBottom: openFindingGroups[group.label] ? '1px solid' : 0,
+                        borderColor: `${group.accent}20`,
+                        minHeight: 58,
+                        '& .MuiAccordionSummary-content': { my: 0.8 },
+                      }}
+                    >
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ width: '100%', pr: 1 }}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={{ fontWeight: 950 }}>{group.label}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4 }}>
+                            {group.findings[0]?.title || 'No findings in this group.'}
+                          </Typography>
+                        </Box>
                         <PastelChip label={`${group.findings.length}`} accent={group.accent} bg="#fff" />
                       </Stack>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ p: 0 }}>
                       {group.findings.length ? (
                         <Stack spacing={0} divider={<Divider />}>
-                          {group.findings.slice(0, 8).map((finding) => {
+                          {group.findings.slice(0, group.label === 'Launch blockers' ? 8 : 5).map((finding) => {
                             const category = ownerCategoryFromSignal(finding.sourceTool, finding.readinessArea, finding.title);
                             return (
                               <Box key={finding.id} sx={{ p: 1.35 }}>
@@ -2899,51 +3018,40 @@ export default function OwnerProductizationWorkspace({
                                       {finding.sourceTool}{finding.sourceRuleId ? ` · ${finding.sourceRuleId}` : ''}
                                     </Typography>
                                   </Box>
-                                  <Button size="small" variant={selectedFinding?.id === finding.id ? 'contained' : 'outlined'} onClick={() => setSelectedFindingId(finding.id)} sx={{ minHeight: 34, minWidth: 112 }}>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() => {
+                                      setSelectedFindingId(finding.id);
+                                      setFindingDrawerOpen(true);
+                                    }}
+                                    sx={{ minHeight: 34, minWidth: 112 }}
+                                  >
                                     Review
                                   </Button>
                                 </Stack>
                               </Box>
                             );
                           })}
+                          {group.findings.length > (group.label === 'Launch blockers' ? 8 : 5) && (
+                            <Box sx={{ p: 1.25 }}>
+                              <Button size="small" variant="text" onClick={() => openFindingsView('technical')} sx={{ minHeight: 34 }}>
+                                View all {group.findings.length}
+                              </Button>
+                            </Box>
+                          )}
                         </Stack>
                       ) : (
                         <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>No findings in this group.</Typography>
                       )}
-                    </Box>
-                  ))}
-                </Stack>
-
-                <Box sx={{ position: { xl: 'sticky' }, top: { xl: 148 }, alignSelf: 'start' }}>
-                  {selectedFinding ? (
-                    <Surface sx={{ boxShadow: 'none' }}>
-                      <SectionTitle title="Technical Detail" action={<PastelChip label={formatLabel(selectedFinding.status)} accent={findingStatusAccent(selectedFinding.status)} bg={`${findingStatusAccent(selectedFinding.status)}12`} />} />
-                      <Typography sx={{ fontWeight: 950, lineHeight: 1.35 }}>{selectedFinding.title}</Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.7, lineHeight: 1.6 }}>{selectedFinding.businessRisk || selectedFinding.description}</Typography>
-                      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, mt: 1.25 }}>
-                        <Box sx={{ p: 1, borderRadius: 1, border: '1px solid', borderColor: appleColors.line, bgcolor: '#fbfdff' }}>
-                          <Typography variant="caption" color="text.secondary">Source</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFinding.sourceTool}</Typography>
-                        </Box>
-                        <Box sx={{ p: 1, borderRadius: 1, border: '1px solid', borderColor: appleColors.line, bgcolor: '#fbfdff' }}>
-                          <Typography variant="caption" color="text.secondary">Evidence</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFindingEvidence.length} linked</Typography>
-                        </Box>
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.25 }}>Recommended action</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.5 }}>
-                        {ownerActionForCategory(ownerCategoryFromSignal(selectedFinding.sourceTool, selectedFinding.readinessArea, selectedFinding.title))}
-                      </Typography>
-                    </Surface>
-                  ) : (
-                    <EmptyState label="Select a finding to inspect scanner details." />
-                  )}
-                </Box>
-              </Box>
+                    </AccordionDetails>
+                  </Accordion>
+                ))}
+              </Stack>
             </Surface>
           )}
 
-          {selectedProduct && workspaceTab === 'findings' && findingsView === 'evidence' && (
+          {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'evidence' && (
             <Surface>
               <SectionTitle
                 title="Evidence and Stored Proof"
@@ -3020,7 +3128,7 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          {selectedProduct && workspaceTab === 'findings' && findingsView === 'evidence' && (
+          {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'evidence' && (
             <RepoReadoutPanel
               summary={repoSignals.data}
               scannerSummary={scannerSummary.data}
@@ -3030,7 +3138,7 @@ export default function OwnerProductizationWorkspace({
             />
           )}
 
-          {selectedProduct && workspaceTab === 'actions' && actionView === 'diagnosis' && (
+          {selectedProduct && workspaceTab === 'actions' && workspaceDetailOpen && actionView === 'diagnosis' && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
               <SectionTitle
                 title="Product Diagnosis"
@@ -3163,7 +3271,7 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          {selectedProduct && workspaceTab === 'overview' && overviewView === 'progress' && (
+          {selectedProduct && workspaceTab === 'overview' && workspaceDetailOpen && overviewView === 'progress' && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f9fcff 100%)' }}>
               <ShipConfidencePanel
                 history={shipConfidence.data}
@@ -3175,7 +3283,7 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          {selectedProduct && workspaceTab === 'overview' && overviewView === 'progress' && (
+          {selectedProduct && workspaceTab === 'overview' && workspaceDetailOpen && overviewView === 'progress' && (
             <LaunchReadinessReportPanel
               report={launchReadinessReport.data ?? null}
               isLoading={launchReadinessReport.isFetching}
@@ -3186,7 +3294,7 @@ export default function OwnerProductizationWorkspace({
             />
           )}
 
-          {selectedProduct && workspaceTab === 'findings' && findingsView === 'technical' && (
+          {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'technical' && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
               <SectionTitle
                 title="Technical Proof and Scanner Fix Path"
@@ -4213,7 +4321,10 @@ export default function OwnerProductizationWorkspace({
                                 size="small"
                                 variant={selectedFinding?.id === finding.id ? 'contained' : 'outlined'}
                                 startIcon={<InfoOutlined />}
-                                onClick={() => setSelectedFindingId(finding.id)}
+                                onClick={() => {
+                                  setSelectedFindingId(finding.id);
+                                  setFindingDrawerOpen(true);
+                                }}
                                 sx={{ minHeight: 34, minWidth: 132 }}
                               >
                                 Review
@@ -4277,90 +4388,6 @@ export default function OwnerProductizationWorkspace({
                     <EmptyState label="No normalized findings yet. Run a governed scan or upload SARIF, JSON, JUnit, or CI log evidence." />
                   )}
 
-                  {selectedFinding && (
-                    <Box sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: `${findingStatusAccent(selectedFinding.status)}40`, bgcolor: '#fff' }}>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mb: 1 }}>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <ScienceOutlined sx={{ color: findingStatusAccent(selectedFinding.status) }} />
-                          <Typography sx={{ fontWeight: 900 }}>Finding Detail</Typography>
-                        </Stack>
-                        <PastelChip label={selectedFinding.confidenceBasis || 'Evidence-backed'} accent={appleColors.cyan} bg="#e4f9fd" />
-                      </Stack>
-                      <Typography sx={{ fontWeight: 900 }}>{selectedFinding.title}</Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>
-                        {selectedFinding.businessRisk || selectedFinding.description}
-                      </Typography>
-                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1, mt: 1.25 }}>
-                        <Box sx={{ p: 1, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
-                          <Typography variant="caption" color="text.secondary">Affected area</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFinding.readinessArea || selectedFinding.affectedComponent || 'Product surface'}</Typography>
-                        </Box>
-                        <Box sx={{ p: 1, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
-                          <Typography variant="caption" color="text.secondary">Source rule</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFinding.sourceRuleId || selectedFinding.sourceTool}</Typography>
-                        </Box>
-                        <Box sx={{ p: 1, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
-                          <Typography variant="caption" color="text.secondary">Evidence linked</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 850 }}>{selectedFindingEvidence.length}</Typography>
-                        </Box>
-                      </Box>
-                      {(selectedFinding.evidenceRequired || selectedFinding.mappingReason) && (
-                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1, mt: 1.25 }}>
-                          {selectedFinding.evidenceRequired && (
-                            <Box sx={{ p: 1, border: '1px solid', borderColor: '#dcfce7', borderRadius: 1, bgcolor: '#fbfffd' }}>
-                          <Typography variant="caption" color="text.secondary">Proof needed</Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.5 }}>{selectedFinding.evidenceRequired}</Typography>
-                            </Box>
-                          )}
-                          {selectedFinding.mappingReason && (
-                            <Box sx={{ p: 1, border: '1px solid', borderColor: '#dbeafe', borderRadius: 1, bgcolor: '#fbfdff' }}>
-                              <Typography variant="caption" color="text.secondary">Mapping reason</Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.5 }}>{selectedFinding.mappingReason}</Typography>
-                            </Box>
-                          )}
-                        </Box>
-                      )}
-                      <Box sx={{ mt: 1.25 }}>
-                        <StudioAssistantCard
-                          title="AI Finding Review"
-                          description="Turn this finding into an owner-readable decision with evidence needs and remediation direction."
-                          prompt={`Do not call write actions for this answer. Review scanner finding ${selectedFinding.id} for ${selectedProduct.name}. Finding details: title "${selectedFinding.title}", severity ${selectedFinding.severity}, status ${selectedFinding.status}, affected area "${selectedFinding.readinessArea || selectedFinding.affectedComponent || 'not specified'}", source rule "${selectedFinding.sourceRuleId || selectedFinding.sourceTool}", description "${selectedFinding.description}", business risk "${selectedFinding.businessRisk || 'not mapped'}", required evidence "${selectedFinding.evidenceRequired || 'not mapped'}", recommended service "${selectedFinding.recommendedModule?.name || 'not mapped'}", linked evidence count ${selectedFindingEvidence.length}. Explain likely impact, what evidence is needed to resolve or accept risk, and which productization service or milestone should own follow-up. Use these provided details directly. Do not include raw artifact contents.`}
-                          conversationId={`studio-finding-${selectedProduct.id}-${selectedFinding.id}`}
-                          context={assistantContext('scanner-finding-review', { findingId: selectedFinding.id })}
-                          {...assistantActionProps}
-                          accent={findingStatusAccent(selectedFinding.status)}
-                          compact
-                          cta="Review Finding"
-                        />
-                      </Box>
-                      {selectedFindingEvidence.length ? (
-                        <Stack spacing={0.75} sx={{ mt: 1.25 }}>
-                          {selectedFindingEvidence.slice(0, 3).map((item) => (
-                            <Stack key={item.id} direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 0.75 }}>
-                              <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 850 }} noWrap>{item.title}</Typography>
-                                <Typography variant="caption" color="text.secondary">{item.source} · {formatLabel(item.confidenceLevel)}</Typography>
-                              </Box>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                disabled={(!item.storageKey && !item.artifactRef) || openSignedEvidence.isPending}
-                                onClick={() => openEvidenceArtifact(item)}
-                                sx={{ minHeight: 34, minWidth: 112 }}
-                              >
-                                Open Evidence
-                              </Button>
-                            </Stack>
-                          ))}
-                        </Stack>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                          No dedicated evidence item is linked to this finding yet.
-                        </Typography>
-                      )}
-                    </Box>
-                  )}
-
                   {scannerSummary.data?.recentRuns.length ? (
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
                       {scannerSummary.data.recentRuns.slice(0, 4).map((run) => (
@@ -4397,16 +4424,7 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          {workspaceTab === 'services' && (
-            <OwnerWorkspaceJourneyNav
-              label="Services journey"
-              value={servicesView}
-              items={servicesJourneyItems}
-              onChange={setServicesView}
-            />
-          )}
-
-          {workspaceTab === 'services' && (
+          {workspaceTab === 'services' && workspaceDetailOpen && (
             <>
               {servicesView === 'recommend' && (
               <Surface>
@@ -4837,7 +4855,7 @@ export default function OwnerProductizationWorkspace({
             />
           )}
 
-          {workspaceTab === 'services' && (servicesView === 'plan' || servicesView === 'team') && (
+          {workspaceTab === 'services' && workspaceDetailOpen && (servicesView === 'plan' || servicesView === 'team') && (
           <Box id="project-cart" sx={{ scrollMarginTop: 96 }}>
           <Surface>
             <SectionTitle
@@ -5017,7 +5035,7 @@ export default function OwnerProductizationWorkspace({
           </Box>
           )}
 
-          {(workspaceTab === 'overview' || workspaceTab === 'actions') && (
+          {workspaceDetailOpen && (workspaceTab === 'overview' || workspaceTab === 'actions') && (
           <Surface>
             <SectionTitle
               title="AI Owner Brief"
@@ -5083,7 +5101,7 @@ export default function OwnerProductizationWorkspace({
           </Surface>
           )}
 
-          {workspaceTab === 'services' && servicesView === 'team' && (
+          {workspaceTab === 'services' && workspaceDetailOpen && servicesView === 'team' && (
           <Surface>
             <SectionTitle title="Delivery Workspace" action={selectedWorkspace && <StatusChip label={selectedWorkspace.status} />} />
             {selectedWorkspace ? (
@@ -5119,7 +5137,7 @@ export default function OwnerProductizationWorkspace({
           </Surface>
           )}
 
-          {workspaceTab === 'services' && servicesView === 'team' && (
+          {workspaceTab === 'services' && workspaceDetailOpen && servicesView === 'team' && (
           <Surface sx={{ background: productSupport.some((request) => request.slaStatus === 'OVERDUE') ? '#fff7f8' : '#f6fffb' }}>
             <SectionTitle title="Support and Risk" />
             {productSupport.length ? (
@@ -5155,6 +5173,226 @@ export default function OwnerProductizationWorkspace({
           </Surface>
         </Stack>
       </Box>
+      <Drawer
+        anchor="right"
+        open={findingDrawerOpen && !!selectedFinding && !!selectedProduct}
+        onClose={() => setFindingDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 560 },
+            maxWidth: '100%',
+            bgcolor: '#f8fafc',
+          },
+        }}
+      >
+        {selectedFinding && selectedProduct && (
+          <Stack sx={{ minHeight: '100%' }}>
+            <Box
+              sx={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 1,
+                p: 1.5,
+                borderBottom: '1px solid',
+                borderColor: appleColors.line,
+                bgcolor: '#fff',
+              }}
+            >
+              <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Finding review
+                  </Typography>
+                  <Typography variant="h4" sx={{ mt: 0.25 }}>
+                    {selectedFindingOwnerCategory}
+                  </Typography>
+                </Box>
+                <IconButton
+                  aria-label="Close finding review"
+                  onClick={() => setFindingDrawerOpen(false)}
+                  sx={{ width: 38, height: 38, borderRadius: 1, border: '1px solid', borderColor: appleColors.line }}
+                >
+                  <CancelOutlined fontSize="small" />
+                </IconButton>
+              </Stack>
+            </Box>
+
+            <Stack spacing={1.4} sx={{ p: 1.5 }}>
+              <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: '#fff', border: '1px solid', borderColor: `${findingStatusAccent(selectedFinding.status)}35` }}>
+                <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
+                  <PastelChip label={formatLabel(selectedFinding.severity)} accent={severityAccent(selectedFinding.severity)} bg={`${severityAccent(selectedFinding.severity)}12`} />
+                  <PastelChip label={formatLabel(selectedFinding.status)} accent={findingStatusAccent(selectedFinding.status)} bg={`${findingStatusAccent(selectedFinding.status)}12`} />
+                  <PastelChip label={selectedFinding.confidenceBasis || 'Evidence-backed'} accent={appleColors.cyan} bg="#e4f9fd" />
+                </Stack>
+                <Typography sx={{ mt: 1, fontWeight: 950, lineHeight: 1.35 }}>
+                  {selectedFinding.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.65, lineHeight: 1.6 }}>
+                  {selectedFinding.businessRisk || selectedFinding.description || ownerImpactForCategory(selectedFindingOwnerCategory)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.8, lineHeight: 1.45 }}>
+                  Evidence: {ownerProofLine({ sourceTool: selectedFinding.sourceTool, sourceRuleId: selectedFinding.sourceRuleId, category: selectedFindingOwnerCategory })}
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
+                <Box sx={{ p: 1, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fff' }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Affected area
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.35 }}>
+                    {selectedFinding.readinessArea || selectedFinding.affectedComponent || 'Product surface'}
+                  </Typography>
+                </Box>
+                <Box sx={{ p: 1, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fff' }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Source rule
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.35, overflowWrap: 'anywhere' }}>
+                    {selectedFinding.sourceRuleId || selectedFinding.sourceTool}
+                  </Typography>
+                </Box>
+                <Box sx={{ p: 1, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fff' }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Linked proof
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 850 }}>
+                    {selectedFindingEvidence.length}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {(selectedFinding.evidenceRequired || selectedFinding.mappingReason) && (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
+                  {selectedFinding.evidenceRequired && (
+                    <Box sx={{ p: 1, border: '1px solid', borderColor: '#dcfce7', borderRadius: 1, bgcolor: '#fff' }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Proof needed
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.5 }}>
+                        {selectedFinding.evidenceRequired}
+                      </Typography>
+                    </Box>
+                  )}
+                  {selectedFinding.mappingReason && (
+                    <Box sx={{ p: 1, border: '1px solid', borderColor: '#dbeafe', borderRadius: 1, bgcolor: '#fff' }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Mapping reason
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.5 }}>
+                        {selectedFinding.mappingReason}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              )}
+
+              {selectedFinding.recommendedModule && (
+                <Box sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e3e0ff', bgcolor: '#fff' }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Recommended service
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.35, fontWeight: 950 }}>
+                    {selectedFinding.recommendedModule.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45, lineHeight: 1.45 }}>
+                    {selectedFinding.recommendedModule.ownerOutcome || selectedFinding.recommendedModule.description || 'Add this service to the productization plan for tracked remediation.'}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant={selectedFindingRecommendedInCart ? 'outlined' : 'contained'}
+                    disabled={selectedFindingRecommendedInCart || addServiceToCart.isPending}
+                    startIcon={<AddShoppingCartOutlined />}
+                    onClick={() => selectedFinding.recommendedModule && addLifecycleService(selectedFinding.recommendedModule, 'Finding review')}
+                    sx={{ mt: 1, minHeight: 34 }}
+                  >
+                    {selectedFindingRecommendedInCart ? 'Already in plan' : 'Add service'}
+                  </Button>
+                </Box>
+              )}
+
+              <Box sx={{ p: 1.25, borderRadius: 1, bgcolor: '#fff', border: '1px solid', borderColor: appleColors.line }}>
+                <Typography sx={{ fontWeight: 950 }}>
+                  Owner decision
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) 150px' }, gap: 1, mt: 1 }}>
+                  <TextField
+                    size="small"
+                    label="Decision note"
+                    value={selectedFindingReason}
+                    onChange={(event) => setFindingReasonById((current) => ({ ...current, [selectedFinding.id]: event.target.value }))}
+                    placeholder="Evidence reviewed, fix merged, compensating control..."
+                  />
+                  <TextField
+                    size="small"
+                    type="date"
+                    label="Risk review"
+                    value={selectedFindingReviewDue}
+                    onChange={(event) => setFindingReviewDueById((current) => ({ ...current, [selectedFinding.id]: event.target.value }))}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Box>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                  <Button size="small" variant="outlined" disabled={!selectedFindingCanResolve || updateFindingStatus.isPending} onClick={() => recordFindingDecision(selectedFinding, 'RESOLVED')}>
+                    Mark Resolved
+                  </Button>
+                  <Button size="small" variant="outlined" disabled={!selectedFindingCanAcceptRisk || updateFindingStatus.isPending} onClick={() => recordFindingDecision(selectedFinding, 'ACCEPTED_RISK')}>
+                    Accept Risk
+                  </Button>
+                  <Button size="small" variant="outlined" disabled={!selectedFindingCanResolve || updateFindingStatus.isPending} onClick={() => recordFindingDecision(selectedFinding, 'FALSE_POSITIVE')}>
+                    False Positive
+                  </Button>
+                </Stack>
+              </Box>
+
+              <StudioAssistantCard
+                title="AI Finding Review"
+                description="Turn this finding into an owner-readable decision with evidence needs and remediation direction."
+                prompt={`Do not call write actions for this answer. Review scanner finding ${selectedFinding.id} for ${selectedProduct.name}. Finding details: title "${selectedFinding.title}", severity ${selectedFinding.severity}, status ${selectedFinding.status}, affected area "${selectedFinding.readinessArea || selectedFinding.affectedComponent || 'not specified'}", source rule "${selectedFinding.sourceRuleId || selectedFinding.sourceTool}", description "${selectedFinding.description}", business risk "${selectedFinding.businessRisk || 'not mapped'}", required evidence "${selectedFinding.evidenceRequired || 'not mapped'}", recommended service "${selectedFinding.recommendedModule?.name || 'not mapped'}", linked evidence count ${selectedFindingEvidence.length}. Explain likely impact, what evidence is needed to resolve or accept risk, and which productization service or milestone should own follow-up. Use these provided details directly. Do not include raw artifact contents.`}
+                conversationId={`studio-finding-${selectedProduct.id}-${selectedFinding.id}`}
+                context={assistantContext('scanner-finding-review', { findingId: selectedFinding.id })}
+                {...assistantActionProps}
+                accent={findingStatusAccent(selectedFinding.status)}
+                compact
+                cta="Review Finding"
+              />
+
+              <Box sx={{ p: 1.25, borderRadius: 1, bgcolor: '#fff', border: '1px solid', borderColor: appleColors.line }}>
+                <SectionTitle title="Linked Evidence" action={<PastelChip label={`${selectedFindingEvidence.length}`} accent={appleColors.cyan} bg="#e4f9fd" />} />
+                {selectedFindingEvidence.length ? (
+                  <Stack spacing={0.75}>
+                    {selectedFindingEvidence.slice(0, 4).map((item) => (
+                      <Stack key={item.id} direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 0.75 }}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 850 }} noWrap>
+                            {item.title}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {item.source} · {formatLabel(item.confidenceLevel)}
+                          </Typography>
+                        </Box>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={(!item.storageKey && !item.artifactRef) || openSignedEvidence.isPending}
+                          onClick={() => openEvidenceArtifact(item)}
+                          sx={{ minHeight: 34, minWidth: 112 }}
+                        >
+                          Open Evidence
+                        </Button>
+                      </Stack>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+                    No dedicated evidence item is linked to this finding yet.
+                  </Typography>
+                )}
+              </Box>
+            </Stack>
+          </Stack>
+        )}
+      </Drawer>
       <OwnerWorkspaceTimelineDialog
         open={timelineOpen}
         items={workspaceTimeline}

@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { ChevronRightOutlined, KeyboardBackspaceOutlined } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { appleColors } from './PlatformComponents';
 
@@ -81,7 +82,7 @@ export function OwnerWorkspaceJourneyNav<T extends string>({
               >
                 {index + 1}
               </Box>
-              <Box sx={{ minWidth: 0 }}>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
                   <Typography variant="body2" sx={{ fontWeight: 950, lineHeight: 1.25 }}>
                     {item.label}
@@ -92,10 +93,80 @@ export function OwnerWorkspaceJourneyNav<T extends string>({
                   {item.detail}
                 </Typography>
               </Box>
+              <ChevronRightOutlined sx={{ color: selected ? accent : appleColors.muted, fontSize: 20, flexShrink: 0, mt: 0.35 }} />
             </Stack>
           </Button>
         );
       })}
+    </Box>
+  );
+}
+
+export interface WorkspaceBreadcrumbItem {
+  label: string;
+  onClick?: () => void;
+}
+
+export function WorkspaceBreadcrumbs({
+  items,
+  backLabel,
+  onBack,
+}: {
+  items: WorkspaceBreadcrumbItem[];
+  backLabel: string;
+  onBack: () => void;
+}) {
+  return (
+    <Box
+      component="nav"
+      aria-label="Workspace breadcrumb"
+      sx={{
+        p: 1,
+        border: '1px solid',
+        borderColor: appleColors.line,
+        borderRadius: 1,
+        bgcolor: '#fff',
+      }}
+    >
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+          {items.map((item, index) => {
+            const isLast = index === items.length - 1;
+            return (
+              <Stack key={`${item.label}-${index}`} direction="row" spacing={0.75} alignItems="center">
+                {item.onClick && !isLast ? (
+                  <Button
+                    variant="text"
+                    size="small"
+                    onClick={item.onClick}
+                    sx={{ minHeight: 28, px: 0.4, color: appleColors.muted, fontWeight: 850 }}
+                  >
+                    {item.label}
+                  </Button>
+                ) : (
+                  <Typography variant="caption" sx={{ color: isLast ? appleColors.ink : appleColors.muted, fontWeight: isLast ? 950 : 850 }}>
+                    {item.label}
+                  </Typography>
+                )}
+                {!isLast && (
+                  <Typography variant="caption" color="text.secondary">
+                    &gt;
+                  </Typography>
+                )}
+              </Stack>
+            );
+          })}
+        </Stack>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<KeyboardBackspaceOutlined />}
+          onClick={onBack}
+          sx={{ minHeight: 34, alignSelf: { xs: 'flex-start', sm: 'center' } }}
+        >
+          {backLabel}
+        </Button>
+      </Stack>
     </Box>
   );
 }

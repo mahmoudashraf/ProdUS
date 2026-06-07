@@ -219,6 +219,52 @@ Navigation rules:
 
 This keeps the workspace from behaving like a single long document. The owner sees a short path, while technical reviewers can still reach the full scanner and evidence machinery.
 
+## Navigation Density Pattern Adoption
+
+The Claude proposal is directionally right for ProdUS. Adopt the hub-and-spoke pattern where the user is making an owner/product decision, and keep dense operator controls only where the route is explicitly an admin or technical operations page.
+
+Implemented product rules:
+
+- Numbered cards are doors, not labels. They open a route-backed detail view instead of merely changing a long in-page section.
+- Each detail view has breadcrumb/back orientation: workspace -> product -> area hub -> current detail.
+- Browser URLs carry the area and detail state with `tab` and `view`, so direct links and back navigation are meaningful.
+- Peer groups use accordions. Only the most important owner group is open by default.
+- Item review uses a drawer. Lists remain scannable, while finding evidence, owner decision notes, service mapping, and AI review live in the slide-over.
+- Mobile uses the same model: hub cards stack first, detail opens as a focused page area, and the drawer becomes full-width.
+- Raw scanner/tool proof is still accessible, but it is reached intentionally from Findings -> Technical proof.
+
+### Adopted Route Model
+
+| Level | ProdUS implementation | Purpose |
+| --- | --- | --- |
+| L0 Workspace home | Product header, launch verdict, top-level tabs | Preserve the global product context. |
+| L1 Area hub | Overview, Action Plan, Findings, Services | Choose the kind of decision. |
+| L2 Section detail | Decision, Progress, Action plan, Diagnosis, Owner risks, Stored proof, Technical proof, Recommended service, Service plan, Team match | One job per viewport. |
+| L3 Item drawer | Finding Review drawer | Inspect, decide, and act on one item without elongating the page. |
+
+### Page-By-Page Adoption
+
+| Page or route | Treatment | Reason |
+| --- | --- | --- |
+| Productization Workspace | Implemented now with route-backed hubs, breadcrumbs, accordions, and finding drawer. | This is the main owner journey and was the page most damaged by density. |
+| Owner product intake / requirements | Keep as a guided front-door flow. Use progressive steps and review screens, not a long mixed form. | Owners need confidence that ProdUS understood the product before scanning or service planning. |
+| Draft Project Cart | Implemented now with a route-backed Start Plan hub: Readiness, Services, Talent, Handoff. Service/talent editing should move into drawers in the next polish pass. | It is owner-facing and previously mixed selection, readiness, templates, recommendations, and conversion on one page. |
+| Workspaces / delivery command | Next implementation target: use a hub for Workspace Summary, Proof, Milestones, Handoff/Health, Support/Risks. Open milestone, criterion, support, and risk detail in drawers. | Delivery work has many objects; the owner should move between states without scanning a wall of sections. It is higher-risk to refactor than the cart because it contains many write workflows. |
+| Packages / service plan builder | Keep builder mechanics, but split into Plan summary, Modules, Pricing/proposal, and Team match. | Service plan creation is a workflow, not a catalog dump. |
+| Public services and talent pages | Use cards and filters, but route users toward one next action: add to draft, view profile, or compare. | These are discovery pages; density is acceptable only when filtering and comparison stay clear. |
+| Admin scanners, catalog, diagnosis quality, recommendations, teams | Do not force the owner hub pattern. Use tables, filters, accordions, and pagination for operator efficiency. | Admin users need breadth and control; the problem is organization, not founder journey framing. |
+
+### What Changed In The Workspace Implementation
+
+- The four top tabs now act as area hubs.
+- A hub card click updates the URL and opens only the chosen detail screen.
+- Breadcrumbs replace repeated internal tab strips inside each area.
+- Findings -> Owner risks now groups findings into accordions instead of a grid plus sticky detail panel.
+- Finding Review is a drawer shared by the owner risk list and technical proof list.
+- The drawer includes business impact, inline proof, linked evidence, decision notes, risk acceptance controls, and the mapped service bridge.
+- The technical proof page keeps scanner operations available, but no longer embeds the selected finding detail as another long block.
+- The Draft Project Cart now uses the same route-backed hub model for owner start planning. The default page shows the product context, key metrics, and four destinations instead of every cart section at once.
+
 ## First Viewport Redesign
 
 The first viewport should contain only the information needed to make sense of the product state.

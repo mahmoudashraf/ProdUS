@@ -1,7 +1,8 @@
 'use client';
 
 import NextLink from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   AddShoppingCartOutlined,
   ArrowForwardOutlined,
@@ -38,6 +39,12 @@ import {
 } from './PlatformComponents';
 import { PackageTemplate, ProductProfile, ProductizationCart, ProductizationCartConvertResponse, ProjectWorkspace } from './types';
 import type { CatalogRuleItem } from './types';
+import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+
+type CartJourneyView = 'readiness' | 'services' | 'talent' | 'handoff';
+
+const isCartJourneyView = (value: string | null): value is CartJourneyView =>
+  value === 'readiness' || value === 'services' || value === 'talent' || value === 'handoff';
 
 interface CartUpdatePayload {
   productProfileId?: string;
@@ -54,9 +61,14 @@ const readinessScore = (cart?: ProductizationCart) =>
 
 export default function DraftProjectCartPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [projectName, setProjectName] = useState('');
   const [notice, setNotice] = useState('');
   const [createdWorkspace, setCreatedWorkspace] = useState<ProjectWorkspace | null>(null);
+  const [cartView, setCartView] = useState<CartJourneyView>('readiness');
+  const [cartDetailOpen, setCartDetailOpen] = useState(false);
 
   const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const cart = useQuery({ queryKey: ['productization-cart'], queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
@@ -134,6 +146,73 @@ export default function DraftProjectCartPage() {
   const canStartWorkspace = !!product && !hasPlaceholderProduct && (startReadiness?.ready ?? (serviceCount > 0 && blockers === 0));
   const score = readinessScore(currentCart);
   const cartServiceIds = new Set((currentCart?.serviceItems || []).map((item) => item.serviceModule.id));
+  const searchParamString = searchParams?.toString() || '';
+
+  useEffect(() => {
+    const currentParams = new URLSearchParams(searchParamString);
+    const stepParam = currentParams.get('step');
+    if (isCartJourneyView(stepParam)) {
+      setCartView(stepParam);
+      setCartDetailOpen(true);
+    } else {
+      setCartDetailOpen(false);
+    }
+  }, [searchParamString]);
+
+  const pushCartLocation = (step?: CartJourneyView) => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || '/owner/project-cart';
+    if (step) {
+      next.set('step', step);
+    } else {
+      next.delete('step');
+    }
+    const query = next.toString();
+    router.push(query ? `${routePath}?${query}` : routePath, { scroll: false });
+  };
+
+  const openCartHub = () => {
+    setCartDetailOpen(false);
+    pushCartLocation();
+  };
+
+  const openCartDetail = (step: CartJourneyView) => {
+    setCartView(step);
+    setCartDetailOpen(true);
+    pushCartLocation(step);
+  };
+
+  const cartJourneyItems: JourneyStepItem<CartJourneyView>[] = [
+    {
+      value: 'readiness',
+      label: 'Readiness',
+      detail: 'Product, templates, service gaps, and start blockers.',
+      accent: canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.amber,
+      meta: <PastelChip label={canStartWorkspace ? 'Ready' : blockers ? `${blockers} gaps` : 'Needs scope'} accent={canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.amber} bg={canStartWorkspace ? '#e7f8ee' : blockers ? '#fff1f2' : '#fff4dc'} />,
+    },
+    {
+      value: 'services',
+      label: 'Services',
+      detail: 'Review selected lifecycle services and add missing ones.',
+      accent: appleColors.purple,
+      meta: <PastelChip label={`${serviceCount} selected`} accent={serviceCount ? appleColors.purple : appleColors.amber} />,
+    },
+    {
+      value: 'talent',
+      label: 'Talent',
+      detail: 'Review teams and experts before handoff.',
+      accent: appleColors.cyan,
+      meta: <PastelChip label={`${talentCount} saved`} accent={talentCount ? appleColors.cyan : appleColors.muted} bg="#e4f9fd" />,
+    },
+    {
+      value: 'handoff',
+      label: 'Handoff',
+      detail: 'Name and start the project workspace when scope is ready.',
+      accent: appleColors.green,
+      meta: <PastelChip label={canStartWorkspace ? 'Can start' : 'Blocked'} accent={canStartWorkspace ? appleColors.green : appleColors.amber} bg={canStartWorkspace ? '#e7f8ee' : '#fff4dc'} />,
+    },
+  ];
+  const currentCartDetailLabel = cartJourneyItems.find((item) => item.value === cartView)?.label || 'Start plan';
 
   const selectProduct = (productId: string) => {
     const selected = productList.find((item) => item.id === productId);
@@ -176,7 +255,7 @@ export default function DraftProjectCartPage() {
         error={products.error || cart.error || packageTemplates.error || updateCart.error || removeService.error || removeTalent.error || applyTemplate.error || convertCart.error}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 360px' }, gap: 2.5 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: cartDetailOpen && cartView === 'handoff' ? '1fr 360px' : '1fr' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
           <Surface sx={{ p: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
             <Box sx={{ p: { xs: 2.5, md: 3 }, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.75fr 1.25fr' }, gap: 3, alignItems: 'center' }}>
@@ -262,7 +341,26 @@ export default function DraftProjectCartPage() {
             <MetricTile label="Workspace status" value={canStartWorkspace ? 'Ready' : 'Needs scope'} detail={canStartWorkspace ? 'Product and services selected' : 'Product plus one service required'} accent={canStartWorkspace ? appleColors.green : appleColors.amber} icon={<WorkspacesOutlined />} sparkline />
           </Box>
 
-          {packageTemplates.data?.length ? (
+          {cartDetailOpen ? (
+            <WorkspaceBreadcrumbs
+              items={[
+                { label: 'Project Start Plan', onClick: openCartHub },
+                { label: product?.name || 'Draft' },
+                { label: currentCartDetailLabel },
+              ]}
+              backLabel="Start plan hub"
+              onBack={openCartHub}
+            />
+          ) : (
+            <OwnerWorkspaceJourneyNav
+              label="Project start plan hub"
+              value={cartView}
+              items={cartJourneyItems}
+              onChange={openCartDetail}
+            />
+          )}
+
+          {cartDetailOpen && cartView === 'readiness' && packageTemplates.data?.length ? (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8f7ff 100%)' }}>
               <SectionTitle title="Package Templates" action={<FactCheckOutlined sx={{ color: appleColors.purple }} />} />
               <Typography color="text.secondary" sx={{ lineHeight: 1.65, mb: 2 }}>
@@ -306,6 +404,7 @@ export default function DraftProjectCartPage() {
             </Surface>
           ) : null}
 
+          {cartDetailOpen && cartView === 'services' && (
           <Surface>
             <SectionTitle title="Lifecycle Services" action={<Button component={NextLink} href="/services" variant="text" endIcon={<ArrowForwardOutlined />}>Add service</Button>} />
             {currentCart?.serviceItems.length ? (
@@ -354,7 +453,9 @@ export default function DraftProjectCartPage() {
               <EmptyState label="No services yet. Add productization services such as validation, security, cloud, database, launch, or support." />
             )}
           </Surface>
+          )}
 
+          {cartDetailOpen && cartView === 'readiness' && (
           <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fffaf1 100%)' }}>
             <SectionTitle
               title="Before You Start"
@@ -443,7 +544,9 @@ export default function DraftProjectCartPage() {
               </Typography>
             )}
           </Surface>
+          )}
 
+          {cartDetailOpen && cartView === 'talent' && (
           <Surface>
             <SectionTitle title="Teams And Experts" action={<Button component={NextLink} href="/teams" variant="text" endIcon={<ArrowForwardOutlined />}>Add talent</Button>} />
             {currentCart?.talentItems.length ? (
@@ -487,8 +590,10 @@ export default function DraftProjectCartPage() {
               <EmptyState label="No delivery talent yet. Add verified teams or solo experts now, or start with services and match talent later." />
             )}
           </Surface>
+          )}
         </Stack>
 
+        {cartDetailOpen && cartView === 'handoff' && (
         <Stack spacing={2.5}>
           <Surface>
             <SectionTitle title="Start Workspace" action={<RocketLaunchOutlined sx={{ color: appleColors.purple }} />} />
@@ -593,6 +698,7 @@ export default function DraftProjectCartPage() {
             </Stack>
           </Surface>
         </Stack>
+        )}
       </Box>
     </>
   );
