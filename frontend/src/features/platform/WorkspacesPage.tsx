@@ -7,14 +7,14 @@ import {
   FactCheckOutlined,
   TaskAltOutlined,
 } from '@mui/icons-material';
-import { Alert, Box, Button, LinearProgress, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, LinearProgress, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
-import FileUpload from '@/components/ui-component/FileUpload';
 import { uploadService } from '@/services/uploadService';
 import { getJson, postJson, putJson } from './api';
+import WorkspaceEvidenceAttachmentPanel from './WorkspaceEvidenceAttachmentPanel';
 import {
   DotLabel,
   EmptyState,
@@ -180,66 +180,12 @@ const workspaceAccent = (status?: string) => {
   return appleColors.purple;
 };
 
-const formatFileSize = (sizeBytes: number) => {
-  if (sizeBytes >= 1024 * 1024) {
-    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-  return `${Math.max(1, Math.round(sizeBytes / 1024))} KB`;
-};
-
 const uploadErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
     return error.message;
   }
   return 'Attachment upload failed';
 };
-
-const AttachmentList = ({
-  attachments,
-  onOpenAttachment,
-}: {
-  attachments: EvidenceAttachment[];
-  onOpenAttachment: (attachment: EvidenceAttachment) => void;
-}) => (
-  <Stack spacing={0.75} sx={{ mt: attachments.length ? 1 : 0 }}>
-    {attachments.map((attachment) => (
-      <Box
-        key={attachment.id}
-        sx={{
-          border: 1,
-          borderColor: 'divider',
-          borderRadius: 1,
-          px: 1.25,
-          py: 1,
-        }}
-      >
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} justifyContent="space-between">
-          <Box>
-            <Link
-              component="button"
-              type="button"
-              underline="hover"
-              variant="body2"
-              onClick={() => onOpenAttachment(attachment)}
-              sx={{ cursor: 'pointer', textAlign: 'left' }}
-            >
-              {attachment.label || attachment.fileName}
-            </Link>
-            {attachment.label && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                {attachment.fileName}
-              </Typography>
-            )}
-          </Box>
-          <Typography variant="caption" color="text.secondary">
-            {formatFileSize(attachment.sizeBytes)}
-            {attachment.uploadedBy?.email ? ` · ${attachment.uploadedBy.email}` : ''}
-          </Typography>
-        </Stack>
-      </Box>
-    ))}
-  </Stack>
-);
 
 export default function WorkspacesPage() {
   const queryClient = useQueryClient();
@@ -588,44 +534,20 @@ export default function WorkspacesPage() {
     const selectedFile = attachmentFilesByKey[key] || null;
 
     return (
-      <Stack spacing={1} sx={{ mt: 1.25 }}>
-        <AttachmentList attachments={scopeAttachments(scopeType, scopeId)} onOpenAttachment={openAttachment} />
-        {canAttachEvidence && (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: selectedFile ? 'minmax(220px, 1fr) 220px auto' : 'minmax(220px, 1fr)' },
-              gap: 1,
-              alignItems: 'start',
-            }}
-          >
-            <FileUpload
-              label="Attach evidence"
-              accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md,.csv,.json,.zip,.docx,.xlsx,.pptx"
-              maxSize={10}
-              selectedFile={selectedFile}
-              loading={isUploading}
-              error={attachmentErrorsByKey[key]}
-              helperText={attachmentProgressByKey[key] ? `${attachmentProgressByKey[key]}% uploaded` : undefined}
-              onFileSelect={(file) => selectAttachmentFile(scopeType, scopeId, file)}
-              onClear={() => selectAttachmentFile(scopeType, scopeId, null)}
-            />
-            {selectedFile && (
-              <>
-                <TextField
-                  size="small"
-                  label="Evidence label"
-                  value={attachmentLabelsByKey[key] || ''}
-                  onChange={(event) => setAttachmentLabelsByKey((current) => ({ ...current, [key]: event.target.value }))}
-                />
-                <Button variant="contained" onClick={() => submitAttachment(scopeType, scopeId)} disabled={isUploading}>
-                  Upload
-                </Button>
-              </>
-            )}
-          </Box>
-        )}
-      </Stack>
+      <WorkspaceEvidenceAttachmentPanel
+        attachments={scopeAttachments(scopeType, scopeId)}
+        canAttachEvidence={canAttachEvidence}
+        selectedFile={selectedFile}
+        labelValue={attachmentLabelsByKey[key] || ''}
+        isUploading={isUploading}
+        error={attachmentErrorsByKey[key]}
+        progress={attachmentProgressByKey[key]}
+        onOpenAttachment={openAttachment}
+        onFileSelect={(file) => selectAttachmentFile(scopeType, scopeId, file)}
+        onClear={() => selectAttachmentFile(scopeType, scopeId, null)}
+        onLabelChange={(value) => setAttachmentLabelsByKey((current) => ({ ...current, [key]: value }))}
+        onSubmit={() => submitAttachment(scopeType, scopeId)}
+      />
     );
   };
   const activeWorkspaceCount = workspaceList.filter((workspace) => workspace.status === 'ACTIVE_DELIVERY').length;
