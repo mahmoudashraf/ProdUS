@@ -5177,11 +5177,12 @@ export default function OwnerProductizationWorkspace({
         anchor="right"
         open={findingDrawerOpen && !!selectedFinding && !!selectedProduct}
         onClose={() => setFindingDrawerOpen(false)}
-        PaperProps={{
-          sx: {
+        sx={{
+          '& .MuiDrawer-paper': {
             width: { xs: '100%', sm: 560 },
             maxWidth: '100%',
             bgcolor: '#f8fafc',
+            overflowX: 'hidden',
           },
         }}
       >
