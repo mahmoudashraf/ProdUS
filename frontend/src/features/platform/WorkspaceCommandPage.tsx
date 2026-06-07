@@ -803,12 +803,8 @@ export default function WorkspaceCommandPage() {
           display: 'grid',
           gridTemplateColumns: {
             xs: '1fr',
-            lg: selectedWorkspace && (workspaceView === 'team' || workspaceView === 'handoff')
-              ? '300px minmax(0, 1fr) 320px'
-              : '300px minmax(0, 1fr)',
-            xl: selectedWorkspace && (workspaceView === 'team' || workspaceView === 'handoff')
-              ? '320px minmax(0, 1fr) 360px'
-              : '320px minmax(0, 1fr)',
+            lg: '300px minmax(0, 1fr)',
+            xl: '320px minmax(0, 1fr)',
           },
           gap: 2.5,
           alignItems: 'start',
@@ -1402,7 +1398,13 @@ export default function WorkspaceCommandPage() {
           )}
         </Stack>
 
-        <Stack spacing={2} sx={{ display: selectedWorkspace && (workspaceView === 'team' || workspaceView === 'handoff') ? 'flex' : 'none' }}>
+        <Stack
+          spacing={2}
+          sx={{
+            display: selectedWorkspace && (workspaceView === 'team' || workspaceView === 'handoff') ? 'flex' : 'none',
+            gridColumn: { lg: '2 / -1' },
+          }}
+        >
           {selectedWorkspace && workspaceView === 'handoff' && (
             <PlatformAssistantCard
               title="AI Handoff Readiness"
