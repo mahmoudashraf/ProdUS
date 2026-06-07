@@ -39,12 +39,7 @@ import {
 } from './PlatformComponents';
 import { PackageTemplate, ProductProfile, ProductizationCart, ProductizationCartConvertResponse, ProjectWorkspace } from './types';
 import type { CatalogRuleItem } from './types';
-import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
-
-type CartJourneyView = 'readiness' | 'services' | 'talent' | 'handoff';
-
-const isCartJourneyView = (value: string | null): value is CartJourneyView =>
-  value === 'readiness' || value === 'services' || value === 'talent' || value === 'handoff';
+import { DraftCartJourneyNavigation, isCartJourneyView, type CartJourneyItem, type CartJourneyView } from './DraftCartJourneyNavigation';
 
 interface CartUpdatePayload {
   productProfileId?: string;
@@ -182,7 +177,7 @@ export default function DraftProjectCartPage() {
     pushCartLocation(step);
   };
 
-  const cartJourneyItems: JourneyStepItem<CartJourneyView>[] = [
+  const cartJourneyItems: CartJourneyItem[] = [
     {
       value: 'readiness',
       label: 'Readiness',
@@ -341,24 +336,15 @@ export default function DraftProjectCartPage() {
             <MetricTile label="Workspace status" value={canStartWorkspace ? 'Ready' : 'Needs scope'} detail={canStartWorkspace ? 'Product and services selected' : 'Product plus one service required'} accent={canStartWorkspace ? appleColors.green : appleColors.amber} icon={<WorkspacesOutlined />} sparkline />
           </Box>
 
-          {cartDetailOpen ? (
-            <WorkspaceBreadcrumbs
-              items={[
-                { label: 'Project Start Plan', onClick: openCartHub },
-                { label: product?.name || 'Draft' },
-                { label: currentCartDetailLabel },
-              ]}
-              backLabel="Start plan hub"
-              onBack={openCartHub}
-            />
-          ) : (
-            <OwnerWorkspaceJourneyNav
-              label="Project start plan hub"
-              value={cartView}
-              items={cartJourneyItems}
-              onChange={openCartDetail}
-            />
-          )}
+          <DraftCartJourneyNavigation
+            detailOpen={cartDetailOpen}
+            value={cartView}
+            items={cartJourneyItems}
+            productName={product?.name || 'Draft'}
+            currentDetailLabel={currentCartDetailLabel}
+            onOpenHub={openCartHub}
+            onOpenDetail={openCartDetail}
+          />
 
           {cartDetailOpen && cartView === 'readiness' && packageTemplates.data?.length ? (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8f7ff 100%)' }}>
