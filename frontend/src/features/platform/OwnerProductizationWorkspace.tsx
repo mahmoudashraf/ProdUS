@@ -73,6 +73,14 @@ import {
   VerdictRisk,
 } from './OwnerJourneyCards';
 import {
+  ActionJourneyView,
+  FindingsJourneyView,
+  OverviewJourneyView,
+  ServicesJourneyView,
+  buildOwnerWorkspaceJourneyItems,
+  workspaceViewValues,
+} from './ownerWorkspaceJourneyConfig';
+import {
   WorkspaceTab,
   buildOwnerLaunchStatus,
   ownerActionForCategory,
@@ -121,18 +129,6 @@ import {
   LaunchReadinessReport,
   FullHostedScanResponse,
 } from './types';
-
-type OverviewJourneyView = 'decision' | 'progress';
-type ActionJourneyView = 'plan' | 'diagnosis';
-type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
-type ServicesJourneyView = 'recommend' | 'plan' | 'team';
-
-const workspaceViewValues: Record<WorkspaceTab, string[]> = {
-  overview: ['decision', 'progress'],
-  actions: ['plan', 'diagnosis'],
-  findings: ['risks', 'evidence', 'technical'],
-  services: ['recommend', 'plan', 'team'],
-};
 
 const isWorkspaceTabValue = (value: string | null): value is WorkspaceTab =>
   !!value && workspaceTabs.some((tab) => tab.value === value);
@@ -1703,87 +1699,23 @@ export default function OwnerProductizationWorkspace({
     openWorkspaceDetail('services', view);
   };
 
-  const overviewJourneyItems: JourneyStepItem<OverviewJourneyView>[] = [
-    {
-      value: 'decision',
-      label: 'Decision',
-      detail: 'Verdict, blockers, top actions, proof summary.',
-      accent: launchStatus.accent,
-      meta: <PastelChip label={launchStatus.confidence} accent={launchStatus.accent} bg={`${launchStatus.accent}12`} />,
-    },
-    {
-      value: 'progress',
-      label: 'Progress',
-      detail: 'Confidence history and the shareable readiness report.',
-      accent: appleColors.cyan,
-      meta: <PastelChip label={launchReadinessReport.data ? 'Report ready' : 'Report'} accent={appleColors.cyan} bg="#e4f9fd" />,
-    },
-  ];
-
-  const actionJourneyItems: JourneyStepItem<ActionJourneyView>[] = [
-    {
-      value: 'plan',
-      label: 'Action plan',
-      detail: 'Do now, schedule next, and monitor after launch.',
-      accent: appleColors.purple,
-      meta: <PastelChip label={`${launchStatus.blockerCount} blockers`} accent={launchStatus.blockerCount ? appleColors.red : appleColors.green} bg={launchStatus.blockerCount ? '#fff1f2' : '#e7f8ee'} />,
-    },
-    {
-      value: 'diagnosis',
-      label: 'Diagnosis',
-      detail: 'Stored owner brief, mapped rough edges, and AI explanation.',
-      accent: appleColors.blue,
-      meta: <PastelChip label={latestDiagnosis ? `${latestDiagnosis.findings.length} findings` : 'Not run'} accent={latestDiagnosis ? appleColors.amber : appleColors.blue} />,
-    },
-  ];
-
-  const findingsJourneyItems: JourneyStepItem<FindingsJourneyView>[] = [
-    {
-      value: 'risks',
-      label: 'Owner risks',
-      detail: 'Plain-language launch risks before raw scanner detail.',
-      accent: appleColors.amber,
-      meta: <PastelChip label={`${topOwnerRisks.length} risks`} accent={topOwnerRisks.length ? appleColors.amber : appleColors.green} bg={topOwnerRisks.length ? '#fff4dc' : '#e7f8ee'} />,
-    },
-    {
-      value: 'evidence',
-      label: 'Stored proof',
-      detail: 'Authorized sources, evidence exports, and repo readout.',
-      accent: appleColors.cyan,
-      meta: <PastelChip label={`${filteredScannerEvidence.length} proof`} accent={appleColors.cyan} bg="#e4f9fd" />,
-    },
-    {
-      value: 'technical',
-      label: 'Technical proof',
-      detail: 'Scanner operations, fix path, decisions, and reruns.',
-      accent: appleColors.green,
-      meta: <PastelChip label={`${scannerCounts?.total || 0} findings`} accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green} bg={scannerOpenFindings.length ? '#fff4dc' : '#e7f8ee'} />,
-    },
-  ];
-
-  const servicesJourneyItems: JourneyStepItem<ServicesJourneyView>[] = [
-    {
-      value: 'recommend',
-      label: 'Recommended service',
-      detail: 'Pick the work that answers the launch verdict.',
-      accent: appleColors.purple,
-      meta: <PastelChip label={`${categories.data?.length || 0} families`} accent={appleColors.purple} />,
-    },
-    {
-      value: 'plan',
-      label: 'Service plan',
-      detail: 'Turn the selected work into a scoped owner-ready plan.',
-      accent: appleColors.blue,
-      meta: <PastelChip label={selectedPackage ? 'Plan exists' : 'Draft'} accent={selectedPackage ? appleColors.green : appleColors.amber} bg={selectedPackage ? '#e7f8ee' : '#fff4dc'} />,
-    },
-    {
-      value: 'team',
-      label: 'Team match',
-      detail: 'Compare teams, experts, workspace handoff, and risk.',
-      accent: appleColors.cyan,
-      meta: <PastelChip label={`${teamRecommendations.data?.length || 0} matches`} accent={appleColors.cyan} bg="#e4f9fd" />,
-    },
-  ];
+  const {
+    overviewJourneyItems,
+    actionJourneyItems,
+    findingsJourneyItems,
+    servicesJourneyItems,
+  } = buildOwnerWorkspaceJourneyItems({
+    launchStatus,
+    hasLaunchReadinessReport: !!launchReadinessReport.data,
+    latestDiagnosisFindingCount: latestDiagnosis?.findings.length,
+    topOwnerRiskCount: topOwnerRisks.length,
+    storedProofCount: filteredScannerEvidence.length,
+    scannerFindingCount: scannerCounts?.total || 0,
+    scannerOpenFindingCount: scannerOpenFindings.length,
+    serviceFamilyCount: categories.data?.length || 0,
+    hasSelectedPackage: !!selectedPackage,
+    teamMatchCount: teamRecommendations.data?.length || 0,
+  });
   const currentJourneyItems: JourneyStepItem<string>[] =
     workspaceTab === 'overview'
       ? overviewJourneyItems
