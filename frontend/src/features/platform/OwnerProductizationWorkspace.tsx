@@ -944,10 +944,10 @@ export default function OwnerProductizationWorkspace({
     }
     if (name.includes('workspace.create')) {
       if (!(cart.data?.serviceItems || []).length) {
-        return 'Add at least one lifecycle service to the start plan first.';
+        return 'Choose at least one lifecycle service for the start plan first.';
       }
       if (cartBlockers > 0) {
-        return `Add required services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`;
+        return `Choose required services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`;
       }
       return '';
     }
@@ -969,9 +969,9 @@ export default function OwnerProductizationWorkspace({
       return;
     }
     if (name.includes('workspace.create')) {
-      if (!(cart.data?.serviceItems || []).length) throw new Error('Add lifecycle services to the start plan before creating a workspace.');
+      if (!(cart.data?.serviceItems || []).length) throw new Error('Choose lifecycle services for the start plan before creating a workspace.');
       if (cartBlockers > 0) {
-        throw new Error(`Add required services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`);
+        throw new Error(`Choose required services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`);
       }
       await convertCart.mutateAsync();
       return;

@@ -270,6 +270,41 @@ Status:
 - Live verification refreshed the mobile Start Plan screenshot:
   - `tmp/live-verification/2026-06-07/40a-mobile-start-plan-live.png`
 
+### Current Pass: Service Plan Builder Completion
+
+Problem:
+
+- `/packages` still read like a combined builder/admin page.
+- It exposed plan selection, AI advice, service modules, milestone sequence, team matches, proposal creation, contracts, invoices, warnings, and create-plan controls in one long two-column surface.
+- The route file was smaller than the main product workspace, but the visible journey still violated the owner rule of one decision per view.
+
+Solution:
+
+- Reframe Service Plans as a hub/spoke owner journey:
+  - Summary: plan verdict, owner decision, warnings, and create-from-brief path.
+  - Services: selected lifecycle services and milestone path.
+  - Team Match: delivery-team fit and proof reasons.
+  - Handoff: proposal, contract, invoice, and workspace transition.
+- Keep the same API contracts and write behavior.
+- Split the visual work into granular files instead of moving density into one new component.
+
+Status:
+
+- Locally implemented and verified against staging data using a Playwright API proxy because staging CORS blocks localhost browser calls.
+- `PackagesPage.tsx` is now route/query/form/mutation orchestration, with visual panels split into focused service-plan components.
+- Local screenshots:
+  - `tmp/live-verification/2026-06-07/81-service-plans-summary-local.png`
+  - `tmp/live-verification/2026-06-07/82-service-plans-services-local.png`
+  - `tmp/live-verification/2026-06-07/83-service-plans-team-local.png`
+  - `tmp/live-verification/2026-06-07/84-service-plans-commercial-local.png`
+  - `tmp/live-verification/2026-06-07/85-mobile-service-plans-summary-local.png`
+  - `tmp/live-verification/2026-06-07/local-service-plan-builder-redefinition.js`
+
+Next:
+
+- Batch this service-plan slice with the next owner-facing route if another small route is ready before deploying.
+- Otherwise deploy and live-verify `/packages` plus the full owner journey.
+
 ## Implementation Loop
 
 For each slice:

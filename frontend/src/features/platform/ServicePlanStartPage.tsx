@@ -50,7 +50,7 @@ export default function ServicePlanStartPage() {
   return (
     <>
       <PageHeader
-        title="Create Service Plan"
+        title="Start a Service Plan"
         description="Choose a clear starting point: approve the start plan into a workspace, or generate a service plan from a submitted product brief."
         action={
           <Button component={NextLink} href="/dashboard" variant="outlined" sx={{ minHeight: 42 }}>

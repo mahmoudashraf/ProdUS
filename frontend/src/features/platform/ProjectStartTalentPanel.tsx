@@ -27,7 +27,7 @@ export default function ProjectStartTalentPanel({
 }: ProjectStartTalentPanelProps) {
   return (
     <Surface>
-      <SectionTitle title="Teams And Experts" action={<Button component={NextLink} href="/teams" variant="text" endIcon={<ArrowForwardOutlined />}>Add talent</Button>} />
+      <SectionTitle title="Teams And Experts" action={<Button component={NextLink} href="/teams" variant="text" endIcon={<ArrowForwardOutlined />}>Choose talent</Button>} />
       {talentItems.length ? (
         <Stack spacing={1.25}>
           {talentItems.map((item) => {
@@ -77,7 +77,7 @@ export default function ProjectStartTalentPanel({
           })}
         </Stack>
       ) : (
-        <EmptyState label="No delivery talent yet. Add verified teams or solo experts now, or start with services and match talent later." />
+        <EmptyState label="No delivery talent yet. Choose verified teams or solo experts now, or start with services and match talent later." />
       )}
     </Surface>
   );
