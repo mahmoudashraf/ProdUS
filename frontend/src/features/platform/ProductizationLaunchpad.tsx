@@ -98,24 +98,6 @@ export default function ProductizationLaunchpad() {
       />
 
       <Stack spacing={2.5}>
-        <LaunchpadHeroPanel
-          nextProduct={nextProduct}
-          currentDraftTitle={currentDraftTitle}
-          draftServices={draftServices}
-          draftTalent={draftTalent}
-          cartStatus={cart.data?.status}
-        />
-
-        <LaunchpadMetricsStrip
-          productCount={productList.length}
-          requirementCount={requirements.data?.length || 0}
-          draftServices={draftServices}
-          draftTalent={draftTalent}
-          averageHealth={averageHealth}
-          activeWorkspaceCount={activeWorkspaces.length}
-          workspaceCount={workspaceList.length}
-        />
-
         {detailView ? (
           <>
             <LaunchpadDetailNavigation
@@ -129,26 +111,46 @@ export default function ProductizationLaunchpad() {
             )}
           </>
         ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 340px' }, gap: 2.5 }}>
-            <LaunchpadFocusPanel
-              value="plan"
+          <>
+            <LaunchpadHeroPanel
+              nextProduct={nextProduct}
+              currentDraftTitle={currentDraftTitle}
               draftServices={draftServices}
               draftTalent={draftTalent}
+              cartStatus={cart.data?.status}
+            />
+
+            <LaunchpadMetricsStrip
               productCount={productList.length}
-              activeWorkspaceCount={activeWorkspaces.length}
-              onSelect={(value) => {
-                if (value === 'plan') {
-                  router.push('/owner/project-cart');
-                  return;
-                }
-                openDetail(value);
-              }}
-            />
-            <LaunchpadAiNextActionPanel
+              requirementCount={requirements.data?.length || 0}
               draftServices={draftServices}
-              hasProducts={productList.length > 0}
+              draftTalent={draftTalent}
+              averageHealth={averageHealth}
+              activeWorkspaceCount={activeWorkspaces.length}
+              workspaceCount={workspaceList.length}
             />
-          </Box>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 340px' }, gap: 2.5 }}>
+              <LaunchpadFocusPanel
+                value="plan"
+                draftServices={draftServices}
+                draftTalent={draftTalent}
+                productCount={productList.length}
+                activeWorkspaceCount={activeWorkspaces.length}
+                onSelect={(value) => {
+                  if (value === 'plan') {
+                    router.push('/owner/project-cart');
+                    return;
+                  }
+                  openDetail(value);
+                }}
+              />
+              <LaunchpadAiNextActionPanel
+                draftServices={draftServices}
+                hasProducts={productList.length > 0}
+              />
+            </Box>
+          </>
         )}
       </Stack>
     </>

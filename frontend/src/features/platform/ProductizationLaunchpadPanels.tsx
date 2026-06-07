@@ -61,11 +61,11 @@ export function LaunchpadHeroPanel({
 }) {
   return (
     <Surface sx={{ p: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
-      <Box sx={{ p: { xs: 2.5, md: 3 }, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.1fr 0.9fr' }, gap: 3, alignItems: 'center' }}>
-        <Stack spacing={2}>
+      <Box sx={{ p: { xs: 2.5, md: 3 }, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.1fr 0.9fr' }, gap: 3, alignItems: 'center', minWidth: 0 }}>
+        <Stack spacing={2} sx={{ minWidth: 0 }}>
           <PastelChip label="Owner workflow" accent={appleColors.purple} />
           <Box>
-            <Typography variant="h1" sx={{ fontSize: { xs: 34, md: 48 }, letterSpacing: 0, mb: 1 }}>
+            <Typography variant="h1" sx={{ fontSize: { xs: 30, sm: 36, md: 48 }, letterSpacing: 0, mb: 1, overflowWrap: 'anywhere' }}>
               Turn a product idea into a delivery workspace.
             </Typography>
             <Typography color="text.secondary" sx={{ maxWidth: 680, fontSize: 17, lineHeight: 1.7 }}>
@@ -74,7 +74,7 @@ export function LaunchpadHeroPanel({
           </Box>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button component={NextLink} href={nextProduct ? `/products/${nextProduct.id}` : '/products/new'} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 46 }}>
-              {nextProduct ? `Continue ${nextProduct.name}` : 'Create first product'}
+              {nextProduct ? 'Continue product' : 'Create first product'}
             </Button>
             <Button component={NextLink} href="/services" variant="outlined" sx={{ minHeight: 46 }}>
               Explore services
@@ -82,12 +82,12 @@ export function LaunchpadHeroPanel({
           </Stack>
         </Stack>
 
-        <Surface sx={{ boxShadow: '0 18px 60px rgba(98, 92, 255, 0.12)' }}>
+        <Surface sx={{ boxShadow: '0 18px 60px rgba(98, 92, 255, 0.12)', minWidth: 0 }}>
           <Stack spacing={2}>
             <SectionTitle title="Current start plan" action={<PlaylistAddCheckOutlined sx={{ color: appleColors.purple }} />} />
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }} sx={{ minWidth: 0 }}>
               <ProgressRing value={clampScore((draftServices * 18) + (draftTalent * 14) + (nextProduct ? 28 : 0))} size={92} color={appleColors.purple} label="ready" />
-              <Box>
+              <Box sx={{ minWidth: 0 }}>
                 <Typography variant="h4">{currentDraftTitle}</Typography>
                 <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                   {nextProduct ? `Prepared for ${nextProduct.name}` : 'Create or select a product to make this start plan actionable.'}
