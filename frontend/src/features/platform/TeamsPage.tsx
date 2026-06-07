@@ -2,13 +2,9 @@
 
 import NextLink from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  BookmarkBorderOutlined,
-  ManageAccountsOutlined,
-  TuneOutlined,
-  VerifiedOutlined,
-} from '@mui/icons-material';
-import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ManageAccountsOutlined } from '@mui/icons-material';
+import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
@@ -18,19 +14,25 @@ import { sortPackagesForOwner } from './displayOrder';
 import PublicTalentDirectoryPage from './PublicTalentDirectoryPage';
 import TeamProfilesPage from './TeamProfilesPage';
 import {
-  DotLabel,
-  EmptyState,
+  TeamMatchDecisionPanel,
+  TeamMatchFocusNav,
+  TeamMatchMethodPanel,
+} from './OwnerTeamMatchDecisionPanels';
+import { TeamRecommendationsPanel } from './OwnerTeamRecommendationsPanel';
+import { TeamProfileInspectorPanel } from './OwnerTeamProfileInspectorPanel';
+import { TeamMatchShortlistPanel } from './OwnerTeamShortlistPanel';
+import {
+  TeamMatchView,
+  teamVerificationScore,
+} from './ownerTeamMatchConfig';
+import {
   PageHeader,
-  PastelChip,
-  ProgressRing,
   QueryState,
   SaveButton,
   SectionTitle,
-  StatusChip,
   Surface,
   TextInput,
   appleColors,
-  categoryPalette,
   formatLabel,
 } from './PlatformComponents';
 import {
@@ -116,18 +118,6 @@ const initialReputationValues: ReputationPayload = {
   notes: '',
 };
 
-const verificationScore = (team: Team) => {
-  const scoreByStatus = {
-    APPLIED: 48,
-    VERIFIED: 74,
-    CERTIFIED: 84,
-    SPECIALIST: 91,
-    OPERATIONS_READY: 96,
-    SUSPENDED: 20,
-  };
-  return scoreByStatus[team.verificationStatus] || 60;
-};
-
 export default function TeamsPage() {
   const { hasRole, isLoggedIn } = useAuth();
   if (!isLoggedIn) {
@@ -143,6 +133,8 @@ export default function TeamsPage() {
 function MatchedTeamsPage() {
   const queryClient = useQueryClient();
   const { hasRole } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const canManageTeams = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
   const canManageTeamRoster = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
   const canCreateReputation = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER]);
@@ -153,6 +145,13 @@ function MatchedTeamsPage() {
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState('');
+  const viewParam = searchParams?.get('view');
+  const activeView: TeamMatchView = viewParam === 'profile' || viewParam === 'shortlist' ? viewParam : 'matches';
+  const setActiveView = (view: TeamMatchView) => {
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.set('view', view);
+    router.replace(`/teams?${params.toString()}`, { scroll: false });
+  };
 
   const teamForm = useAdvancedForm<TeamPayload>({
     initialValues: initialTeamValues,
@@ -287,7 +286,7 @@ function MatchedTeamsPage() {
 
   const matchedTeams = selectedPackageId
     ? recommendations.data || []
-    : teamList.map((team) => ({ team, score: verificationScore(team) / 100, reasons: [team.capabilitiesSummary || team.description || 'Verified profile available'] }));
+    : teamList.map((team) => ({ team, score: teamVerificationScore(team) / 100, reasons: [team.capabilitiesSummary || team.description || 'Verified profile available'] }));
   const avgMatch = matchedTeams.length
     ? Math.round((matchedTeams.reduce((total, item) => total + item.score, 0) / matchedTeams.length) * 100)
     : 0;
@@ -303,112 +302,149 @@ function MatchedTeamsPage() {
         : 'Shortlisted for owner review and proposal follow-up.',
     });
   };
+  const inspectTeam = (teamId: string) => {
+    setSelectedTeamId(teamId);
+    setActiveView('profile');
+  };
+  const compareTeam = (teamId: string) => {
+    setSelectedTeamId(teamId);
+    recordShortlist(teamId, 'COMPARED');
+    setActiveView('profile');
+  };
+  const chooseTeam = (teamId: string) => {
+    recordShortlist(teamId, 'ACTIVE');
+    setActiveView('shortlist');
+  };
+  const viewCounts: Record<TeamMatchView, number> = {
+    matches: matchedTeams.length,
+    profile: selectedTeam ? 1 : 0,
+    shortlist: activeShortlists.length || Math.min(matchedTeams.length, 3),
+  };
+  const capabilityManagementPanel = canManageTeams ? (
+    <Box component="form" onSubmit={submitCapability}>
+      <SectionTitle title="Maintain Capability Evidence" />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr auto' }, gap: 1 }}>
+        <TextField
+          select
+          size="small"
+          label="Category"
+          value={capabilityForm.values.serviceCategoryId}
+          onChange={(event) => {
+            capabilityForm.setValue('serviceCategoryId', event.target.value);
+            capabilityForm.setValue('serviceModuleId', null);
+          }}
+        >
+          {(categories.data || []).map((category) => (
+            <MenuItem key={category.id} value={category.id}>{category.name}</MenuItem>
+          ))}
+        </TextField>
+        <TextField select size="small" label="Module" value={capabilityForm.values.serviceModuleId || ''} onChange={(event) => capabilityForm.setValue('serviceModuleId', event.target.value || null)}>
+          <MenuItem value="">Category level</MenuItem>
+          {(modules.data || [])
+            .filter((module) => !capabilityForm.values.serviceCategoryId || module.category?.id === capabilityForm.values.serviceCategoryId)
+            .map((module) => (
+              <MenuItem key={module.id} value={module.id}>{module.name}</MenuItem>
+            ))}
+        </TextField>
+        <Button type="submit" variant="outlined" disabled={!capabilityForm.values.serviceCategoryId || createCapability.isPending}>
+          Save capability
+        </Button>
+      </Box>
+    </Box>
+  ) : null;
+  const memberManagementPanel = canManageTeamRoster ? (
+    <Box component="form" onSubmit={submitMember}>
+      <SectionTitle title="Maintain Delivery Roster" />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 190px auto' }, gap: 1 }}>
+        <TextField size="small" label="Email" value={memberForm.values.email} onChange={(event) => memberForm.setValue('email', event.target.value)} />
+        <TextField select size="small" label="Role" value={memberForm.values.role} onChange={(event) => memberForm.setValue('role', event.target.value as TeamMember['role'])}>
+          {memberRoles.map((role) => (
+            <MenuItem key={role} value={role}>{formatLabel(role)}</MenuItem>
+          ))}
+        </TextField>
+        <Button type="submit" variant="outlined" disabled={!memberForm.values.email || addMember.isPending}>
+          Save member
+        </Button>
+      </Box>
+    </Box>
+  ) : null;
+  const reputationManagementPanel = canCreateReputation ? (
+    <Box component="form" onSubmit={submitReputation}>
+      <SectionTitle title="Capture Workspace Review" />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 110px 1fr auto' }, gap: 1 }}>
+        <TextField select size="small" label="Workspace" value={reputationForm.values.workspaceId} onChange={(event) => reputationForm.setValue('workspaceId', event.target.value)}>
+          {(workspaces.data || []).map((workspace) => (
+            <MenuItem key={workspace.id} value={workspace.id}>{workspace.name}</MenuItem>
+          ))}
+        </TextField>
+        <TextField size="small" type="number" label="Rating" value={reputationForm.values.rating} onChange={(event) => reputationForm.setValue('rating', Number(event.target.value))} inputProps={{ min: 1, max: 5 }} />
+        <TextField size="small" label="Notes" value={reputationForm.values.notes} onChange={(event) => reputationForm.setValue('notes', event.target.value)} />
+        <Button type="submit" variant="outlined" disabled={!reputationForm.values.workspaceId || addReputation.isPending}>
+          Save review
+        </Button>
+      </Box>
+    </Box>
+  ) : null;
 
   return (
     <>
       <PageHeader
-        title="Matched Teams"
-        description="Rank verified specialist teams against service-plan needs, maintain capability evidence, and capture workspace-backed reputation."
+        title="Team Match"
+        description="Choose the delivery team that can move the selected start plan into launch-hardening work."
+        action={
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button component={NextLink} href="/owner/project-cart" variant="outlined" sx={{ minHeight: 42 }}>
+              Open start plan
+            </Button>
+            <Button component={NextLink} href="/packages?view=team" variant="contained" sx={{ minHeight: 42 }}>
+              Review service plan
+            </Button>
+          </Stack>
+        }
       />
       <QueryState
         isLoading={teams.isLoading || packages.isLoading || categories.isLoading || modules.isLoading || workspaces.isLoading}
         error={teams.error || packages.error || categories.error || modules.error || workspaces.error || recommendations.error || capabilities.error || reputation.error || shortlists.error || (canManageTeamRoster ? members.error : null) || (canManageTeams ? createTeam.error || createCapability.error : null) || (canManageTeamRoster ? addMember.error : null) || addReputation.error || upsertShortlist.error}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 330px' }, gap: 2.5 }}>
-        <Stack spacing={2.5}>
-          <Surface>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ md: 'center' }}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ md: 'center' }}>
-                <Typography color="text.secondary" sx={{ fontWeight: 800 }}>Top teams matched for</Typography>
-                <TextField select size="small" value={selectedPackageId} onChange={(event) => setSelectedPackageId(event.target.value)} sx={{ minWidth: 280 }}>
-                  {packageList.map((item) => (
-                    <MenuItem key={item.id} value={item.id}>{item.productProfile?.name || item.name}</MenuItem>
-                  ))}
-                </TextField>
-              </Stack>
-              <Button component={NextLink} href="/packages" variant="outlined" size="small" sx={{ minHeight: 36 }}>
-                Adjust service plan
-              </Button>
-            </Stack>
-          </Surface>
+      <Stack spacing={2.5}>
+        <TeamMatchDecisionPanel
+          selectedPackageId={selectedPackageId}
+          packages={packageList}
+          topRecommendation={matchedTeams[0]}
+          averageMatch={avgMatch}
+          shortlistCount={activeShortlists.length}
+          onPackageChange={setSelectedPackageId}
+          onOpenShortlist={() => setActiveView('shortlist')}
+        />
 
-          <Surface>
-            <Stack spacing={0}>
-              {recommendations.isLoading || recommendations.isFetching ? (
-                <EmptyState label="Matching verified teams against the selected service plan..." />
-              ) : matchedTeams.length ? (
-                matchedTeams.slice(0, 6).map((recommendation, index) => {
-                  const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
-                  const score = Math.round(recommendation.score * 100);
+        <TeamMatchFocusNav activeView={activeView} counts={viewCounts} onChange={setActiveView} />
 
-                  return (
-                    <Box
-                      key={recommendation.team.id}
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', lg: '70px 92px 1.4fr 1.6fr auto' },
-                        gap: 1.5,
-                        alignItems: 'center',
-                        py: 2,
-                        borderTop: index === 0 ? 0 : '1px solid',
-                        borderColor: 'divider',
-                      }}
-                    >
-                      <Typography sx={{ fontWeight: 900, color: 'text.secondary' }}>{index + 1}</Typography>
-                      <ProgressRing value={score} size={72} color={score >= 90 ? appleColors.green : score >= 75 ? appleColors.purple : appleColors.amber} label="match" />
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Box sx={{ width: 46, height: 46, borderRadius: 1, bgcolor: palette.bg, color: palette.accent, display: 'grid', placeItems: 'center', fontWeight: 900 }}>
-                          {recommendation.team.name.charAt(0)}
-                        </Box>
-                        <Box>
-                          <Typography variant="h4">{recommendation.team.name}</Typography>
-                          <Typography variant="body2" color="text.secondary">{recommendation.team.timezone || recommendation.team.typicalProjectSize}</Typography>
-                          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
-                            <PastelChip label={formatLabel(recommendation.team.verificationStatus)} accent={palette.accent} bg={palette.bg} />
-                            <PastelChip label={recommendation.team.typicalProjectSize || 'Available'} accent={appleColors.green} />
-                          </Stack>
-                        </Box>
-                      </Stack>
-                      <Box>
-                        <Typography sx={{ fontWeight: 800, mb: 0.75 }}>Why this team?</Typography>
-                        <Stack spacing={0.5}>
-                          {recommendation.reasons.slice(0, 3).map((reason) => (
-                            <DotLabel key={reason} label={reason} color={appleColors.green} />
-                          ))}
-                        </Stack>
-                      </Box>
-                      <Stack spacing={1}>
-                        <Button
-                          variant={activeShortlists.some((item) => item.team.id === recommendation.team.id && item.status === 'COMPARED') ? 'contained' : 'outlined'}
-                          size="small"
-                          startIcon={<TuneOutlined />}
-                          onClick={() => recordShortlist(recommendation.team.id, 'COMPARED')}
-                          disabled={!selectedPackageId || upsertShortlist.isPending}
-                        >
-                          Compare
-                        </Button>
-                        <Button
-                          variant={activeShortlists.some((item) => item.team.id === recommendation.team.id) ? 'contained' : 'outlined'}
-                          size="small"
-                          startIcon={<BookmarkBorderOutlined />}
-                          onClick={() => recordShortlist(recommendation.team.id, 'ACTIVE')}
-                          disabled={!selectedPackageId || upsertShortlist.isPending}
-                        >
-                          Shortlist
-                        </Button>
-                        <Button variant="contained" size="small" onClick={() => setSelectedTeamId(recommendation.team.id)}>Inspect</Button>
-                      </Stack>
-                    </Box>
-                  );
-                })
-              ) : (
-                <EmptyState label={selectedPackageId ? 'No verified team matches for this service plan yet.' : 'No teams have been added yet.'} />
-              )}
-            </Stack>
-          </Surface>
+        {activeView === 'matches' && (
+          <TeamRecommendationsPanel
+            recommendations={matchedTeams}
+            activeShortlists={activeShortlists}
+            isLoading={recommendations.isLoading || recommendations.isFetching}
+            selectedPackageId={selectedPackageId}
+            isUpdating={upsertShortlist.isPending}
+            onCompare={compareTeam}
+            onChoose={chooseTeam}
+            onInspect={inspectTeam}
+          />
+        )}
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: canManageTeams ? '380px 1fr' : '1fr' }, gap: 2.5 }}>
+        {activeView === 'profile' && (
+          <Stack spacing={2.5}>
+            <TeamProfileInspectorPanel
+              team={selectedTeam}
+              capabilities={capabilities.data || []}
+              members={members.data || []}
+              reputation={reputation.data || []}
+              canManageRoster={canManageTeamRoster}
+              capabilityForm={capabilityManagementPanel}
+              memberForm={memberManagementPanel}
+              reputationForm={reputationManagementPanel}
+            />
             {canManageTeams && (
               <Surface>
                 <SectionTitle title="Create Team" action={<ManageAccountsOutlined sx={{ color: appleColors.purple }} />} />
@@ -429,183 +465,19 @@ function MatchedTeamsPage() {
                 </Box>
               </Surface>
             )}
+          </Stack>
+        )}
 
-            <Surface>
-              <SectionTitle title={selectedTeam?.name || 'Team Profile'} action={selectedTeam && <StatusChip label={selectedTeam.verificationStatus} color="success" />} />
-              {selectedTeam ? (
-                <Stack spacing={2.5}>
-                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
-                    <ProgressRing value={verificationScore(selectedTeam)} size={88} color={appleColors.cyan} label="profile" />
-                    <Box>
-                      <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                        {selectedTeam.capabilitiesSummary || selectedTeam.description || 'No capabilities described yet.'}
-                      </Typography>
-                    </Box>
-                  </Stack>
+        {activeView === 'shortlist' && (
+          <TeamMatchShortlistPanel
+            activeShortlists={activeShortlists}
+            recommendations={matchedTeams}
+            onInspect={inspectTeam}
+          />
+        )}
 
-                  {canManageTeams && (
-                    <Box component="form" onSubmit={submitCapability}>
-                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr auto' }, gap: 1 }}>
-                        <TextField
-                          select
-                          size="small"
-                          label="Category"
-                          value={capabilityForm.values.serviceCategoryId}
-                          onChange={(event) => {
-                            capabilityForm.setValue('serviceCategoryId', event.target.value);
-                            capabilityForm.setValue('serviceModuleId', null);
-                          }}
-                        >
-                          {(categories.data || []).map((category) => (
-                            <MenuItem key={category.id} value={category.id}>{category.name}</MenuItem>
-                          ))}
-                        </TextField>
-                        <TextField select size="small" label="Module" value={capabilityForm.values.serviceModuleId || ''} onChange={(event) => capabilityForm.setValue('serviceModuleId', event.target.value || null)}>
-                          <MenuItem value="">Category level</MenuItem>
-                          {(modules.data || [])
-                            .filter((module) => !capabilityForm.values.serviceCategoryId || module.category?.id === capabilityForm.values.serviceCategoryId)
-                            .map((module) => (
-                              <MenuItem key={module.id} value={module.id}>{module.name}</MenuItem>
-                            ))}
-                        </TextField>
-                        <Button type="submit" variant="outlined" disabled={!capabilityForm.values.serviceCategoryId || createCapability.isPending}>Add</Button>
-                      </Box>
-                    </Box>
-                  )}
-
-                  <Box>
-                    <SectionTitle title="Verified Capabilities" />
-                    {capabilities.data?.length ? (
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        {capabilities.data.map((capability) => (
-                          <PastelChip
-                            key={capability.id}
-                            label={capability.serviceModule?.name || capability.serviceCategory.name}
-                            accent={appleColors.cyan}
-                          />
-                        ))}
-                      </Stack>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        Capability evidence is maintained by team leads and platform operations.
-                      </Typography>
-                    )}
-                  </Box>
-
-                  {canManageTeamRoster && (
-                    <Box>
-                      <SectionTitle title="Members" />
-                      <Box component="form" onSubmit={submitMember} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 190px auto' }, gap: 1, mb: 1.5 }}>
-                        <TextField size="small" label="Email" value={memberForm.values.email} onChange={(event) => memberForm.setValue('email', event.target.value)} />
-                        <TextField select size="small" label="Role" value={memberForm.values.role} onChange={(event) => memberForm.setValue('role', event.target.value as TeamMember['role'])}>
-                          {memberRoles.map((role) => (
-                            <MenuItem key={role} value={role}>{formatLabel(role)}</MenuItem>
-                          ))}
-                        </TextField>
-                        <Button type="submit" variant="outlined" disabled={!memberForm.values.email || addMember.isPending}>Add</Button>
-                      </Box>
-                      <Stack spacing={1}>
-                        {members.data?.map((member) => (
-                          <Stack key={member.id} direction="row" justifyContent="space-between" sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
-                            <Typography variant="body2">{member.user.email}</Typography>
-                            <Typography variant="body2" color="text.secondary">{formatLabel(member.role)}</Typography>
-                          </Stack>
-                        ))}
-                      </Stack>
-                    </Box>
-                  )}
-
-                  <Box>
-                    <SectionTitle title="Reputation" />
-                    {canCreateReputation && (
-                      <Box component="form" onSubmit={submitReputation} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 110px 1fr auto' }, gap: 1, mb: 1.5 }}>
-                        <TextField select size="small" label="Workspace" value={reputationForm.values.workspaceId} onChange={(event) => reputationForm.setValue('workspaceId', event.target.value)}>
-                          {(workspaces.data || []).map((workspace) => (
-                            <MenuItem key={workspace.id} value={workspace.id}>{workspace.name}</MenuItem>
-                          ))}
-                        </TextField>
-                        <TextField size="small" type="number" label="Rating" value={reputationForm.values.rating} onChange={(event) => reputationForm.setValue('rating', Number(event.target.value))} inputProps={{ min: 1, max: 5 }} />
-                        <TextField size="small" label="Notes" value={reputationForm.values.notes} onChange={(event) => reputationForm.setValue('notes', event.target.value)} />
-                        <Button type="submit" variant="outlined" disabled={!reputationForm.values.workspaceId || addReputation.isPending}>Add</Button>
-                      </Box>
-                    )}
-                    <Stack spacing={1}>
-                      {reputation.data?.length ? (
-                        reputation.data.map((event) => (
-                          <Stack key={event.id} direction="row" justifyContent="space-between" sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
-                            <Typography variant="body2">{event.rating}/5 · {formatLabel(event.eventType)}</Typography>
-                            <Typography variant="body2" color={event.verified ? 'success.main' : 'text.secondary'}>{event.verified ? 'Verified' : 'Unverified'}</Typography>
-                          </Stack>
-                        ))
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">Reputation events appear after workspace-backed owner reviews.</Typography>
-                      )}
-                    </Stack>
-                  </Box>
-                </Stack>
-              ) : (
-                <EmptyState label="Select a team to inspect capabilities, shortlist fit, and workspace-backed reputation." />
-              )}
-            </Surface>
-          </Box>
-        </Stack>
-
-        <Stack spacing={2.5}>
-          <Surface>
-            <SectionTitle title="Your Shortlist" action={<VerifiedOutlined sx={{ color: appleColors.purple }} />} />
-            <Stack spacing={1.5}>
-              {(activeShortlists.length
-                ? activeShortlists.map((shortlist) => ({
-                    team: shortlist.team,
-                    score: matchedTeams.find((match) => match.team.id === shortlist.team.id)?.score || 0.82,
-                    status: shortlist.status,
-                  }))
-                : matchedTeams.slice(0, 3).map((item) => ({ team: item.team, score: item.score, status: 'SUGGESTED' }))
-              ).slice(0, 4).map((item, index) => {
-                const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
-                return (
-                  <Stack key={item.team.id} direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
-                    <Stack direction="row" spacing={1.25} alignItems="center">
-                      <Typography sx={{ fontWeight: 900 }}>{index + 1}</Typography>
-                      <Box sx={{ width: 34, height: 34, borderRadius: 1, bgcolor: `${palette.accent}14`, color: palette.accent, display: 'grid', placeItems: 'center', fontWeight: 900 }}>
-                        {item.team.name.charAt(0)}
-                      </Box>
-                      <Typography sx={{ fontWeight: 800 }}>{item.team.name}</Typography>
-                    </Stack>
-                    <Stack alignItems="flex-end" spacing={0.25}>
-                      <Typography color="success.main" sx={{ fontWeight: 800 }}>{Math.round(item.score * 100)}%</Typography>
-                      <Typography variant="caption" color="text.secondary">{formatLabel(item.status)}</Typography>
-                    </Stack>
-                  </Stack>
-                );
-              })}
-            </Stack>
-          </Surface>
-
-          <Surface>
-            <SectionTitle title="Match Summary" />
-            <Stack direction="row" spacing={2} alignItems="center">
-              <ProgressRing value={avgMatch} size={92} color={appleColors.purple} label="avg" />
-              <Box>
-                <Typography variant="h4">Average Match</Typography>
-                <Typography color="text.secondary">Top teams average</Typography>
-              </Box>
-            </Stack>
-            <Stack spacing={1} sx={{ mt: 2 }}>
-              <DotLabel label="Excellent (90%+)" color={appleColors.green} />
-              <DotLabel label="Great (80-89%)" color={appleColors.purple} />
-              <DotLabel label="Fair (60-79%)" color={appleColors.amber} />
-            </Stack>
-          </Surface>
-
-          <Surface sx={{ background: '#f4fdfe' }}>
-            <SectionTitle title="How We Match" />
-            <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-              Matching combines service-plan modules, catalog categories, verification status, capability evidence, and workspace reputation.
-            </Typography>
-          </Surface>
-        </Stack>
-      </Box>
+        <TeamMatchMethodPanel />
+      </Stack>
     </>
   );
 }

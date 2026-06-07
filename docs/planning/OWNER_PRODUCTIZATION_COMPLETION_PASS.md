@@ -325,16 +325,66 @@ Solution:
 
 Status:
 
-- Locally implemented and verified against staging data with Playwright API proxy screenshots:
+- Implemented, committed, deployed, and live-verified at UI commit `4ff3ea9`, Coolify frontend deployment `vifgp76w7orpw9p9t5edvzag`.
+- Local verification against staging data passed with Playwright API proxy screenshots:
   - `tmp/live-verification/2026-06-07/86-service-catalog-templates-local.png`
   - `tmp/live-verification/2026-06-07/87-service-catalog-workstreams-local.png`
   - `tmp/live-verification/2026-06-07/88-service-catalog-ai-contracts-local.png`
   - `tmp/live-verification/2026-06-07/89-mobile-service-catalog-templates-local.png`
   - `tmp/live-verification/2026-06-07/local-service-catalog-redefinition.js`
+- Live verification refreshed:
+  - `tmp/live-verification/2026-06-07/86-service-catalog-templates-live.png`
+  - `tmp/live-verification/2026-06-07/87-service-catalog-workstreams-live.png`
+  - `tmp/live-verification/2026-06-07/88-service-catalog-ai-contracts-live.png`
+  - `tmp/live-verification/2026-06-07/89-mobile-service-catalog-templates-live.png`
+- Full owner journey verification passed for commit `4ff3ea9`; scanner coverage remained stored and mapped with all 10 scanners complete.
+
+### Current Pass: Team And Talent Completion
+
+Problem:
+
+- `/teams` still mixed owner team matching, team profile proof, shortlist controls, admin capability forms, roster editing, reputation capture, and matching explanation in one long surface.
+- Public talent discovery still stacked teams, solo experts, lifecycle services, and conversion copy into one long browse page.
+- `TeamsPage.tsx` and `PublicTalentDirectoryPage.tsx` were both large enough that the next UX pass would keep piling density into route files.
+
+Solution:
+
+- Reframe authenticated `/teams` as a focused Team Match route:
+  - Choose Match: select the start plan and choose the top delivery team.
+  - Inspect Team: review proof, capability evidence, members, and reputation.
+  - Shortlist: keep the owner handoff list separate from proof detail.
+- Reframe public talent discovery as a front-door choice:
+  - Verified teams.
+  - Solo experts.
+  - Service workstreams.
+- Split team/talent visuals into smaller files instead of replacing one large component with another.
+
+Status:
+
+- Locally implemented and verified against staging data.
+- `TeamsPage.tsx` is now 483 lines, with owner team match views split into:
+  - `OwnerTeamMatchDecisionPanels.tsx`
+  - `OwnerTeamRecommendationsPanel.tsx`
+  - `OwnerTeamProfileInspectorPanel.tsx`
+  - `OwnerTeamShortlistPanel.tsx`
+  - `ownerTeamMatchConfig.ts`
+- `PublicTalentDirectoryPage.tsx` is now 192 lines, with public cards and panels split into:
+  - `PublicTalentCards.tsx`
+  - `PublicTalentPanels.tsx`
+- Focused local verification passed with screenshots:
+  - `tmp/live-verification/2026-06-07/90-team-match-choose-local.png`
+  - `tmp/live-verification/2026-06-07/91-team-match-inspect-local.png`
+  - `tmp/live-verification/2026-06-07/92-team-match-shortlist-local.png`
+  - `tmp/live-verification/2026-06-07/93-mobile-team-match-local.png`
+  - `tmp/live-verification/2026-06-07/94-public-talent-teams-local.png`
+  - `tmp/live-verification/2026-06-07/95-public-talent-experts-local.png`
+  - `tmp/live-verification/2026-06-07/96-public-talent-services-local.png`
+  - `tmp/live-verification/2026-06-07/97-mobile-public-talent-teams-local.png`
+  - `tmp/live-verification/2026-06-07/98-solo-experts-default-local.png`
 
 Next:
 
-- Run local build, commit the service-catalog slice, deploy once, and live-verify `/services` together with the full owner journey.
+- Commit this batched team/talent slice, deploy once, and live-verify Team Match, Public Talent, and the full owner journey.
 
 ## Implementation Loop
 
