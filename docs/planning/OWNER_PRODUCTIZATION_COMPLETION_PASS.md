@@ -455,6 +455,42 @@ Status:
   - `tmp/live-verification/2026-06-07/108-mobile-team-profile-studio-live.png`
 - Full owner journey verification passed for commit `552c72f`; scanner coverage remained stored and mapped with all 10 scanners complete.
 
+### Current Pass: Public Profile Detail Completion
+
+Problem:
+
+- Public `/teams/[id]` and `/solo-experts/[id]` detail pages still stacked profile overview, proof, readiness/signals, links, and conversion copy in one vertical detail page.
+- The route file mixed data loading, profile hero UI, team proof UI, expert proof UI, conversion copy, and scoring helpers in one component.
+- Profiles with no cover image used too much blank first-viewport space, especially on mobile.
+
+Solution:
+
+- Reframe public profiles around the owner evaluation decision:
+  - Overview: what this team or expert is best for.
+  - Proof: capabilities, skills, or services.
+  - Signals: availability, score, and links.
+- Keep the profile hero and start-plan action visible before the focused detail spokes.
+- Split public profile UI into hero, focus navigation, team detail, expert detail, conversion, and utility files.
+- Use a compact default cover band when no real cover image exists.
+
+Status:
+
+- Implemented locally and verified against staging data using a Playwright API proxy.
+- `PublicProfilePage.tsx` is now 109 lines, with detail UI split into:
+  - `PublicProfileFocusNav.tsx`
+  - `PublicProfileHeroPanel.tsx`
+  - `PublicTeamProfilePanel.tsx`
+  - `PublicExpertProfilePanel.tsx`
+  - `PublicProfileConversionPanel.tsx`
+  - `publicProfileUtils.ts`
+- Focused local verification passed with screenshots:
+  - `tmp/live-verification/2026-06-07/109-public-team-profile-overview-local.png`
+  - `tmp/live-verification/2026-06-07/110-public-team-profile-proof-local.png`
+  - `tmp/live-verification/2026-06-07/111-public-team-profile-signals-local.png`
+  - `tmp/live-verification/2026-06-07/112-public-expert-profile-overview-local.png`
+  - `tmp/live-verification/2026-06-07/113-public-expert-profile-proof-local.png`
+  - `tmp/live-verification/2026-06-07/114-mobile-public-team-profile-local.png`
+
 ## Implementation Loop
 
 For each slice:
