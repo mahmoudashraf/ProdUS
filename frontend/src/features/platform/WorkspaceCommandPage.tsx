@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Button, LinearProgress, Link, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, LinearProgress, Stack } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import FileUpload from '@/components/ui-component/FileUpload';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { uploadService } from '@/services/uploadService';
@@ -16,6 +15,7 @@ import WorkspaceCommandJourneyNav, { type WorkspaceCommandView } from './Workspa
 import WorkspaceCommandMetricsPanel from './WorkspaceCommandMetricsPanel';
 import WorkspaceCommandSidebar from './WorkspaceCommandSidebar';
 import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
+import WorkspaceEvidenceAttachmentPanel from './WorkspaceEvidenceAttachmentPanel';
 import WorkspaceOverviewDeliveryAnswerPanel from './WorkspaceOverviewDeliveryAnswerPanel';
 import WorkspaceProofEvidencePanel from './WorkspaceProofEvidencePanel';
 import WorkspaceProofMilestonesPanel from './WorkspaceProofMilestonesPanel';
@@ -191,11 +191,6 @@ const workspaceAccent = (status?: string) => {
 };
 
 const attachmentKey = (scopeType: AttachmentScope, scopeId: string) => `${scopeType}:${scopeId}`;
-
-const fileSize = (bytes: number) => {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-};
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Request failed');
 
@@ -664,51 +659,20 @@ export default function WorkspaceCommandPage() {
     const isUploading = uploadingAttachmentKey === key && uploadAttachment.isPending;
 
     return (
-      <Stack spacing={1} sx={{ mt: 1.25 }}>
-        {scopedAttachments(scopeType, scopeId).map((attachment) => (
-          <Box key={attachment.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, px: 1.25, py: 1 }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} justifyContent="space-between">
-              <Box>
-                <Link component="button" type="button" underline="hover" variant="body2" onClick={() => openAttachment(attachment)} sx={{ cursor: 'pointer', textAlign: 'left' }}>
-                  {attachment.label || attachment.fileName}
-                </Link>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                  {attachment.fileName}
-                </Typography>
-              </Box>
-              <Typography variant="caption" color="text.secondary">{fileSize(attachment.sizeBytes)}</Typography>
-            </Stack>
-          </Box>
-        ))}
-        {canAttachEvidence && (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: selectedFile ? 'minmax(220px, 1fr) 220px auto' : 'minmax(220px, 1fr)' }, gap: 1 }}>
-            <FileUpload
-              label="Attach evidence"
-              accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md,.csv,.json,.zip,.docx,.xlsx,.pptx"
-              maxSize={10}
-              selectedFile={selectedFile}
-              loading={isUploading}
-              error={attachmentErrorsByKey[key]}
-              helperText={attachmentProgressByKey[key] ? `${attachmentProgressByKey[key]}% uploaded` : undefined}
-              onFileSelect={(file) => setAttachmentFile(scopeType, scopeId, file)}
-              onClear={() => setAttachmentFile(scopeType, scopeId, null)}
-            />
-            {selectedFile && (
-              <>
-                <TextField
-                  size="small"
-                  label="Evidence label"
-                  value={attachmentLabelsByKey[key] || ''}
-                  onChange={(event) => setAttachmentLabelsByKey((current) => ({ ...current, [key]: event.target.value }))}
-                />
-                <Button variant="contained" onClick={() => submitAttachment(scopeType, scopeId)} disabled={isUploading}>
-                  Upload
-                </Button>
-              </>
-            )}
-          </Box>
-        )}
-      </Stack>
+      <WorkspaceEvidenceAttachmentPanel
+        attachments={scopedAttachments(scopeType, scopeId)}
+        canAttachEvidence={canAttachEvidence}
+        selectedFile={selectedFile}
+        labelValue={attachmentLabelsByKey[key] || ''}
+        isUploading={isUploading}
+        error={attachmentErrorsByKey[key]}
+        progress={attachmentProgressByKey[key]}
+        onOpenAttachment={openAttachment}
+        onFileSelect={(file) => setAttachmentFile(scopeType, scopeId, file)}
+        onClear={() => setAttachmentFile(scopeType, scopeId, null)}
+        onLabelChange={(value) => setAttachmentLabelsByKey((current) => ({ ...current, [key]: value }))}
+        onSubmit={() => submitAttachment(scopeType, scopeId)}
+      />
     );
   };
 
