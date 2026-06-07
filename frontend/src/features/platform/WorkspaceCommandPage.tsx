@@ -15,9 +15,6 @@ import useAuth from '@/hooks/useAuth';
 import { uploadService } from '@/services/uploadService';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
-import PlatformAssistantCard from './PlatformAssistantCard';
-import ShipConfidencePanel from './ShipConfidencePanel';
-import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
 import WorkspaceAcceptanceReviewPanel from './WorkspaceAcceptanceReviewPanel';
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
 import WorkspaceCommandHero from './WorkspaceCommandHero';
@@ -27,7 +24,7 @@ import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
 import WorkspaceOverviewDeliveryAnswerPanel from './WorkspaceOverviewDeliveryAnswerPanel';
 import WorkspaceProofEvidencePanel from './WorkspaceProofEvidencePanel';
 import WorkspaceProofMilestonesPanel from './WorkspaceProofMilestonesPanel';
-import WorkspaceScannerFixPathPanel from './WorkspaceScannerFixPathPanel';
+import WorkspaceProofReadinessPanel from './WorkspaceProofReadinessPanel';
 import { sortWorkspacesForOwner } from './displayOrder';
 import {
   EmptyState,
@@ -856,55 +853,25 @@ export default function WorkspaceCommandPage() {
 
               {workspaceView === 'proof' && (
                 <>
-                  <WorkspaceScannerFixPathPanel
+                  <WorkspaceProofReadinessPanel
+                    canRefresh={!!selectedWorkspaceProductId}
+                    isGeneratingLaunchReport={generateLaunchReadinessReport.isPending}
+                    isLaunchReportLoading={launchReadinessReport.isFetching}
+                    isRefreshing={enrichScannerReadiness.isPending}
+                    isScannerLoading={workspaceScannerReadiness.isFetching}
+                    isShipConfidenceLoading={shipConfidence.isFetching}
+                    launchReport={launchReadinessReport.data ?? null}
+                    productId={selectedWorkspaceProductId}
+                    readiness={readiness}
                     readinessScore={readinessScore}
                     readinessStatus={readinessStatus}
-                    hasDiagnosis={!!readiness?.diagnosis}
-                    blockerCount={readiness?.blockerCount || 0}
-                    mappedFindingCount={readiness?.mappedFindingCount || 0}
-                    missingEvidenceCount={readiness?.missingEvidenceCount || 0}
-                    unmappedFindingCount={readiness?.unmappedFindingCount || 0}
                     scannerEvidenceCount={scannerEvidenceList.length}
-                    milestoneRisks={readiness?.milestoneRisks || []}
-                    isRefreshing={enrichScannerReadiness.isPending}
-                    isLoading={workspaceScannerReadiness.isFetching}
-                    canRefresh={!!selectedWorkspaceProductId}
+                    selectedMilestone={selectedMilestone}
+                    shipConfidence={shipConfidence.data}
+                    workspace={selectedWorkspace}
+                    onGenerateLaunchReport={() => generateLaunchReadinessReport.mutate()}
                     onRefresh={() => enrichScannerReadiness.mutate()}
                   />
-
-              <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f9fcff 100%)' }}>
-                <ShipConfidencePanel
-                  history={shipConfidence.data}
-                  isLoading={shipConfidence.isFetching}
-                  title="Workspace Ship Confidence"
-                  subtitle="Workspace scanner maps become checkpoints, so the owner can see whether this prototype is moving closer to launch."
-                />
-              </Surface>
-
-              <LaunchReadinessReportPanel
-                report={launchReadinessReport.data ?? null}
-                isLoading={launchReadinessReport.isFetching}
-                isGenerating={generateLaunchReadinessReport.isPending}
-                onGenerate={() => generateLaunchReadinessReport.mutate()}
-                title="Workspace Launch Report"
-                subtitle="Generate a shareable launch decision snapshot from workspace scanner proof, service milestones, checks, and remaining rough edges."
-              />
-
-              <PlatformAssistantCard
-                title="AI Fix Path Explainer"
-                description="Explain mapped findings and owner decisions from the stored scanner fix path."
-                prompt={`Use thinker mode and read-only context only. Explain the scanner fix path for workspace "${selectedWorkspace.name}". Product: ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}. Readiness score: ${readinessScore}. Status: ${readinessStatus}. Mapped findings: ${readiness?.mappedFindingCount || 0}. Priority fixes: ${readiness?.blockerCount || 0}. Missing proof: ${readiness?.missingEvidenceCount || 0}. Unmapped findings: ${readiness?.unmappedFindingCount || 0}. Ship-confidence history: ${shipConfidence.data?.trendSummary || 'not available yet'}. Latest checkpoint: ${shipConfidence.data?.latest ? `${shipConfidence.data.latest.shipConfidenceScore}/100, ${shipConfidence.data.latest.statusLabel}, next step ${shipConfidence.data.latest.suggestedNextStep}` : 'none'}. Mapped services: ${(readiness?.milestoneRisks || []).flatMap((risk) => risk.mappedServices).slice(0, 8).join(', ') || 'none'}. Milestone risks: ${(readiness?.milestoneRisks || []).slice(0, 6).map((risk) => `${risk.milestoneTitle}: ${risk.scannerFindingCount} findings, ${risk.missingEvidenceCount} proof gaps, highest ${risk.highestSeverity || 'none'}`).join('; ') || 'none'}. Tell the owner what could stop shipping, which service work addresses it, what proof is missing, and what decision is safe next. Do not mutate workspace state.`}
-                conversationId={`workspace-scanner-readiness-${selectedWorkspace.id}`}
-                context={{
-                  pageType: 'workspace-scanner-readiness',
-                  productId: selectedWorkspaceProductId,
-                  packageId: selectedWorkspace.packageInstance?.id,
-                  workspaceId: selectedWorkspace.id,
-                  milestoneId: selectedMilestone?.id,
-                }}
-                accent={readiness?.blockerCount ? appleColors.red : appleColors.cyan}
-                cta="Ask AI"
-              />
 
               <WorkspaceProofMilestonesPanel
                 milestoneList={milestoneList}
