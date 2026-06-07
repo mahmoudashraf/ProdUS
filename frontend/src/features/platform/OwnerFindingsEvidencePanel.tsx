@@ -12,6 +12,7 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import { ScanSource, ScannerEvidenceItem } from './types';
+import { scannerEvidenceText } from './scannerEvidencePresentation';
 
 export type OwnerEvidenceFilter = 'ALL' | 'FINDINGS' | 'MILESTONES' | 'REDACTED';
 
@@ -113,7 +114,7 @@ export default function OwnerFindingsEvidencePanel({
                     <PastelChip label={confidenceDots(item.confidenceLevel)} accent={item.confidenceLevel === 'HIGH' ? appleColors.green : item.confidenceLevel === 'MEDIUM' ? appleColors.amber : appleColors.muted} />
                   </Stack>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45, lineHeight: 1.45 }}>
-                    {item.summary || item.source} · {formatDateTime(item.createdAt)}
+                    {scannerEvidenceText(item.summary || item.source)} · {formatDateTime(item.createdAt)}
                   </Typography>
                 </Box>
                 <Button size="small" variant="outlined" startIcon={<VisibilityOutlined />} disabled={(!item.storageKey && !item.artifactRef) || isOpeningEvidence} onClick={() => onOpenEvidence(item)} sx={{ minHeight: 34 }}>

@@ -10,6 +10,7 @@ import {
 } from './PlatformComponents';
 import { ScannerEvidenceItem } from './types';
 import { OwnerEvidenceFilter } from './OwnerFindingsEvidencePanel';
+import { scannerEvidenceText } from './scannerEvidencePresentation';
 
 interface OwnerScannerEvidenceCenterPanelProps {
   hasProduct: boolean;
@@ -85,7 +86,7 @@ export default function OwnerScannerEvidenceCenterPanel({
                     <StatusChip label={item.redactionStatus} color={item.redactionStatus === 'NONE' ? 'success' : 'warning'} />
                   </Stack>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.45 }}>
-                    {item.summary || item.source} · {formatDateTime(item.createdAt)}
+                    {scannerEvidenceText(item.summary || item.source)} · {formatDateTime(item.createdAt)}
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
