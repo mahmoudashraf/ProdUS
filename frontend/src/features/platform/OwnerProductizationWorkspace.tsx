@@ -20,7 +20,6 @@ import {
   RefreshOutlined,
   SendOutlined,
   ShieldOutlined,
-  VisibilityOutlined,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -68,6 +67,7 @@ import OwnerFindingsEvidencePanel from './OwnerFindingsEvidencePanel';
 import OwnerFindingsRiskPanel from './OwnerFindingsRiskPanel';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import OwnerOverviewDecisionPanel from './OwnerOverviewDecisionPanel';
+import OwnerScannerEvidenceCenterPanel from './OwnerScannerEvidenceCenterPanel';
 import ScannerCoverageGrid from './ScannerCoverageGrid';
 import ScannerFixPathPanel from './ScannerFixPathPanel';
 import ScannerProofRunway from './ScannerProofRunway';
@@ -458,12 +458,6 @@ const productHealth = (product?: ProductProfile, packageInstance?: PackageInstan
 const shortDateTime = (value?: string) => {
   if (!value) return 'Not recorded';
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
-};
-
-const confidenceDots = (level?: string) => {
-  if (level === 'HIGH') return '●●●';
-  if (level === 'MEDIUM') return '●●○';
-  return '●○○';
 };
 
 export default function OwnerProductizationWorkspace({
@@ -2938,89 +2932,17 @@ export default function OwnerProductizationWorkspace({
                     </Box>
                   ) : null}
 
-                  <Box sx={{ border: '1px solid', borderColor: appleColors.line, borderRadius: 1, p: 1.5, bgcolor: '#fff' }}>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mb: 1.25 }}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <ArticleOutlined sx={{ color: appleColors.purple }} />
-                        <Typography sx={{ fontWeight: 900 }}>Evidence Center</Typography>
-                      </Stack>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<CloudUploadOutlined />}
-                          disabled={!selectedProduct || createEvidenceExport.isPending}
-                          onClick={() => createEvidenceExport.mutate()}
-                          sx={{ minHeight: 40, minWidth: 132 }}
-                        >
-                          Export
-                        </Button>
-                        <TextField
-                          select
-                          size="small"
-                          label="Filter"
-                          value={evidenceFilter}
-                          onChange={(event) => setEvidenceFilter(event.target.value as typeof evidenceFilter)}
-                          sx={{ minWidth: { xs: '100%', sm: 180 } }}
-                        >
-                          <MenuItem value="ALL">All evidence</MenuItem>
-                          <MenuItem value="FINDINGS">Finding-linked</MenuItem>
-                          <MenuItem value="MILESTONES">Milestone-linked</MenuItem>
-                          <MenuItem value="REDACTED">Redacted</MenuItem>
-                        </TextField>
-                      </Stack>
-                    </Stack>
-                    {filteredScannerEvidence.length ? (
-                      <Stack spacing={1}>
-                        {filteredScannerEvidence.slice(0, 5).map((evidence) => (
-                          <Box key={evidence.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e5edf7', bgcolor: evidence.redactionStatus === 'NONE' ? '#fbfdff' : '#fff7f8' }}>
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
-                              <Box sx={{ minWidth: 0 }}>
-                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                                  <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{evidence.title}</Typography>
-                                  <PastelChip label={confidenceDots(evidence.confidenceLevel)} accent={evidence.confidenceLevel === 'HIGH' ? appleColors.green : evidence.confidenceLevel === 'MEDIUM' ? appleColors.amber : appleColors.muted} />
-                                  <StatusChip label={evidence.redactionStatus} color={evidence.redactionStatus === 'NONE' ? 'success' : 'warning'} />
-                                </Stack>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.45 }}>
-                                  {evidence.summary || evidence.source} · {shortDateTime(evidence.createdAt)}
-                                </Typography>
-                              </Box>
-                              <Stack direction="row" spacing={1}>
-                                <Tooltip title={evidence.storageKey ? 'Open with a short-lived signed artifact URL' : evidence.artifactRef ? 'Open the stored evidence artifact' : 'No artifact link exists for this evidence item'}>
-                                  <span>
-                                    <Button
-                                      size="small"
-                                      variant="outlined"
-                                      startIcon={<VisibilityOutlined />}
-                                      disabled={(!evidence.storageKey && !evidence.artifactRef) || openSignedEvidence.isPending}
-                                      onClick={() => openEvidenceArtifact(evidence)}
-                                      sx={{ minHeight: 34 }}
-                                    >
-                                      Open
-                                    </Button>
-                                  </span>
-                                </Tooltip>
-                                <Tooltip title={evidence.storageKey ? 'Copy storage key for audit support' : 'No storage key recorded'}>
-                                  <span>
-                                    <IconButton
-                                      size="small"
-                                      disabled={!evidence.storageKey}
-                                      onClick={() => evidence.storageKey && navigator.clipboard?.writeText(evidence.storageKey)}
-                                      sx={{ width: 34, height: 34, borderRadius: 1, border: '1px solid', borderColor: appleColors.line }}
-                                    >
-                                      <ContentCopyOutlined fontSize="small" />
-                                    </IconButton>
-                                  </span>
-                                </Tooltip>
-                              </Stack>
-                            </Stack>
-                          </Box>
-                        ))}
-                      </Stack>
-                    ) : (
-                      <EmptyState label="No scanner evidence matches this filter yet." />
-                    )}
-                  </Box>
+                  <OwnerScannerEvidenceCenterPanel
+                    hasProduct={!!selectedProduct}
+                    evidence={filteredScannerEvidence}
+                    evidenceFilter={evidenceFilter}
+                    isExporting={createEvidenceExport.isPending}
+                    isOpeningEvidence={openSignedEvidence.isPending}
+                    onEvidenceFilterChange={setEvidenceFilter}
+                    onExport={() => createEvidenceExport.mutate()}
+                    onOpenEvidence={openEvidenceArtifact}
+                    formatDateTime={shortDateTime}
+                  />
 
                   {scannerSummary.data?.findings.length ? (
                     <Stack spacing={1.25}>
