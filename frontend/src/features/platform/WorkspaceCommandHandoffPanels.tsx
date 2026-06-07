@@ -1,17 +1,13 @@
 'use client';
 
-import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import PlatformAssistantCard from './PlatformAssistantCard';
-import {
-  PastelChip,
-  ProgressRing,
-  SectionTitle,
-  StatusChip,
-  Surface,
-  appleColors,
-  formatLabel,
-} from './PlatformComponents';
-import {
+import { useState } from 'react';
+import { Stack } from '@mui/material';
+import { OwnerWorkspaceJourneyNav, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+import { PastelChip, appleColors, formatLabel } from './PlatformComponents';
+import WorkspaceHandoffAssistantPanel from './WorkspaceHandoffAssistantPanel';
+import WorkspaceHandoffReviewPanel from './WorkspaceHandoffReviewPanel';
+import WorkspaceIntegrationSignalsPanel from './WorkspaceIntegrationSignalsPanel';
+import type {
   HandoffDocument,
   IntegrationConnection,
   Milestone,
@@ -19,18 +15,7 @@ import {
   ProjectWorkspace,
 } from './types';
 
-const integrationProviderOptions: IntegrationConnection['providerType'][] = [
-  'GITHUB',
-  'CI_CD',
-  'DEPENDENCY_SCAN',
-  'SECRETS_SCAN',
-  'DEPLOYMENT',
-  'MONITORING',
-  'DATABASE',
-  'ISSUE_TRACKER',
-  'SUPPORT_TOOL',
-  'OTHER',
-];
+type WorkspaceCommandHandoffView = 'review' | 'signals' | 'assistant';
 
 interface WorkspaceCommandHandoffPanelsProps {
   workspace: ProjectWorkspace;
@@ -85,108 +70,83 @@ export default function WorkspaceCommandHandoffPanels({
   onCreateIntegration,
   onRecordIntegrationSignal,
 }: WorkspaceCommandHandoffPanelsProps) {
+  const [handoffView, setHandoffView] = useState<WorkspaceCommandHandoffView>('review');
+
+  const items: JourneyStepItem<WorkspaceCommandHandoffView>[] = [
+    {
+      value: 'review',
+      label: 'Owner Handoff',
+      detail: 'Runbook, health review, and open handoff gaps.',
+      accent: missingEvidenceCount ? appleColors.amber : appleColors.green,
+      meta: <PastelChip label={latestHandoff ? formatLabel(latestHandoff.status) : 'Not ready'} accent={latestHandoff ? appleColors.green : appleColors.amber} bg={latestHandoff ? '#e7f8ee' : '#fff4dc'} />,
+    },
+    {
+      value: 'signals',
+      label: 'Signals',
+      detail: 'Workspace-scoped integrations and readiness records.',
+      accent: integrationList.length ? appleColors.blue : appleColors.purple,
+      meta: <PastelChip label={`${integrationList.length} connected`} accent={appleColors.blue} bg="#eaf3ff" />,
+    },
+    {
+      value: 'assistant',
+      label: 'Ask AI',
+      detail: 'Optional handoff questions after the owner review.',
+      accent: supportCount || riskCount || missingEvidenceCount ? appleColors.amber : appleColors.purple,
+      meta: <PastelChip label="Optional" accent={appleColors.purple} bg="#f1efff" />,
+    },
+  ];
+
   return (
-    <>
-      <PlatformAssistantCard
-        title="AI Handoff Readiness"
-        description="Identify support handoff gaps across runbooks, access, monitoring, unresolved risks, and evidence quality."
-        prompt={`Do not call tools for this answer. Use only the facts in this prompt and the supplied safe summaries. Assess support handoff readiness for delivery "${workspace.name}". Delivery status is ${workspace.status}. Product is ${workspace.packageInstance?.productProfile?.name || 'not recorded'}. Completed checkpoints: ${completedCheckpointCount}/${milestoneCount}. Open support requests: ${supportCount}. Open risks: ${riskCount}. Missing required evidence: ${missingEvidenceCount}. Integration records: ${integrationList.length}. Handoff documents: ${latestHandoff ? 1 : 0}. Explain missing runbooks, access, monitoring, known issue, and ownership evidence. Recommend safe owner/team questions and next actions. Do not claim handoff is complete unless the evidence supports human review.`}
-        conversationId={`workspace-handoff-${workspace.id}`}
-        context={{
-          pageType: 'active-workspace',
-          productId,
-          packageId: workspace.packageInstance?.id,
-          workspaceId: workspace.id,
-          milestoneId: selectedMilestone?.id,
-        }}
-        accent={supportCount || riskCount || missingEvidenceCount ? appleColors.amber : appleColors.green}
-        cta="Check Handoff"
+    <Stack spacing={2}>
+      <OwnerWorkspaceJourneyNav
+        label="Handoff command"
+        value={handoffView}
+        items={items}
+        onChange={setHandoffView}
       />
 
-      <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f6fffb)' }}>
-        <SectionTitle title="Handoff And Health" action={<PastelChip label={latestHealthReview ? `${latestHealthReview.healthScore}/100` : 'No review'} accent={latestHealthReview ? appleColors.green : appleColors.purple} bg={latestHealthReview ? '#e7f8ee' : '#f1efff'} />} />
-        <Stack spacing={1.25}>
-          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.25, bgcolor: '#fff' }}>
-            <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" sx={{ fontWeight: 900 }}>{latestHandoff?.title || 'Owner handoff'}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {latestHandoff ? formatLabel(latestHandoff.status) : 'Prepare runbook, access, known issues, and support scope.'}
-                </Typography>
-              </Box>
-              {latestHandoff && <StatusChip label={latestHandoff.status} color={latestHandoff.status === 'ACCEPTED' ? 'success' : 'default'} />}
-            </Stack>
-            {latestHandoff?.runbook && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.5 }}>
-                {latestHandoff.runbook}
-              </Typography>
-            )}
-          </Box>
-          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.25, bgcolor: '#fff' }}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <ProgressRing value={latestHealthReview?.healthScore || Math.max(55, workspaceProgress || 70)} size={64} color={latestHealthReview ? appleColors.green : appleColors.amber} label="health" />
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 900 }}>{latestHealthReview?.summary || 'No health review published yet.'}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {missingEvidenceCount ? `${missingEvidenceCount} required evidence items missing` : 'Evidence requirements are current'}
-                </Typography>
-              </Box>
-            </Stack>
-          </Box>
-          {canCoordinate && (
-            <Stack direction={{ xs: 'column', sm: 'row', lg: 'column' }} spacing={1}>
-              <Button variant="outlined" onClick={onPrepareHandoff} disabled={isPreparingHandoff} sx={{ minHeight: 40 }}>
-                Prepare handoff
-              </Button>
-              <Button variant="outlined" onClick={onPublishHealthReview} disabled={isPublishingHealthReview} sx={{ minHeight: 40 }}>
-                Publish health review
-              </Button>
-            </Stack>
-          )}
-        </Stack>
-      </Surface>
+      {handoffView === 'review' && (
+        <WorkspaceHandoffReviewPanel
+          latestHandoff={latestHandoff}
+          latestHealthReview={latestHealthReview}
+          missingEvidenceCount={missingEvidenceCount}
+          workspaceProgress={workspaceProgress}
+          canCoordinate={canCoordinate}
+          isPreparingHandoff={isPreparingHandoff}
+          isPublishingHealthReview={isPublishingHealthReview}
+          onPrepareHandoff={onPrepareHandoff}
+          onPublishHealthReview={onPublishHealthReview}
+        />
+      )}
 
-      <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8fbff)' }}>
-        <SectionTitle title="Integration Signals" action={<PastelChip label={`${integrationList.length} connected`} accent={appleColors.blue} bg="#eaf3ff" />} />
-        <Stack spacing={1.25}>
-          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
-            Register workspace-scoped integrations and record readiness signals. These records are AI-ready context but no AI execution happens here.
-          </Typography>
-          {canCoordinate && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 1 }}>
-              <TextField select size="small" label="Provider" value={integrationProvider} onChange={(event) => onIntegrationProviderChange(event.target.value as IntegrationConnection['providerType'])}>
-                {integrationProviderOptions.map((provider) => <MenuItem key={provider} value={provider}>{formatLabel(provider)}</MenuItem>)}
-              </TextField>
-              <Button variant="outlined" onClick={() => onCreateIntegration(integrationProvider)} disabled={isCreatingIntegration}>
-                Add
-              </Button>
-            </Box>
-          )}
-          <Stack spacing={1}>
-            {integrationList.length ? integrationList.map((connection) => (
-              <Box key={connection.id} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.25, bgcolor: '#fff' }}>
-                <Stack direction="row" spacing={1} justifyContent="space-between">
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{connection.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">{formatLabel(connection.providerType)} · {formatLabel(connection.status)}</Typography>
-                  </Box>
-                  <StatusChip label={connection.status} color={connection.status === 'ACTIVE' ? 'success' : connection.status === 'NEEDS_ATTENTION' ? 'warning' : 'default'} />
-                </Stack>
-                {connection.signals.slice(0, 2).map((signal) => (
-                  <Typography key={signal.id} variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                    {formatLabel(signal.status)} · {signal.summary || signal.signalType}
-                  </Typography>
-                ))}
-              </Box>
-            )) : <Typography variant="body2" color="text.secondary">No integration connections are registered yet.</Typography>}
-          </Stack>
-          {latestIntegration && canCoordinate && (
-            <Button variant="outlined" onClick={() => onRecordIntegrationSignal(latestIntegration.id)} disabled={isRecordingSignal} sx={{ minHeight: 40 }}>
-              Record signal
-            </Button>
-          )}
-        </Stack>
-      </Surface>
-    </>
+      {handoffView === 'signals' && (
+        <WorkspaceIntegrationSignalsPanel
+          canCoordinate={canCoordinate}
+          integrationList={integrationList}
+          latestIntegration={latestIntegration}
+          integrationProvider={integrationProvider}
+          isCreatingIntegration={isCreatingIntegration}
+          isRecordingSignal={isRecordingSignal}
+          onIntegrationProviderChange={onIntegrationProviderChange}
+          onCreateIntegration={onCreateIntegration}
+          onRecordIntegrationSignal={onRecordIntegrationSignal}
+        />
+      )}
+
+      {handoffView === 'assistant' && (
+        <WorkspaceHandoffAssistantPanel
+          workspace={workspace}
+          productId={productId}
+          selectedMilestone={selectedMilestone}
+          completedCheckpointCount={completedCheckpointCount}
+          milestoneCount={milestoneCount}
+          supportCount={supportCount}
+          riskCount={riskCount}
+          missingEvidenceCount={missingEvidenceCount}
+          integrationCount={integrationList.length}
+          hasHandoff={!!latestHandoff}
+        />
+      )}
+    </Stack>
   );
 }

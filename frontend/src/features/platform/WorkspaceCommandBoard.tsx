@@ -1,6 +1,6 @@
 'use client';
 
-import type { ComponentProps } from 'react';
+import { useEffect, useRef, type ComponentProps } from 'react';
 import { Box, Stack } from '@mui/material';
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
 import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
@@ -30,6 +30,14 @@ export default function WorkspaceCommandBoard({
   handoffPanels,
 }: WorkspaceCommandBoardProps) {
   const showDetailRail = Boolean(selectedWorkspacePane && (workspaceView === 'team' || workspaceView === 'handoff'));
+  const detailRailRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!showDetailRail) return;
+    window.requestAnimationFrame(() => {
+      detailRailRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
+    });
+  }, [showDetailRail, workspaceView]);
 
   return (
     <Box
@@ -57,6 +65,7 @@ export default function WorkspaceCommandBoard({
       </Stack>
 
       <Stack
+        ref={detailRailRef}
         spacing={2}
         sx={{
           display: showDetailRail ? 'flex' : 'none',

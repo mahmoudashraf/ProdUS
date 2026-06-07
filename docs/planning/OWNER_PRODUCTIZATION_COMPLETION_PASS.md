@@ -4,13 +4,13 @@ Date: 2026-06-07
 
 Baseline:
 
-- Latest live-verified commit before the onboarding review pass: `d01b397`.
-- Latest live-verified Coolify deployment before the onboarding review pass: `1083`.
+- Latest live-verified commit before the Workspace Command completion pass: `011c9b7`.
+- Latest live-verified Coolify deployment before the Workspace Command completion pass: `1084`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
 - Live verification script: `tmp/live-verification/2026-06-07/live-owner-hub-spoke-navigation.js`.
 - Current largest owner-facing active files after the completed splits:
   - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`: 2129 lines.
-  - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 907 lines.
+  - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 805 lines.
   - `frontend/src/features/platform/ProductizationLaunchpad.tsx`: 332 lines.
   - `frontend/src/features/platform/ProjectStartPlanPage.tsx`: 280 lines.
   - `frontend/src/features/platform/OwnerOverviewDecisionPanel.tsx`: 278 lines.
@@ -54,7 +54,8 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - The old visible cart language has been replaced with `Project Start Plan` / `Start Plan`. The `/owner/project-cart` URL remains only as a compatibility route.
 - Services now lead with a proof-linked `Priority Services` list before expandable service-family catalog depth.
 - Shopping/cart visual metaphors were removed from the owner platform TSX surfaces and replaced with checklist/action/start-plan icons.
-- Latest live verification at commit `d01b397` confirmed the full journey and all 10 scanners completed/mapped, including `zap-baseline`.
+- Onboarding review now keeps the owner summary visible, moves validation and AI help behind progressive panels, and leaves the first detailed AI section collapsed by default.
+- Latest live verification at commit `011c9b7` confirmed the full journey and all 10 scanners completed/mapped, including `zap-baseline`.
 
 ## Completion Sequence
 
@@ -154,7 +155,7 @@ Status:
 
 - Complete. `OwnerServicesRecommendationPanel` now composes `OwnerServicePriorityList` and `OwnerServiceCatalogFamiliesPanel`. The owner sees proof-linked services first and only expands the catalog when they need more detail.
 
-### Current Pass: Onboarding Review Completion
+### Completed: Onboarding Review Completion
 
 Problem:
 
@@ -175,17 +176,43 @@ Immediate implementation target:
 - Extract the creation validation checklist and AI chat helper into compact progressive panels.
 - Verify `/products/new` plus an analyzed onboarding review state with focused screenshots.
 
-### Pass 5: Workspace Command Completion
+Status:
+
+- Complete. `/products/new` now shows the AI understanding review as a calm owner decision surface, with `Creation checks`, optional analysis help, and detailed product understanding behind deliberate expansion.
+
+### Current Pass: Workspace Command Completion
 
 Problem:
 
 - Workspace delivery command is much better but still has a large page file and several dense proof/team/risk areas.
+- The top journey has four clear spokes, but Team/Risk and Handoff still expose multiple work modes in one vertical stack.
+- The Handoff spoke previously led with the AI helper before the owner handoff and health decision.
 
 Solution:
 
 - Continue splitting delivery command panels around decision surfaces.
 - Keep delivery answer, proof readiness, metrics, navigation, side rail, and handoff as independent components.
 - Verify that delivery pages support the same hub/spoke model as product workspace.
+
+Immediate implementation target:
+
+- Split Team/Risk into Participants, Support, and Risks substeps.
+- Split Handoff into Owner Handoff, Signals, and optional Ask AI substeps.
+- Keep the owner handoff review as the first Handoff surface, with AI available after the owner has the review context.
+- Run local checks and batch this with the next Workspace Command refinement before triggering another Coolify deployment.
+
+Status:
+
+- Local implementation complete, pending the batched Coolify deploy/live verification. Team/Risk and Handoff now have focused substep navigation and smaller panel components, and selecting either top-level step scrolls the owner to the chosen substep area.
+- Route orchestration was reduced by extracting workspace/milestone selection, derived readiness summaries, and evidence attachment controls. `WorkspaceCommandPage.tsx` is now 805 lines.
+- Focused local verification against staging data passed with screenshots:
+  - `tmp/live-verification/2026-06-07/68-workspaces-team-substeps-local.png`
+  - `tmp/live-verification/2026-06-07/69-workspaces-team-participants-local.png`
+  - `tmp/live-verification/2026-06-07/70-workspaces-team-support-local.png`
+  - `tmp/live-verification/2026-06-07/71-workspaces-team-risks-local.png`
+  - `tmp/live-verification/2026-06-07/72-workspaces-handoff-review-local.png`
+  - `tmp/live-verification/2026-06-07/73-workspaces-handoff-signals-local.png`
+  - `tmp/live-verification/2026-06-07/74-workspaces-handoff-ai-local.png`
 
 ### Pass 6: Copy, Mobile, And Documentation Close
 

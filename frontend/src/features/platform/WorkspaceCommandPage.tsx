@@ -1,18 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Alert } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
-import { uploadService } from '@/services/uploadService';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
 import WorkspaceCommandBoard from './WorkspaceCommandBoard';
 import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import WorkspaceCommandMetricsPanel from './WorkspaceCommandMetricsPanel';
-import WorkspaceEvidenceAttachmentPanel from './WorkspaceEvidenceAttachmentPanel';
-import { sortWorkspacesForOwner } from './displayOrder';
+import { useWorkspaceCommandMilestoneSelection, useWorkspaceCommandSelection } from './useWorkspaceCommandSelection';
+import { useWorkspaceCommandSummary } from './useWorkspaceCommandSummary';
+import { useWorkspaceEvidenceAttachmentControls } from './useWorkspaceEvidenceAttachmentControls';
 import {
   PageHeader,
   QueryState,
@@ -21,12 +21,9 @@ import {
 } from './PlatformComponents';
 import {
   AcceptanceCriterion,
-  AttachmentDownloadUrl,
-  AttachmentScope,
   AutomatedCheck,
   Deliverable,
   DisputeCase,
-  EvidenceAttachment,
   EvidenceRequirement,
   HandoffDocument,
   IntegrationConnection,
@@ -180,10 +177,6 @@ const workspaceAccent = (status?: string) => {
   return appleColors.purple;
 };
 
-const attachmentKey = (scopeType: AttachmentScope, scopeId: string) => `${scopeType}:${scopeId}`;
-
-const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Request failed');
-
 export default function WorkspaceCommandPage() {
   const queryClient = useQueryClient();
   const { hasRole } = useAuth();
@@ -194,14 +187,6 @@ export default function WorkspaceCommandPage() {
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const teams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
 
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
-  const [selectedMilestoneId, setSelectedMilestoneId] = useState('');
-  const [attachmentFilesByKey, setAttachmentFilesByKey] = useState<Record<string, File | null>>({});
-  const [attachmentLabelsByKey, setAttachmentLabelsByKey] = useState<Record<string, string>>({});
-  const [attachmentProgressByKey, setAttachmentProgressByKey] = useState<Record<string, number>>({});
-  const [attachmentErrorsByKey, setAttachmentErrorsByKey] = useState<Record<string, string>>({});
-  const [uploadingAttachmentKey, setUploadingAttachmentKey] = useState('');
-  const [attachmentOpenError, setAttachmentOpenError] = useState('');
   const [supportStatusById, setSupportStatusById] = useState<Record<string, SupportRequest['status']>>({});
   const [supportResolutionById, setSupportResolutionById] = useState<Record<string, string>>({});
   const [disputeStatusById, setDisputeStatusById] = useState<Record<string, DisputeCase['status']>>({});
@@ -268,16 +253,12 @@ export default function WorkspaceCommandPage() {
     },
   });
 
-  const workspaceList = useMemo(() => sortWorkspacesForOwner(workspaces.data || []), [workspaces.data]);
-  const selectedWorkspace = useMemo(
-    () => workspaceList.find((workspace) => workspace.id === selectedWorkspaceId) || workspaceList[0],
-    [workspaceList, selectedWorkspaceId]
-  );
-  const selectedWorkspaceProductId = selectedWorkspace?.packageInstance?.productProfile?.id || '';
-
-  useEffect(() => {
-    if (!selectedWorkspaceId && workspaceList[0]) setSelectedWorkspaceId(workspaceList[0].id);
-  }, [selectedWorkspaceId, workspaceList]);
+  const {
+    selectedWorkspace,
+    selectedWorkspaceProductId,
+    setSelectedWorkspaceId,
+    workspaceList,
+  } = useWorkspaceCommandSelection(workspaces.data || []);
 
   const milestones = useQuery({
     queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'],
@@ -285,14 +266,11 @@ export default function WorkspaceCommandPage() {
     queryFn: () => getJson<Milestone[]>(`/workspaces/${selectedWorkspace?.id}/milestones`),
   });
   const milestoneList = milestones.data || [];
-  const selectedMilestone = useMemo(
-    () => milestoneList.find((milestone) => milestone.id === selectedMilestoneId) || milestoneList[0],
-    [milestoneList, selectedMilestoneId]
-  );
-
-  useEffect(() => {
-    if (!selectedMilestoneId && milestoneList[0]) setSelectedMilestoneId(milestoneList[0].id);
-  }, [selectedMilestoneId, milestoneList]);
+  const {
+    clearSelectedMilestone,
+    selectedMilestone,
+    setSelectedMilestoneId,
+  } = useWorkspaceCommandMilestoneSelection(milestoneList);
 
   const deliverables = useQuery({
     queryKey: ['workspaces', 'milestones', selectedMilestone?.id, 'deliverables'],
@@ -314,10 +292,16 @@ export default function WorkspaceCommandPage() {
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<DisputeCase[]>(`/commerce/workspaces/${selectedWorkspace?.id}/disputes`),
   });
-  const attachments = useQuery({
-    queryKey: ['attachments', selectedWorkspace?.id],
-    enabled: !!selectedWorkspace?.id,
-    queryFn: () => getJson<EvidenceAttachment[]>(`/attachments?workspaceId=${selectedWorkspace?.id}`),
+  const {
+    attachmentOpenError,
+    attachments,
+    clearAttachmentOpenError,
+    evidencePanel,
+    scopedAttachments,
+    uploadAttachment,
+  } = useWorkspaceEvidenceAttachmentControls({
+    canAttachEvidence,
+    selectedWorkspaceId: selectedWorkspace?.id,
   });
   const governance = useQuery({
     queryKey: ['productization-engine', 'workspace-governance', selectedWorkspace?.id],
@@ -354,16 +338,6 @@ export default function WorkspaceCommandPage() {
       }
     },
   });
-
-  const attachmentsByScope = useMemo(
-    () =>
-      (attachments.data || []).reduce<Record<string, EvidenceAttachment[]>>((grouped, attachment) => {
-        const key = attachmentKey(attachment.scopeType, attachment.scopeId);
-        grouped[key] = [...(grouped[key] || []), attachment];
-        return grouped;
-      }, {}),
-    [attachments.data]
-  );
 
   const createWorkspace = useMutation({
     mutationFn: () => postJson<ProjectWorkspace, WorkspacePayload>('/workspaces', workspaceForm.values),
@@ -423,26 +397,6 @@ export default function WorkspaceCommandPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['commerce-disputes', selectedWorkspace?.id] });
     },
-  });
-  const uploadAttachment = useMutation({
-    mutationFn: (input: { key: string; scopeType: AttachmentScope; scopeId: string; file: File; label?: string | undefined }) => {
-      setUploadingAttachmentKey(input.key);
-      setAttachmentErrorsByKey((current) => ({ ...current, [input.key]: '' }));
-      return uploadService.uploadEvidenceAttachment(
-        { scopeType: input.scopeType, scopeId: input.scopeId, file: input.file, label: input.label },
-        (progress) => setAttachmentProgressByKey((current) => ({ ...current, [input.key]: progress }))
-      );
-    },
-    onSuccess: async (_attachment, input) => {
-      setAttachmentFilesByKey((current) => ({ ...current, [input.key]: null }));
-      setAttachmentLabelsByKey((current) => ({ ...current, [input.key]: '' }));
-      setAttachmentProgressByKey((current) => ({ ...current, [input.key]: 0 }));
-      await queryClient.invalidateQueries({ queryKey: ['attachments', selectedWorkspace?.id] });
-    },
-    onError: (error, input) => {
-      setAttachmentErrorsByKey((current) => ({ ...current, [input.key]: errorMessage(error) }));
-    },
-    onSettled: () => setUploadingAttachmentKey(''),
   });
   const refreshGovernance = async () => {
     await queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-governance', selectedWorkspace?.id] });
@@ -580,91 +534,35 @@ export default function WorkspaceCommandPage() {
   const disputeList = disputes.data || [];
   const scannerEvidenceList = scannerEvidence.data || [];
   const readiness = workspaceScannerReadiness.data;
-  const readinessScore = readiness?.diagnosis?.readinessScore ?? (scannerEvidenceList.length ? 100 : 0);
-  const readinessStatus = readiness?.blockerCount
-    ? 'Blocked by scanner evidence'
-    : readiness?.diagnosis
-      ? 'Evidence mapped'
-      : 'No scanner map yet';
-  const milestoneRiskById = useMemo(
-    () =>
-      (readiness?.milestoneRisks || []).reduce<Record<string, WorkspaceScannerReadiness['milestoneRisks'][number]>>((byId, risk) => {
-        byId[risk.milestoneId] = risk;
-        return byId;
-      }, {}),
-    [readiness?.milestoneRisks]
-  );
-  const governanceCriteria = governance.data?.criteria || [];
-  const selectedMilestoneCriteria = selectedMilestone?.id
-    ? governanceCriteria.filter((criterion) => criterion.milestoneId === selectedMilestone.id)
-    : governanceCriteria;
-  const latestHandoff = governance.data?.handoffs?.[0];
-  const latestHealthReview = governance.data?.healthReviews?.[0];
-  const integrationList = governance.data?.integrations || [];
-  const latestIntegration = integrationList[0];
-  const passedCriteriaCount = governanceCriteria.filter((criterion) => criterion.status === 'PASSED' || criterion.status === 'WAIVED').length;
-  const missingEvidenceCount = governanceCriteria.flatMap((criterion) => criterion.evidenceRequirements).filter((requirement) => requirement.required && requirement.status === 'MISSING').length;
-  const activeWorkspaceCount = workspaceList.filter((workspace) => workspace.status === 'ACTIVE_DELIVERY').length;
-  const completedMilestones = milestoneList.filter((milestone) => milestone.status === 'ACCEPTED').length;
-  const blockedItems = workspaceList.filter((workspace) => workspace.status === 'BLOCKED').length
-    + supportList.filter((request) => request.priority === 'URGENT' || request.slaStatus === 'OVERDUE' || request.slaStatus === 'ESCALATED').length
-    + disputeList.filter((dispute) => dispute.status !== 'RESOLVED' && dispute.status !== 'CANCELLED').length;
-  const roughEdgeCount = supportList.length + disputeList.length;
-  const workspaceProgress = milestoneList.length ? Math.round((completedMilestones / milestoneList.length) * 100) : 0;
-
-  const scopedAttachments = (scopeType: AttachmentScope, scopeId: string) => attachmentsByScope[attachmentKey(scopeType, scopeId)] || [];
-  const setAttachmentFile = (scopeType: AttachmentScope, scopeId: string, file: File | null) => {
-    const key = attachmentKey(scopeType, scopeId);
-    setAttachmentFilesByKey((current) => ({ ...current, [key]: file }));
-    setAttachmentErrorsByKey((current) => ({ ...current, [key]: '' }));
-  };
-  const submitAttachment = (scopeType: AttachmentScope, scopeId: string) => {
-    const key = attachmentKey(scopeType, scopeId);
-    const file = attachmentFilesByKey[key];
-    if (!file) {
-      setAttachmentErrorsByKey((current) => ({ ...current, [key]: 'Choose a file before uploading evidence.' }));
-      return;
-    }
-    uploadAttachment.mutate({ key, scopeType, scopeId, file, label: attachmentLabelsByKey[key] || undefined });
-  };
-  const openAttachment = async (attachment: EvidenceAttachment) => {
-    setAttachmentOpenError('');
-    const popup = window.open('about:blank', '_blank');
-    try {
-      const response = await getJson<AttachmentDownloadUrl>(`/attachments/${attachment.id}/download-url`);
-      if (popup) {
-        popup.opener = null;
-        popup.location.href = response.downloadUrl;
-      } else {
-        window.location.assign(response.downloadUrl);
-      }
-    } catch (error) {
-      popup?.close();
-      setAttachmentOpenError(errorMessage(error));
-    }
-  };
-  const evidencePanel = (scopeType: AttachmentScope, scopeId: string) => {
-    const key = attachmentKey(scopeType, scopeId);
-    const selectedFile = attachmentFilesByKey[key] || null;
-    const isUploading = uploadingAttachmentKey === key && uploadAttachment.isPending;
-
-    return (
-      <WorkspaceEvidenceAttachmentPanel
-        attachments={scopedAttachments(scopeType, scopeId)}
-        canAttachEvidence={canAttachEvidence}
-        selectedFile={selectedFile}
-        labelValue={attachmentLabelsByKey[key] || ''}
-        isUploading={isUploading}
-        error={attachmentErrorsByKey[key]}
-        progress={attachmentProgressByKey[key]}
-        onOpenAttachment={openAttachment}
-        onFileSelect={(file) => setAttachmentFile(scopeType, scopeId, file)}
-        onClear={() => setAttachmentFile(scopeType, scopeId, null)}
-        onLabelChange={(value) => setAttachmentLabelsByKey((current) => ({ ...current, [key]: value }))}
-        onSubmit={() => submitAttachment(scopeType, scopeId)}
-      />
-    );
-  };
+  const {
+    activeWorkspaceCount,
+    blockedItems,
+    completedMilestones,
+    governanceCriteria,
+    integrationList,
+    latestHandoff,
+    latestHealthReview,
+    latestIntegration,
+    milestoneRiskById,
+    missingEvidenceCount,
+    passedCriteriaCount,
+    readinessScore,
+    readinessStatus,
+    roughEdgeCount,
+    selectedMilestoneCriteria,
+    workspaceProgress,
+  } = useWorkspaceCommandSummary({
+    workspaceList,
+    milestoneList,
+    deliverableList,
+    participantList,
+    supportList,
+    disputeList,
+    scannerEvidenceList,
+    readiness,
+    governance: governance.data,
+    selectedMilestone,
+  });
 
   return (
     <>
@@ -717,7 +615,7 @@ export default function WorkspaceCommandPage() {
         </Alert>
       )}
       {attachmentOpenError && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setAttachmentOpenError('')}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={clearAttachmentOpenError}>
           {attachmentOpenError}
         </Alert>
       )}
@@ -740,7 +638,7 @@ export default function WorkspaceCommandPage() {
           isCreatingWorkspace: createWorkspace.isPending,
           onSelectWorkspace: (workspaceId) => {
             setSelectedWorkspaceId(workspaceId);
-            setSelectedMilestoneId('');
+            clearSelectedMilestone();
           },
           onCreateWorkspace: () => createWorkspace.mutate(),
         }}
