@@ -16,9 +16,27 @@ import { useWorkspaceEvidenceAttachmentControls } from './useWorkspaceEvidenceAt
 import {
   PageHeader,
   QueryState,
-  appleColors,
   formatLabel,
 } from './PlatformComponents';
+import {
+  type DeliverableFormValues as DeliverablePayload,
+  type DisputeFormValues as DisputePayload,
+  type DisputeStatusPayload,
+  type MilestoneFormValues as MilestonePayload,
+  type ParticipantFormValues as ParticipantPayload,
+  type SupportRequestFormValues as SupportRequestPayload,
+  type SupportStatusPayload,
+  type WorkspaceFormValues as WorkspacePayload,
+  type WorkspaceScannerUploadPayload as ScannerUploadPayload,
+  initialActiveWorkspaceValues,
+  initialDeliverableValues,
+  initialDisputeValues,
+  initialMilestoneValues,
+  initialParticipantValues,
+  initialSupportRequestValues,
+  initialWorkspaceScannerUploadValues,
+  workspaceAccent,
+} from './workspaceCommandTeamTypes';
 import {
   AcceptanceCriterion,
   AutomatedCheck,
@@ -43,59 +61,6 @@ import {
   WorkspaceParticipant,
   WorkspaceScannerReadiness,
 } from './types';
-
-interface WorkspacePayload {
-  packageInstanceId: string;
-  name: string;
-  status: ProjectWorkspace['status'];
-}
-
-interface MilestonePayload {
-  title: string;
-  description: string;
-  dueDate: string | null;
-  status: Milestone['status'];
-}
-
-interface DeliverablePayload {
-  title: string;
-  evidence: string;
-  status: Deliverable['status'];
-}
-
-interface ParticipantPayload {
-  email: string;
-  role: WorkspaceParticipant['role'];
-  active: boolean;
-}
-
-interface SupportRequestPayload {
-  supportSubscriptionId: string | null;
-  teamId: string | null;
-  title: string;
-  description: string;
-  priority: SupportRequest['priority'];
-  status: SupportRequest['status'];
-  dueOn: string | null;
-}
-
-interface SupportStatusPayload {
-  status: SupportRequest['status'];
-  resolution: string;
-}
-
-interface DisputePayload {
-  teamId: string | null;
-  title: string;
-  description: string;
-  severity: DisputeCase['severity'];
-  responseDueOn: string | null;
-}
-
-interface DisputeStatusPayload {
-  status: DisputeCase['status'];
-  resolution: string;
-}
 
 interface EvidenceStatusPayload {
   status: EvidenceRequirement['status'];
@@ -150,32 +115,12 @@ interface SignalPayload {
   evidencePayload?: string;
 }
 
-interface ScannerUploadPayload {
-  productId: string;
-  workspaceId: string;
-  sourceId?: string;
-  toolName: string;
-  toolVersion: string;
-  format: 'SARIF' | 'JSON' | 'JUNIT' | 'LOG';
-  artifactFileName: string;
-  artifactPayload: string;
-  milestoneId?: string;
-}
-
 interface WorkspaceScannerReadinessPayload {
   createCriteria: boolean;
   createServiceRecommendations: boolean;
   includeAcceptedRisk: boolean;
   summary: string;
 }
-
-const workspaceAccent = (status?: string) => {
-  if (!status) return appleColors.purple;
-  if (status.includes('BLOCK')) return appleColors.red;
-  if (status.includes('REVIEW') || status.includes('NEGOTIATION') || status.includes('AWAITING')) return appleColors.amber;
-  if (status.includes('ACTIVE') || status.includes('DELIVER') || status.includes('SUPPORT')) return appleColors.green;
-  return appleColors.purple;
-};
 
 export default function WorkspaceCommandPage() {
   const queryClient = useQueryClient();
@@ -194,35 +139,28 @@ export default function WorkspaceCommandPage() {
   const [governanceNotice, setGovernanceNotice] = useState('');
   const [integrationProvider, setIntegrationProvider] = useState<IntegrationConnection['providerType']>('GITHUB');
   const [workspaceView, setWorkspaceView] = useState<WorkspaceCommandView>('overview');
-  const [scannerUploadForm, setScannerUploadForm] = useState({
-    toolName: 'CodeQL',
-    toolVersion: '',
-    format: 'SARIF' as ScannerUploadPayload['format'],
-    artifactFileName: 'workspace-evidence.sarif',
-    artifactPayload: '',
-    milestoneId: '',
-  });
+  const [scannerUploadForm, setScannerUploadForm] = useState(initialWorkspaceScannerUploadValues);
 
   const workspaceForm = useAdvancedForm<WorkspacePayload>({
-    initialValues: { packageInstanceId: '', name: '', status: 'ACTIVE_DELIVERY' },
+    initialValues: initialActiveWorkspaceValues,
     validationRules: {
       packageInstanceId: [{ type: 'required', message: 'Service plan is required' }],
     },
   });
   const milestoneForm = useAdvancedForm<MilestonePayload>({
-    initialValues: { title: '', description: '', dueDate: null, status: 'PLANNED' },
+    initialValues: initialMilestoneValues,
     validationRules: {
       title: [{ type: 'required', message: 'Milestone title is required' }],
     },
   });
   const deliverableForm = useAdvancedForm<DeliverablePayload>({
-    initialValues: { title: '', evidence: '', status: 'PENDING' },
+    initialValues: initialDeliverableValues,
     validationRules: {
       title: [{ type: 'required', message: 'Deliverable title is required' }],
     },
   });
   const participantForm = useAdvancedForm<ParticipantPayload>({
-    initialValues: { email: '', role: 'SPECIALIST', active: true },
+    initialValues: initialParticipantValues,
     validationRules: {
       email: [
         { type: 'required', message: 'Participant email is required' },
@@ -231,22 +169,14 @@ export default function WorkspaceCommandPage() {
     },
   });
   const supportForm = useAdvancedForm<SupportRequestPayload>({
-    initialValues: {
-      supportSubscriptionId: null,
-      teamId: null,
-      title: '',
-      description: '',
-      priority: 'MEDIUM',
-      status: 'OPEN',
-      dueOn: null,
-    },
+    initialValues: initialSupportRequestValues,
     validationRules: {
       title: [{ type: 'required', message: 'Support title is required' }],
       description: [{ type: 'required', message: 'Support context is required' }],
     },
   });
   const disputeForm = useAdvancedForm<DisputePayload>({
-    initialValues: { teamId: null, title: '', description: '', severity: 'MEDIUM', responseDueOn: null },
+    initialValues: initialDisputeValues,
     validationRules: {
       title: [{ type: 'required', message: 'Risk title is required' }],
       description: [{ type: 'required', message: 'Risk context is required' }],

@@ -16,6 +16,33 @@ import { uploadService } from '@/services/uploadService';
 import { getJson, postJson, putJson } from './api';
 import WorkspaceEvidenceAttachmentPanel from './WorkspaceEvidenceAttachmentPanel';
 import {
+  type DeliverableFormValues as DeliverablePayload,
+  type DisputeFormValues as DisputePayload,
+  type DisputeStatusPayload,
+  type MilestoneFormValues as MilestonePayload,
+  type ParticipantFormValues as WorkspaceParticipantPayload,
+  type SupportRequestFormValues as SupportRequestPayload,
+  type SupportStatusPayload as SupportRequestStatusPayload,
+  type SupportSubscriptionFormValues as SupportSubscriptionPayload,
+  type WorkspaceFormValues as WorkspacePayload,
+  attachmentKey,
+  disputeSeverities,
+  disputeStatuses,
+  formatMoney,
+  initialDeliverableValues,
+  initialDisputeValues,
+  initialDraftWorkspaceValues as initialWorkspaceValues,
+  initialMilestoneValues,
+  initialParticipantValues,
+  initialSupportRequestValues,
+  initialSupportSubscriptionValues as initialSupportValues,
+  participantRoles,
+  supportPriorities,
+  supportStatuses as supportRequestStatuses,
+  uploadErrorMessage,
+  workspaceAccent,
+} from './workspaceCommandTeamTypes';
+import {
   DotLabel,
   EmptyState,
   MetricTile,
@@ -42,150 +69,6 @@ import {
   Team,
   WorkspaceParticipant,
 } from './types';
-
-const participantRoles: WorkspaceParticipant['role'][] = ['COORDINATOR', 'TEAM_LEAD', 'SPECIALIST', 'ADVISOR', 'VIEWER'];
-const disputeSeverities: DisputeCase['severity'][] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-const disputeStatuses: DisputeCase['status'][] = ['OPEN', 'UNDER_REVIEW', 'OWNER_RESPONSE_NEEDED', 'TEAM_RESPONSE_NEEDED', 'RESOLVED', 'CANCELLED'];
-const supportPriorities: SupportRequest['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-const supportRequestStatuses: SupportRequest['status'][] = ['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'WAITING_ON_OWNER', 'RESOLVED', 'CANCELLED'];
-
-interface WorkspacePayload {
-  packageInstanceId: string;
-  name: string;
-  status: ProjectWorkspace['status'];
-}
-
-interface MilestonePayload {
-  title: string;
-  description: string;
-  dueDate: string | null;
-  status: Milestone['status'];
-}
-
-interface DeliverablePayload {
-  title: string;
-  evidence: string;
-  status: Deliverable['status'];
-}
-
-interface WorkspaceParticipantPayload {
-  email: string;
-  role: WorkspaceParticipant['role'];
-  active: boolean;
-}
-
-interface SupportSubscriptionPayload {
-  teamId: string;
-  planName: string;
-  sla: string;
-  monthlyAmountCents: number;
-  currency: string;
-  startsOn: string | null;
-  renewsOn: string | null;
-  status: SupportSubscription['status'];
-}
-
-interface SupportRequestPayload {
-  supportSubscriptionId: string | null;
-  teamId: string | null;
-  title: string;
-  description: string;
-  priority: SupportRequest['priority'];
-  status: SupportRequest['status'];
-  dueOn: string | null;
-}
-
-interface SupportRequestStatusPayload {
-  status: SupportRequest['status'];
-  resolution: string;
-}
-
-interface DisputePayload {
-  teamId: string | null;
-  title: string;
-  description: string;
-  severity: DisputeCase['severity'];
-  responseDueOn: string | null;
-}
-
-interface DisputeStatusPayload {
-  status: DisputeCase['status'];
-  resolution: string;
-}
-
-const initialWorkspaceValues: WorkspacePayload = {
-  packageInstanceId: '',
-  name: '',
-  status: 'DRAFT_PACKAGE',
-};
-
-const initialMilestoneValues: MilestonePayload = {
-  title: '',
-  description: '',
-  dueDate: null,
-  status: 'PLANNED',
-};
-
-const initialDeliverableValues: DeliverablePayload = {
-  title: '',
-  evidence: '',
-  status: 'PENDING',
-};
-
-const initialParticipantValues: WorkspaceParticipantPayload = {
-  email: '',
-  role: 'SPECIALIST',
-  active: true,
-};
-
-const initialSupportValues: SupportSubscriptionPayload = {
-  teamId: '',
-  planName: '',
-  sla: '',
-  monthlyAmountCents: 0,
-  currency: 'USD',
-  startsOn: null,
-  renewsOn: null,
-  status: 'PROPOSED',
-};
-
-const initialSupportRequestValues: SupportRequestPayload = {
-  supportSubscriptionId: null,
-  teamId: null,
-  title: '',
-  description: '',
-  priority: 'MEDIUM',
-  status: 'OPEN',
-  dueOn: null,
-};
-
-const initialDisputeValues: DisputePayload = {
-  teamId: null,
-  title: '',
-  description: '',
-  severity: 'MEDIUM',
-  responseDueOn: null,
-};
-
-const formatMoney = (amountCents: number, currency: string) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format((amountCents || 0) / 100);
-
-const attachmentKey = (scopeType: AttachmentScope, scopeId: string) => `${scopeType}:${scopeId}`;
-
-const workspaceAccent = (status?: string) => {
-  if (!status) return appleColors.purple;
-  if (status.includes('BLOCK')) return appleColors.red;
-  if (status.includes('REVIEW') || status.includes('NEGOTIATION') || status.includes('AWAITING')) return appleColors.amber;
-  if (status.includes('ACTIVE') || status.includes('DELIVER') || status.includes('SUPPORT')) return appleColors.green;
-  return appleColors.purple;
-};
-
-const uploadErrorMessage = (error: unknown) => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return 'Attachment upload failed';
-};
 
 export default function WorkspacesPage() {
   const queryClient = useQueryClient();

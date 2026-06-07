@@ -1,6 +1,5 @@
 'use client';
 
-import { FormEvent } from 'react';
 import { AddOutlined } from '@mui/icons-material';
 import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import {
@@ -10,33 +9,18 @@ import {
   Surface,
   appleColors,
 } from './PlatformComponents';
-import { PackageInstance, ProjectWorkspace } from './types';
-
-interface WorkspaceFormValues {
-  packageInstanceId: string;
-  name: string;
-  status: ProjectWorkspace['status'];
-}
-
-interface FormController<TValues> {
-  values: TValues;
-  setValue: <TKey extends keyof TValues>(key: TKey, value: TValues[TKey]) => void;
-  handleSubmit: (onSubmit: () => void) => (event: FormEvent<HTMLFormElement>) => void;
-}
-
-const workspaceAccent = (status?: string) => {
-  if (!status) return appleColors.purple;
-  if (status.includes('BLOCK')) return appleColors.red;
-  if (status.includes('REVIEW') || status.includes('NEGOTIATION') || status.includes('AWAITING')) return appleColors.amber;
-  if (status.includes('ACTIVE') || status.includes('DELIVER') || status.includes('SUPPORT')) return appleColors.green;
-  return appleColors.purple;
-};
+import type { PackageInstance, ProjectWorkspace } from './types';
+import {
+  type WorkspaceCommandFormController,
+  type WorkspaceFormValues,
+  workspaceAccent,
+} from './workspaceCommandTeamTypes';
 
 interface WorkspaceCommandSidebarProps {
   packages: PackageInstance[];
   workspaceList: ProjectWorkspace[];
   selectedWorkspace: ProjectWorkspace | undefined;
-  workspaceForm: FormController<WorkspaceFormValues>;
+  workspaceForm: WorkspaceCommandFormController<WorkspaceFormValues>;
   isCreatingWorkspace: boolean;
   onSelectWorkspace: (workspaceId: string) => void;
   onCreateWorkspace: () => void;
