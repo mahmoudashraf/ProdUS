@@ -4,8 +4,8 @@ Date: 2026-06-07
 
 Baseline:
 
-- Latest live-verified UI commit before the Copy/Mobile/Documentation close pass: `6ebf69a`.
-- Latest live-verified Coolify frontend trigger before the Copy/Mobile/Documentation close pass: `coolify-force-2026-06-07T19-55Z`.
+- Latest live-verified UI commit in the Copy/Mobile/Documentation close pass: `344ce61`.
+- Latest live-verified Coolify frontend trigger in the Copy/Mobile/Documentation close pass: `coolify-force-2026-06-07T20-11Z`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
 - Live verification script: `tmp/live-verification/2026-06-07/live-owner-hub-spoke-navigation.js`.
 - Current largest owner-facing active files after the completed splits:
@@ -57,7 +57,8 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - Onboarding review now keeps the owner summary visible, moves validation and AI help behind progressive panels, and leaves the first detailed AI section collapsed by default.
 - Workspace Command now has Team/Risk and Handoff substeps, with route orchestration split into focused hooks and panels.
 - Technical Proof now opens as a four-step proof journey instead of one long scanner workspace.
-- Latest live verification at commit `6ebf69a` confirmed the full journey and all 10 scanners completed, including `zap-baseline`; all nonzero scanner findings were normalized and mapped in latest coverage.
+- Start Plan mobile now opens with choose-service/team/expert actions and a compact service/team/status summary.
+- Latest live verification at commit `344ce61` confirmed the full journey and all 10 scanners completed, including `zap-baseline`; all nonzero scanner findings were normalized and mapped in latest coverage.
 
 ## Completion Sequence
 
@@ -258,13 +259,15 @@ Immediate implementation target:
 
 Status:
 
-- Local implementation complete, pending Coolify deploy/live verification.
+- Complete and live-verified at UI commit `344ce61`, Coolify frontend trigger `coolify-force-2026-06-07T20-11Z`.
 - Top Start Plan actions now read `Choose services`, `Choose teams`, and `Find experts`.
 - Mobile Start Plan hides the secondary product summary card, keeps a smaller readiness ring, and shows a compact service/team/status strip before the journey cards.
 - README business language now describes Project Start Plans instead of project carts.
 - Focused local mobile verification passed with screenshots:
   - `tmp/live-verification/2026-06-07/79-mobile-start-plan-close-local.png`
   - `tmp/live-verification/2026-06-07/80-mobile-start-plan-services-close-local.png`
+- Live verification refreshed the mobile Start Plan screenshot:
+  - `tmp/live-verification/2026-06-07/40a-mobile-start-plan-live.png`
 
 ## Implementation Loop
 
