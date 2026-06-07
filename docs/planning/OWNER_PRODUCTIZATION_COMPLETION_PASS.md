@@ -491,6 +491,43 @@ Status:
   - `tmp/live-verification/2026-06-07/113-public-expert-profile-proof-local.png`
   - `tmp/live-verification/2026-06-07/114-mobile-public-team-profile-local.png`
 
+### Current Pass: Team Delivery Workspace Completion
+
+Problem:
+
+- Team-role `/dashboard` still stacked proposals, active deliveries, AI evidence coaching, delivery evidence, support requests, roster management, profile completeness, and reputation in one long page.
+- The route file owned query/mutation orchestration and all visual sections.
+- On mobile, metrics could delay the actual team workflow choice.
+
+Solution:
+
+- Reframe Team Delivery as four focused jobs:
+  - Opportunities: proposal queue and owner requests.
+  - Delivery Proof: active workspaces, AI evidence coach, attachments, and milestones.
+  - Support: owner support and SLA risk actions.
+  - Team: roster, capability proof, and reputation.
+- Keep the team selector and team hero above the focused job navigation.
+- Hide the metric strip on mobile so the workflow choice appears in the first scroll.
+- Split route rendering into hero, focus navigation, opportunity, proof, support, team, and utility files.
+
+Status:
+
+- Implemented locally and verified against staging data using a Playwright API proxy.
+- `TeamDeliveryWorkspace.tsx` is now 243 lines, with delivery UI split into:
+  - `TeamDeliveryFocusNav.tsx`
+  - `TeamDeliveryHeroPanel.tsx`
+  - `TeamDeliveryOpportunitiesPanel.tsx`
+  - `TeamDeliveryProofPanel.tsx`
+  - `TeamDeliverySupportPanel.tsx`
+  - `TeamDeliveryTeamPanel.tsx`
+  - `teamDeliveryUtils.ts`
+- Focused local verification passed with screenshots:
+  - `tmp/live-verification/2026-06-07/115-team-delivery-opportunities-local.png`
+  - `tmp/live-verification/2026-06-07/116-team-delivery-proof-local.png`
+  - `tmp/live-verification/2026-06-07/117-team-delivery-support-local.png`
+  - `tmp/live-verification/2026-06-07/118-team-delivery-team-local.png`
+  - `tmp/live-verification/2026-06-07/119-mobile-team-delivery-local.png`
+
 ## Implementation Loop
 
 For each slice:
