@@ -361,7 +361,7 @@ Solution:
 
 Status:
 
-- Locally implemented and verified against staging data.
+- Implemented, committed, deployed, and live-verified at UI commit `338bd67`, Coolify frontend deployment `u313b8wrq3cdh4nzpjleng30`.
 - `TeamsPage.tsx` is now 483 lines, with owner team match views split into:
   - `OwnerTeamMatchDecisionPanels.tsx`
   - `OwnerTeamRecommendationsPanel.tsx`
@@ -381,10 +381,17 @@ Status:
   - `tmp/live-verification/2026-06-07/96-public-talent-services-local.png`
   - `tmp/live-verification/2026-06-07/97-mobile-public-talent-teams-local.png`
   - `tmp/live-verification/2026-06-07/98-solo-experts-default-local.png`
-
-Next:
-
-- Commit this batched team/talent slice, deploy once, and live-verify Team Match, Public Talent, and the full owner journey.
+- Live verification refreshed:
+  - `tmp/live-verification/2026-06-07/90-team-match-choose-live.png`
+  - `tmp/live-verification/2026-06-07/91-team-match-inspect-live.png`
+  - `tmp/live-verification/2026-06-07/92-team-match-shortlist-live.png`
+  - `tmp/live-verification/2026-06-07/93-mobile-team-match-live.png`
+  - `tmp/live-verification/2026-06-07/94-public-talent-teams-live.png`
+  - `tmp/live-verification/2026-06-07/95-public-talent-experts-live.png`
+  - `tmp/live-verification/2026-06-07/96-public-talent-services-live.png`
+  - `tmp/live-verification/2026-06-07/97-mobile-public-talent-teams-live.png`
+  - `tmp/live-verification/2026-06-07/98-solo-experts-default-live.png`
+- Full owner journey verification passed for commit `338bd67`.
 
 ## Implementation Loop
 
