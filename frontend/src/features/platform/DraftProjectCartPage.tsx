@@ -239,8 +239,8 @@ export default function DraftProjectCartPage() {
         error={products.error || cart.error || packageTemplates.error || updateCart.error || removeService.error || removeTalent.error || applyTemplate.error || convertCart.error}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: cartDetailOpen && cartView === 'handoff' ? '1fr 360px' : '1fr' }, gap: 2.5 }}>
-        <Stack spacing={2.5}>
+      <Box sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: cartDetailOpen && cartView === 'handoff' ? 'minmax(0, 1fr) 360px' : 'minmax(0, 1fr)' }, gap: 2.5 }}>
+        <Stack spacing={2.5} sx={{ minWidth: 0 }}>
           <ProjectStartPlanOverview
             title={currentCart?.title}
             product={product}

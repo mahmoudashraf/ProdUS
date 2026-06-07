@@ -29,6 +29,7 @@ export function OwnerWorkspaceJourneyNav<T extends string>({
       aria-label={label}
       component="nav"
       sx={{
+        minWidth: 0,
         display: 'grid',
         gridTemplateColumns: { xs: '1fr', md: `repeat(${Math.min(items.length, 3)}, minmax(0, 1fr))` },
         gap: 1,
@@ -49,6 +50,7 @@ export function OwnerWorkspaceJourneyNav<T extends string>({
               alignItems: 'stretch',
               textAlign: 'left',
               whiteSpace: 'normal',
+              minWidth: 0,
               minHeight: 84,
               borderRadius: 1,
               px: 1.25,
@@ -121,6 +123,7 @@ export function WorkspaceBreadcrumbs({
       component="nav"
       aria-label="Workspace breadcrumb"
       sx={{
+        minWidth: 0,
         p: 1,
         border: '1px solid',
         borderColor: appleColors.line,
@@ -128,23 +131,23 @@ export function WorkspaceBreadcrumbs({
         bgcolor: '#fff',
       }}
     >
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
-        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ minWidth: 0 }}>
+        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ minWidth: 0, flex: 1 }}>
           {items.map((item, index) => {
             const isLast = index === items.length - 1;
             return (
-              <Stack key={`${item.label}-${index}`} direction="row" spacing={0.75} alignItems="center">
+              <Stack key={`${item.label}-${index}`} direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
                 {item.onClick && !isLast ? (
                   <Button
                     variant="text"
                     size="small"
                     onClick={item.onClick}
-                    sx={{ minHeight: 28, px: 0.4, color: appleColors.muted, fontWeight: 850 }}
+                    sx={{ minHeight: 28, minWidth: 0, maxWidth: '100%', px: 0.4, color: appleColors.muted, fontWeight: 850, whiteSpace: 'normal', textAlign: 'left' }}
                   >
                     {item.label}
                   </Button>
                 ) : (
-                  <Typography variant="caption" sx={{ color: isLast ? appleColors.ink : appleColors.muted, fontWeight: isLast ? 950 : 850 }}>
+                  <Typography variant="caption" sx={{ color: isLast ? appleColors.ink : appleColors.muted, fontWeight: isLast ? 950 : 850, overflowWrap: 'anywhere' }}>
                     {item.label}
                   </Typography>
                 )}

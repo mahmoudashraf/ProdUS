@@ -38,8 +38,9 @@ export default function ProjectStartLifecycleServicesPanel({
               <Box
                 key={item.id}
                 sx={{
+                  minWidth: 0,
                   display: 'grid',
-                  gridTemplateColumns: { xs: '42px 1fr auto', md: '50px minmax(0, 1.4fr) minmax(220px, 0.8fr) auto' },
+                  gridTemplateColumns: { xs: '42px minmax(0, 1fr) auto', md: '50px minmax(0, 1.4fr) minmax(220px, 0.8fr) auto' },
                   gap: 1.5,
                   alignItems: 'center',
                   p: 1.5,
