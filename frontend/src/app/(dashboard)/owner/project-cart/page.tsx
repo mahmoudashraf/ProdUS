@@ -1,5 +1,5 @@
-import DraftProjectCartPage from '@/features/platform/DraftProjectCartPage';
+import ProjectStartPlanPage from '@/features/platform/ProjectStartPlanPage';
 
 export default function Page() {
-  return <DraftProjectCartPage />;
+  return <ProjectStartPlanPage />;
 }

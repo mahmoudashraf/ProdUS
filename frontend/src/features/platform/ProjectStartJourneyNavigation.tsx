@@ -2,13 +2,13 @@
 
 import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 
-export type CartJourneyView = 'readiness' | 'services' | 'talent' | 'handoff';
-export type CartJourneyItem = JourneyStepItem<CartJourneyView>;
+export type ProjectStartJourneyView = 'readiness' | 'services' | 'talent' | 'handoff';
+export type ProjectStartJourneyItem = JourneyStepItem<ProjectStartJourneyView>;
 
-export const isCartJourneyView = (value: string | null): value is CartJourneyView =>
+export const isProjectStartJourneyView = (value: string | null): value is ProjectStartJourneyView =>
   value === 'readiness' || value === 'services' || value === 'talent' || value === 'handoff';
 
-export function DraftCartJourneyNavigation({
+export function ProjectStartJourneyNavigation({
   detailOpen,
   value,
   items,
@@ -18,12 +18,12 @@ export function DraftCartJourneyNavigation({
   onOpenDetail,
 }: {
   detailOpen: boolean;
-  value: CartJourneyView;
-  items: CartJourneyItem[];
+  value: ProjectStartJourneyView;
+  items: ProjectStartJourneyItem[];
   productName: string;
   currentDetailLabel: string;
   onOpenHub: () => void;
-  onOpenDetail: (step: CartJourneyView) => void;
+  onOpenDetail: (step: ProjectStartJourneyView) => void;
 }) {
   if (detailOpen) {
     return (

@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from 'react';
 import { Box, Stack } from '@mui/material';
-import { DraftCartJourneyNavigation } from './DraftCartJourneyNavigation';
+import { ProjectStartJourneyNavigation } from './ProjectStartJourneyNavigation';
 import ProjectStartApprovalPanel from './ProjectStartApprovalPanel';
 import ProjectStartLifecycleServicesPanel from './ProjectStartLifecycleServicesPanel';
 import ProjectStartPackageTemplatesPanel from './ProjectStartPackageTemplatesPanel';
@@ -11,7 +11,7 @@ import ProjectStartReadinessPanel from './ProjectStartReadinessPanel';
 import ProjectStartTalentPanel from './ProjectStartTalentPanel';
 
 type OverviewProps = ComponentProps<typeof ProjectStartPlanOverview>;
-type NavigationProps = ComponentProps<typeof DraftCartJourneyNavigation>;
+type NavigationProps = ComponentProps<typeof ProjectStartJourneyNavigation>;
 type TemplatesProps = ComponentProps<typeof ProjectStartPackageTemplatesPanel>;
 type ServicesProps = ComponentProps<typeof ProjectStartLifecycleServicesPanel>;
 type ReadinessProps = ComponentProps<typeof ProjectStartReadinessPanel>;
@@ -45,7 +45,7 @@ export default function ProjectStartPlanBoard({
     <Box sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: detailOpen && view === 'handoff' ? 'minmax(0, 1fr) 360px' : 'minmax(0, 1fr)' }, gap: 2.5 }}>
       <Stack spacing={2.5} sx={{ minWidth: 0 }}>
         <ProjectStartPlanOverview {...overview} />
-        <DraftCartJourneyNavigation {...navigation} />
+        <ProjectStartJourneyNavigation {...navigation} />
 
         {detailOpen && view === 'readiness' && (
           <ProjectStartPackageTemplatesPanel {...templates} />

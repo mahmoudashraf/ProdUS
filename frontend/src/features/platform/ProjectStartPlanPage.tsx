@@ -21,9 +21,9 @@ import {
 } from './PlatformComponents';
 import { PackageTemplate, ProductProfile, ProductizationCart, ProductizationCartConvertResponse, ProjectWorkspace } from './types';
 import type { CatalogRuleItem } from './types';
-import type { CartJourneyItem } from './DraftCartJourneyNavigation';
+import type { ProjectStartJourneyItem } from './ProjectStartJourneyNavigation';
 import ProjectStartPlanBoard from './ProjectStartPlanBoard';
-import { useDraftCartJourneyState } from './useDraftCartJourneyState';
+import { useProjectStartJourneyState } from './useProjectStartJourneyState';
 
 interface CartUpdatePayload {
   productProfileId?: string;
@@ -38,17 +38,17 @@ interface CartConvertPayload {
 const readinessScore = (cart?: ProductizationCart) =>
   clampScore((cart?.productProfile ? 30 : 0) + (cart?.serviceItems.length || 0) * 18 + (cart?.talentItems.length || 0) * 12);
 
-export default function DraftProjectCartPage() {
+export default function ProjectStartPlanPage() {
   const queryClient = useQueryClient();
   const [projectName, setProjectName] = useState('');
   const [notice, setNotice] = useState('');
   const [createdWorkspace, setCreatedWorkspace] = useState<ProjectWorkspace | null>(null);
   const {
-    cartView,
-    cartDetailOpen,
-    openCartHub,
-    openCartDetail,
-  } = useDraftCartJourneyState();
+    startPlanView,
+    startPlanDetailOpen,
+    openStartPlanHub,
+    openStartPlanDetail,
+  } = useProjectStartJourneyState();
 
   const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const cart = useQuery({ queryKey: ['productization-cart'], queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
@@ -127,7 +127,7 @@ export default function DraftProjectCartPage() {
   const score = readinessScore(currentCart);
   const cartServiceIds = new Set((currentCart?.serviceItems || []).map((item) => item.serviceModule.id));
 
-  const cartJourneyItems: CartJourneyItem[] = [
+  const startPlanJourneyItems: ProjectStartJourneyItem[] = [
     {
       value: 'readiness',
       label: 'Readiness',
@@ -157,7 +157,7 @@ export default function DraftProjectCartPage() {
       meta: <PastelChip label={canStartWorkspace ? 'Can start' : 'Blocked'} accent={canStartWorkspace ? appleColors.green : appleColors.amber} bg={canStartWorkspace ? '#e7f8ee' : '#fff4dc'} />,
     },
   ];
-  const currentCartDetailLabel = cartJourneyItems.find((item) => item.value === cartView)?.label || 'Start plan';
+  const currentStartPlanDetailLabel = startPlanJourneyItems.find((item) => item.value === startPlanView)?.label || 'Start plan';
 
   const selectProduct = (productId: string) => {
     const selected = productList.find((item) => item.id === productId);
@@ -201,8 +201,8 @@ export default function DraftProjectCartPage() {
       />
 
       <ProjectStartPlanBoard
-        detailOpen={cartDetailOpen}
-        view={cartView}
+        detailOpen={startPlanDetailOpen}
+        view={startPlanView}
         overview={{
           title: currentCart?.title,
           product,
@@ -219,13 +219,13 @@ export default function DraftProjectCartPage() {
           onSelectProduct: selectProduct,
         }}
         navigation={{
-          detailOpen: cartDetailOpen,
-          value: cartView,
-          items: cartJourneyItems,
+          detailOpen: startPlanDetailOpen,
+          value: startPlanView,
+          items: startPlanJourneyItems,
           productName: product?.name || 'Draft',
-          currentDetailLabel: currentCartDetailLabel,
-          onOpenHub: openCartHub,
-          onOpenDetail: openCartDetail,
+          currentDetailLabel: currentStartPlanDetailLabel,
+          onOpenHub: openStartPlanHub,
+          onOpenDetail: openStartPlanDetail,
         }}
         templates={{
           templates: packageTemplates.data || [],
