@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { EventRepeatOutlined } from '@mui/icons-material';
 import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -53,15 +52,9 @@ import {
   VerdictRisk,
 } from './OwnerJourneyCards';
 import {
-  ActionJourneyView,
-  FindingsJourneyView,
-  OverviewJourneyView,
-  ServicesJourneyView,
   buildOwnerWorkspaceJourneyItems,
-  workspaceViewValues,
 } from './ownerWorkspaceJourneyConfig';
 import {
-  WorkspaceTab,
   buildOwnerLaunchStatus,
   ownerActionForCategory,
   ownerCategoryFromSignal,
@@ -109,12 +102,7 @@ import {
   LaunchReadinessReport,
   FullHostedScanResponse,
 } from './types';
-
-const isWorkspaceTabValue = (value: string | null): value is WorkspaceTab =>
-  !!value && workspaceTabs.some((tab) => tab.value === value);
-
-const isWorkspaceViewValue = (tab: WorkspaceTab, value: string | null) =>
-  !!value && workspaceViewValues[tab].includes(value);
+import { useOwnerWorkspaceNavigationState } from './useOwnerWorkspaceNavigationState';
 
 interface ProductProfilePayload {
   name: string;
@@ -425,9 +413,6 @@ export default function OwnerProductizationWorkspace({
   productId?: string;
   showProductCreation?: boolean;
 } = {}) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const requirements = useQuery({ queryKey: ['requirements'], queryFn: () => getJson<RequirementIntake[]>('/requirements') });
@@ -581,12 +566,19 @@ export default function OwnerProductizationWorkspace({
     nextRunAt: '',
     reason: 'Scheduled evidence refresh for productization readiness.',
   });
-  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('overview');
-  const [overviewView, setOverviewView] = useState<OverviewJourneyView>('decision');
-  const [actionView, setActionView] = useState<ActionJourneyView>('plan');
-  const [findingsView, setFindingsView] = useState<FindingsJourneyView>('risks');
-  const [servicesView, setServicesView] = useState<ServicesJourneyView>('recommend');
-  const [workspaceDetailOpen, setWorkspaceDetailOpen] = useState(false);
+  const {
+    workspaceTab,
+    overviewView,
+    actionView,
+    findingsView,
+    servicesView,
+    workspaceDetailOpen,
+    openWorkspaceArea,
+    openWorkspaceDetail,
+    openActionView,
+    openFindingsView,
+    openServicesView,
+  } = useOwnerWorkspaceNavigationState();
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [selectedFindingId, setSelectedFindingId] = useState('');
   const [findingDrawerOpen, setFindingDrawerOpen] = useState(false);
@@ -1619,65 +1611,6 @@ export default function OwnerProductizationWorkspace({
       });
     }
   }, [cart.data?.businessGoal, cart.data?.productProfile?.id, cart.data?.status, selectedProduct?.id]);
-
-  const searchParamString = searchParams?.toString() || '';
-
-  useEffect(() => {
-    const currentParams = new URLSearchParams(searchParamString);
-    const tabParam = currentParams.get('tab');
-    const viewParam = currentParams.get('view');
-    const nextTab = isWorkspaceTabValue(tabParam) ? tabParam : 'overview';
-
-    setWorkspaceTab(nextTab);
-    if (isWorkspaceViewValue(nextTab, viewParam)) {
-      setWorkspaceDetailOpen(true);
-      if (nextTab === 'overview') setOverviewView(viewParam as OverviewJourneyView);
-      if (nextTab === 'actions') setActionView(viewParam as ActionJourneyView);
-      if (nextTab === 'findings') setFindingsView(viewParam as FindingsJourneyView);
-      if (nextTab === 'services') setServicesView(viewParam as ServicesJourneyView);
-    } else {
-      setWorkspaceDetailOpen(false);
-    }
-  }, [searchParamString]);
-
-  const pushWorkspaceLocation = (tab: WorkspaceTab, view?: string) => {
-    const next = new URLSearchParams(searchParamString);
-    next.set('tab', tab);
-    if (view) {
-      next.set('view', view);
-    } else {
-      next.delete('view');
-    }
-    router.push(`${pathname}?${next.toString()}`, { scroll: false });
-  };
-
-  const openWorkspaceArea = (tab: WorkspaceTab) => {
-    setWorkspaceTab(tab);
-    setWorkspaceDetailOpen(false);
-    pushWorkspaceLocation(tab);
-  };
-
-  const openWorkspaceDetail = (tab: WorkspaceTab, view: string) => {
-    setWorkspaceTab(tab);
-    setWorkspaceDetailOpen(true);
-    if (tab === 'overview') setOverviewView(view as OverviewJourneyView);
-    if (tab === 'actions') setActionView(view as ActionJourneyView);
-    if (tab === 'findings') setFindingsView(view as FindingsJourneyView);
-    if (tab === 'services') setServicesView(view as ServicesJourneyView);
-    pushWorkspaceLocation(tab, view);
-  };
-
-  const openActionView = (view: ActionJourneyView) => {
-    openWorkspaceDetail('actions', view);
-  };
-
-  const openFindingsView = (view: FindingsJourneyView) => {
-    openWorkspaceDetail('findings', view);
-  };
-
-  const openServicesView = (view: ServicesJourneyView) => {
-    openWorkspaceDetail('services', view);
-  };
 
   const {
     overviewJourneyItems,

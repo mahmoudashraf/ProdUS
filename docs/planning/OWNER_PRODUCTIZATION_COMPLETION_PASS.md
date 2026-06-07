@@ -4,16 +4,16 @@ Date: 2026-06-07
 
 Baseline:
 
-- Latest live-verified commit before this pass: `99f4c42`.
-- Latest live-verified Coolify deployment before this pass: `d12oc2bci861q749yvr2vk9g`.
+- Latest live-verified commit before the product-workspace shell pass: `c5dbfac`.
+- Latest live-verified Coolify deployment before the product-workspace shell pass: `ov2c9mk5t8xhcqenbof088v3`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
 - Live verification script: `tmp/live-verification/2026-06-07/live-owner-hub-spoke-navigation.js`.
-- Current largest owner-facing files:
-  - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`: 3235 lines.
-  - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 1012 lines.
-  - `frontend/src/features/platform/DraftProjectCartPage.tsx`: 549 lines.
-  - `frontend/src/features/platform/ProductOnboardingWizard.tsx`: 511 lines.
-  - `frontend/src/features/platform/OwnerServicePlanPanel.tsx`: 306 lines.
+- Current largest owner-facing active files:
+  - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`: 2258 lines.
+  - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 944 lines.
+  - `frontend/src/features/platform/ProductOnboardingWizard.tsx`: 354 lines.
+  - `frontend/src/features/platform/DraftProjectCartPage.tsx`: 336 lines.
+  - `frontend/src/features/platform/OwnerOverviewDecisionPanel.tsx`: 278 lines.
 
 ## Goal
 
@@ -47,6 +47,34 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - `npm run type-check`, `npm run build`, `git diff --check`, Coolify deploy, and live screenshot verification pass for each shipped slice.
 
 ## Completion Sequence
+
+### Current Pass: Product Workspace Shell Completion
+
+Problem:
+
+- `OwnerProductizationWorkspace.tsx` remains the largest active owner route.
+- It mixes route/query state, hub/spoke URL state, owner verdict shaping, scanner proof state, service actions, and right-rail composition.
+- This makes the next product workspace UX refinements slower and raises regression risk.
+
+Solution:
+
+- Keep the route as the data and mutation owner for now.
+- Extract stable route-shell responsibilities first:
+  - URL-backed tab/view state.
+  - Hub/detail open state.
+  - Typed open helpers for Overview, Actions, Findings, and Services.
+- Preserve the existing live journey and screenshot expectations.
+- After this pass, continue with visible pane extractions:
+  - Overview journey pane.
+  - Findings journey pane.
+  - Services journey pane.
+  - Right-rail decision panel.
+
+Immediate implementation target:
+
+- Add `useOwnerWorkspaceNavigationState`.
+- Remove router/search-param orchestration from `OwnerProductizationWorkspace.tsx`.
+- Run local checks, deploy, and live-verify the same product workspace screenshots.
 
 ### Pass 1: Technical Proof Completion
 
