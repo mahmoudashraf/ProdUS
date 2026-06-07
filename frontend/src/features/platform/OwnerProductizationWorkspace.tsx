@@ -77,6 +77,9 @@ import OwnerFindingReviewDrawer from './OwnerFindingReviewDrawer';
 import RepoReadoutPanel from './RepoReadoutPanel';
 import StudioAssistantCard, { assistantRecordText, type StudioAssistantContext } from './StudioAssistantCard';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
+import ScannerCoverageGrid from './ScannerCoverageGrid';
+import ScannerFixPathPanel from './ScannerFixPathPanel';
+import ScannerProofRunway from './ScannerProofRunway';
 import { findingStatusAccent, severityAccent } from './ownerFindingPresentation';
 import {
   OwnerControlPanel,
@@ -498,24 +501,6 @@ const fullHostedScanBlockReason = (
   const imageTarget = form.containerImageRef || (source?.providerType === 'EXTERNAL_TOOL' ? source.externalReference : '') || '';
   if (!imageTarget.trim()) return 'Add a container image reference for SBOM and image vulnerability scanners.';
   return '';
-};
-
-const scannerCoverageAccent = (coverage?: ScannerToolCoverage) => {
-  if (!coverage) return appleColors.muted;
-  if (!coverage.enabled || !coverage.executableAvailable || coverage.latestStatus === 'FAILED') return appleColors.red;
-  if (coverage.latestStatus === 'COMPLETED') return appleColors.green;
-  if (coverage.latestStatus === 'RUNNING' || coverage.latestStatus === 'QUEUED') return appleColors.amber;
-  if (!coverage.applicable) return appleColors.muted;
-  return appleColors.blue;
-};
-
-const scannerCoverageStatusColor = (coverage?: ScannerToolCoverage): 'default' | 'success' | 'error' | 'warning' | 'primary' => {
-  if (!coverage) return 'default';
-  if (!coverage.enabled || !coverage.executableAvailable || coverage.latestStatus === 'FAILED') return 'error';
-  if (coverage.latestStatus === 'COMPLETED') return 'success';
-  if (coverage.latestStatus === 'RUNNING' || coverage.latestStatus === 'QUEUED') return 'warning';
-  if (coverage.applicable) return 'primary';
-  return 'default';
 };
 
 const productHealth = (product?: ProductProfile, packageInstance?: PackageInstance, modules?: PackageModule[]) => {
@@ -1250,7 +1235,9 @@ export default function OwnerProductizationWorkspace({
   const selectedFindingCanAcceptRisk = !!selectedFindingReason.trim() && !!selectedFindingReviewDue;
   const selectedFindingRecommendedInCart = !!selectedFinding?.recommendedModule && cartServiceIds.has(selectedFinding.recommendedModule.id);
   const scannerMappedFindings = latestScannerDiagnosis?.findings || [];
-  const scannerMappedServices = Array.from(new Set(scannerMappedFindings.map((finding) => finding.recommendedModuleName).filter(Boolean)));
+  const scannerMappedServices = Array.from(
+    new Set(scannerMappedFindings.map((finding) => finding.recommendedModuleName).filter((name): name is string => Boolean(name)))
+  );
   const scannerReadinessPromptFacts = latestScannerDiagnosis
     ? `Scanner ship-readiness map: score ${latestScannerDiagnosis.readinessScore}/100, priority fixes ${latestScannerDiagnosis.topBlockerCount || 0}, proof items ${latestScannerDiagnosis.evidenceCount || 0}, unmapped findings ${latestScannerDiagnosis.unmappedFindingCount || 0}. Mapped services: ${scannerMappedServices.join(', ') || 'none'}. Top mapped findings: ${scannerMappedFindings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.readinessArea || 'unclassified'}, service ${finding.recommendedModuleName || 'unmapped'}): risk ${finding.businessRisk || finding.description}; proof ${finding.evidenceRequired || 'not recorded'}`).join('; ') || 'none'}.`
     : 'No scanner readiness diagnosis has been generated yet.';
@@ -1289,15 +1276,6 @@ export default function OwnerProductizationWorkspace({
   const blockedMilestones = (milestones.data || []).filter((milestone) => milestone.status === 'BLOCKED').length;
   const submittedRequirement = selectedProductRequirements.find((requirement) => requirement.status === 'SUBMITTED' || requirement.status === 'PACKAGE_RECOMMENDED');
   const buildTargetRequirementId = pendingRequirementId || submittedRequirement?.id || '';
-  const scannerJourney = [
-    { label: 'Connect', complete: !!scannerSummary.data?.sources.length, active: !scannerSummary.data?.sources.length },
-    { label: 'Scan', complete: !!scannerSummary.data?.recentRuns.some((run) => run.status === 'COMPLETED'), active: !!activeScanRun },
-    { label: 'Findings', complete: !!scannerSummary.data?.findings.length, active: !!scannerSummary.data?.findings.length && !selectedPackage },
-    { label: 'Services', complete: !!cartServiceItems.length || !!packageModules.data?.length, active: !!scannerSummary.data?.findings.length && !cartServiceItems.length },
-    { label: 'Workspace', complete: !!selectedWorkspace, active: !!selectedPackage && !selectedWorkspace },
-    { label: 'Evidence', complete: !!scannerSummary.data?.evidence.length, active: !!selectedWorkspace && !scannerSummary.data?.evidence.length },
-    { label: 'Handoff', complete: selectedWorkspace?.status === 'SUPPORT_HANDOFF' || selectedWorkspace?.status === 'DELIVERED' || selectedWorkspace?.status === 'CLOSED', active: selectedWorkspace?.status === 'SUPPORT_HANDOFF' },
-  ];
   const ownerRiskPool = [
     ...scannerMappedFindings.map((finding) => ({
       id: finding.id,
@@ -2564,192 +2542,52 @@ export default function OwnerProductizationWorkspace({
 
           {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'technical' && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
-              <SectionTitle
-                title="Technical Proof and Scanner Fix Path"
-                action={<PastelChip label={`${scannerCounts?.total || 0} normalized findings`} accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green} bg={scannerOpenFindings.length ? '#fff4dc' : '#e7f8ee'} />}
+              <ScannerProofRunway
+                scannerReadiness={scannerReadiness}
+                criticalCount={scannerCounts?.critical || 0}
+                highCount={scannerCounts?.high || 0}
+                openFindingCount={scannerCounts?.open || 0}
+                sourceCount={scannerSummary.data?.sources.length || 0}
+                evidenceCount={filteredScannerEvidence.length}
+                latestCoveredTools={latestCoveredTools}
+                totalTools={scanToolOptions.length}
+                normalizedFindingCount={scannerCounts?.total || 0}
+                activeScanRun={Boolean(activeScanRun)}
+                fullSuiteBlockedReason={fullHostedScanBlockedReason}
+                isStartingFullSuite={startFullHostedScan.isPending}
+                isExporting={createEvidenceExport.isPending}
+                onRunFullSuite={() => startFullHostedScan.mutate()}
+                onReviewBlockers={() => openFindingsView('risks')}
+                onExportProof={() => createEvidenceExport.mutate()}
               />
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '220px repeat(3, minmax(0, 1fr))' }, gap: 1.5, mb: 2 }}>
-                <MetricTile label="Ship confidence" value={`${scannerReadiness}%`} detail="Scanner-backed signal" accent={scannerReadiness >= 80 ? appleColors.green : scannerReadiness >= 60 ? appleColors.amber : appleColors.red} icon={<ShieldOutlined />} />
-                <MetricTile label="Critical / High" value={`${scannerCounts?.critical || 0}/${scannerCounts?.high || 0}`} detail="Require owner review" accent={(scannerCounts?.critical || scannerCounts?.high) ? appleColors.red : appleColors.green} icon={<BugReportOutlined />} />
-                <MetricTile label="Open findings" value={scannerCounts?.open || 0} detail="New, open, or regressed" accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green} icon={<FactCheckOutlined />} />
-                <MetricTile label="Evidence sources" value={scannerSummary.data?.sources.length || 0} detail="CI, repo, runtime, or tool imports" accent={appleColors.cyan} icon={<CloudUploadOutlined />} />
-              </Box>
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: `repeat(${scannerJourney.length}, minmax(0, 1fr))` }, gap: 1, mb: 2 }}>
-                {scannerJourney.map((step, index) => {
-                  const color = step.complete ? appleColors.green : step.active ? appleColors.purple : appleColors.muted;
-                  return (
-                    <Box
-                      key={step.label}
-                      sx={{
-                        p: 1,
-                        borderRadius: 1,
-                        border: '1px solid',
-                        borderColor: step.active ? `${appleColors.purple}55` : appleColors.line,
-                        bgcolor: step.complete ? '#f6fff9' : step.active ? '#f8f7ff' : '#fbfdff',
-                        minHeight: 70,
-                      }}
-                    >
-                      <Stack direction="row" spacing={0.75} alignItems="center">
-                        <Box sx={{ width: 24, height: 24, borderRadius: '50%', bgcolor: `${color}14`, color, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 900 }}>
-                          {step.complete ? '✓' : index + 1}
-                        </Box>
-                        <Typography variant="body2" sx={{ fontWeight: 900, color }}>{step.label}</Typography>
-                      </Stack>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                        {step.complete ? 'Ready' : step.active ? 'Current focus' : 'Upcoming'}
-                      </Typography>
-                    </Box>
-                  );
-                })}
-              </Box>
+              <ScannerCoverageGrid
+                tools={scannerToolCoverage}
+                latestCoveredTools={latestCoveredTools}
+                totalTools={scanToolOptions.length}
+                latestMappedToolFindings={latestMappedToolFindings}
+                unavailableScannerTools={unavailableScannerTools}
+              />
 
-              {scannerToolCoverage.length ? (
-                <Box sx={{ mb: 2, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, p: 1.5, bgcolor: '#fff' }}>
-                  <SectionTitle
-                    title="Scanner Suite Coverage"
-                    action={
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        <PastelChip label={`${latestCoveredTools}/${scanToolOptions.length} latest`} accent={latestCoveredTools === scanToolOptions.length ? appleColors.green : appleColors.amber} bg={latestCoveredTools === scanToolOptions.length ? '#e7f8ee' : '#fff4dc'} />
-                        <PastelChip label={`${latestMappedToolFindings} mapped findings`} accent={latestMappedToolFindings ? appleColors.purple : appleColors.muted} />
-                        {unavailableScannerTools > 0 && <PastelChip label={`${unavailableScannerTools} unavailable`} accent={appleColors.red} bg="#fff1f2" />}
-                      </Stack>
-                    }
-                  />
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
-                    {scannerToolCoverage.map((tool) => {
-                      const accent = scannerCoverageAccent(tool);
-                      const statusLabel = tool.latestStatus || (!tool.enabled ? 'DISABLED' : !tool.executableAvailable ? 'UNAVAILABLE' : tool.applicable ? 'READY' : 'TARGET_NEEDED');
-                      return (
-                        <Box key={tool.toolKey} sx={{ p: 1.1, borderRadius: 1, border: '1px solid', borderColor: `${accent}35`, bgcolor: tool.latestStatus === 'COMPLETED' ? '#fbfffd' : '#fbfdff', minHeight: 132 }}>
-                          <Stack spacing={0.9} sx={{ height: '100%' }}>
-                            <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-                              <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 950 }} noWrap>{tool.displayName}</Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap>{formatLabel(tool.depth)} · {formatLabel(tool.targetType)}</Typography>
-                              </Box>
-                              <StatusChip label={statusLabel} color={scannerCoverageStatusColor(tool)} />
-                            </Stack>
-                            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                              <PastelChip label={`${tool.normalizedCount || 0} findings`} accent={tool.normalizedCount ? severityAccent('HIGH') : appleColors.green} bg={tool.normalizedCount ? '#fff1f2' : '#e7f8ee'} />
-                              <PastelChip label={`${tool.mappedFindingCount || 0} mapped`} accent={tool.mappedFindingCount ? appleColors.purple : appleColors.muted} />
-                            </Stack>
-                            <Typography variant="caption" color={tool.latestErrorSummary ? 'error' : 'text.secondary'} sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.35 }}>
-                              {tool.latestErrorSummary || (tool.latestCompletedAt ? `Latest ${shortDateTime(tool.latestCompletedAt)}` : tool.applicabilityReason || 'Awaiting first run.')}
-                            </Typography>
-                          </Stack>
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                </Box>
-              ) : null}
-
-              <Box sx={{ mb: 2, p: 1.5, borderRadius: 1, border: '1px solid', borderColor: '#dbeafe', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
-                <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ lg: 'center' }}>
-                  <Stack direction="row" spacing={1.25} alignItems="center">
-                    <Box sx={{ width: 44, height: 44, borderRadius: 1, bgcolor: '#eaf3ff', color: appleColors.blue, display: 'grid', placeItems: 'center' }}>
-                      <AutoAwesomeOutlined />
-                    </Box>
-                    <Box>
-                      <Typography sx={{ fontWeight: 950 }}>Fix path from scanner findings</Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                        Stored automatically when scanner proof completes. Refresh only after services, findings, or owner decisions change.
-                      </Typography>
-                    </Box>
-                  </Stack>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
-                    {latestScannerDiagnosis ? (
-                      <>
-                        <PastelChip label={`${latestScannerDiagnosis.topBlockerCount || 0} priority fixes`} accent={(latestScannerDiagnosis.topBlockerCount || 0) ? appleColors.red : appleColors.green} bg={(latestScannerDiagnosis.topBlockerCount || 0) ? '#fff1f2' : '#e7f8ee'} />
-                        <PastelChip label={`${scannerMappedServices.length} services mapped`} accent={appleColors.purple} />
-                        <PastelChip label={`${latestScannerDiagnosis.unmappedFindingCount || 0} unmapped`} accent={(latestScannerDiagnosis.unmappedFindingCount || 0) ? appleColors.amber : appleColors.green} bg={(latestScannerDiagnosis.unmappedFindingCount || 0) ? '#fff4dc' : '#e7f8ee'} />
-                      </>
-                    ) : (
-                      hasCompletedScannerRun ? (
-                        <PastelChip label="Awaiting refresh" accent={appleColors.amber} bg="#fff4dc" />
-                      ) : (
-                        <PastelChip label="Runs after scanner" accent={appleColors.muted} />
-                      )
-                    )}
-                    <Button
-                      variant={latestScannerDiagnosis ? 'outlined' : 'contained'}
-                      startIcon={<RefreshOutlined />}
-                      disabled={!hasCompletedScannerRun || createScannerReadinessDiagnosis.isPending}
-                      onClick={() =>
-                        createScannerReadinessDiagnosis.mutate({
-                          ...(selectedWorkspace?.id ? { workspaceId: selectedWorkspace.id } : {}),
-                          createServiceRecommendations: true,
-                          includeAcceptedRisk: false,
-                          summary: `Scanner-backed readiness map for ${selectedProduct.name}.`,
-                        })
-                      }
-                      sx={{ minHeight: 40, px: 2, whiteSpace: 'nowrap' }}
-                    >
-                      {createScannerReadinessDiagnosis.isPending ? 'Refreshing...' : 'Refresh Map'}
-                    </Button>
-                  </Stack>
-                </Stack>
-
-                {latestScannerDiagnosis ? (
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1, mt: 1.5 }}>
-                    {scannerMappedFindings.slice(0, 6).map((finding) => {
-                      const recommendedModule = (catalogModules.data || []).find((module) => module.id === finding.recommendedModuleId);
-                      const inCart = !!recommendedModule && cartServiceIds.has(recommendedModule.id);
-                      return (
-                        <Box key={finding.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: `${severityAccent(finding.severity)}30`, bgcolor: '#fff' }}>
-                          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-                            <Box sx={{ minWidth: 0 }}>
-                              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                                <PastelChip label={formatLabel(finding.severity)} accent={severityAccent(finding.severity)} bg={`${severityAccent(finding.severity)}12`} />
-                                {finding.readinessArea && <PastelChip label={finding.readinessArea} accent={appleColors.cyan} bg="#e4f9fd" />}
-                              </Stack>
-                              <Typography sx={{ mt: 0.9, fontWeight: 950 }}>{finding.title}</Typography>
-                            </Box>
-                            <Typography variant="caption" sx={{ fontWeight: 900, color: appleColors.muted }}>
-                              {typeof finding.mappingConfidence === 'number' ? `${Math.round(finding.mappingConfidence * 100)}%` : 'Mapped'}
-                            </Typography>
-                          </Stack>
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.55 }}>
-                            {finding.businessRisk || finding.description}
-                          </Typography>
-                          <Box sx={{ mt: 1, p: 1, borderRadius: 1, bgcolor: '#fbfdff', border: '1px solid', borderColor: appleColors.line }}>
-                            <Typography variant="caption" color="text.secondary">Proof needed</Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1.5 }}>
-                              {finding.evidenceRequired || 'Owner review note and scanner rerun evidence.'}
-                            </Typography>
-                          </Box>
-                          {recommendedModule ? (
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} justifyContent="space-between" sx={{ mt: 1 }}>
-                              <PastelChip label={recommendedModule.name} accent={appleColors.purple} />
-                              <Button
-                                size="small"
-                                variant={inCart ? 'outlined' : 'contained'}
-                                disabled={inCart || addServiceToCart.isPending}
-                                startIcon={<AddShoppingCartOutlined />}
-                                onClick={() => addLifecycleService(recommendedModule, 'Fix path from scanner findings')}
-                                sx={{ minHeight: 34, minWidth: 128 }}
-                              >
-                                {inCart ? 'In Plan' : 'Add Service'}
-                              </Button>
-                            </Stack>
-                          ) : (
-                            <Alert severity="warning" sx={{ mt: 1, borderRadius: 1 }}>
-                              Needs a quick review before this scanner signal can be mapped to a ProdUS service.
-                            </Alert>
-                          )}
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                ) : (
-                  <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1 }}>
-                    {hasCompletedScannerRun
-                      ? 'Older scanner evidence exists without a stored readiness map. Use Refresh Map once to backfill it.'
-                      : 'Run a scanner first. ProdUS will store the readiness service map automatically when the scan completes.'}
-                  </Alert>
-                )}
-              </Box>
+              <ScannerFixPathPanel
+                diagnosis={latestScannerDiagnosis}
+                mappedFindings={scannerMappedFindings}
+                mappedServiceNames={scannerMappedServices}
+                serviceModules={catalogModules.data || []}
+                cartServiceIds={cartServiceIds}
+                hasCompletedScannerRun={hasCompletedScannerRun}
+                isRefreshing={createScannerReadinessDiagnosis.isPending}
+                isAddingService={addServiceToCart.isPending}
+                onRefreshMap={() =>
+                  createScannerReadinessDiagnosis.mutate({
+                    ...(selectedWorkspace?.id ? { workspaceId: selectedWorkspace.id } : {}),
+                    createServiceRecommendations: true,
+                    includeAcceptedRisk: false,
+                    summary: `Scanner-backed readiness map for ${selectedProduct.name}.`,
+                  })
+                }
+                onAddService={addLifecycleService}
+              />
 
               <Box sx={{ mb: 2 }}>
                 <StudioAssistantCard
