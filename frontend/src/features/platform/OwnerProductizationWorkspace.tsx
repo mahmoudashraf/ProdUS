@@ -11,7 +11,6 @@ import {
   PageHeader,
   QueryState,
   appleColors,
-  clampScore,
   formatLabel,
 } from './PlatformComponents';
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
@@ -22,28 +21,66 @@ import OwnerWorkspaceActionsPane from './OwnerWorkspaceActionsPane';
 import OwnerWorkspaceFindingsPane from './OwnerWorkspaceFindingsPane';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import OwnerWorkspaceOverviewPane from './OwnerWorkspaceOverviewPane';
-import type { OwnerServiceRiskSummary } from './OwnerServicesRecommendationPanel';
 import OwnerWorkspaceServicesPane from './OwnerWorkspaceServicesPane';
 import OwnerWorkspaceNavigationPanel from './OwnerWorkspaceNavigationPanel';
 import OwnerWorkspaceSideRailPane from './OwnerWorkspaceSideRailPane';
 import { findingStatusAccent } from './ownerFindingPresentation';
-import {
-  OwnerReadinessVerdictReveal,
-  VerdictRisk,
-} from './OwnerJourneyCards';
+import { OwnerReadinessVerdictReveal } from './OwnerJourneyCards';
 import {
   buildOwnerWorkspaceJourneyItems,
 } from './ownerWorkspaceJourneyConfig';
 import {
   buildOwnerLaunchStatus,
-  ownerActionForCategory,
   ownerCategoryFromSignal,
-  ownerImpactForCategory,
-  ownerProofLine,
-  scannerEvidenceCategories,
-  severityWeight,
   workspaceTabs,
 } from './ownerWorkspaceModel';
+import {
+  buildEvidenceSummary,
+  buildGroupedFindings,
+  buildOwnerActionGroups,
+  buildScannerCoverageGroups,
+  buildServiceRiskItems,
+  buildTopOwnerRisks,
+  buildVerdictRisks,
+  buildWorkspaceTimeline,
+} from './ownerWorkspaceDerivedState';
+import {
+  CartConvertPayload,
+  CartServicePayload,
+  CartTalentPayload,
+  CartUpdatePayload,
+  DiagnosisPayload,
+  DisconnectSourcePayload,
+  ExternalImportPayload,
+  FindingStatusPayload,
+  FullHostedScanPayload,
+  HostedScanPayload,
+  ProductProfilePayload,
+  ProviderSourcePayload,
+  RequirementPayload,
+  ScanSourcePayload,
+  ScannerReadinessDiagnosisPayload,
+  ScannerSchedulePayload,
+  ScannerUploadPayload,
+  ShortlistPayload,
+  defaultToolsForDepth,
+  externalImportProviders,
+  fullHostedScanBlockReason,
+  hostedScanBlockReason,
+  productHealth,
+  productInitialValues,
+  requirementInitialValues,
+  scanToolOptions,
+  shortDateTime,
+} from './ownerProductizationWorkspaceConfig';
+import type {
+  ExternalImportForm,
+  HostedScanForm,
+  ProviderSourceForm,
+  ScannerScheduleForm,
+  ScannerUploadForm,
+  ScanSourceForm,
+} from './scannerProofOperationsTypes';
 import {
   AIRecommendation,
   Milestone,
@@ -72,319 +109,15 @@ import {
   ConnectorPermission,
   ConnectorInstallUrlResponse,
   EvidenceExportBundle,
-  ExternalImportProvider,
   AssistantSuggestionsResponse,
   ScannerConnectorInstallation,
   ScannerEvidenceItem,
-  ScannerToolCoverage,
   SignedArtifactResponse,
   ShipConfidenceHistory,
   LaunchReadinessReport,
   FullHostedScanResponse,
 } from './types';
 import { useOwnerWorkspaceNavigationState } from './useOwnerWorkspaceNavigationState';
-
-interface ProductProfilePayload {
-  name: string;
-  summary: string;
-  businessStage: ProductProfile['businessStage'];
-  techStack: string;
-  productUrl: string;
-  repositoryUrl: string;
-  riskProfile: string;
-}
-
-interface RequirementPayload {
-  productProfileId: string;
-  requestedServiceModuleId: string | null;
-  businessGoal: string;
-  currentProblems: string;
-  constraints: string;
-  riskSignals: string;
-  requirementBrief: string;
-  status: RequirementIntake['status'];
-}
-
-interface ShortlistPayload {
-  packageInstanceId: string;
-  teamId: string;
-  status: TeamShortlist['status'];
-  notes: string;
-}
-
-interface CartServicePayload {
-  serviceModuleId: string;
-  notes?: string;
-}
-
-interface CartUpdatePayload {
-  productProfileId?: string;
-  title?: string;
-  businessGoal?: string;
-}
-
-interface CartTalentPayload {
-  itemType: 'TEAM' | 'EXPERT';
-  teamId?: string;
-  expertProfileId?: string;
-  notes?: string;
-}
-
-interface CartConvertPayload {
-  projectName: string;
-}
-
-interface DiagnosisPayload {
-  businessGoal: string;
-  currentProblems: string;
-  accessSignals: string;
-  summary: string;
-}
-
-interface ScannerReadinessDiagnosisPayload {
-  workspaceId?: string;
-  createServiceRecommendations: boolean;
-  includeAcceptedRisk: boolean;
-  summary?: string;
-}
-
-interface ScanSourcePayload {
-  productId: string;
-  workspaceId?: string;
-  providerType: ScanSource['providerType'];
-  displayName: string;
-  externalReference: string;
-  externalInstallationId?: string;
-  externalRepositoryFullName?: string;
-  defaultBranch?: string;
-  authorizationStatus: ScanSource['authorizationStatus'];
-  scopeNote: string;
-}
-
-interface ProviderSourcePayload {
-  installationId: string;
-  productId: string;
-  workspaceId?: string;
-  repositoryFullName: string;
-  cloneUrl?: string;
-  defaultBranch?: string;
-  displayName?: string;
-}
-
-interface DisconnectSourcePayload {
-  reason: string;
-  deleteArtifacts?: boolean;
-}
-
-interface HostedScanPayload {
-  productId: string;
-  workspaceId?: string;
-  sourceId?: string;
-  depth: ScanRun['depth'];
-  toolKeys?: string[];
-  branchRef?: string;
-  runtimeTargetUrl?: string;
-  containerImageRef?: string;
-  authorizationConfirmed: boolean;
-  runtimeAuthorizationConfirmed: boolean;
-  reason: string;
-  comparisonBaseRunId?: string;
-}
-
-interface FullHostedScanPayload {
-  productId: string;
-  workspaceId?: string;
-  sourceId?: string;
-  branchRef?: string;
-  runtimeTargetUrl?: string;
-  containerImageRef?: string;
-  authorizationConfirmed: boolean;
-  runtimeAuthorizationConfirmed: boolean;
-  reason: string;
-}
-
-interface ScannerSchedulePayload {
-  productId: string;
-  workspaceId?: string;
-  sourceId: string;
-  depth: ScanRun['depth'];
-  toolKeys?: string[];
-  branchRef?: string;
-  runtimeTargetUrl?: string;
-  containerImageRef?: string;
-  intervalDays: number;
-  nextRunAt?: string;
-  active?: boolean;
-  reason: string;
-}
-
-interface ScannerUploadPayload {
-  productId: string;
-  workspaceId?: string;
-  sourceId?: string;
-  toolName: string;
-  toolVersion: string;
-  format: 'SARIF' | 'JSON' | 'JUNIT' | 'LOG';
-  artifactFileName: string;
-  artifactPayload: string;
-  milestoneId?: string;
-}
-
-interface ExternalImportPayload {
-  productId: string;
-  workspaceId?: string;
-  sourceId?: string;
-  provider: ExternalImportProvider;
-  importMethod: 'MANUAL_API_IMPORT' | 'CI_TEMPLATE' | 'WEBHOOK' | 'CONNECTOR_SYNC';
-  toolName: string;
-  toolVersion?: string;
-  format: ScannerUploadPayload['format'];
-  artifactFileName?: string;
-  artifactPayload: string;
-  externalReference?: string;
-  milestoneId?: string;
-  scopeNote?: string;
-}
-
-interface FindingStatusPayload {
-  status: NormalizedFinding['status'];
-  reason?: string;
-  reviewDueOn?: string;
-}
-
-const productInitialValues: ProductProfilePayload = {
-  name: '',
-  summary: '',
-  businessStage: 'PROTOTYPE',
-  techStack: '',
-  productUrl: '',
-  repositoryUrl: '',
-  riskProfile: '',
-};
-
-const requirementInitialValues: RequirementPayload = {
-  productProfileId: '',
-  requestedServiceModuleId: null,
-  businessGoal: '',
-  currentProblems: '',
-  constraints: '',
-  riskSignals: '',
-  requirementBrief: '',
-  status: 'SUBMITTED',
-};
-
-const scanToolOptions = [
-  { key: 'gitleaks', label: 'Gitleaks', depths: ['SAFE_STATIC', 'DEEP_REVIEW'] },
-  { key: 'osv-scanner', label: 'OSV-Scanner', depths: ['SAFE_STATIC', 'DEEP_REVIEW'] },
-  { key: 'semgrep', label: 'Semgrep', depths: ['SAFE_STATIC', 'DEEP_REVIEW'] },
-  { key: 'trivy-fs', label: 'Trivy FS', depths: ['SAFE_STATIC', 'DEEP_REVIEW'] },
-  { key: 'checkov', label: 'Checkov', depths: ['SAFE_STATIC', 'DEEP_REVIEW'] },
-  { key: 'syft', label: 'Syft SBOM', depths: ['DEPENDENCY_CONTAINER', 'DEEP_REVIEW'] },
-  { key: 'grype', label: 'Grype', depths: ['DEPENDENCY_CONTAINER', 'DEEP_REVIEW'] },
-  { key: 'trivy-image', label: 'Trivy Image', depths: ['DEPENDENCY_CONTAINER'] },
-  { key: 'lighthouse', label: 'Lighthouse', depths: ['RUNTIME_BASELINE'] },
-  { key: 'zap-baseline', label: 'ZAP Baseline', depths: ['RUNTIME_BASELINE'] },
-] as const;
-
-const defaultToolsForDepth = (depth: ScanRun['depth']) =>
-  scanToolOptions.filter((tool) => (tool.depths as readonly string[]).includes(depth)).map((tool) => tool.key);
-
-const externalImportProviders: { value: ExternalImportProvider; label: string; toolName: string; format: ScannerUploadPayload['format'] }[] = [
-  { value: 'GITHUB_CODE_SCANNING', label: 'GitHub Code Scanning', toolName: 'GitHub Code Scanning', format: 'JSON' },
-  { value: 'GITHUB_DEPENDABOT', label: 'GitHub Dependabot', toolName: 'GitHub Dependabot', format: 'JSON' },
-  { value: 'GITHUB_SECRET_SCANNING', label: 'GitHub Secret Scanning', toolName: 'GitHub Secret Scanning', format: 'JSON' },
-  { value: 'GITLAB_SECURITY', label: 'GitLab Security', toolName: 'GitLab Security', format: 'JSON' },
-  { value: 'SNYK', label: 'Snyk', toolName: 'Snyk', format: 'JSON' },
-  { value: 'SONARQUBE', label: 'SonarQube', toolName: 'SonarQube', format: 'JSON' },
-  { value: 'SONARCLOUD', label: 'SonarCloud', toolName: 'SonarCloud', format: 'JSON' },
-  { value: 'SEMGREP_PLATFORM', label: 'Semgrep Platform', toolName: 'Semgrep Platform', format: 'JSON' },
-  { value: 'SARIF', label: 'SARIF', toolName: 'SARIF Import', format: 'SARIF' },
-  { value: 'GENERIC_JSON', label: 'Generic scanner JSON', toolName: 'External Scanner JSON', format: 'JSON' },
-];
-
-const packageScore = (packageInstance?: PackageInstance, modules?: PackageModule[]) => {
-  if (!packageInstance) return 54;
-  const moduleScore = modules?.length
-    ? modules.reduce((total, module) => {
-        if (module.status === 'ACCEPTED') return total + 100;
-        if (module.status === 'REVIEW') return total + 78;
-        if (module.status === 'IN_PROGRESS') return total + 64;
-        if (module.status === 'BLOCKED') return total + 28;
-        return total + 48;
-      }, 0) / modules.length
-    : 68;
-  const statusBonus = packageInstance.status === 'ACTIVE_DELIVERY' ? 8 : packageInstance.status === 'DELIVERED' ? 16 : 0;
-  return clampScore(moduleScore + statusBonus);
-};
-
-const hostedScanBlockReason = (
-  product: ProductProfile | undefined,
-  source: ScanSource | undefined,
-  form: {
-    depth: ScanRun['depth'];
-    authorizationConfirmed: boolean;
-    runtimeAuthorizationConfirmed: boolean;
-    runtimeTargetUrl: string;
-    containerImageRef: string;
-    toolKeys: string[];
-    reason: string;
-  }
-) => {
-  if (!product) return 'Select a product first.';
-  if (!form.authorizationConfirmed) return 'Confirm that you are authorized to run this scan.';
-  if (!form.reason.trim()) return 'Add an audit reason for scanner execution.';
-  if (!form.toolKeys.length) return 'Select at least one scanner tool.';
-  if (form.depth === 'RUNTIME_BASELINE') {
-    const target = form.runtimeTargetUrl || source?.externalReference || product.productUrl || '';
-    if (!target.trim()) return 'Add an authorized runtime URL.';
-    if (!form.runtimeAuthorizationConfirmed) return 'Confirm runtime URL authorization.';
-    return '';
-  }
-  if (form.depth === 'DEPENDENCY_CONTAINER') {
-    if (!form.containerImageRef.trim()) return 'Add a container image reference for dependency/container scanning.';
-    return '';
-  }
-  if (!source && !product.repositoryUrl) return 'Connect an authorized repository source or add a repository URL to the product.';
-  if (source && source.authorizationStatus !== 'AUTHORIZED') return 'Authorize the selected source before running hosted scanners.';
-  return '';
-};
-
-const fullHostedScanBlockReason = (
-  product: ProductProfile | undefined,
-  source: ScanSource | undefined,
-  form: {
-    authorizationConfirmed: boolean;
-    runtimeAuthorizationConfirmed: boolean;
-    runtimeTargetUrl: string;
-    containerImageRef: string;
-    branchRef: string;
-    reason: string;
-  }
-) => {
-  if (!product) return 'Select a product first.';
-  if (!form.authorizationConfirmed) return 'Confirm that you are authorized to run the full scanner suite.';
-  if (!form.reason.trim()) return 'Add an audit reason for scanner execution.';
-  if (source && source.authorizationStatus !== 'AUTHORIZED') return 'Authorize the selected source before running hosted scanners.';
-  const repositoryTarget = product.repositoryUrl || ((source?.providerType === 'GITHUB' || source?.providerType === 'GITLAB') ? source.externalReference : '') || '';
-  if (!repositoryTarget.trim()) return 'Add a repository source or product repository URL for static scanners.';
-  const runtimeTarget = form.runtimeTargetUrl || (source?.providerType === 'RUNTIME_URL' ? source.externalReference : '') || product.productUrl || '';
-  if (!runtimeTarget.trim()) return 'Add an authorized runtime URL for Lighthouse and ZAP.';
-  if (!form.runtimeAuthorizationConfirmed) return 'Confirm runtime URL authorization for Lighthouse and ZAP.';
-  const imageTarget = form.containerImageRef || (source?.providerType === 'EXTERNAL_TOOL' ? source.externalReference : '') || '';
-  if (!imageTarget.trim()) return 'Add a container image reference for SBOM and image vulnerability scanners.';
-  return '';
-};
-
-const productHealth = (product?: ProductProfile, packageInstance?: PackageInstance, modules?: PackageModule[]) => {
-  if (!product) return 0;
-  if (!packageInstance) return product.businessStage === 'LIVE' ? 66 : 58;
-  return packageScore(packageInstance, modules);
-};
-
-const shortDateTime = (value?: string) => {
-  if (!value) return 'Not recorded';
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
-};
 
 export default function OwnerProductizationWorkspace({
   productId,
@@ -470,32 +203,22 @@ export default function OwnerProductizationWorkspace({
     queryFn: () => getJson<ScannerConnectorInstallation[]>('/scanner/connectors'),
   });
 
-  const [scanSourceForm, setScanSourceForm] = useState({
-    providerType: 'GITHUB' as ScanSource['providerType'],
+  const [scanSourceForm, setScanSourceForm] = useState<ScanSourceForm>({
+    providerType: 'GITHUB',
     displayName: 'GitHub Security Pipeline',
     externalReference: '',
     authorizationConfirmed: false,
     scopeNote: 'CI and security evidence imported for production readiness review.',
   });
-  const [providerSourceForm, setProviderSourceForm] = useState({
+  const [providerSourceForm, setProviderSourceForm] = useState<ProviderSourceForm>({
     installationId: '',
     repositoryFullName: '',
     cloneUrl: '',
     defaultBranch: 'main',
   });
-  const [hostedScanForm, setHostedScanForm] = useState<{
-    sourceId: string;
-    depth: ScanRun['depth'];
-    toolKeys: string[];
-    branchRef: string;
-    runtimeTargetUrl: string;
-    containerImageRef: string;
-    authorizationConfirmed: boolean;
-    runtimeAuthorizationConfirmed: boolean;
-    reason: string;
-  }>({
+  const [hostedScanForm, setHostedScanForm] = useState<HostedScanForm>({
     sourceId: '',
-    depth: 'SAFE_STATIC' as ScanRun['depth'],
+    depth: 'SAFE_STATIC',
     toolKeys: defaultToolsForDepth('SAFE_STATIC'),
     branchRef: 'main',
     runtimeTargetUrl: '',
@@ -504,7 +227,7 @@ export default function OwnerProductizationWorkspace({
     runtimeAuthorizationConfirmed: false,
     reason: 'Owner authorized scanner execution for productization readiness.',
   });
-  const [scannerUploadForm, setScannerUploadForm] = useState({
+  const [scannerUploadForm, setScannerUploadForm] = useState<ScannerUploadForm>({
     sourceId: '',
     toolName: 'CodeQL',
     toolVersion: '',
@@ -513,19 +236,7 @@ export default function OwnerProductizationWorkspace({
     artifactPayload: '',
     milestoneId: '',
   });
-  const [externalImportForm, setExternalImportForm] = useState<{
-    sourceId: string;
-    provider: ExternalImportProvider;
-    importMethod: ExternalImportPayload['importMethod'];
-    toolName: string;
-    toolVersion: string;
-    format: ScannerUploadPayload['format'];
-    artifactFileName: string;
-    artifactPayload: string;
-    externalReference: string;
-    milestoneId: string;
-    scopeNote: string;
-  }>({
+  const [externalImportForm, setExternalImportForm] = useState<ExternalImportForm>({
     sourceId: '',
     provider: 'GITHUB_CODE_SCANNING',
     importMethod: 'MANUAL_API_IMPORT',
@@ -541,7 +252,7 @@ export default function OwnerProductizationWorkspace({
   const [ciTemplateType, setCiTemplateType] = useState<CiTemplateResponse['type']>('GITHUB_ACTIONS');
   const [ciTemplate, setCiTemplate] = useState<CiTemplateResponse | null>(null);
   const [deleteArtifactsOnDisconnect, setDeleteArtifactsOnDisconnect] = useState(false);
-  const [scheduleForm, setScheduleForm] = useState({
+  const [scheduleForm, setScheduleForm] = useState<ScannerScheduleForm>({
     intervalDays: '7',
     nextRunAt: '',
     reason: 'Scheduled evidence refresh for productization readiness.',
@@ -1146,50 +857,7 @@ export default function OwnerProductizationWorkspace({
   const blockedMilestones = (milestones.data || []).filter((milestone) => milestone.status === 'BLOCKED').length;
   const submittedRequirement = selectedProductRequirements.find((requirement) => requirement.status === 'SUBMITTED' || requirement.status === 'PACKAGE_RECOMMENDED');
   const buildTargetRequirementId = pendingRequirementId || submittedRequirement?.id || '';
-  const ownerRiskPool = [
-    ...scannerMappedFindings.map((finding) => ({
-      id: finding.id,
-      title: finding.title,
-      severity: finding.severity,
-      status: finding.status,
-      description: finding.description,
-      businessRisk: finding.businessRisk,
-      readinessArea: finding.readinessArea,
-      evidenceRequired: finding.evidenceRequired,
-      recommendedModuleName: finding.recommendedModuleName,
-      sourceTool: finding.sourceSignal || finding.mappingSource || 'Scanner readiness map',
-      sourceRuleId: finding.normalizedFindingId,
-    })),
-    ...scannerOpenFindings.map((finding) => ({
-      id: finding.id,
-      title: finding.title,
-      severity: finding.severity,
-      status: finding.status,
-      description: finding.description,
-      businessRisk: finding.businessRisk,
-      readinessArea: finding.readinessArea,
-      evidenceRequired: finding.evidenceRequired,
-      recommendedModuleName: finding.recommendedModule?.name,
-      sourceTool: finding.sourceTool,
-      sourceRuleId: finding.sourceRuleId,
-    })),
-  ];
-  const ownerRiskMap = new Map<string, typeof ownerRiskPool[number]>();
-  ownerRiskPool.forEach((risk) => {
-    const key = `${risk.title}-${risk.sourceTool || ''}`.toLowerCase();
-    if (!ownerRiskMap.has(key) || severityWeight(risk.severity) > severityWeight(ownerRiskMap.get(key)?.severity)) {
-      ownerRiskMap.set(key, risk);
-    }
-  });
-  const topOwnerRisks = Array.from(ownerRiskMap.values())
-    .sort((left, right) => {
-      const severityDelta = severityWeight(right.severity) - severityWeight(left.severity);
-      if (severityDelta !== 0) return severityDelta;
-      const leftRuntime = ownerCategoryFromSignal(left.sourceTool, left.readinessArea, left.title) === 'Runtime baseline' ? 1 : 0;
-      const rightRuntime = ownerCategoryFromSignal(right.sourceTool, right.readinessArea, right.title) === 'Runtime baseline' ? 1 : 0;
-      return rightRuntime - leftRuntime;
-    })
-    .slice(0, 5);
+  const topOwnerRisks = buildTopOwnerRisks({ scannerMappedFindings, scannerOpenFindings });
   const launchBlockerCount = latestScannerDiagnosis?.topBlockerCount
     ?? scannerOpenFindings.filter((finding) => finding.severity === 'CRITICAL' || finding.severity === 'HIGH').length;
   const launchImprovementCount = Math.max(
@@ -1210,147 +878,47 @@ export default function OwnerProductizationWorkspace({
     completedTools: latestCompletedTools,
     totalTools: scanToolOptions.length,
   });
-  const verdictRisks: VerdictRisk[] = topOwnerRisks.slice(0, 2).map((risk) => {
-    const category = ownerCategoryFromSignal(risk.sourceTool, risk.readinessArea, risk.title);
-    return {
-      id: risk.id,
-      title: risk.title,
-      impact: risk.businessRisk || ownerImpactForCategory(category),
-      evidence: ownerProofLine({ sourceTool: risk.sourceTool, sourceRuleId: risk.sourceRuleId, category }),
-    };
+  const verdictRisks = buildVerdictRisks(topOwnerRisks);
+  const scannerCoverageGroups = buildScannerCoverageGroups({ scannerToolCoverage, scanToolOptions });
+  const {
+    evidenceReadme,
+    primarySource,
+    evidenceSummaryItems,
+  } = buildEvidenceSummary({
+    repoSignals: repoSignals.data,
+    scannerSummary: scannerSummary.data,
+    selectedProduct,
+    hostedRuntimeTarget: hostedScanForm.runtimeTargetUrl,
+    latestCompletedTools,
+    totalTools: scanToolOptions.length,
   });
-  const scannerCoverageGroups = scannerEvidenceCategories.map((category) => {
-    const tools = category.tools.map((toolKey) => scannerToolCoverage.find((tool) => tool.toolKey === toolKey)).filter(Boolean) as ScannerToolCoverage[];
-    const completed = tools.filter((tool) => tool.latestStatus === 'COMPLETED').length;
-    const latest = tools.filter((tool) => !!tool.latestStatus).length;
-    const normalizedCount = tools.reduce((total, tool) => total + (tool.normalizedCount || 0), 0);
-    const mappedFindingCount = tools.reduce((total, tool) => total + (tool.mappedFindingCount || 0), 0);
-    const hasFailure = tools.some((tool) => tool.latestStatus === 'FAILED' || !tool.executableAvailable);
-    return {
-      ...category,
-      tools,
-      expectedLabels: category.tools.map((toolKey) => scanToolOptions.find((tool) => tool.key === toolKey)?.label || toolKey),
-      completed,
-      latest,
-      normalizedCount,
-      mappedFindingCount,
-      status: hasFailure ? 'Needs attention' : completed === category.tools.length ? 'Completed' : latest ? 'Partial' : 'Waiting',
-      accent: hasFailure ? appleColors.red : completed === category.tools.length ? appleColors.green : latest ? appleColors.amber : appleColors.muted,
-    };
-  });
-  const evidenceReadme = (repoSignals.data?.signals || []).find((signal) => signal.signalType === 'DOCUMENTATION')
-    || (scannerSummary.data?.evidence || []).find((item) => /readme|documentation/i.test(`${item.title} ${item.summary || ''}`));
-  const primarySource = scannerSummary.data?.sources[0];
-  const runtimeTarget = hostedScanForm.runtimeTargetUrl || selectedProduct?.productUrl || scannerSummary.data?.sources.find((source) => source.providerType === 'RUNTIME_URL')?.externalReference || '';
-  const evidenceSummaryItems = [
-    { label: 'Repository', value: selectedProduct?.repositoryUrl || primarySource?.externalReference || 'Not connected', accent: selectedProduct?.repositoryUrl || primarySource ? appleColors.green : appleColors.amber },
-    { label: 'Document', value: evidenceReadme ? 'README or documentation evidence found' : 'No README evidence shown', accent: evidenceReadme ? appleColors.green : appleColors.amber },
-    { label: 'Runtime', value: runtimeTarget || 'Runtime URL missing', accent: runtimeTarget ? appleColors.green : appleColors.amber },
-    { label: 'Scanner suite', value: `${latestCompletedTools}/${scanToolOptions.length} checks completed`, accent: latestCompletedTools === scanToolOptions.length ? appleColors.green : latestCompletedTools ? appleColors.amber : appleColors.muted },
-  ];
   const topRecommendedServiceName = scannerMappedServices[0] || selectedPackage?.name || cartServiceItems[0]?.serviceModule.name || '';
-  const serviceRiskItems: OwnerServiceRiskSummary[] = topOwnerRisks.slice(0, 3).map((risk, index) => {
-    const category = ownerCategoryFromSignal(risk.sourceTool, risk.readinessArea, risk.title);
-    return {
-      id: risk.id,
-      title: risk.title,
-      impact: risk.businessRisk || ownerImpactForCategory(category),
-      proof: ownerProofLine({ sourceTool: risk.sourceTool, sourceRuleId: risk.sourceRuleId, category }),
-      service: risk.recommendedModuleName || (index === 0 ? topRecommendedServiceName : undefined),
-    };
+  const serviceRiskItems = buildServiceRiskItems({ topOwnerRisks, topRecommendedServiceName });
+  const ownerActionGroups = buildOwnerActionGroups({
+    topOwnerRisks,
+    weekItems: scannerMappedServices.length ? scannerMappedServices : cartStartGaps.map((gap) => gap.title),
+    topRecommendedServiceName,
+    latestCompletedTools,
+    totalTools: scanToolOptions.length,
+    evidenceCount: filteredScannerEvidence.length,
   });
-  const ownerActionGroups: {
-    label: string;
-    accent: string;
-    items: {
-      title: string;
-      detail: string;
-      action: string;
-      proof?: string;
-      service?: string;
-    }[];
-  }[] = [
-    {
-      label: 'Do now',
-      accent: appleColors.red,
-      items: topOwnerRisks.slice(0, 3).map((risk, index) => {
-        const category = ownerCategoryFromSignal(risk.sourceTool, risk.readinessArea, risk.title);
-        return {
-          title: risk.title,
-          detail: ownerImpactForCategory(category),
-          action: index === 0 && topRecommendedServiceName
-            ? `${ownerActionForCategory(category)} Use ${topRecommendedServiceName} as the owner-visible fix path.`
-            : ownerActionForCategory(category),
-          proof: ownerProofLine({ sourceTool: risk.sourceTool, sourceRuleId: risk.sourceRuleId, category }),
-          service: index === 0 ? topRecommendedServiceName : '',
-        };
-      }),
-    },
-    {
-      label: 'Schedule this week',
-      accent: appleColors.purple,
-      items: (scannerMappedServices.length ? scannerMappedServices : cartStartGaps.map((gap) => gap.title)).slice(0, 3).map((item) => ({
-        title: String(item),
-        detail: 'Turn this into planned productization work with a clear owner.',
-        action: 'Add or confirm the service in the project start plan.',
-      })),
-    },
-    {
-      label: 'Monitor',
-      accent: appleColors.cyan,
-      items: [
-        {
-          title: 'Rerun the full evidence check after fixes',
-          detail: `${latestCompletedTools}/${scanToolOptions.length} checks currently have completed results.`,
-          action: 'Use Findings technical proof to rerun the full suite after remediation.',
-        },
-        {
-          title: 'Export owner proof before sharing externally',
-          detail: `${filteredScannerEvidence.length} evidence item${filteredScannerEvidence.length === 1 ? '' : 's'} available for the report.`,
-          action: 'Use Findings proof to export stored evidence.',
-        },
-      ],
-    },
-  ];
-  const rawLaunchBlockerFindings = (scannerSummary.data?.findings || []).filter((finding) =>
-    ['CRITICAL', 'HIGH'].includes(finding.severity) && ['NEW', 'OPEN', 'REGRESSED'].includes(finding.status)
-  );
-  const ownerLaunchBlockerFindings = launchStatus.blockerCount > 0
-    ? topOwnerRisks.slice(0, Math.max(1, launchStatus.blockerCount))
-    : rawLaunchBlockerFindings;
-  const ownerLaunchBlockerIds = new Set(ownerLaunchBlockerFindings.map((finding) => finding.id));
-  const groupedFindings = [
-    {
-      label: 'Launch blockers',
-      findings: ownerLaunchBlockerFindings,
-      accent: appleColors.red,
-    },
-    {
-      label: 'High-priority technical risks',
-      findings: (scannerSummary.data?.findings || []).filter((finding) => !ownerLaunchBlockerIds.has(finding.id) && finding.severity === 'MEDIUM' && ['NEW', 'OPEN', 'REGRESSED', 'INSUFFICIENT_EVIDENCE'].includes(finding.status)),
-      accent: appleColors.amber,
-    },
-    {
-      label: 'Medium-priority improvements',
-      findings: (scannerSummary.data?.findings || []).filter((finding) => ['LOW', 'INFO'].includes(finding.severity) && ['NEW', 'OPEN', 'REGRESSED', 'INSUFFICIENT_EVIDENCE'].includes(finding.status)),
-      accent: appleColors.blue,
-    },
-    {
-      label: 'Resolved or accepted',
-      findings: (scannerSummary.data?.findings || []).filter((finding) => ['RESOLVED', 'ACCEPTED_RISK', 'FALSE_POSITIVE'].includes(finding.status)),
-      accent: appleColors.green,
-    },
-  ];
-  const workspaceTimeline = [
-    { label: 'Product created', status: selectedProduct ? 'Done' : 'Waiting', detail: selectedProduct?.createdAt ? shortDateTime(selectedProduct.createdAt) : selectedProduct?.name || 'Select a product', accent: selectedProduct ? appleColors.green : appleColors.muted },
-    { label: 'Repository authorized', status: selectedProduct?.repositoryUrl || primarySource ? 'Done' : 'Needed', detail: selectedProduct?.repositoryUrl || primarySource?.displayName || 'Add repository evidence', accent: selectedProduct?.repositoryUrl || primarySource ? appleColors.green : appleColors.amber },
-    { label: 'README attached', status: evidenceReadme ? 'Found' : 'Needed', detail: evidenceReadme ? ('title' in evidenceReadme ? evidenceReadme.title : evidenceReadme.signalValue) : 'Attach documentation evidence', accent: evidenceReadme ? appleColors.green : appleColors.amber },
-    { label: 'Scanner suite completed', status: latestCompletedTools === scanToolOptions.length ? 'Done' : 'Partial', detail: `${latestCompletedTools}/${scanToolOptions.length} checks completed`, accent: latestCompletedTools === scanToolOptions.length ? appleColors.green : appleColors.amber },
-    { label: 'Findings normalized', status: scannerCounts?.total ? 'Done' : 'Waiting', detail: `${scannerCounts?.total || 0} findings`, accent: scannerCounts?.total ? appleColors.green : appleColors.muted },
-    { label: 'Findings mapped', status: latestMappedToolFindings ? 'Done' : 'Needed', detail: `${latestMappedToolFindings} mapped to readiness`, accent: latestMappedToolFindings ? appleColors.green : appleColors.amber },
-    { label: 'Service plan', status: selectedPackage ? 'Created' : 'Needed', detail: selectedPackage?.name || 'Create or confirm plan', accent: selectedPackage ? appleColors.green : appleColors.amber },
-    { label: 'Workspace', status: selectedWorkspace ? 'Created' : 'Pending', detail: selectedWorkspace?.name || 'Start once plan is ready', accent: selectedWorkspace ? appleColors.green : appleColors.muted },
-  ];
+  const groupedFindings = buildGroupedFindings({
+    scannerFindings: scannerSummary.data?.findings || [],
+    topOwnerRisks,
+    launchStatus,
+  });
+  const workspaceTimeline = buildWorkspaceTimeline({
+    selectedProduct,
+    primarySource,
+    evidenceReadme,
+    latestCompletedTools,
+    totalTools: scanToolOptions.length,
+    scannerCounts,
+    latestMappedToolFindings,
+    selectedPackage,
+    selectedWorkspace,
+    formatDateTime: shortDateTime,
+  });
   const selectedMilestone = (milestones.data || []).find((milestone) => milestone.status === 'BLOCKED')
     || (milestones.data || []).find((milestone) => milestone.status === 'SUBMITTED' || milestone.status === 'IN_PROGRESS')
     || (milestones.data || [])[0];
