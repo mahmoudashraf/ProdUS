@@ -64,6 +64,7 @@ import OwnerFindingReviewDrawer from './OwnerFindingReviewDrawer';
 import RepoReadoutPanel from './RepoReadoutPanel';
 import StudioAssistantCard, { assistantRecordText, type StudioAssistantContext } from './StudioAssistantCard';
 import OwnerActionPlanPanel from './OwnerActionPlanPanel';
+import OwnerFindingsEvidencePanel from './OwnerFindingsEvidencePanel';
 import OwnerFindingsRiskPanel from './OwnerFindingsRiskPanel';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import OwnerOverviewDecisionPanel from './OwnerOverviewDecisionPanel';
@@ -1983,80 +1984,18 @@ export default function OwnerProductizationWorkspace({
           )}
 
           {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'evidence' && (
-            <Surface>
-              <SectionTitle
-                title="Evidence and Stored Proof"
-                action={
-                  <Button size="small" variant="outlined" startIcon={<CloudUploadOutlined />} disabled={createEvidenceExport.isPending} onClick={() => createEvidenceExport.mutate()} sx={{ minHeight: 36 }}>
-                    Export
-                  </Button>
-                }
-              />
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.25, mb: 2 }}>
-                {evidenceSummaryItems.map((item) => (
-                  <Box key={item.label} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: `${item.accent}32`, bgcolor: '#fff', minHeight: 88 }}>
-                    <Typography variant="caption" color="text.secondary">{item.label}</Typography>
-                    <Typography variant="body2" sx={{ mt: 0.55, fontWeight: 900, lineHeight: 1.35, overflowWrap: 'anywhere' }}>{item.value}</Typography>
-                  </Box>
-                ))}
-              </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '340px minmax(0, 1fr)' }, gap: 2 }}>
-                <Stack spacing={1.25}>
-                  <Typography sx={{ fontWeight: 950 }}>Sources</Typography>
-                  {(scannerSummary.data?.sources || []).length ? (scannerSummary.data?.sources || []).map((source) => (
-                    <Box key={source.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: source.authorizationStatus === 'AUTHORIZED' ? '#c8f2da' : appleColors.line, bgcolor: '#fff' }}>
-                      <Stack direction="row" spacing={1} justifyContent="space-between">
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{source.displayName}</Typography>
-                          <Typography variant="caption" color="text.secondary" noWrap>{source.externalReference || formatLabel(source.providerType)}</Typography>
-                        </Box>
-                        <StatusChip label={source.authorizationStatus} color={source.authorizationStatus === 'AUTHORIZED' ? 'success' : 'warning'} />
-                      </Stack>
-                    </Box>
-                  )) : (
-                    <EmptyState label="No scanner source is attached yet." />
-                  )}
-                </Stack>
-                <Stack spacing={1.25}>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
-                    <Typography sx={{ fontWeight: 950 }}>Stored Proof</Typography>
-                    <TextField
-                      select
-                      size="small"
-                      label="Filter"
-                      value={evidenceFilter}
-                      onChange={(event) => setEvidenceFilter(event.target.value as typeof evidenceFilter)}
-                      sx={{ minWidth: { xs: '100%', sm: 180 } }}
-                    >
-                      <MenuItem value="ALL">All evidence</MenuItem>
-                      <MenuItem value="FINDINGS">Finding-linked</MenuItem>
-                      <MenuItem value="MILESTONES">Milestone-linked</MenuItem>
-                      <MenuItem value="REDACTED">Redacted</MenuItem>
-                    </TextField>
-                  </Stack>
-                  {filteredScannerEvidence.length ? filteredScannerEvidence.slice(0, 10).map((evidence) => (
-                    <Box key={evidence.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e5edf7', bgcolor: evidence.redactionStatus === 'NONE' ? '#fbfdff' : '#fff7f8' }}>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
-                        <Box sx={{ minWidth: 0 }}>
-                          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                            <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{evidence.title}</Typography>
-                            <PastelChip label={confidenceDots(evidence.confidenceLevel)} accent={evidence.confidenceLevel === 'HIGH' ? appleColors.green : evidence.confidenceLevel === 'MEDIUM' ? appleColors.amber : appleColors.muted} />
-                          </Stack>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45, lineHeight: 1.45 }}>
-                            {evidence.summary || evidence.source} · {shortDateTime(evidence.createdAt)}
-                          </Typography>
-                        </Box>
-                        <Button size="small" variant="outlined" startIcon={<VisibilityOutlined />} disabled={(!evidence.storageKey && !evidence.artifactRef) || openSignedEvidence.isPending} onClick={() => openEvidenceArtifact(evidence)} sx={{ minHeight: 34 }}>
-                          Open
-                        </Button>
-                      </Stack>
-                    </Box>
-                  )) : (
-                    <EmptyState label="No stored scanner proof matches this filter." />
-                  )}
-                </Stack>
-              </Box>
-            </Surface>
+            <OwnerFindingsEvidencePanel
+              summaryItems={evidenceSummaryItems}
+              sources={scannerSummary.data?.sources || []}
+              evidence={filteredScannerEvidence}
+              evidenceFilter={evidenceFilter}
+              isExporting={createEvidenceExport.isPending}
+              isOpeningEvidence={openSignedEvidence.isPending}
+              onEvidenceFilterChange={setEvidenceFilter}
+              onExport={() => createEvidenceExport.mutate()}
+              onOpenEvidence={openEvidenceArtifact}
+              formatDateTime={shortDateTime}
+            />
           )}
 
           {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'evidence' && (
