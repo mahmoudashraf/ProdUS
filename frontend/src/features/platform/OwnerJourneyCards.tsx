@@ -191,6 +191,10 @@ export function ProductIntakeFrontDoor({
                   sx={{
                     justifyContent: 'flex-start',
                     textAlign: 'left',
+                    alignItems: 'stretch',
+                    whiteSpace: 'normal',
+                    minWidth: 0,
+                    overflow: 'hidden',
                     minHeight: 88,
                     p: 1.25,
                     borderRadius: 1,
@@ -200,12 +204,12 @@ export function ProductIntakeFrontDoor({
                     color: appleColors.ink,
                   }}
                 >
-                  <Stack spacing={0.5} alignItems="flex-start">
+                  <Stack spacing={0.5} alignItems="flex-start" sx={{ minWidth: 0, width: '100%' }}>
                     <DotLabel label={selected ? 'Selected' : 'Optional'} color={selected ? option.accent : appleColors.muted} />
                     <Typography variant="body2" sx={{ fontWeight: 950 }}>
                       {option.title}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.45 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.45, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
                       {option.detail}
                     </Typography>
                   </Stack>

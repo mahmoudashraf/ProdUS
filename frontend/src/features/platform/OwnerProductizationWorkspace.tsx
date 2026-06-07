@@ -2381,7 +2381,7 @@ export default function OwnerProductizationWorkspace({
         </Box>
       )}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 340px' }, gap: 2.5 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 340px' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
           {selectedProduct ? (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 55%, #f6fff9 100%)' }}>
