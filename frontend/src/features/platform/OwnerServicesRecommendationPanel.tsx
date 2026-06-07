@@ -5,18 +5,16 @@ import {
   AddShoppingCartOutlined,
   AutoAwesomeOutlined,
   DeleteOutlineOutlined,
-  ShieldOutlined,
 } from '@mui/icons-material';
 import { Box, Stack, Tooltip, IconButton, Typography } from '@mui/material';
 import {
   DotLabel,
-  PastelChip,
-  SectionTitle,
   Surface,
   appleColors,
   categoryPalette,
 } from './PlatformComponents';
 import StudioAssistantCard, { type StudioAssistantContext } from './StudioAssistantCard';
+import OwnerServiceDecisionBridgePanel, { type OwnerServiceDecisionRisk } from './OwnerServiceDecisionBridgePanel';
 import type {
   ProductProfile,
   ProductizationCartServiceItem,
@@ -26,13 +24,7 @@ import type {
 
 type AssistantActionProps = Pick<ComponentProps<typeof StudioAssistantCard>, 'onConfirmAction' | 'actionDisabledReason'>;
 
-export interface OwnerServiceRiskSummary {
-  id: string;
-  title: string;
-  impact: string;
-  proof: string;
-  service?: string | undefined;
-}
+export type OwnerServiceRiskSummary = OwnerServiceDecisionRisk;
 
 interface OwnerServicesRecommendationPanelProps {
   product?: ProductProfile | undefined;
@@ -74,85 +66,29 @@ export default function OwnerServicesRecommendationPanel({
   onRemoveService,
 }: OwnerServicesRecommendationPanelProps) {
   const recommendedServiceIds = new Set(recommendedServices.map((service) => service.id));
-  const primaryServiceName = mappedServiceNames[0] || recommendedServices[0]?.name || cartServiceItems[0]?.serviceModule.name || 'Launch Hardening Sprint';
-  const topRisk = ownerRisks[0];
-  const decisionLabel = blockerCount
-    ? `Not ready - ${blockerCount} blocker${blockerCount === 1 ? '' : 's'} need a fix path`
-    : improvementCount
-      ? `Launchable with ${improvementCount} improvement${improvementCount === 1 ? '' : 's'} to schedule`
-      : 'Clear enough to keep moving';
+  const primaryService =
+    catalogModules.find((module) => mappedServiceNames.includes(module.name))
+    || recommendedServices.find((service) => !cartServiceIds.has(service.id))
+    || cartServiceItems[0]?.serviceModule
+    || recommendedServices[0];
+  const primaryServiceName = primaryService?.name || mappedServiceNames[0] || 'Launch Hardening Sprint';
+  const primaryServiceInPlan = !!primaryService && cartServiceIds.has(primaryService.id);
 
   return (
     <Surface>
-      <SectionTitle
-        title="Recommended Work Path"
-        action={<PastelChip label={`${categories.length} service families`} accent={appleColors.purple} />}
+      <OwnerServiceDecisionBridgePanel
+        categoriesCount={categories.length}
+        blockerCount={blockerCount}
+        improvementCount={improvementCount}
+        cartServiceCount={cartServiceItems.length}
+        mappedServiceCount={mappedServiceNames.length}
+        primaryServiceName={primaryServiceName}
+        primaryService={primaryService}
+        primaryServiceInPlan={primaryServiceInPlan}
+        ownerRisks={ownerRisks}
+        isAddingService={isAddingService}
+        onAddPrimaryService={onAddService}
       />
-
-      <Box
-        sx={{
-          mb: 1.5,
-          p: { xs: 1.5, md: 2 },
-          borderRadius: 1,
-          border: '1px solid',
-          borderColor: blockerCount ? '#fecdd3' : '#bbf7d0',
-          bgcolor: blockerCount ? '#fff7f8' : '#f6fff9',
-        }}
-      >
-        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ lg: 'center' }}>
-          <Stack direction="row" spacing={1.25} alignItems="flex-start">
-            <Box
-              sx={{
-                width: 46,
-                height: 46,
-                borderRadius: 1,
-                bgcolor: blockerCount ? '#ffe9ec' : '#e7f8ee',
-                color: blockerCount ? appleColors.red : appleColors.green,
-                display: 'grid',
-                placeItems: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <ShieldOutlined />
-            </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h4">{decisionLabel}</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>
-                Start with {primaryServiceName}. {topRisk ? `It connects the top risk, "${topRisk.title}", to owner-visible delivery proof.` : 'It keeps the service plan tied to the launch verdict instead of browsing a catalog.'}
-              </Typography>
-            </Box>
-          </Stack>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <PastelChip label={`${cartServiceItems.length} in plan`} accent={appleColors.purple} />
-            <PastelChip label={`${mappedServiceNames.length} from scanner proof`} accent={appleColors.cyan} bg="#e4f9fd" />
-            <PastelChip
-              label={blockerCount ? `${blockerCount} blockers` : 'No blockers'}
-              accent={blockerCount ? appleColors.red : appleColors.green}
-              bg={blockerCount ? '#fff1f2' : '#e7f8ee'}
-            />
-          </Stack>
-        </Stack>
-
-        {ownerRisks.length > 0 && (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1, mt: 1.5 }}>
-            {ownerRisks.slice(0, 3).map((risk, index) => (
-              <Box key={risk.id} sx={{ p: 1.25, borderRadius: 1, bgcolor: '#fff', border: '1px solid', borderColor: appleColors.line }}>
-                <PastelChip label={index === 0 ? 'Fix first' : 'Schedule'} accent={index === 0 ? appleColors.red : appleColors.amber} bg={index === 0 ? '#fff1f2' : '#fff4dc'} />
-                <Typography sx={{ mt: 0.85, fontWeight: 900, lineHeight: 1.35 }}>{risk.title}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.5 }}>{risk.impact}</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.8 }}>
-                  {risk.proof}
-                </Typography>
-                {risk.service && (
-                  <Box sx={{ mt: 0.9 }}>
-                    <PastelChip label={risk.service} accent={appleColors.purple} />
-                  </Box>
-                )}
-              </Box>
-            ))}
-          </Box>
-        )}
-      </Box>
 
       <Box sx={{ mb: 1.5 }}>
         <StudioAssistantCard
