@@ -25,6 +25,7 @@ import ShipConfidencePanel from './ShipConfidencePanel';
 import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
 import WorkspaceCommandHero from './WorkspaceCommandHero';
 import WorkspaceCommandJourneyNav, { type WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
+import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
 import { sortWorkspacesForOwner } from './displayOrder';
 import {
   EmptyState,
@@ -192,11 +193,6 @@ interface WorkspaceScannerReadinessPayload {
   summary: string;
 }
 
-const participantRoles: WorkspaceParticipant['role'][] = ['COORDINATOR', 'TEAM_LEAD', 'SPECIALIST', 'ADVISOR', 'VIEWER'];
-const supportPriorities: SupportRequest['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-const supportStatuses: SupportRequest['status'][] = ['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'WAITING_ON_OWNER', 'RESOLVED', 'CANCELLED'];
-const disputeSeverities: DisputeCase['severity'][] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-const disputeStatuses: DisputeCase['status'][] = ['OPEN', 'UNDER_REVIEW', 'OWNER_RESPONSE_NEEDED', 'TEAM_RESPONSE_NEEDED', 'RESOLVED', 'CANCELLED'];
 const integrationProviderOptions: IntegrationConnection['providerType'][] = ['GITHUB', 'CI_CD', 'DEPENDENCY_SCAN', 'SECRETS_SCAN', 'DEPLOYMENT', 'MONITORING', 'DATABASE', 'ISSUE_TRACKER', 'SUPPORT_TOOL', 'OTHER'];
 
 const workspaceAccent = (status?: string) => {
@@ -1423,123 +1419,35 @@ export default function WorkspaceCommandPage() {
             />
           )}
           {workspaceView === 'team' && (
-            <>
-          <Surface>
-            <SectionTitle title="Participants" action={<PastelChip label={`${participantList.length}`} accent={appleColors.cyan} bg="#e4f9fd" />} />
-            {selectedWorkspace && canCoordinate && (
-              <Box component="form" onSubmit={participantForm.handleSubmit(() => addParticipant.mutate())} sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 1, mb: 2 }}>
-                <TextField size="small" label="Email" value={participantForm.values.email} onChange={(event) => participantForm.setValue('email', event.target.value)} />
-                <TextField select size="small" label="Role" value={participantForm.values.role} onChange={(event) => participantForm.setValue('role', event.target.value as WorkspaceParticipant['role'])}>
-                  {participantRoles.map((role) => <MenuItem key={role} value={role}>{formatLabel(role)}</MenuItem>)}
-                </TextField>
-                <Button type="submit" variant="outlined" disabled={!participantForm.values.email || addParticipant.isPending}>Add participant</Button>
-              </Box>
-            )}
-            <Stack spacing={1}>
-              {participantList.length ? (
-                participantList.map((participant) => (
-                  <Stack key={participant.id} direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ borderTop: 1, borderColor: 'divider', pt: 1 }}>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{participant.user.email}</Typography>
-                      <Typography variant="caption" color="text.secondary">{participant.active ? formatLabel(participant.role) : 'Inactive'}</Typography>
-                    </Box>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: participant.active ? appleColors.green : appleColors.red, flex: '0 0 auto' }} />
-                  </Stack>
-                ))
-              ) : (
-                <Typography variant="body2" color="text.secondary">Add owners, team leads, specialists, and advisors before delivery starts.</Typography>
-              )}
-            </Stack>
-          </Surface>
-
-          <Surface>
-            <SectionTitle title="Support" action={<PastelChip label={`${supportList.length} requests`} accent={supportList.length ? appleColors.amber : appleColors.green} />} />
-            {selectedWorkspace && canCoordinate && (
-              <Box component="form" onSubmit={supportForm.handleSubmit(() => createSupport.mutate())} sx={{ mb: 2 }}>
-                <Stack spacing={1}>
-                  <TextField select size="small" label="Team" value={supportForm.values.teamId || ''} onChange={(event) => supportForm.setValue('teamId', event.target.value || null)}>
-                    {(teams.data || []).map((team) => <MenuItem key={team.id} value={team.id}>{team.name}</MenuItem>)}
-                  </TextField>
-                  <TextField size="small" label="Request title" value={supportForm.values.title} onChange={(event) => supportForm.setValue('title', event.target.value)} />
-                  <TextField select size="small" label="Priority" value={supportForm.values.priority} onChange={(event) => supportForm.setValue('priority', event.target.value as SupportRequest['priority'])}>
-                    {supportPriorities.map((priority) => <MenuItem key={priority} value={priority}>{formatLabel(priority)}</MenuItem>)}
-                  </TextField>
-                  <TextField size="small" label="Context" value={supportForm.values.description} onChange={(event) => supportForm.setValue('description', event.target.value)} multiline />
-                  <Button type="submit" variant="outlined" disabled={!supportForm.values.teamId || !supportForm.values.title || !supportForm.values.description || createSupport.isPending}>
-                    Open support request
-                  </Button>
-                </Stack>
-              </Box>
-            )}
-            <Stack spacing={1.25}>
-              {supportList.length ? supportList.map((request) => (
-                <Box key={request.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.25 }}>
-                  <Stack direction="row" spacing={1} justifyContent="space-between">
-                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{request.title}</Typography>
-                    <StatusChip label={request.slaStatus} />
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary">{request.team.name} · {formatLabel(request.priority)}</Typography>
-                  {request.description && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.5 }}>{request.description}</Typography>}
-                  {canCoordinate && (
-                    <Stack spacing={1} sx={{ mt: 1 }}>
-                      <TextField select size="small" label="Status" value={supportStatusById[request.id] || request.status} onChange={(event) => setSupportStatusById((current) => ({ ...current, [request.id]: event.target.value as SupportRequest['status'] }))}>
-                        {supportStatuses.map((status) => <MenuItem key={status} value={status}>{formatLabel(status)}</MenuItem>)}
-                      </TextField>
-                      <TextField size="small" label="Resolution note" value={supportResolutionById[request.id] ?? request.resolution ?? ''} onChange={(event) => setSupportResolutionById((current) => ({ ...current, [request.id]: event.target.value }))} />
-                      <Button variant="outlined" onClick={() => updateSupport.mutate({ id: request.id, payload: { status: supportStatusById[request.id] || request.status, resolution: supportResolutionById[request.id] || request.resolution || '' } })} disabled={updateSupport.isPending}>
-                        Update request
-                      </Button>
-                    </Stack>
-                  )}
-                </Box>
-              )) : <Typography variant="body2" color="text.secondary">No support requests are open.</Typography>}
-            </Stack>
-          </Surface>
-
-          <Surface sx={{ background: disputeList.length ? '#fff7f8' : '#f4fbf7' }}>
-            <SectionTitle title="Risks" action={<PastelChip label={`${disputeList.length}`} accent={disputeList.length ? appleColors.red : appleColors.green} />} />
-            {selectedWorkspace && canCoordinate && (
-              <Box component="form" onSubmit={disputeForm.handleSubmit(() => createDispute.mutate())} sx={{ mb: 2 }}>
-                <Stack spacing={1}>
-                  <TextField select size="small" label="Team" value={disputeForm.values.teamId || ''} onChange={(event) => disputeForm.setValue('teamId', event.target.value || null)}>
-                    <MenuItem value="">Unassigned</MenuItem>
-                    {(teams.data || []).map((team) => <MenuItem key={team.id} value={team.id}>{team.name}</MenuItem>)}
-                  </TextField>
-                  <TextField size="small" label="Issue title" value={disputeForm.values.title} onChange={(event) => disputeForm.setValue('title', event.target.value)} />
-                  <TextField select size="small" label="Severity" value={disputeForm.values.severity} onChange={(event) => disputeForm.setValue('severity', event.target.value as DisputeCase['severity'])}>
-                    {disputeSeverities.map((severity) => <MenuItem key={severity} value={severity}>{formatLabel(severity)}</MenuItem>)}
-                  </TextField>
-                  <TextField size="small" label="Context" value={disputeForm.values.description} onChange={(event) => disputeForm.setValue('description', event.target.value)} multiline />
-                  <Button type="submit" variant="outlined" disabled={!disputeForm.values.title || !disputeForm.values.description || createDispute.isPending}>Open risk</Button>
-                </Stack>
-              </Box>
-            )}
-            <Stack spacing={1.25}>
-              {disputeList.length ? disputeList.map((dispute) => (
-                <Box key={dispute.id} sx={{ border: 1, borderColor: '#fecdd3', borderRadius: 1, p: 1.25, background: '#fff' }}>
-                  <Stack direction="row" spacing={1} justifyContent="space-between">
-                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{dispute.title}</Typography>
-                    <StatusChip label={dispute.status} />
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary">{dispute.team?.name || 'Unassigned'} · {formatLabel(dispute.severity)}</Typography>
-                  {dispute.description && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.5 }}>{dispute.description}</Typography>}
-                  {canCoordinate && (
-                    <Stack spacing={1} sx={{ mt: 1 }}>
-                      <TextField select size="small" label="Status" value={disputeStatusById[dispute.id] || dispute.status} onChange={(event) => setDisputeStatusById((current) => ({ ...current, [dispute.id]: event.target.value as DisputeCase['status'] }))}>
-                        {disputeStatuses.map((status) => <MenuItem key={status} value={status}>{formatLabel(status)}</MenuItem>)}
-                      </TextField>
-                      <TextField size="small" label="Resolution note" value={disputeResolutionById[dispute.id] ?? dispute.resolution ?? ''} onChange={(event) => setDisputeResolutionById((current) => ({ ...current, [dispute.id]: event.target.value }))} />
-                      <Button variant="outlined" onClick={() => updateDispute.mutate({ id: dispute.id, payload: { status: disputeStatusById[dispute.id] || dispute.status, resolution: disputeResolutionById[dispute.id] || dispute.resolution || '' } })} disabled={updateDispute.isPending}>
-                        Update risk
-                      </Button>
-                    </Stack>
-                  )}
-                  {evidencePanel('DISPUTE', dispute.id)}
-                </Box>
-              )) : <Typography variant="body2" color="text.secondary">No risks are open for this workspace.</Typography>}
-            </Stack>
-          </Surface>
-            </>
+            <WorkspaceCommandTeamPanels
+              canCoordinate={canCoordinate}
+              teams={teams.data || []}
+              participantList={participantList}
+              supportList={supportList}
+              disputeList={disputeList}
+              participantForm={participantForm}
+              supportForm={supportForm}
+              disputeForm={disputeForm}
+              isAddingParticipant={addParticipant.isPending}
+              isCreatingSupport={createSupport.isPending}
+              isUpdatingSupport={updateSupport.isPending}
+              isCreatingDispute={createDispute.isPending}
+              isUpdatingDispute={updateDispute.isPending}
+              supportStatusById={supportStatusById}
+              supportResolutionById={supportResolutionById}
+              disputeStatusById={disputeStatusById}
+              disputeResolutionById={disputeResolutionById}
+              onAddParticipant={() => addParticipant.mutate()}
+              onCreateSupport={() => createSupport.mutate()}
+              onUpdateSupport={(id, payload) => updateSupport.mutate({ id, payload })}
+              onCreateDispute={() => createDispute.mutate()}
+              onUpdateDispute={(id, payload) => updateDispute.mutate({ id, payload })}
+              onSupportStatusChange={(id, status) => setSupportStatusById((current) => ({ ...current, [id]: status }))}
+              onSupportResolutionChange={(id, resolution) => setSupportResolutionById((current) => ({ ...current, [id]: resolution }))}
+              onDisputeStatusChange={(id, status) => setDisputeStatusById((current) => ({ ...current, [id]: status }))}
+              onDisputeResolutionChange={(id, resolution) => setDisputeResolutionById((current) => ({ ...current, [id]: resolution }))}
+              evidencePanel={evidencePanel}
+            />
           )}
           {workspaceView === 'handoff' && (
             <>
