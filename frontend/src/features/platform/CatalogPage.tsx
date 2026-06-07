@@ -70,7 +70,7 @@ export default function CatalogPage() {
   const { isLoggedIn, user } = useAuth();
   const canUseProjectCart = user?.role === UserRole.PRODUCT_OWNER;
   const cartHref = canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login';
-  const cartActionLabel = canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
+  const cartActionLabel = canUseProjectCart ? 'Review start plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
   const categories = useQuery({
     queryKey: ['catalog-categories'],
     queryFn: () => getJson<ServiceCategory[]>('/catalog/categories'),
@@ -134,12 +134,12 @@ export default function CatalogPage() {
       <QueryState isLoading={categories.isLoading || modules.isLoading || packageTemplates.isLoading} error={categories.error || modules.error || packageTemplates.error || addServiceToCart.error || applyTemplateToCart.error} />
       {addServiceToCart.isSuccess && (
         <Alert severity="success" sx={{ mb: 2, borderRadius: 1 }}>
-          Service added to the draft cart. Open the draft when you are ready to select a product, compare teams, or start a workspace.
+          Service added to the start plan. Open the plan when you are ready to select a product, compare teams, or start a workspace.
         </Alert>
       )}
       {applyTemplateToCart.isSuccess && (
         <Alert severity="success" sx={{ mb: 2, borderRadius: 1 }}>
-          Package template applied to the draft cart. Open the draft to resolve dependencies, select product context, and start a workspace.
+          Package template applied to the start plan. Open the plan to resolve dependencies, select product context, and start a workspace.
         </Alert>
       )}
       {catalogCategories.length ? (

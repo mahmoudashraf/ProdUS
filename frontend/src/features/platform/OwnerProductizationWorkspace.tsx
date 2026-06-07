@@ -720,28 +720,28 @@ export default function OwnerProductizationWorkspace({
   const addServiceToCart = useMutation({
     mutationFn: (payload: CartServicePayload) => postJson<ProductizationCart, CartServicePayload>('/productization-cart/services', payload),
     onSuccess: async () => {
-      setCartNotice('Service added to the draft cart.');
+      setCartNotice('Service added to the start plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const removeServiceFromCart = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
     onSuccess: async () => {
-      setCartNotice('Service removed from the draft cart.');
+      setCartNotice('Service removed from the start plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const addTalentToCart = useMutation({
     mutationFn: (payload: CartTalentPayload) => postJson<ProductizationCart, CartTalentPayload>('/productization-cart/talent', payload),
     onSuccess: async () => {
-      setCartNotice('Delivery talent added to the draft cart.');
+      setCartNotice('Delivery talent added to the start plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const removeTalentFromCart = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/talent/${itemId}`),
     onSuccess: async () => {
-      setCartNotice('Delivery talent removed from the draft cart.');
+      setCartNotice('Delivery talent removed from the start plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -1376,7 +1376,7 @@ export default function OwnerProductizationWorkspace({
     }
     if (name.includes('workspace.create')) {
       if (!(cart.data?.serviceItems || []).length) {
-        return 'Add at least one lifecycle service to the draft cart first.';
+        return 'Add at least one lifecycle service to the start plan first.';
       }
       if (cartBlockers > 0) {
         return `Add required services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`;
@@ -1401,7 +1401,7 @@ export default function OwnerProductizationWorkspace({
       return;
     }
     if (name.includes('workspace.create')) {
-      if (!(cart.data?.serviceItems || []).length) throw new Error('Add lifecycle services to the draft cart before creating a workspace.');
+      if (!(cart.data?.serviceItems || []).length) throw new Error('Add lifecycle services to the start plan before creating a workspace.');
       if (cartBlockers > 0) {
         throw new Error(`Add required services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`);
       }
@@ -1632,7 +1632,7 @@ export default function OwnerProductizationWorkspace({
     <>
       <PageHeader
         title="Productization Workspace"
-        description="One product-centered command surface for lifecycle service selection, draft cart decisions, team comparison, and delivery evidence."
+        description="One product-centered command surface for lifecycle service selection, start plan decisions, team comparison, and delivery evidence."
         action={
           productList.length ? (
             <TextField

@@ -85,7 +85,7 @@ const produs: NavItemType = {
     },
     {
       id: 'draft-cart',
-      title: 'Draft Cart',
+      title: 'Start Plan',
       type: 'item',
       url: '/owner/project-cart',
       icon: icons.IconPackage,

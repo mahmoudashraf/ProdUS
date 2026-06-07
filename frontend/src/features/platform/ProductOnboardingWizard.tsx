@@ -124,7 +124,7 @@ export default function ProductOnboardingWizard() {
         { productProfileId: string; title: string; businessGoal: string }
       >('/productization-cart/current', {
         productProfileId: product.id,
-        title: `${product.name} productization draft`,
+        title: `${product.name} productization start plan`,
         businessGoal: form.values.summary,
       });
       return product;

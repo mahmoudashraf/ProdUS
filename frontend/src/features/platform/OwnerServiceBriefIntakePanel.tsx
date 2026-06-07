@@ -129,7 +129,7 @@ export default function OwnerServiceBriefIntakePanel({
           ))
         ) : (
           <Typography variant="body2" color="text.secondary">
-            Add lifecycle services to the draft cart, then submit a product brief or create the project workspace directly.
+            Add lifecycle services to the start plan, then submit a product brief or create the project workspace directly.
           </Typography>
         )}
       </Stack>

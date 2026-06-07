@@ -60,7 +60,7 @@ const steps = [
   },
   {
     title: 'Select lifecycle services',
-    detail: 'Add validation, security, cloud, database, launch, or support services to the draft cart.',
+    detail: 'Add validation, security, cloud, database, launch, or support services to the start plan.',
     href: '/services',
     icon: ShoppingCartOutlined,
     accent: appleColors.cyan,
@@ -74,7 +74,7 @@ const steps = [
   },
   {
     title: 'Start workspace',
-    detail: 'Convert the draft cart into milestones, participants, and delivery evidence.',
+    detail: 'Approve the start plan into milestones, participants, and delivery evidence.',
     href: '/owner/project-cart',
     icon: WorkspacesOutlined,
     accent: appleColors.amber,
@@ -102,23 +102,23 @@ export default function ProductizationLaunchpad() {
   const cartProduct = cart.data?.productProfile;
   const nextProduct = cartProduct && !isPlaceholderProduct(cartProduct) ? cartProduct : productList[0];
   const currentDraftTitle = cartProduct && !isPlaceholderProduct(cartProduct)
-    ? cart.data?.title || `${cartProduct.name} productization draft`
+    ? cart.data?.title || `${cartProduct.name} productization start plan`
     : nextProduct
-      ? `${nextProduct.name} productization draft`
-      : 'Draft productization cart';
+      ? `${nextProduct.name} productization start plan`
+      : 'Productization start plan';
 
   return (
     <>
       <PageHeader
         title="Productization Command Center"
-        description="Start with one product, collect lifecycle services and verified talent in a draft cart, then convert that plan into a governed workspace."
+        description="Start with one product, collect lifecycle services and verified talent in a start plan, then approve that plan into a governed workspace."
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44, minWidth: 150 }}>
               New product
             </Button>
             <Button component={NextLink} href="/owner/project-cart" variant="outlined" startIcon={<ShoppingCartOutlined />} sx={{ minHeight: 44, minWidth: 168 }}>
-              Review draft cart
+              Review start plan
             </Button>
           </Stack>
         }
@@ -139,7 +139,7 @@ export default function ProductizationLaunchpad() {
                     Turn a product idea into a delivery workspace.
                   </Typography>
                   <Typography color="text.secondary" sx={{ maxWidth: 680, fontSize: 17, lineHeight: 1.7 }}>
-                    Keep the owner journey simple: product profile, service draft cart, talent shortlist, then a workspace with milestones and evidence.
+                    Keep the owner journey simple: product profile, service start plan, talent shortlist, then a workspace with milestones and evidence.
                   </Typography>
                 </Box>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -154,13 +154,13 @@ export default function ProductizationLaunchpad() {
 
               <Surface sx={{ boxShadow: '0 18px 60px rgba(98, 92, 255, 0.12)' }}>
                 <Stack spacing={2}>
-                  <SectionTitle title="Current draft" action={<ShoppingCartOutlined sx={{ color: appleColors.purple }} />} />
+                  <SectionTitle title="Current start plan" action={<ShoppingCartOutlined sx={{ color: appleColors.purple }} />} />
                   <Stack direction="row" spacing={2} alignItems="center">
                     <ProgressRing value={clampScore((draftServices * 18) + (draftTalent * 14) + (nextProduct ? 28 : 0))} size={92} color={appleColors.purple} label="ready" />
                     <Box>
                       <Typography variant="h4">{currentDraftTitle}</Typography>
                       <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                        {nextProduct ? `Prepared for ${nextProduct.name}` : 'Create or select a product to make this draft actionable.'}
+                        {nextProduct ? `Prepared for ${nextProduct.name}` : 'Create or select a product to make this start plan actionable.'}
                       </Typography>
                     </Box>
                   </Stack>
@@ -179,7 +179,7 @@ export default function ProductizationLaunchpad() {
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2 }}>
             <MetricTile label="Products" value={productList.length} detail={`${requirements.data?.length || 0} product briefs`} accent={appleColors.purple} icon={<Inventory2Outlined />} sparkline />
-            <MetricTile label="Draft cart" value={draftServices + draftTalent} detail={`${draftServices} services, ${draftTalent} talent`} accent={appleColors.cyan} icon={<ShoppingCartOutlined />} sparkline />
+            <MetricTile label="Start plan" value={draftServices + draftTalent} detail={`${draftServices} services, ${draftTalent} talent`} accent={appleColors.cyan} icon={<ShoppingCartOutlined />} sparkline />
             <MetricTile label="Health" value={averageHealth ? `${averageHealth}/100` : 'New'} detail="Service plan confidence" accent={averageHealth >= 70 ? appleColors.green : appleColors.amber} icon={<FactCheckOutlined />} sparkline />
             <MetricTile label="Workspaces" value={activeWorkspaces.length} detail={`${workspaceList.length} total`} accent={appleColors.green} icon={<WorkspacesOutlined />} sparkline />
           </Box>
@@ -274,11 +274,11 @@ export default function ProductizationLaunchpad() {
           <Surface>
             <SectionTitle title="AI Next Best Action" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
             <Typography variant="h4">
-              {draftServices ? 'Review the draft cart' : productList.length ? 'Select lifecycle services' : 'Create a product profile'}
+              {draftServices ? 'Review the start plan' : productList.length ? 'Select lifecycle services' : 'Create a product profile'}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
               {draftServices
-                ? 'Your draft already has services. Add matching delivery talent or start the workspace when the scope is clear.'
+                ? 'Your start plan already has services. Add matching delivery talent or start the workspace when the scope is clear.'
                 : productList.length
                   ? 'Choose services that represent the work needed to move the selected product into production.'
                   : 'A product profile gives the platform enough context to recommend services, teams, and workspace milestones.'}
@@ -321,7 +321,7 @@ export default function ProductizationLaunchpad() {
               </Stack>
             ) : (
               <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                Workspaces appear after the owner converts a draft cart into a delivery project.
+                Workspaces appear after the owner approves a start plan into a delivery project.
               </Typography>
             )}
           </Surface>

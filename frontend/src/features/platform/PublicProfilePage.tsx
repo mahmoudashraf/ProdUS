@@ -166,10 +166,10 @@ function TeamProfile({
             }}
             sx={{ minHeight: 44, minWidth: 180 }}
           >
-            {!isLoggedIn ? 'Sign In To Add Team' : canUseProjectCart ? (inCart ? 'In Draft Cart' : 'Add Team To Draft') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign In To Add Team' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Add Team To Plan') : 'Open Dashboard'}
           </Button>
           <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
-            {canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
+            {canUseProjectCart ? 'Review start plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
           </Button>
         </Stack>
       </ProfileHero>
@@ -310,7 +310,7 @@ function ExpertProfileView({
             }}
             sx={{ minHeight: 44, minWidth: 180 }}
           >
-            {!isLoggedIn ? 'Sign In To Add Expert' : canUseProjectCart ? (inCart ? 'In Draft Cart' : 'Add Expert To Draft') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign In To Add Expert' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Add Expert To Plan') : 'Open Dashboard'}
           </Button>
           <Button component={NextLink} href="/solo-experts" variant="outlined" sx={{ minHeight: 44, minWidth: 150 }}>
             Browse Experts
@@ -361,7 +361,7 @@ function ExpertProfileView({
                 </Button>
               )}
               <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<RocketLaunchOutlined />} sx={{ minHeight: 42 }}>
-                {canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
+                {canUseProjectCart ? 'Review start plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
               </Button>
             </Stack>
           </Surface>
@@ -445,11 +445,11 @@ export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
             <AutoAwesomeOutlined sx={{ color: appleColors.purple }} />
             <Box>
               <Typography variant="h4">Need a governed production path?</Typography>
-              <Typography color="text.secondary">Compare profiles, save delivery partners to a draft cart, and convert it into a governed workspace after sign in.</Typography>
+              <Typography color="text.secondary">Compare profiles, save delivery partners to a start plan, and approve it into a governed workspace after sign in.</Typography>
             </Box>
           </Stack>
           <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<VerifiedOutlined />} sx={{ minHeight: 44, minWidth: 160 }}>
-            {canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Dashboard' : 'Sign in'}
+            {canUseProjectCart ? 'Review start plan' : isLoggedIn ? 'Dashboard' : 'Sign in'}
           </Button>
         </Stack>
       </Surface>

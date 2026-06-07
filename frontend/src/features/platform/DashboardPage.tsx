@@ -233,7 +233,7 @@ function AdminOperationsDashboard() {
                 })}
               </Stack>
             ) : (
-              <EmptyState label="No service plans yet. Create a product brief or convert the draft cart to activate delivery tracking." />
+              <EmptyState label="No service plans yet. Create a product brief or approve the start plan to activate delivery tracking." />
             )}
           </Surface>
 

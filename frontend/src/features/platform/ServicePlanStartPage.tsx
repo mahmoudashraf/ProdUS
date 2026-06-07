@@ -51,7 +51,7 @@ export default function ServicePlanStartPage() {
     <>
       <PageHeader
         title="Create Service Plan"
-        description="Choose a clear starting point: convert the draft cart into a workspace, or generate a service plan from a submitted product brief."
+        description="Choose a clear starting point: approve the start plan into a workspace, or generate a service plan from a submitted product brief."
         action={
           <Button component={NextLink} href="/dashboard" variant="outlined" sx={{ minHeight: 42 }}>
             Back to command center
@@ -63,7 +63,7 @@ export default function ServicePlanStartPage() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
         <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
           <Stack spacing={2}>
-            <SectionTitle title="Use Draft Cart" action={<ShoppingCartOutlined sx={{ color: appleColors.purple }} />} />
+            <SectionTitle title="Use Start Plan" action={<ShoppingCartOutlined sx={{ color: appleColors.purple }} />} />
             <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
               Best when the owner has already selected lifecycle services, teams, or solo experts. Starting the workspace creates the service plan, milestones, participants, and shortlist records together.
             </Typography>
@@ -73,7 +73,7 @@ export default function ServicePlanStartPage() {
               <PastelChip label={`${draftTalent} teams / experts`} accent={appleColors.green} bg="#e7f8ee" />
             </Stack>
             <Button component={NextLink} href="/owner/project-cart" variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 44 }}>
-              Review draft cart
+              Review start plan
             </Button>
           </Stack>
         </Surface>

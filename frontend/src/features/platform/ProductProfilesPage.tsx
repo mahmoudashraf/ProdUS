@@ -66,7 +66,7 @@ export default function ProductProfilesPage() {
               New product
             </Button>
             <Button component={NextLink} href="/owner/project-cart" variant="outlined" sx={{ minHeight: 42, minWidth: 160 }}>
-              Review draft cart
+              Review start plan
             </Button>
           </Stack>
         }
@@ -164,7 +164,7 @@ export default function ProductProfilesPage() {
                 Create product
               </Button>
               <Button component={NextLink} href="/owner/project-cart" variant="outlined" sx={{ minHeight: 42 }}>
-                Review draft cart
+                Review start plan
               </Button>
             </Stack>
           </Surface>

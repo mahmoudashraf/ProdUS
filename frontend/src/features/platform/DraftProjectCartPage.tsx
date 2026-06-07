@@ -1,14 +1,13 @@
 'use client';
 
 import NextLink from 'next/link';
-import { useEffect, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import {
   AddShoppingCartOutlined,
   GroupsOutlined,
   PersonSearchOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Stack } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { deleteJson, getJson, postJson, putJson } from './api';
 import { isPlaceholderProduct, sortProductsForOwner } from './displayOrder';
@@ -22,13 +21,9 @@ import {
 } from './PlatformComponents';
 import { PackageTemplate, ProductProfile, ProductizationCart, ProductizationCartConvertResponse, ProjectWorkspace } from './types';
 import type { CatalogRuleItem } from './types';
-import { DraftCartJourneyNavigation, isCartJourneyView, type CartJourneyItem, type CartJourneyView } from './DraftCartJourneyNavigation';
-import ProjectStartLifecycleServicesPanel from './ProjectStartLifecycleServicesPanel';
-import ProjectStartPackageTemplatesPanel from './ProjectStartPackageTemplatesPanel';
-import ProjectStartPlanOverview from './ProjectStartPlanOverview';
-import ProjectStartReadinessPanel from './ProjectStartReadinessPanel';
-import ProjectStartApprovalPanel from './ProjectStartApprovalPanel';
-import ProjectStartTalentPanel from './ProjectStartTalentPanel';
+import type { CartJourneyItem } from './DraftCartJourneyNavigation';
+import ProjectStartPlanBoard from './ProjectStartPlanBoard';
+import { useDraftCartJourneyState } from './useDraftCartJourneyState';
 
 interface CartUpdatePayload {
   productProfileId?: string;
@@ -45,14 +40,15 @@ const readinessScore = (cart?: ProductizationCart) =>
 
 export default function DraftProjectCartPage() {
   const queryClient = useQueryClient();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [projectName, setProjectName] = useState('');
   const [notice, setNotice] = useState('');
   const [createdWorkspace, setCreatedWorkspace] = useState<ProjectWorkspace | null>(null);
-  const [cartView, setCartView] = useState<CartJourneyView>('readiness');
-  const [cartDetailOpen, setCartDetailOpen] = useState(false);
+  const {
+    cartView,
+    cartDetailOpen,
+    openCartHub,
+    openCartDetail,
+  } = useDraftCartJourneyState();
 
   const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const cart = useQuery({ queryKey: ['productization-cart'], queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
@@ -130,41 +126,6 @@ export default function DraftProjectCartPage() {
   const canStartWorkspace = !!product && !hasPlaceholderProduct && (startReadiness?.ready ?? (serviceCount > 0 && blockers === 0));
   const score = readinessScore(currentCart);
   const cartServiceIds = new Set((currentCart?.serviceItems || []).map((item) => item.serviceModule.id));
-  const searchParamString = searchParams?.toString() || '';
-
-  useEffect(() => {
-    const currentParams = new URLSearchParams(searchParamString);
-    const stepParam = currentParams.get('step');
-    if (isCartJourneyView(stepParam)) {
-      setCartView(stepParam);
-      setCartDetailOpen(true);
-    } else {
-      setCartDetailOpen(false);
-    }
-  }, [searchParamString]);
-
-  const pushCartLocation = (step?: CartJourneyView) => {
-    const next = new URLSearchParams(searchParamString);
-    const routePath = pathname || '/owner/project-cart';
-    if (step) {
-      next.set('step', step);
-    } else {
-      next.delete('step');
-    }
-    const query = next.toString();
-    router.push(query ? `${routePath}?${query}` : routePath, { scroll: false });
-  };
-
-  const openCartHub = () => {
-    setCartDetailOpen(false);
-    pushCartLocation();
-  };
-
-  const openCartDetail = (step: CartJourneyView) => {
-    setCartView(step);
-    setCartDetailOpen(true);
-    pushCartLocation(step);
-  };
 
   const cartJourneyItems: CartJourneyItem[] = [
     {
@@ -203,7 +164,7 @@ export default function DraftProjectCartPage() {
     if (!selected) return;
     updateCart.mutate({
       productProfileId: selected.id,
-      title: `${selected.name} productization draft`,
+      title: `${selected.name} productization start plan`,
       businessGoal: selected.summary || `Move ${selected.name} toward production-ready delivery.`,
     });
   };
@@ -239,98 +200,81 @@ export default function DraftProjectCartPage() {
         error={products.error || cart.error || packageTemplates.error || updateCart.error || removeService.error || removeTalent.error || applyTemplate.error || convertCart.error}
       />
 
-      <Box sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: cartDetailOpen && cartView === 'handoff' ? 'minmax(0, 1fr) 360px' : 'minmax(0, 1fr)' }, gap: 2.5 }}>
-        <Stack spacing={2.5} sx={{ minWidth: 0 }}>
-          <ProjectStartPlanOverview
-            title={currentCart?.title}
-            product={product}
-            productOptions={selectableProducts.length ? selectableProducts : productList}
-            hasPlaceholderProduct={hasPlaceholderProduct}
-            score={score}
-            canStartWorkspace={canStartWorkspace}
-            blockers={blockers}
-            serviceCount={serviceCount}
-            talentCount={talentCount}
-            notice={notice}
-            isUpdatingProduct={updateCart.isPending}
-            onNoticeClose={() => setNotice('')}
-            onSelectProduct={selectProduct}
-          />
-
-          <DraftCartJourneyNavigation
-            detailOpen={cartDetailOpen}
-            value={cartView}
-            items={cartJourneyItems}
-            productName={product?.name || 'Draft'}
-            currentDetailLabel={currentCartDetailLabel}
-            onOpenHub={openCartHub}
-            onOpenDetail={openCartDetail}
-          />
-
-          {cartDetailOpen && cartView === 'readiness' && (
-            <ProjectStartPackageTemplatesPanel
-              templates={packageTemplates.data || []}
-              selectedServiceIds={cartServiceIds}
-              isApplyingTemplate={applyTemplate.isPending}
-              onApplyTemplate={(templateId) => applyTemplate.mutate(templateId)}
-            />
-          )}
-
-          {cartDetailOpen && cartView === 'services' && (
-            <ProjectStartLifecycleServicesPanel
-              serviceItems={currentCart?.serviceItems || []}
-              isRemovingService={removeService.isPending}
-              onRemoveService={(itemId) => removeService.mutate(itemId)}
-            />
-          )}
-
-          {cartDetailOpen && cartView === 'readiness' && (
-            <ProjectStartReadinessPanel
-              startReadiness={startReadiness}
-              startGaps={startGaps}
-              blockingStartGaps={blockingStartGaps}
-              currentCart={currentCart}
-              serviceCount={serviceCount}
-              blockers={blockers}
-              canStartWorkspace={canStartWorkspace}
-              isAddingService={addRecommendedService.isPending}
-              onAddGapService={(gap) =>
-                gap.serviceModule &&
-                addRecommendedService.mutate({
-                  serviceModuleId: gap.serviceModule.id,
-                  notes: `Added from the start readiness path. ${gap.description || ''}`.trim(),
-                })
-              }
-            />
-          )}
-
-          {cartDetailOpen && cartView === 'talent' && (
-            <ProjectStartTalentPanel
-              talentItems={currentCart?.talentItems || []}
-              isRemovingTalent={removeTalent.isPending}
-              onRemoveTalent={(itemId) => removeTalent.mutate(itemId)}
-            />
-          )}
-        </Stack>
-
-        {cartDetailOpen && cartView === 'handoff' && (
-          <ProjectStartApprovalPanel
-            product={product}
-            projectName={projectName}
-            canStartWorkspace={canStartWorkspace}
-            serviceCount={serviceCount}
-            blockers={blockers}
-            blockingRecommendations={blockingRecommendations}
-            createdWorkspace={createdWorkspace}
-            convertedWorkspace={currentCart?.convertedWorkspace}
-            isStartingWorkspace={convertCart.isPending}
-            isAddingService={addRecommendedService.isPending}
-            onProjectNameChange={setProjectName}
-            onStartWorkspace={() => convertCart.mutate()}
-            onAddCatalogRecommendation={addCatalogRecommendation}
-          />
-        )}
-      </Box>
+      <ProjectStartPlanBoard
+        detailOpen={cartDetailOpen}
+        view={cartView}
+        overview={{
+          title: currentCart?.title,
+          product,
+          productOptions: selectableProducts.length ? selectableProducts : productList,
+          hasPlaceholderProduct,
+          score,
+          canStartWorkspace,
+          blockers,
+          serviceCount,
+          talentCount,
+          notice,
+          isUpdatingProduct: updateCart.isPending,
+          onNoticeClose: () => setNotice(''),
+          onSelectProduct: selectProduct,
+        }}
+        navigation={{
+          detailOpen: cartDetailOpen,
+          value: cartView,
+          items: cartJourneyItems,
+          productName: product?.name || 'Draft',
+          currentDetailLabel: currentCartDetailLabel,
+          onOpenHub: openCartHub,
+          onOpenDetail: openCartDetail,
+        }}
+        templates={{
+          templates: packageTemplates.data || [],
+          selectedServiceIds: cartServiceIds,
+          isApplyingTemplate: applyTemplate.isPending,
+          onApplyTemplate: (templateId) => applyTemplate.mutate(templateId),
+        }}
+        services={{
+          serviceItems: currentCart?.serviceItems || [],
+          isRemovingService: removeService.isPending,
+          onRemoveService: (itemId) => removeService.mutate(itemId),
+        }}
+        readiness={{
+          startReadiness,
+          startGaps,
+          blockingStartGaps,
+          currentCart,
+          serviceCount,
+          blockers,
+          canStartWorkspace,
+          isAddingService: addRecommendedService.isPending,
+          onAddGapService: (gap) =>
+            gap.serviceModule &&
+            addRecommendedService.mutate({
+              serviceModuleId: gap.serviceModule.id,
+              notes: `Added from the start readiness path. ${gap.description || ''}`.trim(),
+            }),
+        }}
+        talent={{
+          talentItems: currentCart?.talentItems || [],
+          isRemovingTalent: removeTalent.isPending,
+          onRemoveTalent: (itemId) => removeTalent.mutate(itemId),
+        }}
+        approval={{
+          product,
+          projectName,
+          canStartWorkspace,
+          serviceCount,
+          blockers,
+          blockingRecommendations,
+          createdWorkspace,
+          convertedWorkspace: currentCart?.convertedWorkspace,
+          isStartingWorkspace: convertCart.isPending,
+          isAddingService: addRecommendedService.isPending,
+          onProjectNameChange: setProjectName,
+          onStartWorkspace: () => convertCart.mutate(),
+          onAddCatalogRecommendation: addCatalogRecommendation,
+        }}
+      />
     </>
   );
 }

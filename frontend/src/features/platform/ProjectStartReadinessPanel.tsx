@@ -64,7 +64,7 @@ export default function ProjectStartReadinessPanel({
       ) : (
         <Alert severity={serviceCount ? 'success' : 'info'} sx={{ borderRadius: 1, mb: 1.5 }}>
           {serviceCount
-            ? 'The selected services fit together for this draft. You can start the workspace when the product and service list are ready.'
+            ? 'The selected services fit together for this start plan. You can start the workspace when the product and service list are ready.'
             : 'Add productization services first. ProdUS will show service gaps here before you start the workspace.'}
         </Alert>
       )}

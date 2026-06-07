@@ -77,7 +77,7 @@ export default function ProjectStartPlanOverview({
             )}
             {hasPlaceholderProduct && (
               <Alert severity="warning" sx={{ borderRadius: 1 }}>
-                This draft is attached to a temporary test product. Select a production product before starting a workspace.
+                This start plan is attached to a temporary test product. Select a production product before starting a workspace.
               </Alert>
             )}
             <TextField
@@ -126,7 +126,7 @@ export default function ProjectStartPlanOverview({
                 </Stack>
               </Surface>
             ) : (
-              <EmptyState label="Select or create a production product before this draft can become a workspace." />
+              <EmptyState label="Select or create a production product before this start plan can become a workspace." />
             )}
           </Stack>
         </Box>

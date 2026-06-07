@@ -141,7 +141,7 @@ function PublicTeamCard({
             }}
             sx={{ minHeight: 42 }}
           >
-            {!isLoggedIn ? 'Sign In To Add Team' : canUseProjectCart ? (inCart ? 'In Draft Cart' : 'Add Team To Draft') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign In To Add Team' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Add Team To Plan') : 'Open Dashboard'}
           </Button>
         </Stack>
       </Stack>
@@ -233,7 +233,7 @@ function ExpertCard({
             }}
             sx={{ minHeight: 42 }}
           >
-            {!isLoggedIn ? 'Sign In To Add Expert' : canUseProjectCart ? (inCart ? 'In Draft Cart' : 'Add Expert To Draft') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign In To Add Expert' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Add Expert To Plan') : 'Open Dashboard'}
           </Button>
         </Stack>
       </Stack>
@@ -302,7 +302,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
   const { isLoggedIn, user } = useAuth();
   const canUseProjectCart = user?.role === UserRole.PRODUCT_OWNER;
   const cartHref = canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login';
-  const cartActionLabel = canUseProjectCart ? 'Review draft cart' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
+  const cartActionLabel = canUseProjectCart ? 'Review start plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
   const teams = useQuery({ queryKey: ['public-teams'], queryFn: () => getJson<Team[]>('/teams') });
   const experts = useQuery({ queryKey: ['public-expert-profiles'], queryFn: () => getJson<ExpertProfile[]>('/expert-profiles') });
   const categories = useQuery({ queryKey: ['public-catalog-categories'], queryFn: () => getJson<ServiceCategory[]>('/catalog/categories') });
@@ -477,7 +477,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
             <Box>
               <Typography variant="h4">Ready to turn discovery into a governed workspace?</Typography>
               <Typography color="text.secondary">
-                Sign in to create a product brief, save teams and experts to a draft cart, and convert it into a project workspace.
+                Sign in to create a product brief, save teams and experts to a start plan, and approve it into a project workspace.
               </Typography>
             </Box>
           </Stack>
