@@ -3,13 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AddOutlined,
-  AutoAwesomeOutlined,
   CalendarMonthOutlined,
   CloudUploadOutlined,
   ErrorOutlineOutlined,
   FactCheckOutlined,
-  ShieldOutlined,
-  SyncOutlined,
   TaskAltOutlined,
 } from '@mui/icons-material';
 import { Alert, Box, Button, Divider, LinearProgress, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
@@ -27,13 +24,13 @@ import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
 import WorkspaceCommandHero from './WorkspaceCommandHero';
 import WorkspaceCommandJourneyNav, { type WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
+import WorkspaceScannerFixPathPanel from './WorkspaceScannerFixPathPanel';
 import { sortWorkspacesForOwner } from './displayOrder';
 import {
   EmptyState,
   MetricTile,
   PageHeader,
   PastelChip,
-  ProgressRing,
   QueryState,
   SectionTitle,
   StatusChip,
@@ -940,82 +937,21 @@ export default function WorkspaceCommandPage() {
 
               {workspaceView === 'proof' && (
                 <>
-              <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f5fbff 46%, #fffaf2 100%)' }}>
-                <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} alignItems={{ lg: 'center' }} justifyContent="space-between">
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <ProgressRing
-                      value={readinessScore}
-                      size={110}
-                      color={readiness?.blockerCount ? appleColors.red : readiness?.diagnosis ? appleColors.green : appleColors.cyan}
-                      label="ready"
-                    />
-                    <Box sx={{ minWidth: 0 }}>
-                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                        <ShieldOutlined sx={{ color: readiness?.blockerCount ? appleColors.red : appleColors.cyan }} />
-                        <Typography variant="h3" sx={{ fontSize: { xs: 22, md: 26 } }}>Scanner Fix Path</Typography>
-                        <PastelChip label={readinessStatus} accent={readiness?.blockerCount ? appleColors.red : appleColors.green} bg={readiness?.blockerCount ? '#fff1f1' : '#e7f8ee'} />
-                      </Stack>
-                      <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6, maxWidth: 760 }}>
-                        Scanner findings become clear fixes, suggested services, and proof tasks. This is stored and deterministic; AI explanation only runs when you ask for it.
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
-                        <PastelChip label={`${readiness?.mappedFindingCount || 0} mapped`} accent={appleColors.green} bg="#e7f8ee" />
-                        <PastelChip label={`${readiness?.blockerCount || 0} priority fixes`} accent={readiness?.blockerCount ? appleColors.red : appleColors.green} bg={readiness?.blockerCount ? '#fff1f1' : '#e7f8ee'} />
-                        <PastelChip label={`${readiness?.missingEvidenceCount || 0} proof gaps`} accent={readiness?.missingEvidenceCount ? appleColors.amber : appleColors.green} bg={readiness?.missingEvidenceCount ? '#fff4dc' : '#e7f8ee'} />
-                        <PastelChip label={`${readiness?.unmappedFindingCount || 0} unmapped`} accent={readiness?.unmappedFindingCount ? appleColors.amber : appleColors.cyan} bg={readiness?.unmappedFindingCount ? '#fff4dc' : '#e4f9fd'} />
-                      </Stack>
-                    </Box>
-                  </Stack>
-                  <Stack direction={{ xs: 'column', sm: 'row', lg: 'column' }} spacing={1} sx={{ flex: { lg: '0 0 230px' } }}>
-                    <Button
-                      variant="contained"
-                      startIcon={<SyncOutlined />}
-                      disabled={!selectedWorkspaceProductId || enrichScannerReadiness.isPending}
-                      onClick={() => enrichScannerReadiness.mutate()}
-                      sx={{ minHeight: 42 }}
-                    >
-                      Refresh Fix Path
-                    </Button>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.55 }}>
-                      Refresh is deterministic and stored. Use the AI explainer below when you want a plain-English readout.
-                    </Typography>
-                  </Stack>
-                </Stack>
-                {(workspaceScannerReadiness.isFetching || enrichScannerReadiness.isPending) && <LinearProgress sx={{ mt: 1.5, borderRadius: 999 }} />}
-                {readiness?.milestoneRisks?.length ? (
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1.25, mt: 2 }}>
-                    {readiness.milestoneRisks.slice(0, 4).map((risk) => (
-                      <Box key={risk.milestoneId} sx={{ p: 1.35, border: '1px solid', borderColor: '#e1eaf6', borderRadius: 1, bgcolor: '#fff' }}>
-                        <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-                          <Box sx={{ minWidth: 0 }}>
-                            <Typography sx={{ fontWeight: 900 }} noWrap>{risk.milestoneTitle}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {risk.scannerFindingCount} scanner finding{risk.scannerFindingCount === 1 ? '' : 's'} · {risk.missingEvidenceCount} proof gap{risk.missingEvidenceCount === 1 ? '' : 's'}
-                            </Typography>
-                          </Box>
-                          <PastelChip label={risk.highestSeverity || 'Mapped'} accent={severityAccent(risk.highestSeverity)} bg={risk.highestSeverity === 'CRITICAL' || risk.highestSeverity === 'HIGH' ? '#fff1f1' : '#f1efff'} />
-                        </Stack>
-                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                          {risk.mappedServices.length ? risk.mappedServices.slice(0, 4).map((service) => (
-                            <PastelChip key={service} label={service} accent={appleColors.cyan} bg="#e4f9fd" />
-                          )) : <Typography variant="caption" color="text.secondary">Needs service mapping review</Typography>}
-                        </Stack>
-                      </Box>
-                    ))}
-                  </Box>
-                ) : (
-                  <Box sx={{ mt: 2, p: 1.5, border: '1px dashed', borderColor: '#cfe3f8', borderRadius: 1, bgcolor: '#fbfdff' }}>
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        {scannerEvidenceList.length
-                          ? 'Scanner proof exists. Refresh the fix path to create mapped milestone risks and proof tasks.'
-                          : 'Run or attach workspace-scoped scanner proof to build a fix path for this delivery.'}
-                      </Typography>
-                      <AutoAwesomeOutlined sx={{ color: appleColors.purple }} />
-                    </Stack>
-                  </Box>
-                )}
-              </Surface>
+                  <WorkspaceScannerFixPathPanel
+                    readinessScore={readinessScore}
+                    readinessStatus={readinessStatus}
+                    hasDiagnosis={!!readiness?.diagnosis}
+                    blockerCount={readiness?.blockerCount || 0}
+                    mappedFindingCount={readiness?.mappedFindingCount || 0}
+                    missingEvidenceCount={readiness?.missingEvidenceCount || 0}
+                    unmappedFindingCount={readiness?.unmappedFindingCount || 0}
+                    scannerEvidenceCount={scannerEvidenceList.length}
+                    milestoneRisks={readiness?.milestoneRisks || []}
+                    isRefreshing={enrichScannerReadiness.isPending}
+                    isLoading={workspaceScannerReadiness.isFetching}
+                    canRefresh={!!selectedWorkspaceProductId}
+                    onRefresh={() => enrichScannerReadiness.mutate()}
+                  />
 
               <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f9fcff 100%)' }}>
                 <ShipConfidencePanel
