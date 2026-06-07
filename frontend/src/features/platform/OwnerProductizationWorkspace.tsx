@@ -2078,15 +2078,22 @@ export default function OwnerProductizationWorkspace({
       ],
     },
   ];
+  const rawLaunchBlockerFindings = (scannerSummary.data?.findings || []).filter((finding) =>
+    ['CRITICAL', 'HIGH'].includes(finding.severity) && ['NEW', 'OPEN', 'REGRESSED'].includes(finding.status)
+  );
+  const ownerLaunchBlockerFindings = launchStatus.blockerCount > 0
+    ? topOwnerRisks.slice(0, Math.max(1, launchStatus.blockerCount))
+    : rawLaunchBlockerFindings;
+  const ownerLaunchBlockerIds = new Set(ownerLaunchBlockerFindings.map((finding) => finding.id));
   const groupedFindings = [
     {
       label: 'Launch blockers',
-      findings: (scannerSummary.data?.findings || []).filter((finding) => ['CRITICAL', 'HIGH'].includes(finding.severity) && ['NEW', 'OPEN', 'REGRESSED'].includes(finding.status)),
+      findings: ownerLaunchBlockerFindings,
       accent: appleColors.red,
     },
     {
       label: 'High-priority technical risks',
-      findings: (scannerSummary.data?.findings || []).filter((finding) => finding.severity === 'MEDIUM' && ['NEW', 'OPEN', 'REGRESSED', 'INSUFFICIENT_EVIDENCE'].includes(finding.status)),
+      findings: (scannerSummary.data?.findings || []).filter((finding) => !ownerLaunchBlockerIds.has(finding.id) && finding.severity === 'MEDIUM' && ['NEW', 'OPEN', 'REGRESSED', 'INSUFFICIENT_EVIDENCE'].includes(finding.status)),
       accent: appleColors.amber,
     },
     {
