@@ -31,6 +31,11 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import { LoomAIMaxModeAssistant } from './LoomAIMaxModeAssistant';
+import {
+  AiOpportunityDiscoveryPanel,
+  ProductAnalysisProgress,
+  ProductIntakeFrontDoor,
+} from './OwnerJourneyCards';
 import { postFormData, postJson, putJson } from './api';
 import {
   DotLabel,
@@ -47,7 +52,6 @@ import {
 } from './PlatformComponents';
 import {
   AiAssistedProductAnalysisResponse,
-  AiOpportunityReport,
   LoomAIIntegrationOverview,
   ProductAnalysisMode,
   ServiceModuleRecommendation,
@@ -477,115 +481,6 @@ function AiServicePlanReview({
               </Box>
             );
           })}
-        </Box>
-      </Stack>
-    </Box>
-  );
-}
-
-function AiOpportunityPanel({
-  report,
-}: {
-  report: AiOpportunityReport | undefined;
-}) {
-  if (!report) return null;
-  const useCases = report.useCases ?? [];
-  const score = Math.round((report.opportunityScore ?? 0) * 100);
-  return (
-    <Box
-      sx={{
-        p: 1.4,
-        borderRadius: 1,
-        border: `1px solid ${appleColors.purple}24`,
-        background: 'linear-gradient(145deg, #ffffff 0%, #f7f4ff 100%)',
-      }}
-    >
-      <Stack spacing={1.2}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
-          <Box>
-            <Typography variant="body2" sx={{ fontWeight: 950 }}>
-              AI integration opportunities
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-              {report.summary || 'LoomAI mapped where AI can add useful productization support.'}
-            </Typography>
-          </Box>
-          <DotLabel
-            label={report.live ? `LoomAI ${score || 'ready'}%` : `Prepared ${score || 'ready'}%`}
-            color={report.live ? appleColors.green : appleColors.amber}
-          />
-        </Stack>
-        {report.strategicRationale && (
-          <Typography variant="caption" sx={{ color: appleColors.ink, fontWeight: 800, lineHeight: 1.55 }}>
-            {report.strategicRationale}
-          </Typography>
-        )}
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
-            gap: 1,
-          }}
-        >
-          {useCases.slice(0, 6).map(useCase => (
-            <Box
-              key={useCase.title}
-              sx={{
-                p: 1,
-                borderRadius: 1,
-                border: '1px solid #e8ddff',
-                bgcolor: '#fff',
-                minWidth: 0,
-              }}
-            >
-              <Stack spacing={0.7}>
-                <Stack direction="row" justifyContent="space-between" spacing={1}>
-                  <Typography variant="body2" sx={{ fontWeight: 950, lineHeight: 1.25 }}>
-                    {useCase.title}
-                  </Typography>
-                  <DotLabel label={useCase.priority || 'SHOULD'} color={servicePriorityColor(useCase.priority)} />
-                </Stack>
-                {useCase.workflow && (
-                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.45 }}>
-                    {useCase.workflow}
-                  </Typography>
-                )}
-                {useCase.userValue && (
-                  <Typography variant="caption" sx={{ color: appleColors.green, fontWeight: 800, lineHeight: 1.45 }}>
-                    {useCase.userValue}
-                  </Typography>
-                )}
-                {(useCase.loomaiCapability || useCase.loomaiCapabilityCode) && (
-                  <DotLabel
-                    label={useCase.loomaiCapabilityCode
-                      ? `${useCase.loomaiCapabilityCode}${useCase.loomaiCapability ? ` · ${useCase.loomaiCapability}` : ''}`
-                      : useCase.loomaiCapability ?? ''}
-                    color={appleColors.purple}
-                  />
-                )}
-              </Stack>
-            </Box>
-          ))}
-        </Box>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-            gap: 1,
-          }}
-        >
-          <AiReviewList
-            title="Opportunity next steps"
-            items={report.suggestedNextSteps ?? []}
-            empty="No AI opportunity next steps returned."
-            accent={appleColors.purple}
-          />
-          <AiReviewList
-            title="Opportunity evidence"
-            items={report.sourceInsights ?? []}
-            empty="No opportunity evidence returned."
-            accent={appleColors.cyan}
-          />
         </Box>
       </Stack>
     </Box>
@@ -1250,6 +1145,61 @@ export default function ProductOnboardingWizard() {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 340px' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
+          <ProductIntakeFrontDoor
+            brief={aiBrief}
+            productUrl={form.values.productUrl}
+            repositoryUrl={form.values.repositoryUrl}
+            analysisMode={analysisMode}
+            analysisModeOptions={analysisModeOptions}
+            documents={aiDocumentFiles.map(item => ({
+              name: item.file.name,
+              size: item.file.size,
+              shareWithAi: item.shareWithAi,
+            }))}
+            selectedDocumentCount={selectedAiDocumentCount}
+            isBusy={aiBusy}
+            onBriefChange={value => {
+              setAiBrief(value);
+              resetAiAnalysis();
+            }}
+            onProductUrlChange={productUrl => form.setValue('productUrl', productUrl)}
+            onRepositoryUrlChange={repositoryUrl => form.setValue('repositoryUrl', repositoryUrl)}
+            onAnalysisModeChange={mode => {
+              setAnalysisMode(mode);
+              resetAiAnalysis();
+            }}
+            onFileInput={event => {
+              const files = Array.from(event.target.files || []).map(file => ({
+                file,
+                shareWithAi: true,
+              }));
+              setAiDocumentFiles(current => [...current, ...files]);
+              resetAiAnalysis();
+              event.target.value = '';
+            }}
+            onToggleDocument={(index, shareWithAi) => {
+              setAiDocumentFiles(current =>
+                current.map((doc, docIndex) =>
+                  docIndex === index ? { ...doc, shareWithAi } : doc
+                )
+              );
+              resetAiAnalysis();
+            }}
+            onRemoveDocument={index => {
+              setAiDocumentFiles(current => current.filter((_, docIndex) => docIndex !== index));
+              resetAiAnalysis();
+            }}
+            onAnalyze={() => analyzeProductWithAI.mutate()}
+            onManualSetup={() => {
+              document.getElementById('manual-product-profile')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+          />
+
+          {analyzeProductWithAI.isPending && (
+            <ProductAnalysisProgress modeLabel={fullAnalysisMode ? 'Full analysis with AI opportunities' : 'AI opportunity analysis'} />
+          )}
+
+          {aiAnalysis && (
           <Surface
             sx={{
               background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 48%, #f8f7ff 100%)',
@@ -1258,8 +1208,8 @@ export default function ProductOnboardingWizard() {
           >
             <Stack spacing={2.25}>
               <SectionTitle
-                title="AI Project Creation"
-                action={<DotLabel label="Owner approved" color={appleColors.purple} />}
+                title="Here's what ProdUS understood"
+                action={<DotLabel label={aiAnalysis.intent.analysisProviderRequestId ? 'LoomAI analyzed' : 'Fallback analysis'} color={aiAnalysis.intent.analysisProviderRequestId ? appleColors.green : appleColors.amber} />}
               />
               <Box
                 sx={{
@@ -1592,7 +1542,7 @@ export default function ProductOnboardingWizard() {
                           onToggle={toggleServiceRecommendation}
                           onMove={moveServiceRecommendation}
                         />
-                        <AiOpportunityPanel report={aiAnalysis.aiOpportunityReport} />
+                        <AiOpportunityDiscoveryPanel report={aiAnalysis.aiOpportunityReport} />
                         <LoomAIOverviewPanel overview={aiAnalysis.loomaiIntegrationOverview} />
                         {missingCatalogCoverage.length > 0 && (
                           <Box
@@ -1870,8 +1820,9 @@ export default function ProductOnboardingWizard() {
               </Box>
             </Stack>
           </Surface>
+          )}
 
-          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f7fbff)' }}>
+          <Surface id="manual-product-profile" sx={{ background: 'linear-gradient(135deg, #ffffff, #f7fbff)' }}>
             <Stack spacing={2}>
               <SectionTitle
                 title="Guided Setup"

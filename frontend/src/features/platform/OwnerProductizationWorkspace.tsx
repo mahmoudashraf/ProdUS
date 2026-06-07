@@ -74,6 +74,12 @@ import ShipConfidencePanel from './ShipConfidencePanel';
 import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
 import {
+  OwnerControlPanel,
+  OwnerLaunchReadyCelebration,
+  OwnerReadinessVerdictReveal,
+  VerdictRisk,
+} from './OwnerJourneyCards';
+import {
   WorkspaceTab,
   buildOwnerLaunchStatus,
   ownerActionForCategory,
@@ -1970,6 +1976,15 @@ export default function OwnerProductizationWorkspace({
     completedTools: latestCompletedTools,
     totalTools: scanToolOptions.length,
   });
+  const verdictRisks: VerdictRisk[] = topOwnerRisks.slice(0, 2).map((risk) => {
+    const category = ownerCategoryFromSignal(risk.sourceTool, risk.readinessArea, risk.title);
+    return {
+      id: risk.id,
+      title: risk.title,
+      impact: risk.businessRisk || ownerImpactForCategory(category),
+      evidence: ownerProofLine({ sourceTool: risk.sourceTool, sourceRuleId: risk.sourceRuleId, category }),
+    };
+  });
   const scannerCoverageGroups = scannerEvidenceCategories.map((category) => {
     const tools = category.tools.map((toolKey) => scannerToolCoverage.find((tool) => tool.toolKey === toolKey)).filter(Boolean) as ScannerToolCoverage[];
     const completed = tools.filter((tool) => tool.latestStatus === 'COMPLETED').length;
@@ -2352,6 +2367,20 @@ export default function OwnerProductizationWorkspace({
       />
       <QueryState isLoading={loading} error={error} />
 
+      {selectedProduct && hasLaunchEvidenceContext && (
+        <Box sx={{ mb: 2.5 }}>
+          <OwnerReadinessVerdictReveal
+            productName={selectedProduct.name}
+            launchStatus={launchStatus}
+            risks={verdictRisks}
+            completedChecks={latestCompletedTools}
+            totalChecks={scanToolOptions.length}
+            onSeePlan={() => setWorkspaceTab(launchStatus.blockerCount ? 'actions' : 'services')}
+            onViewProof={() => setWorkspaceTab('findings')}
+          />
+        </Box>
+      )}
+
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 340px' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
           {selectedProduct ? (
@@ -2469,6 +2498,16 @@ export default function OwnerProductizationWorkspace({
 
           {selectedProduct && workspaceTab === 'overview' && (
             <Stack spacing={2.5}>
+              <OwnerLaunchReadyCelebration
+                readinessScore={launchStatus.score}
+                blockerCount={launchStatus.blockerCount}
+                improvementCount={launchStatus.improvementCount}
+                completedChecks={latestCompletedTools}
+                totalChecks={scanToolOptions.length}
+                isGenerating={generateLaunchReadinessReport.isPending}
+                onGenerateReport={() => generateLaunchReadinessReport.mutate()}
+              />
+
               <Surface>
                 <SectionTitle
                   title="Launch Decision"
@@ -4618,6 +4657,21 @@ export default function OwnerProductizationWorkspace({
         </Stack>
 
         <Stack spacing={2.5}>
+          {selectedProduct && (
+            <OwnerControlPanel
+              status={launchStatus}
+              primaryAction={launchStatus.blockerCount ? 'Open action plan' : topRecommendedServiceName ? 'Review service path' : 'Open proof'}
+              lastScanLabel={scannerSummary.data?.recentRuns[0]?.completedAt ? shortDateTime(scannerSummary.data.recentRuns[0].completedAt) : latestCompletedTools ? `${latestCompletedTools} checks completed` : 'No completed check yet'}
+              evidenceLabel={`${latestCompletedTools}/${scanToolOptions.length} checks`}
+              onPrimaryAction={() => setWorkspaceTab(launchStatus.blockerCount ? 'actions' : topRecommendedServiceName ? 'services' : 'findings')}
+              secondary={
+                <Button variant="outlined" startIcon={<EventRepeatOutlined />} onClick={() => setTimelineOpen(true)} sx={{ minHeight: 38 }}>
+                  View timeline
+                </Button>
+              }
+            />
+          )}
+
           <Box id="project-cart" sx={{ scrollMarginTop: 96 }}>
           <Surface>
             <SectionTitle

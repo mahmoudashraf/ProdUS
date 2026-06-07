@@ -1,25 +1,117 @@
-# ProdUS Platform BRD
+# ProdUS
 
-Status: active product implementation  
-Audience: product, engineering, delivery, AI integration, scanner, and operations teams  
-Repository scope: full-stack ProdUS platform, including backend API, frontend UI, scanner integration, MCP/API contracts, and LoomAI-backed assistant workflows
+Turn prototypes, internal tools, and early product ideas into launch-ready products with a clear decision, evidence, and a practical next plan.
 
-## Page 1: Business Context
+ProdUS is built for startup founders, product owners, solo builders, and early teams who have something real enough to inspect, but not enough structure to know whether it is ready to show customers. It gives the owner a guided path from:
+
+```text
+I have a prototype.
+```
+
+to:
+
+```text
+I know what blocks launch, what can wait, what proof ProdUS used, and which productization services can move this forward.
+```
+
+## What ProdUS Does For An Owner
+
+ProdUS turns scattered product context into an owner-readable launch-readiness workflow:
+
+1. Describe the product, attach a README or private document, and connect a repository or runtime URL.
+2. Let ProdUS create a structured product profile and preserve the evidence that was used.
+3. Run scanner and readiness checks across source, dependencies, infrastructure, runtime, and evidence coverage.
+4. See one launch decision: ready, needs attention, not ready, or evidence needed.
+5. Review the top blockers, the recommended next action, and the matching service path.
+6. Convert the plan into a productization workspace with services, teams, evidence, milestones, and owners.
+
+The owner should not need to understand scanner names, security acronyms, or internal platform workflows before they can answer the main question:
+
+```text
+Can I launch this, and what should I do next?
+```
+
+## Current MVP Focus
+
+The MVP is focused on proving the productization loop end to end:
+
+- Owner intake from natural language, documents, repository links, and runtime URLs.
+- AI-assisted product analysis through LoomAI, mediated by the ProdUS backend.
+- Private document handling with selected, short-lived AI access.
+- Repository and runtime scanner evidence.
+- Normalized findings mapped to product readiness.
+- An owner-facing productization workspace with launch decision, blockers, evidence, action plan, services, and timeline.
+- Service recommendations that turn readiness gaps into purchasable or assignable productization work.
+- Expert/team matching and workspace creation as the delivery path after diagnosis.
+
+## MVP Owner Journey
+
+For a prototype or early product, the ideal owner journey is:
+
+```text
+Create product -> attach proof -> scan -> get verdict -> fix blockers -> create workspace
+```
+
+The product workspace should lead with:
+
+- Launch verdict: the plain-language answer.
+- Blockers: what must be fixed before launch.
+- Improvements: what can be scheduled later.
+- Evidence: what ProdUS inspected.
+- Services: the recommended way to resolve the gaps.
+- Technical proof: scanner details for an engineer or reviewer.
+
+## ProdUS And LoomAI
+
+ProdUS is the productization system of record. It owns users, products, documents, scanner evidence, services, workspaces, authorization, audit, and mutations.
+
+LoomAI is the AI runtime used to analyze owner-provided context, summarize evidence, explain readiness, recommend service paths, and assist with selected owner or operator workflows.
+
+The browser should never call LoomAI directly. ProdUS mediates AI calls through the backend, passes only the owner-approved context needed for the task, and keeps private documents protected through short-lived access rather than exposing permanent URLs or raw secrets.
+
+## Owner-Facing Language Principles
+
+When describing ProdUS to MVP, startup, or prototype owners:
+
+- Lead with the launch decision, not the scanner suite.
+- Say `blockers` and `improvements` before severity codes or tool names.
+- Say `evidence ProdUS inspected` before `normalized findings`.
+- Explain check completion separately from launch readiness.
+- Tie every recommended service to the owner outcome it improves.
+- Keep AI framed as an assistant that explains and accelerates, while ProdUS remains the trusted record.
+- Avoid implying autonomous launch approval, autonomous team assignment, or compliance certification without human review.
+
+Preferred copy pattern:
+
+```text
+ProdUS found 2 launch blockers and 28 improvements.
+Fix the blockers before sharing this product with customers.
+The evidence came from the repository, runtime URL, README, and 10 completed checks.
+```
+
+## Product And Platform Detail
+
+- Status: active product implementation
+- Primary audience: startup owners, prototype builders, product teams, delivery teams, AI integration engineers, scanner engineers, and operators
+- Repository scope: full-stack ProdUS platform, including backend API, frontend UI, scanner integration, MCP/API contracts, and LoomAI-backed assistant workflows
+
+## Business Context
 
 ### 1. Executive Summary
 
-ProdUS is an AI-assisted productization platform for turning prototypes, internal tools, and early product ideas into production-ready products with governed evidence, lifecycle services, expert delivery, and readiness tracking.
+ProdUS is an AI-assisted productization platform for turning prototypes, internal tools, and early product ideas into products that can be reviewed, improved, and launched with confidence.
 
-The platform is designed around a simple business problem: product owners often know what they want to ship, but they do not have a reliable path to prove production readiness. They need diagnosis, service planning, scanner evidence, delivery support, milestones, and expert teams in one coherent flow. ProdUS provides that flow through a productization studio for owners and a network for specialist teams and solo experts.
+The platform is designed around a simple business problem: owners often know what they want to ship, but they do not know what is blocking launch or how to turn scattered evidence into a credible next plan. They need a clear verdict, blocker list, service path, delivery support, milestones, and proof in one coherent flow. ProdUS provides that flow through a productization studio for owners and a network for specialist teams and solo experts.
 
-ProdUS is not a generic project management tool. It is a productization operating system. Its purpose is to help owners move from "I have a prototype" to "I have a product-level delivery workspace with evidence, owners, milestones, risks, and production-readiness decisions."
+ProdUS is not a generic project management tool or a raw scanner dashboard. It is a guided productization workspace. Its purpose is to help owners move from "I have a prototype" to "I know the launch blockers, the evidence behind them, and the service path that can get this product ready."
 
 ### 2. Business Objectives
 
 The main objectives are:
 
-- Help product owners create structured productization projects from natural input, links, repositories, and private documents.
+- Help product owners turn natural input, links, repositories, and private documents into a structured productization project.
 - Diagnose product readiness using catalog knowledge, scanner findings, evidence, and owner-provided context.
+- Translate technical findings into owner-readable blockers, improvements, and next actions.
 - Recommend lifecycle services such as validation, code rewrite, cloud deployment, security hardening, database readiness, launch readiness, testing, and operations support.
 - Let owners build packages and project carts that combine services, teams, solo experts, and workspace creation.
 - Match owners with verified teams or solo experts based on capabilities, reputation, service fit, and availability.
@@ -67,7 +159,7 @@ AI Assistant:
 
 Supports owner and operator workflows through analysis, summarization, recommendations, evidence explanation, scanner finding interpretation, and selected confirmed actions. AI does not replace authorization, audit, or business-state ownership in ProdUS.
 
-## Page 2: Functional Scope
+## Functional Scope
 
 ### 5. Core Productization Journey
 
@@ -198,7 +290,7 @@ It includes:
 
 Owner-facing team selection should be focused on product outcomes, not generic hiring. Owners need shortlists, compare views, service fit, reputation, availability, and clear actions to add teams or experts to a project cart.
 
-## Page 3: Integration, Quality, and Readiness
+## Integration, Quality, And Readiness
 
 ### 10. AI Integration Requirements
 

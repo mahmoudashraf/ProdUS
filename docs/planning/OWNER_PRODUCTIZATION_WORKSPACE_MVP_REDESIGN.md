@@ -6,6 +6,18 @@ Reference screenshot:
 
 - `tmp/live-verification/2026-06-06/05-produs-repo-readme-suite.png`
 
+Companion journey document:
+
+- `docs/planning/OWNER_JOURNEY_UI_UX_REDEFINITION.md`
+
+Post-deploy review screenshots:
+
+- `tmp/live-verification/2026-06-07/01-owner-workspace-overview-live.png`
+- `tmp/live-verification/2026-06-07/02-owner-workspace-action-plan-live.png`
+- `tmp/live-verification/2026-06-07/03-owner-workspace-findings-proof-live.png`
+- `tmp/live-verification/2026-06-07/04-owner-workspace-timeline-dialog-live.png`
+- `tmp/live-verification/2026-06-07/05-owner-workspace-mobile-overview-live.png`
+
 ## Summary
 
 The current workspace is a strong technical prototype. It proves that ProdUS can ingest a real repository, retain the README attachment, run all hosted scanners, store normalized findings, map them to readiness evidence, and show the result in the product workspace.
@@ -56,6 +68,82 @@ What does not work for an owner:
 - Findings, service plans, project readiness, scanner coverage, and evidence are mixed together.
 - The risk/readiness scores do not clearly explain what changed them or how to improve them.
 - The user has to scroll and interpret instead of being guided.
+
+## Post-Deploy Screenshot Review
+
+The deployed redesign is a meaningful MVP improvement. It now has one canonical owner readiness score, four top-level tabs, owner-readable launch decision copy, inline proof on the main risks, scanner proof inside Findings, and a timeline dialog instead of another top-level area.
+
+It is still not the best founder-grade journey. The live screenshots show that the page is no longer scanner-first, but it still feels partly like an internal operator console. The next pass should simplify the owner journey further and make the page feel like a guided launch decision.
+
+### What The Current Redesign Fixed
+
+- Removed the duplicate owner-level score circle.
+- Replaced seven top-level destinations with four owner-facing tabs.
+- Moved scanner and evidence detail out of the primary navigation.
+- Put proof lines next to the risks and actions that depend on them.
+- Exposed a clear launch verdict instead of `Unknown` for a scanned product.
+- Preserved full scanner coverage and mapped findings for technical review.
+
+### Remaining Problems And Proposed Solutions
+
+| Problem seen in screenshots | Why it hurts the journey | Proposed solution |
+| --- | --- | --- |
+| The first viewport still has too many decision centers: product header, launch status, top risks, project plan, AI brief, next decision, and several CTAs. | A startup owner has to decide where to look before they can decide what to do. | Make the first viewport a single launch-decision composition: verdict, 2 to 3 blockers, one primary action, one secondary proof action. Move AI brief, next decision, and project plan details lower or behind drawers. |
+| The right rail is still too operational, with service-plan management and repeated `Remove` links. | It reads like an admin/editing panel instead of an owner guidance panel. | Replace the right rail with a compact owner control panel: current launch state, next owner action, assigned owner/team, last scan time, export/share. Move remove/edit actions into a service-plan edit drawer. |
+| The launch decision card is clearer but not visually dominant enough. | The owner answer should feel like the page's main result, not one card among many. | Give the launch decision a dominant full-width band below the product header. Use stronger hierarchy for the verdict and keep supporting counts nested beneath it. |
+| `0% ready` can feel harsh or confusing when the same page says `10/10 checks completed`. | Owners can confuse check completion with launch readiness, or feel the score is punitive without enough context. | Lead with the verdict text: `Blocked by 2 launch issues`. Show the numeric readiness score as secondary evidence with a short explanation: `Checks completed means coverage is complete; readiness reflects unresolved blockers.` |
+| Findings are still too dense for a non-technical owner. | The owner may drop into scanner language and long lists before understanding the next business action. | Split Findings into an owner default and technical mode. Owner default shows blockers, impact, action, and proof. Technical mode exposes raw scanner language, artifact links, and filters. |
+| Mobile works technically, but it becomes a long stack of nearly everything. | A founder checking status on a phone needs a short answer and one action, not the whole console compressed vertically. | Use a mobile-first sequence: verdict card, first blocker, primary CTA, proof summary, then expandable detail. Add a sticky bottom primary action when a blocker path exists. |
+| There are still many cards, borders, labels, chips, and small status badges. | Everything competes visually, and the page still feels busy even after the tab cleanup. | Remove most decorative borders and chips. Use whitespace, section headings, and semantic status color. Keep one primary accent color for the main action. |
+| Services are improved but still feel like a separate module beside the launch decision. | ProdUS monetization should feel like the natural way to resolve the top blocker, not another catalog surface. | Tie the number-one action directly to the number-one service: `Fix the launch blockers` maps to `Launch Hardening Sprint` or the relevant service path. |
+| The AI Owner Brief is useful but visually competes with deterministic readiness. | The product's credibility should come from the readiness verdict and evidence first. | Move AI suggestions below the deterministic owner summary, or make AI a secondary assistant action inside the action plan. |
+| The page still exposes internal productization objects too early. | Early-stage owners care about launch state and next step before service-plan internals. | Delay project plan, package, and service management until after the owner has chosen a next path. |
+
+### Founder-Grade Journey Target
+
+The stronger journey should be:
+
+1. Verdict first: `Not ready to launch. Fix 2 blockers first.`
+2. Why: show the 2 blockers with impact and evidence.
+3. Do this: show one recommended action tied to the top recommended service.
+4. Prove it: make scanner coverage, mapped findings, and artifacts available as expandable proof.
+5. Continue: let the owner create a service plan, assign a reviewer, or export a report.
+
+### First Viewport V2 Proposal
+
+Recommended structure:
+
+```text
+Product: ProdUS Repo README Live
+
+[Launch verdict band]
+Not ready to launch
+Fix 2 blockers before sharing with customers.
+
+Checks completed: 10/10
+Evidence confidence: High
+Readiness: 0% because unresolved blockers remain
+
+[Blocker 1]
+Strict-Transport-Security header not set
+Impact: Browser protection is weaker for public users.
+Evidence: Web security baseline - latest run completed
+Action: Add security header and rerun public app check.
+
+[Blocker 2]
+Content Security Policy header not set
+Impact: Customer-facing pages may be easier to abuse if injected content appears.
+Evidence: Web security baseline - latest run completed
+Action: Add CSP header and rerun public app check.
+
+[Primary CTA]
+Fix launch blockers
+
+[Secondary CTA]
+View technical proof
+```
+
+Move the project start plan, AI brief, full action plan, scanner groups, and history below this first decision area.
 
 ## Product Design Goal
 
@@ -319,7 +407,7 @@ The strongest evidence pattern is inline proof on every major claim:
 
 ```text
 Runtime security headers are incomplete
-Evidence: Web security baseline · 10 findings · latest run completed
+Evidence: Web security baseline - 10 findings - latest run completed
 ```
 
 Use a separate evidence/proof area only for deeper audit needs.
@@ -516,6 +604,21 @@ The redesigned MVP is acceptable when:
 14. The mobile first viewport shows the launch decision, blocker count, primary CTA, and at least the first risk without horizontal scrolling.
 15. Overview uses semantic color only and avoids chip-heavy layouts.
 
+## Founder-Grade Acceptance Criteria
+
+The next iteration should raise the bar beyond acceptable MVP. It is founder-grade when:
+
+1. The first viewport has one dominant answer, not several competing panels.
+2. The owner can say the launch state, blocker count, and next action after reading one card.
+3. The numeric score never competes with the plain-language verdict.
+4. Check completion and launch readiness are visually distinct concepts.
+5. The right rail does not expose service-plan editing controls unless the owner is editing the plan.
+6. The top recommended service is presented as the direct path to resolving the top launch blocker.
+7. AI suggestions never compete visually with deterministic evidence and readiness.
+8. Mobile shows the verdict, first blocker, and primary action before any project-plan or scanner-management detail.
+9. The default Findings view is owner-readable; raw scanner evidence is one deliberate expansion away.
+10. At least half of the current card borders and chips are removed or replaced with whitespace, section rhythm, and typography.
+
 ## Implementation Plan
 
 ### Phase 1: Information Architecture
@@ -565,6 +668,17 @@ The redesigned MVP is acceptable when:
 - Verify first viewport does not overflow or hide primary CTA.
 - Verify all scanner details remain accessible.
 - Run frontend type-check and production build.
+
+### Phase 6: Founder-Grade Journey Pass
+
+- Rebuild the first viewport around a single launch verdict band.
+- Replace `0% ready` as the lead message with `Blocked by 2 launch issues`, keeping the score as supporting context.
+- Collapse the right rail into an owner control panel and move edit/remove controls into drawers.
+- Split Findings into owner default mode and technical proof mode.
+- Add a mobile sticky primary action for the current top blocker path.
+- Reduce borders, chips, repeated labels, and status badges across Overview.
+- Tie the primary action button directly to the top recommended service or service-plan step.
+- Move AI brief actions below deterministic readiness and evidence.
 
 ## Open Questions
 

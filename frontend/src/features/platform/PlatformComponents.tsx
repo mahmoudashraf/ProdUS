@@ -112,8 +112,9 @@ export const PageHeader = ({
   </Stack>
 );
 
-export const Surface = ({ children, sx }: { children: ReactNode; sx?: SxProps<Theme> }) => (
+export const Surface = ({ children, sx, id }: { children: ReactNode; sx?: SxProps<Theme>; id?: string }) => (
   <Paper
+    id={id}
     variant="outlined"
     sx={[
       {
