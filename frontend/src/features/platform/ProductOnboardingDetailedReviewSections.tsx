@@ -92,7 +92,6 @@ export default function ProductOnboardingDetailedReviewSections({
       <ReviewSection
         title="Product understanding"
         subtitle="Open this when the product name, users, outcome, or technical context need a closer owner check."
-        defaultExpanded
       >
         <Stack spacing={1}>
           <Box

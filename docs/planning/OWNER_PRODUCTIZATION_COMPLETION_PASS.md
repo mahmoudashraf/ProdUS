@@ -4,8 +4,8 @@ Date: 2026-06-07
 
 Baseline:
 
-- Latest live-verified commit before the services priority pass: `48496fe`.
-- Latest live-verified Coolify deployment before the services priority pass: `1082`.
+- Latest live-verified commit before the onboarding review pass: `d01b397`.
+- Latest live-verified Coolify deployment before the onboarding review pass: `1083`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
 - Live verification script: `tmp/live-verification/2026-06-07/live-owner-hub-spoke-navigation.js`.
 - Current largest owner-facing active files after the completed splits:
@@ -52,7 +52,9 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - Findings are split into owner risks, stored proof, and technical proof. Raw scanner proof is still reachable, but it no longer leads the owner journey.
 - Product onboarding, workspace command, start-plan board, and the owner side rail have been split into smaller route/panel components.
 - The old visible cart language has been replaced with `Project Start Plan` / `Start Plan`. The `/owner/project-cart` URL remains only as a compatibility route.
-- Latest live verification at commit `48496fe` confirmed the full journey and all 10 scanners completed/mapped, including `zap-baseline`.
+- Services now lead with a proof-linked `Priority Services` list before expandable service-family catalog depth.
+- Shopping/cart visual metaphors were removed from the owner platform TSX surfaces and replaced with checklist/action/start-plan icons.
+- Latest live verification at commit `d01b397` confirmed the full journey and all 10 scanners completed/mapped, including `zap-baseline`.
 
 ## Completion Sequence
 
@@ -126,7 +128,7 @@ Status:
 
 - Mostly complete. `ProjectStartPlanPage.tsx` now opens as a route-backed Start Plan hub with Readiness, Services, Talent, and Approve spokes. Remaining polish is to keep service and talent editing calm on mobile and avoid any shopping/cart visual metaphor.
 
-### Current Pass: Services Recommendation Completion
+### Completed: Services Recommendation Completion
 
 Problem:
 
@@ -148,17 +150,30 @@ Immediate implementation target:
 - Keep `Recommended Work Path` and `AI Service Selector` live-verifier expectations unchanged.
 - Run local checks, deploy, and live-verify the product, services, start-plan, workspace, and mobile screenshots.
 
-### Pass 4: Onboarding Review Completion
+Status:
+
+- Complete. `OwnerServicesRecommendationPanel` now composes `OwnerServicePriorityList` and `OwnerServiceCatalogFamiliesPanel`. The owner sees proof-linked services first and only expands the catalog when they need more detail.
+
+### Current Pass: Onboarding Review Completion
 
 Problem:
 
 - The onboarding wizard has been split, but the review step can still carry too much analysis detail.
+- The AI analysis action rail still shows all validation detail and chat controls at once.
+- The first AI detail section opens by default even though the summary already gives the owner decision context.
 
 Solution:
 
 - Preserve the front-door intake and AI understanding review.
 - Push secondary AI detail into expandable sections.
 - Keep document-use proof visible, but not louder than the owner decision.
+
+Immediate implementation target:
+
+- Keep the generated owner summary visible.
+- Collapse secondary AI detail sections by default.
+- Extract the creation validation checklist and AI chat helper into compact progressive panels.
+- Verify `/products/new` plus an analyzed onboarding review state with focused screenshots.
 
 ### Pass 5: Workspace Command Completion
 

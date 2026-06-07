@@ -1,10 +1,9 @@
 'use client';
 
 import { Alert, Box, Stack } from '@mui/material';
-import ProductOnboardingAnalysisActionPanel, {
-  type ProductOnboardingValidationItem,
-} from './ProductOnboardingAnalysisActionPanel';
+import ProductOnboardingAnalysisActionPanel from './ProductOnboardingAnalysisActionPanel';
 import ProductOnboardingAnalysisContextEditor from './ProductOnboardingAnalysisContextEditor';
+import type { ProductOnboardingValidationItem } from './ProductOnboardingValidationChecklist';
 import type {
   ProductAnalysisModeOption,
   ProductOnboardingAnalysisDocument,

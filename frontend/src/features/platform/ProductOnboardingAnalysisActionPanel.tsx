@@ -4,22 +4,14 @@ import {
   ArrowForwardOutlined,
   AutoAwesomeOutlined,
   ErrorOutlineOutlined,
-  RuleOutlined,
 } from '@mui/icons-material';
 import { Alert, Box, Button, Divider, Stack, Typography } from '@mui/material';
-import {
-  ProjectAnalysisChatPanel,
-  ValidationRow,
-  type ValidationState,
-} from './ProductOnboardingAiPanels';
+import ProductOnboardingAnalysisHelpPanel from './ProductOnboardingAnalysisHelpPanel';
+import ProductOnboardingValidationChecklist, {
+  type ProductOnboardingValidationItem,
+} from './ProductOnboardingValidationChecklist';
 import { DotLabel, appleColors, errorMessageFromUnknown } from './PlatformComponents';
 import type { AiAssistedProductAnalysisResponse } from './types';
-
-export interface ProductOnboardingValidationItem {
-  title: string;
-  detail: string;
-  state: ValidationState;
-}
 
 const errorCodeFromUnknown = (error: unknown) => {
   const responseData =
@@ -82,12 +74,12 @@ export default function ProductOnboardingAnalysisActionPanel({
   onCreate: () => void;
   onRunAnalysis: () => void;
 }) {
-  const blockedValidationCount = validationItems.filter(item => item.state === 'blocked').length;
-  const attentionValidationCount = validationItems.filter(item => item.state === 'attention').length;
   const actionErrorMessage = actionError
     ? errorMessageFromUnknown(actionError, 'The AI project creation action was rejected.')
     : '';
   const actionErrorCode = actionError ? errorCodeFromUnknown(actionError) : '';
+  const blockedValidationCount = validationItems.filter(item => item.state === 'blocked').length;
+  const attentionValidationCount = validationItems.filter(item => item.state === 'attention').length;
 
   return (
     <Box
@@ -118,6 +110,30 @@ export default function ProductOnboardingAnalysisActionPanel({
           <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
             ProdUS stores the product profile and keeps uploaded documents private. Only selected
             files receive short-lived AI access for this creation run.
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            p: 1.25,
+            borderRadius: 1,
+            border: '1px solid',
+            borderColor: canCreate ? '#bbf7d0' : blockedValidationCount ? '#fecdd3' : '#fde68a',
+            bgcolor: canCreate ? '#f6fff9' : blockedValidationCount ? '#fff7f8' : '#fffaf1',
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 950 }}>
+            {canCreate
+              ? 'Ready to create the productization project'
+              : blockedValidationCount
+                ? 'Resolve required fields before creating'
+                : 'Review the highlighted evidence before creating'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45, lineHeight: 1.45 }}>
+            {blockedValidationCount
+              ? `${blockedValidationCount} required check${blockedValidationCount === 1 ? '' : 's'} still need owner input.`
+              : attentionValidationCount
+                ? `${attentionValidationCount} review note${attentionValidationCount === 1 ? '' : 's'} will be stored for follow-up.`
+                : 'The owner-approved action can run with the current understanding.'}
           </Typography>
         </Box>
         <Divider />
@@ -159,51 +175,7 @@ export default function ProductOnboardingAnalysisActionPanel({
             }
           />
         </Stack>
-        <Box
-          sx={{
-            borderRadius: 1,
-            border: '1px solid #dfe7f5',
-            bgcolor: '#fbfdff',
-            p: 1.25,
-          }}
-        >
-          <Stack spacing={1}>
-            <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-              <Stack direction="row" spacing={0.8} alignItems="center">
-                <RuleOutlined sx={{ color: appleColors.purple, fontSize: 19 }} />
-                <Typography variant="body2" sx={{ fontWeight: 900 }}>
-                  AI journey validation
-                </Typography>
-              </Stack>
-              <DotLabel
-                label={
-                  blockedValidationCount
-                    ? `${blockedValidationCount} blocked`
-                    : attentionValidationCount
-                      ? `${attentionValidationCount} review`
-                      : 'Ready'
-                }
-                color={
-                  blockedValidationCount
-                    ? appleColors.red
-                    : attentionValidationCount
-                      ? appleColors.amber
-                      : appleColors.green
-                }
-              />
-            </Stack>
-            <Stack spacing={0.75}>
-              {validationItems.map(item => (
-                <ValidationRow
-                  key={item.title}
-                  title={item.title}
-                  detail={item.detail}
-                  state={item.state}
-                />
-              ))}
-            </Stack>
-          </Stack>
-        </Box>
+        <ProductOnboardingValidationChecklist items={validationItems} />
         {actionErrorMessage && (
           <Alert severity="error" icon={<ErrorOutlineOutlined />} sx={{ borderRadius: 1 }}>
             <Typography variant="body2" sx={{ fontWeight: 900 }}>
@@ -222,7 +194,7 @@ export default function ProductOnboardingAnalysisActionPanel({
             )}
           </Alert>
         )}
-        <ProjectAnalysisChatPanel
+        <ProductOnboardingAnalysisHelpPanel
           disabled={aiBusy}
           requestContext={requestContext}
           conversationId={`project-analysis-${analysis.intent.id}`}
