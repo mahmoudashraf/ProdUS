@@ -2,35 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import {
-  AddShoppingCartOutlined,
-  CancelOutlined,
-  EventRepeatOutlined,
-  InfoOutlined,
-  RefreshOutlined,
-} from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Checkbox,
-  FormControlLabel,
-  LinearProgress,
-  MenuItem,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { EventRepeatOutlined } from '@mui/icons-material';
+import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import { deleteJson, getJson, patchJson, postJson, putJson } from './api';
 import {
   EmptyState,
   PageHeader,
-  PastelChip,
   QueryState,
-  SectionTitle,
-  StatusChip,
   Surface,
   appleColors,
   clampScore,
@@ -49,7 +29,7 @@ import OwnerFindingsRiskPanel from './OwnerFindingsRiskPanel';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import OwnerOverviewDecisionPanel from './OwnerOverviewDecisionPanel';
 import OwnerProductDiagnosisPanel from './OwnerProductDiagnosisPanel';
-import OwnerScannerEvidenceCenterPanel from './OwnerScannerEvidenceCenterPanel';
+import OwnerScannerProofCompanionPanel from './OwnerScannerProofCompanionPanel';
 import OwnerScannerProofOperationsPanel from './OwnerScannerProofOperationsPanel';
 import ScannerCoverageGrid from './ScannerCoverageGrid';
 import ScannerFixPathPanel from './ScannerFixPathPanel';
@@ -65,7 +45,7 @@ import {
   OwnerNextDecisionPanel,
   OwnerSupportRiskPanel,
 } from './OwnerWorkspaceSideRailPanels';
-import { findingStatusAccent, severityAccent } from './ownerFindingPresentation';
+import { findingStatusAccent } from './ownerFindingPresentation';
 import {
   OwnerControlPanel,
   OwnerLaunchReadyCelebration,
@@ -2037,253 +2017,44 @@ export default function OwnerProductizationWorkspace({
                   defaultToolsForDepth={defaultToolsForDepth}
                 />
 
-                <Stack spacing={1.5}>
-                  {(scannerSummary.isFetching || createScannerReadinessDiagnosis.isPending || createProviderSource.isPending || requestConnectorInstall.isPending || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || startFullHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending || openSignedEvidence.isPending || createEvidenceExport.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
-                  {scannerSummary.data?.sources.length ? (
-                    <Stack spacing={1}>
-                      <FormControlLabel
-                        control={<Checkbox checked={deleteArtifactsOnDisconnect} onChange={(event) => setDeleteArtifactsOnDisconnect(event.target.checked)} />}
-                        label={<Typography variant="body2" color="text.secondary">Delete stored scanner artifacts when disconnecting a source.</Typography>}
-                      />
-                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
-                        {scannerSummary.data.sources.slice(0, 5).map((source) => (
-                          <Stack
-                            key={source.id}
-                            spacing={1}
-                            sx={{
-                              border: 1,
-                              borderColor: source.authorizationStatus === 'AUTHORIZED' ? '#c8f2da' : appleColors.line,
-                              borderRadius: 1,
-                              p: 1.25,
-                              bgcolor: source.authorizationStatus === 'AUTHORIZED' ? '#fbfffd' : '#fff',
-                            }}
-                          >
-                            <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-                              <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{source.displayName}</Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap>{source.externalReference || formatLabel(source.providerType)}</Typography>
-                              </Box>
-                              <StatusChip label={source.authorizationStatus} color={source.authorizationStatus === 'AUTHORIZED' ? 'success' : source.authorizationStatus === 'FAILED' ? 'error' : 'warning'} />
-                            </Stack>
-                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                              <PastelChip label={formatLabel(source.providerType)} accent={appleColors.cyan} bg="#e4f9fd" />
-                              {source.scopeNote && <PastelChip label="Scoped" accent={appleColors.purple} />}
-                            </Stack>
-                            <Tooltip title={source.authorizationStatus === 'AUTHORIZED' ? 'Disconnect this source from future scanner use' : 'Only authorized sources can be disconnected'}>
-                              <span>
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  color={deleteArtifactsOnDisconnect ? 'error' : 'inherit'}
-                                  disabled={source.authorizationStatus !== 'AUTHORIZED' || disconnectScanSource.isPending}
-                                  onClick={() => disconnectScanSource.mutate(source.id)}
-                                  sx={{ minHeight: 34, alignSelf: 'flex-start' }}
-                                >
-                                  {deleteArtifactsOnDisconnect ? 'Disconnect + Delete' : 'Disconnect'}
-                                </Button>
-                              </span>
-                            </Tooltip>
-                          </Stack>
-                        ))}
-                      </Box>
-                    </Stack>
-                  ) : (
-                    <EmptyState label="No scanner source exists yet. Save a source, upload CI evidence, or import a customer-owned scanner result to start the evidence chain." />
-                  )}
-
-                  {scannerSummary.data?.schedules?.length ? (
-                    <Box sx={{ border: '1px solid', borderColor: appleColors.line, borderRadius: 1, p: 1.5, bgcolor: '#fff' }}>
-                      <SectionTitle title="Scheduled Scans" action={<PastelChip label={`${scannerSummary.data.schedules.length} configured`} accent={appleColors.cyan} bg="#e4f9fd" />} />
-                      <Stack spacing={1}>
-                        {scannerSummary.data.schedules.slice(0, 4).map((schedule) => (
-                          <Box key={schedule.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e5edf7', bgcolor: schedule.active ? '#fbfffd' : '#f8fafc' }}>
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
-                              <Box sx={{ minWidth: 0 }}>
-                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                                  <Typography variant="body2" sx={{ fontWeight: 900 }}>{formatLabel(schedule.depth)}</Typography>
-                                  <StatusChip label={schedule.active ? 'ACTIVE' : 'PAUSED'} color={schedule.active ? 'success' : 'default'} />
-                                </Stack>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                  Every {schedule.intervalDays} days · Next {shortDateTime(schedule.nextRunAt)} · {schedule.toolKeys.join(', ') || 'default tools'}
-                                </Typography>
-                              </Box>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                disabled={updateScannerSchedule.isPending}
-                                onClick={() => updateScannerSchedule.mutate({ scheduleId: schedule.id, active: !schedule.active })}
-                                sx={{ minHeight: 34, minWidth: 92 }}
-                              >
-                                {schedule.active ? 'Pause' : 'Resume'}
-                              </Button>
-                            </Stack>
-                          </Box>
-                        ))}
-                      </Stack>
-                    </Box>
-                  ) : null}
-
-                  {scannerSummary.data?.imports?.length ? (
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
-                      {scannerSummary.data.imports.slice(0, 4).map((importRun) => (
-                        <Box key={importRun.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e5edf7', bgcolor: '#fff' }}>
-                          <Stack direction="row" justifyContent="space-between" spacing={1}>
-                            <Typography variant="body2" sx={{ fontWeight: 900 }}>{formatLabel(importRun.provider)}</Typography>
-                            <StatusChip label={importRun.status} color={importRun.status === 'COMPLETED' ? 'success' : importRun.status === 'FAILED' ? 'error' : 'warning'} />
-                          </Stack>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                            {importRun.importedCount} findings imported · {formatLabel(importRun.importMethod)}
-                          </Typography>
-                          {importRun.externalReference && (
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                              {importRun.externalReference}
-                            </Typography>
-                          )}
-                        </Box>
-                      ))}
-                    </Box>
-                  ) : null}
-
-                  <OwnerScannerEvidenceCenterPanel
-                    hasProduct={!!selectedProduct}
-                    evidence={filteredScannerEvidence}
-                    evidenceFilter={evidenceFilter}
-                    isExporting={createEvidenceExport.isPending}
-                    isOpeningEvidence={openSignedEvidence.isPending}
-                    onEvidenceFilterChange={setEvidenceFilter}
-                    onExport={() => createEvidenceExport.mutate()}
-                    onOpenEvidence={openEvidenceArtifact}
-                    formatDateTime={shortDateTime}
-                  />
-
-                  {scannerSummary.data?.findings.length ? (
-                    <Stack spacing={1.25}>
-                      {scannerSummary.data.findings.slice(0, 8).map((finding) => {
-                        const reason = findingReasonById[finding.id] || '';
-                        const reviewDue = findingReviewDueById[finding.id] || '';
-                        const canResolve = !!reason.trim();
-                        const canAcceptRisk = !!reason.trim() && !!reviewDue;
-                        const recommendedModule = finding.recommendedModule;
-                        const recommendedInCart = !!recommendedModule && cartServiceIds.has(recommendedModule.id);
-                        return (
-                          <Box key={finding.id} sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: selectedFinding?.id === finding.id ? `${findingStatusAccent(finding.status)}66` : appleColors.line, bgcolor: selectedFinding?.id === finding.id ? '#fbfdff' : '#fff' }}>
-                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25} justifyContent="space-between" alignItems={{ md: 'flex-start' }}>
-                              <Box sx={{ minWidth: 0 }}>
-                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                                  <PastelChip label={formatLabel(finding.severity)} accent={severityAccent(finding.severity)} bg={`${severityAccent(finding.severity)}12`} />
-                                  <PastelChip label={formatLabel(finding.status)} accent={findingStatusAccent(finding.status)} bg={`${findingStatusAccent(finding.status)}12`} />
-                                  {finding.readinessArea && <PastelChip label={finding.readinessArea} accent={appleColors.green} bg="#e7f8ee" />}
-                                  {finding.recommendedModule && <PastelChip label={finding.recommendedModule.name} accent={appleColors.purple} />}
-                                </Stack>
-                                <Typography sx={{ mt: 1, fontWeight: 900 }}>{finding.title}</Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>{finding.businessRisk || finding.description}</Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                                  {finding.sourceTool}{finding.sourceRuleId ? ` · ${finding.sourceRuleId}` : ''}{finding.affectedComponent ? ` · ${finding.affectedComponent}` : ''}
-                                </Typography>
-                              </Box>
-                              <Button
-                                size="small"
-                                variant={selectedFinding?.id === finding.id ? 'contained' : 'outlined'}
-                                startIcon={<InfoOutlined />}
-                                onClick={() => {
-                                  setSelectedFindingId(finding.id);
-                                  setFindingDrawerOpen(true);
-                                }}
-                                sx={{ minHeight: 34, minWidth: 132 }}
-                              >
-                                Review
-                              </Button>
-                            </Stack>
-                            {recommendedModule && (
-                              <Box sx={{ mt: 1.25, p: 1, borderRadius: 1, bgcolor: '#f8f7ff', border: '1px solid', borderColor: '#e3e0ff' }}>
-                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
-                                  <Box sx={{ minWidth: 0 }}>
-                                    <Typography variant="body2" sx={{ fontWeight: 900 }}>Recommended service: {recommendedModule.name}</Typography>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35 }}>
-                                      {recommendedModule.ownerOutcome || recommendedModule.description || 'Add this service to the productization plan for tracked remediation.'}
-                                    </Typography>
-                                  </Box>
-                                  <Button
-                                    size="small"
-                                    variant={recommendedInCart ? 'outlined' : 'contained'}
-                                    disabled={recommendedInCart || addServiceToCart.isPending}
-                                    startIcon={<AddShoppingCartOutlined />}
-                                    onClick={() => addLifecycleService(recommendedModule, 'Scanner findings')}
-                                    sx={{ minHeight: 34, minWidth: 142 }}
-                                  >
-                                    {recommendedInCart ? 'In Plan' : 'Add Service'}
-                                  </Button>
-                                </Stack>
-                              </Box>
-                            )}
-                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 150px' }, gap: 1, mt: 1.25 }}>
-                              <TextField
-                                size="small"
-                                label="Decision note"
-                                value={reason}
-                                onChange={(event) => setFindingReasonById((current) => ({ ...current, [finding.id]: event.target.value }))}
-                                placeholder="Evidence reviewed, fix merged, compensating control..."
-                              />
-                              <TextField
-                                size="small"
-                                type="date"
-                                label="Risk review"
-                                value={reviewDue}
-                                onChange={(event) => setFindingReviewDueById((current) => ({ ...current, [finding.id]: event.target.value }))}
-                                InputLabelProps={{ shrink: true }}
-                              />
-                            </Box>
-                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
-                              <Button size="small" variant="outlined" disabled={!canResolve || updateFindingStatus.isPending} onClick={() => recordFindingDecision(finding, 'RESOLVED')}>
-                                Mark Resolved
-                              </Button>
-                              <Button size="small" variant="outlined" disabled={!canAcceptRisk || updateFindingStatus.isPending} onClick={() => recordFindingDecision(finding, 'ACCEPTED_RISK')}>
-                                Accept Risk
-                              </Button>
-                              <Button size="small" variant="outlined" disabled={!canResolve || updateFindingStatus.isPending} onClick={() => recordFindingDecision(finding, 'FALSE_POSITIVE')}>
-                                False Positive
-                              </Button>
-                            </Stack>
-                          </Box>
-                        );
-                      })}
-                    </Stack>
-                  ) : (
-                    <EmptyState label="No normalized findings yet. Run a governed scan or upload SARIF, JSON, JUnit, or CI log evidence." />
-                  )}
-
-                  {scannerSummary.data?.recentRuns.length ? (
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
-                      {scannerSummary.data.recentRuns.slice(0, 4).map((run) => (
-                        <Box key={run.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e5edf7', bgcolor: '#fbfdff' }}>
-                          <Stack direction="row" spacing={1} justifyContent="space-between">
-                            <Typography variant="body2" sx={{ fontWeight: 900 }}>{formatLabel(run.depth)}</Typography>
-                            <StatusChip label={run.status} color={run.status === 'COMPLETED' ? 'success' : run.status === 'FAILED' ? 'error' : 'default'} />
-                          </Stack>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                            {(run.toolRuns || []).map((tool) => `${tool.toolName}: ${formatLabel(tool.status)} · ${tool.normalizedCount}`).join(' · ') || 'No tool runs'}
-                          </Typography>
-                          {run.failureSummary && (
-                            <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.75, lineHeight: 1.4 }}>
-                              {run.failureSummary}
-                            </Typography>
-                          )}
-                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                            {(run.status === 'QUEUED' || run.status === 'RUNNING') ? (
-                              <Button size="small" variant="outlined" color="error" startIcon={<CancelOutlined />} disabled={cancelScannerRun.isPending} onClick={() => cancelScannerRun.mutate(run.id)}>
-                                Cancel
-                              </Button>
-                            ) : (
-                              <Button size="small" variant="outlined" startIcon={<RefreshOutlined />} disabled={!!activeScanRun || rescanRun.isPending} onClick={() => rescanRun.mutate(run.id)}>
-                                Rescan
-                              </Button>
-                            )}
-                          </Stack>
-                        </Box>
-                      ))}
-                    </Box>
-                  ) : null}
-                </Stack>
+                <OwnerScannerProofCompanionPanel
+                  scannerSummary={scannerSummary.data}
+                  filteredScannerEvidence={filteredScannerEvidence}
+                  evidenceFilter={evidenceFilter}
+                  selectedFinding={selectedFinding}
+                  cartServiceIds={cartServiceIds}
+                  findingReasonById={findingReasonById}
+                  findingReviewDueById={findingReviewDueById}
+                  deleteArtifactsOnDisconnect={deleteArtifactsOnDisconnect}
+                  activeScanRun={activeScanRun}
+                  hasProduct={!!selectedProduct}
+                  isBusy={scannerSummary.isFetching || createScannerReadinessDiagnosis.isPending || createProviderSource.isPending || requestConnectorInstall.isPending || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || startFullHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending || openSignedEvidence.isPending || createEvidenceExport.isPending}
+                  isDisconnectingSource={disconnectScanSource.isPending}
+                  isUpdatingSchedule={updateScannerSchedule.isPending}
+                  isOpeningEvidence={openSignedEvidence.isPending}
+                  isExportingEvidence={createEvidenceExport.isPending}
+                  isUpdatingFindingStatus={updateFindingStatus.isPending}
+                  isAddingService={addServiceToCart.isPending}
+                  isCancelingScan={cancelScannerRun.isPending}
+                  isRescanning={rescanRun.isPending}
+                  onDeleteArtifactsChange={setDeleteArtifactsOnDisconnect}
+                  onDisconnectSource={(sourceId) => disconnectScanSource.mutate(sourceId)}
+                  onToggleSchedule={(scheduleId, active) => updateScannerSchedule.mutate({ scheduleId, active })}
+                  onEvidenceFilterChange={setEvidenceFilter}
+                  onExportEvidence={() => createEvidenceExport.mutate()}
+                  onOpenEvidence={openEvidenceArtifact}
+                  onSelectFinding={(findingId) => {
+                    setSelectedFindingId(findingId);
+                    setFindingDrawerOpen(true);
+                  }}
+                  onFindingReasonChange={(findingId, value) => setFindingReasonById((current) => ({ ...current, [findingId]: value }))}
+                  onFindingReviewDueChange={(findingId, value) => setFindingReviewDueById((current) => ({ ...current, [findingId]: value }))}
+                  onAddService={addLifecycleService}
+                  onRecordFindingDecision={recordFindingDecision}
+                  onCancelRun={(runId) => cancelScannerRun.mutate(runId)}
+                  onRescanRun={(runId) => rescanRun.mutate(runId)}
+                  formatDateTime={shortDateTime}
+                />
               </Box>
             </Surface>
           )}
