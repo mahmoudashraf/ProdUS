@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, LinearProgress, Stack } from '@mui/material';
+import { Alert, Box, Stack } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
@@ -9,14 +9,12 @@ import { uploadService } from '@/services/uploadService';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
-import WorkspaceCommandHero from './WorkspaceCommandHero';
-import WorkspaceCommandJourneyNav, { type WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
+import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import WorkspaceCommandMetricsPanel from './WorkspaceCommandMetricsPanel';
-import WorkspaceCommandProofStepPanel from './WorkspaceCommandProofStepPanel';
+import WorkspaceCommandSelectedWorkspacePane from './WorkspaceCommandSelectedWorkspacePane';
 import WorkspaceCommandSidebar from './WorkspaceCommandSidebar';
 import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
 import WorkspaceEvidenceAttachmentPanel from './WorkspaceEvidenceAttachmentPanel';
-import WorkspaceOverviewDeliveryAnswerPanel from './WorkspaceOverviewDeliveryAnswerPanel';
 import { sortWorkspacesForOwner } from './displayOrder';
 import {
   EmptyState,
@@ -764,100 +762,92 @@ export default function WorkspaceCommandPage() {
 
         <Stack spacing={2}>
           {selectedWorkspace ? (
-            <>
-              <WorkspaceCommandHero
-                workspace={selectedWorkspace}
-                progress={workspaceProgress}
-                accent={workspaceAccent(selectedWorkspace.status)}
-                milestoneCount={milestoneList.length}
-                participantCount={participantList.length}
-                deliverableCount={deliverableList.length}
-                proofFileCount={scopedAttachments('WORKSPACE', selectedWorkspace.id).length}
-                roughEdgeCount={roughEdgeCount}
-              />
-
-              {(milestones.isFetching || deliverables.isFetching || supportRequests.isFetching || disputes.isFetching || attachments.isFetching) && <LinearProgress />}
-
-              <WorkspaceCommandJourneyNav
-                value={workspaceView}
-                onChange={setWorkspaceView}
-                priorityFixes={readiness?.blockerCount || 0}
-                proofGaps={readiness?.missingEvidenceCount || missingEvidenceCount}
-                milestoneCount={milestoneList.length}
-                participantCount={participantList.length}
-                supportCount={supportList.length}
-                riskCount={disputeList.length}
-                integrationCount={integrationList.length}
-                hasHandoff={!!latestHandoff}
-              />
-
-              {workspaceView === 'overview' && (
-                <WorkspaceOverviewDeliveryAnswerPanel
-                  blockerCount={readiness?.blockerCount || 0}
-                  deliverableList={deliverableList}
-                  milestoneCount={milestoneList.length}
-                  missingEvidenceCount={missingEvidenceCount}
-                  productId={selectedWorkspaceProductId}
-                  roughEdgeCount={roughEdgeCount}
-                  scannerEvidenceCount={scannerEvidenceList.length}
-                  selectedMilestone={selectedMilestone}
-                  selectedMilestoneCriteria={selectedMilestoneCriteria}
-                  workspace={selectedWorkspace}
-                  onPrepareHandoff={() => setWorkspaceView(roughEdgeCount ? 'team' : 'handoff')}
-                  onReviewProof={() => setWorkspaceView('proof')}
-                />
-              )}
-
-              {workspaceView === 'proof' && (
-                <WorkspaceCommandProofStepPanel
-                  workspace={selectedWorkspace}
-                  productId={selectedWorkspaceProductId}
-                  selectedMilestone={selectedMilestone}
-                  milestoneList={milestoneList}
-                  deliverableList={deliverableList}
-                  milestoneRiskById={milestoneRiskById}
-                  milestoneForm={milestoneForm}
-                  deliverableForm={deliverableForm}
-                  scannerEvidenceList={scannerEvidenceList}
-                  scannerUploadForm={scannerUploadForm}
-                  selectedMilestoneCriteria={selectedMilestoneCriteria}
-                  totalCriteriaCount={governanceCriteria.length}
-                  passedCriteriaCount={passedCriteriaCount}
-                  readiness={readiness}
-                  readinessScore={readinessScore}
-                  readinessStatus={readinessStatus}
-                  launchReport={launchReadinessReport.data ?? null}
-                  shipConfidence={shipConfidence.data}
-                  proofFileCount={scopedAttachments('WORKSPACE', selectedWorkspace.id).length}
-                  isCreatingMilestone={createMilestone.isPending}
-                  isCreatingDeliverable={createDeliverable.isPending}
-                  isUploadingScannerEvidence={uploadScannerEvidence.isPending}
-                  isGeneratingLaunchReport={generateLaunchReadinessReport.isPending}
-                  isLaunchReportLoading={launchReadinessReport.isFetching}
-                  isRefreshingReadiness={enrichScannerReadiness.isPending}
-                  isScannerLoading={workspaceScannerReadiness.isFetching}
-                  isShipConfidenceLoading={shipConfidence.isFetching}
-                  isGovernanceFetching={governance.isFetching}
-                  isGeneratingCriteria={generateCriteria.isPending}
-                  isUpdatingEvidenceRequirement={updateEvidenceRequirement.isPending}
-                  isCreatingCheck={createCheck.isPending}
-                  isReviewingCriterion={reviewCriterion.isPending}
-                  canSubmitScannerEvidence={!!selectedWorkspaceProductId && !!scannerUploadForm.toolName.trim() && !!scannerUploadForm.artifactPayload.trim()}
-                  onCreateMilestone={() => createMilestone.mutate()}
-                  onCreateDeliverable={() => createDeliverable.mutate()}
-                  onSelectMilestone={setSelectedMilestoneId}
-                  onScannerUploadFormChange={setScannerUploadForm}
-                  onSubmitScannerEvidence={() => uploadScannerEvidence.mutate()}
-                  onGenerateLaunchReport={() => generateLaunchReadinessReport.mutate()}
-                  onRefreshReadiness={() => enrichScannerReadiness.mutate()}
-                  onGenerateCriteria={() => generateCriteria.mutate()}
-                  onUpdateEvidenceRequirement={(id, payload) => updateEvidenceRequirement.mutate({ id, payload })}
-                  onCreateCheck={(criterionId, payload) => createCheck.mutate({ criterionId, payload })}
-                  onReviewCriterion={(criterionId, payload) => reviewCriterion.mutate({ criterionId, payload })}
-                  evidencePanel={evidencePanel}
-                />
-              )}
-            </>
+            <WorkspaceCommandSelectedWorkspacePane
+              view={workspaceView}
+              onViewChange={setWorkspaceView}
+              isFetchingWorkspaceDetail={milestones.isFetching || deliverables.isFetching || supportRequests.isFetching || disputes.isFetching || attachments.isFetching}
+              hero={{
+                workspace: selectedWorkspace,
+                progress: workspaceProgress,
+                accent: workspaceAccent(selectedWorkspace.status),
+                milestoneCount: milestoneList.length,
+                participantCount: participantList.length,
+                deliverableCount: deliverableList.length,
+                proofFileCount: scopedAttachments('WORKSPACE', selectedWorkspace.id).length,
+                roughEdgeCount,
+              }}
+              journey={{
+                priorityFixes: readiness?.blockerCount || 0,
+                proofGaps: readiness?.missingEvidenceCount || missingEvidenceCount,
+                milestoneCount: milestoneList.length,
+                participantCount: participantList.length,
+                supportCount: supportList.length,
+                riskCount: disputeList.length,
+                integrationCount: integrationList.length,
+                hasHandoff: !!latestHandoff,
+              }}
+              overview={{
+                blockerCount: readiness?.blockerCount || 0,
+                deliverableList,
+                milestoneCount: milestoneList.length,
+                missingEvidenceCount,
+                productId: selectedWorkspaceProductId,
+                roughEdgeCount,
+                scannerEvidenceCount: scannerEvidenceList.length,
+                selectedMilestone,
+                selectedMilestoneCriteria,
+                workspace: selectedWorkspace,
+                onPrepareHandoff: () => setWorkspaceView(roughEdgeCount ? 'team' : 'handoff'),
+                onReviewProof: () => setWorkspaceView('proof'),
+              }}
+              proof={{
+                workspace: selectedWorkspace,
+                productId: selectedWorkspaceProductId,
+                selectedMilestone,
+                milestoneList,
+                deliverableList,
+                milestoneRiskById,
+                milestoneForm,
+                deliverableForm,
+                scannerEvidenceList,
+                scannerUploadForm,
+                selectedMilestoneCriteria,
+                totalCriteriaCount: governanceCriteria.length,
+                passedCriteriaCount,
+                readiness,
+                readinessScore,
+                readinessStatus,
+                launchReport: launchReadinessReport.data ?? null,
+                shipConfidence: shipConfidence.data,
+                proofFileCount: scopedAttachments('WORKSPACE', selectedWorkspace.id).length,
+                isCreatingMilestone: createMilestone.isPending,
+                isCreatingDeliverable: createDeliverable.isPending,
+                isUploadingScannerEvidence: uploadScannerEvidence.isPending,
+                isGeneratingLaunchReport: generateLaunchReadinessReport.isPending,
+                isLaunchReportLoading: launchReadinessReport.isFetching,
+                isRefreshingReadiness: enrichScannerReadiness.isPending,
+                isScannerLoading: workspaceScannerReadiness.isFetching,
+                isShipConfidenceLoading: shipConfidence.isFetching,
+                isGovernanceFetching: governance.isFetching,
+                isGeneratingCriteria: generateCriteria.isPending,
+                isUpdatingEvidenceRequirement: updateEvidenceRequirement.isPending,
+                isCreatingCheck: createCheck.isPending,
+                isReviewingCriterion: reviewCriterion.isPending,
+                canSubmitScannerEvidence: !!selectedWorkspaceProductId && !!scannerUploadForm.toolName.trim() && !!scannerUploadForm.artifactPayload.trim(),
+                onCreateMilestone: () => createMilestone.mutate(),
+                onCreateDeliverable: () => createDeliverable.mutate(),
+                onSelectMilestone: setSelectedMilestoneId,
+                onScannerUploadFormChange: setScannerUploadForm,
+                onSubmitScannerEvidence: () => uploadScannerEvidence.mutate(),
+                onGenerateLaunchReport: () => generateLaunchReadinessReport.mutate(),
+                onRefreshReadiness: () => enrichScannerReadiness.mutate(),
+                onGenerateCriteria: () => generateCriteria.mutate(),
+                onUpdateEvidenceRequirement: (id, payload) => updateEvidenceRequirement.mutate({ id, payload }),
+                onCreateCheck: (criterionId, payload) => createCheck.mutate({ criterionId, payload }),
+                onReviewCriterion: (criterionId, payload) => reviewCriterion.mutate({ criterionId, payload }),
+                evidencePanel,
+              }}
+            />
           ) : (
             <Surface>
               <EmptyState label="Open or create a workspace to coordinate milestones, evidence, and delivery participants." />
