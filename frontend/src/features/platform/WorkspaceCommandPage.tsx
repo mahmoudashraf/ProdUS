@@ -8,18 +8,15 @@ import useAuth from '@/hooks/useAuth';
 import { uploadService } from '@/services/uploadService';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
-import WorkspaceAcceptanceReviewPanel from './WorkspaceAcceptanceReviewPanel';
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
 import WorkspaceCommandHero from './WorkspaceCommandHero';
 import WorkspaceCommandJourneyNav, { type WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import WorkspaceCommandMetricsPanel from './WorkspaceCommandMetricsPanel';
+import WorkspaceCommandProofStepPanel from './WorkspaceCommandProofStepPanel';
 import WorkspaceCommandSidebar from './WorkspaceCommandSidebar';
 import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
 import WorkspaceEvidenceAttachmentPanel from './WorkspaceEvidenceAttachmentPanel';
 import WorkspaceOverviewDeliveryAnswerPanel from './WorkspaceOverviewDeliveryAnswerPanel';
-import WorkspaceProofEvidencePanel from './WorkspaceProofEvidencePanel';
-import WorkspaceProofMilestonesPanel from './WorkspaceProofMilestonesPanel';
-import WorkspaceProofReadinessPanel from './WorkspaceProofReadinessPanel';
 import { sortWorkspacesForOwner } from './displayOrder';
 import {
   EmptyState,
@@ -812,72 +809,53 @@ export default function WorkspaceCommandPage() {
               )}
 
               {workspaceView === 'proof' && (
-                <>
-                  <WorkspaceProofReadinessPanel
-                    canRefresh={!!selectedWorkspaceProductId}
-                    isGeneratingLaunchReport={generateLaunchReadinessReport.isPending}
-                    isLaunchReportLoading={launchReadinessReport.isFetching}
-                    isRefreshing={enrichScannerReadiness.isPending}
-                    isScannerLoading={workspaceScannerReadiness.isFetching}
-                    isShipConfidenceLoading={shipConfidence.isFetching}
-                    launchReport={launchReadinessReport.data ?? null}
-                    productId={selectedWorkspaceProductId}
-                    readiness={readiness}
-                    readinessScore={readinessScore}
-                    readinessStatus={readinessStatus}
-                    scannerEvidenceCount={scannerEvidenceList.length}
-                    selectedMilestone={selectedMilestone}
-                    shipConfidence={shipConfidence.data}
-                    workspace={selectedWorkspace}
-                    onGenerateLaunchReport={() => generateLaunchReadinessReport.mutate()}
-                    onRefresh={() => enrichScannerReadiness.mutate()}
-                  />
-
-              <WorkspaceProofMilestonesPanel
-                milestoneList={milestoneList}
-                selectedMilestone={selectedMilestone}
-                deliverableList={deliverableList}
-                milestoneRiskById={milestoneRiskById}
-                milestoneForm={milestoneForm}
-                deliverableForm={deliverableForm}
-                isCreatingMilestone={createMilestone.isPending}
-                isCreatingDeliverable={createDeliverable.isPending}
-                onCreateMilestone={() => createMilestone.mutate()}
-                onCreateDeliverable={() => createDeliverable.mutate()}
-                onSelectMilestone={setSelectedMilestoneId}
-                evidencePanel={evidencePanel}
-              />
-
-              <WorkspaceProofEvidencePanel
-                workspaceId={selectedWorkspace.id}
-                proofFileCount={scopedAttachments('WORKSPACE', selectedWorkspace.id).length}
-                scannerEvidenceList={scannerEvidenceList}
-                milestoneList={milestoneList}
-                selectedMilestone={selectedMilestone}
-                scannerUploadForm={scannerUploadForm}
-                isUploadingScannerEvidence={uploadScannerEvidence.isPending}
-                canSubmitScannerEvidence={!!selectedWorkspaceProductId && !!scannerUploadForm.toolName.trim() && !!scannerUploadForm.artifactPayload.trim()}
-                onScannerUploadFormChange={setScannerUploadForm}
-                onSubmitScannerEvidence={() => uploadScannerEvidence.mutate()}
-                evidencePanel={evidencePanel}
-              />
-
-              <WorkspaceAcceptanceReviewPanel
-                selectedMilestone={selectedMilestone}
-                criteria={selectedMilestoneCriteria}
-                totalCriteriaCount={governanceCriteria.length}
-                passedCriteriaCount={passedCriteriaCount}
-                isGovernanceFetching={governance.isFetching}
-                isGeneratingCriteria={generateCriteria.isPending}
-                isUpdatingEvidenceRequirement={updateEvidenceRequirement.isPending}
-                isCreatingCheck={createCheck.isPending}
-                isReviewingCriterion={reviewCriterion.isPending}
-                onGenerateCriteria={() => generateCriteria.mutate()}
-                onUpdateEvidenceRequirement={(id, payload) => updateEvidenceRequirement.mutate({ id, payload })}
-                onCreateCheck={(criterionId, payload) => createCheck.mutate({ criterionId, payload })}
-                onReviewCriterion={(criterionId, payload) => reviewCriterion.mutate({ criterionId, payload })}
-              />
-                </>
+                <WorkspaceCommandProofStepPanel
+                  workspace={selectedWorkspace}
+                  productId={selectedWorkspaceProductId}
+                  selectedMilestone={selectedMilestone}
+                  milestoneList={milestoneList}
+                  deliverableList={deliverableList}
+                  milestoneRiskById={milestoneRiskById}
+                  milestoneForm={milestoneForm}
+                  deliverableForm={deliverableForm}
+                  scannerEvidenceList={scannerEvidenceList}
+                  scannerUploadForm={scannerUploadForm}
+                  selectedMilestoneCriteria={selectedMilestoneCriteria}
+                  totalCriteriaCount={governanceCriteria.length}
+                  passedCriteriaCount={passedCriteriaCount}
+                  readiness={readiness}
+                  readinessScore={readinessScore}
+                  readinessStatus={readinessStatus}
+                  launchReport={launchReadinessReport.data ?? null}
+                  shipConfidence={shipConfidence.data}
+                  proofFileCount={scopedAttachments('WORKSPACE', selectedWorkspace.id).length}
+                  isCreatingMilestone={createMilestone.isPending}
+                  isCreatingDeliverable={createDeliverable.isPending}
+                  isUploadingScannerEvidence={uploadScannerEvidence.isPending}
+                  isGeneratingLaunchReport={generateLaunchReadinessReport.isPending}
+                  isLaunchReportLoading={launchReadinessReport.isFetching}
+                  isRefreshingReadiness={enrichScannerReadiness.isPending}
+                  isScannerLoading={workspaceScannerReadiness.isFetching}
+                  isShipConfidenceLoading={shipConfidence.isFetching}
+                  isGovernanceFetching={governance.isFetching}
+                  isGeneratingCriteria={generateCriteria.isPending}
+                  isUpdatingEvidenceRequirement={updateEvidenceRequirement.isPending}
+                  isCreatingCheck={createCheck.isPending}
+                  isReviewingCriterion={reviewCriterion.isPending}
+                  canSubmitScannerEvidence={!!selectedWorkspaceProductId && !!scannerUploadForm.toolName.trim() && !!scannerUploadForm.artifactPayload.trim()}
+                  onCreateMilestone={() => createMilestone.mutate()}
+                  onCreateDeliverable={() => createDeliverable.mutate()}
+                  onSelectMilestone={setSelectedMilestoneId}
+                  onScannerUploadFormChange={setScannerUploadForm}
+                  onSubmitScannerEvidence={() => uploadScannerEvidence.mutate()}
+                  onGenerateLaunchReport={() => generateLaunchReadinessReport.mutate()}
+                  onRefreshReadiness={() => enrichScannerReadiness.mutate()}
+                  onGenerateCriteria={() => generateCriteria.mutate()}
+                  onUpdateEvidenceRequirement={(id, payload) => updateEvidenceRequirement.mutate({ id, payload })}
+                  onCreateCheck={(criterionId, payload) => createCheck.mutate({ criterionId, payload })}
+                  onReviewCriterion={(criterionId, payload) => reviewCriterion.mutate({ criterionId, payload })}
+                  evidencePanel={evidencePanel}
+                />
               )}
             </>
           ) : (
