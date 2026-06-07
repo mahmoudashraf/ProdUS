@@ -18,7 +18,6 @@ import {
   FactCheckOutlined,
   GroupAddOutlined,
   InfoOutlined,
-  Inventory2Outlined,
   OpenInNewOutlined,
   PersonAddAltOutlined,
   PlayArrowOutlined,
@@ -37,10 +36,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormControlLabel,
   IconButton,
@@ -80,6 +75,8 @@ import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
 import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import OwnerFindingReviewDrawer from './OwnerFindingReviewDrawer';
 import RepoReadoutPanel from './RepoReadoutPanel';
+import StudioAssistantCard, { assistantRecordText, type StudioAssistantContext } from './StudioAssistantCard';
+import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import { findingStatusAccent, severityAccent } from './ownerFindingPresentation';
 import {
   OwnerControlPanel,
@@ -127,7 +124,6 @@ import {
   ConnectorInstallUrlResponse,
   EvidenceExportBundle,
   ExternalImportProvider,
-  AssistantQueryResponse,
   AssistantSuggestionsResponse,
   ScannerConnectorInstallation,
   ScannerEvidenceItem,
@@ -322,42 +318,6 @@ interface FindingStatusPayload {
   status: NormalizedFinding['status'];
   reason?: string;
   reviewDueOn?: string;
-}
-
-interface StudioAssistantContext {
-  pageType: string;
-  productId?: string | undefined;
-  packageId?: string | undefined;
-  workspaceId?: string | undefined;
-  milestoneId?: string | undefined;
-  findingId?: string | undefined;
-  startReadiness?: {
-    status?: string;
-    ready?: boolean;
-    summary?: string;
-    gaps?: {
-      type: string;
-      severity: string;
-      title: string;
-      description?: string | undefined;
-      serviceModuleId?: string | undefined;
-      serviceModuleCode?: string | undefined;
-    }[];
-  } | undefined;
-}
-
-interface StudioAssistantCardProps {
-  title: string;
-  description: string;
-  prompt: string;
-  conversationId: string;
-  context: StudioAssistantContext;
-  disabled?: boolean;
-  accent?: string;
-  compact?: boolean;
-  cta?: string;
-  onConfirmAction?: (action: Record<string, unknown>) => Promise<void> | void;
-  actionDisabledReason?: (action: Record<string, unknown>) => string;
 }
 
 const productInitialValues: ProductProfilePayload = {
@@ -574,407 +534,6 @@ const confidenceDots = (level?: string) => {
   if (level === 'MEDIUM') return '●●○';
   return '●○○';
 };
-
-const assistantAnswerText = (response?: AssistantQueryResponse) =>
-  response?.safeSummary || response?.answer || 'No assistant response has been generated yet.';
-
-type AssistantMarkdownBlock =
-  | { type: 'heading'; text: string; depth: number }
-  | { type: 'paragraph'; text: string }
-  | { type: 'ul' | 'ol'; items: string[] };
-
-const parseAssistantMarkdown = (text: string): AssistantMarkdownBlock[] => {
-  const blocks: AssistantMarkdownBlock[] = [];
-  const lines = text.replace(/\r\n/g, '\n').split('\n');
-  let paragraph: string[] = [];
-  let listType: 'ul' | 'ol' | null = null;
-  let listItems: string[] = [];
-
-  const flushParagraph = () => {
-    if (paragraph.length) {
-      blocks.push({ type: 'paragraph', text: paragraph.join(' ').trim() });
-      paragraph = [];
-    }
-  };
-  const flushList = () => {
-    if (listType && listItems.length) {
-      blocks.push({ type: listType, items: listItems });
-    }
-    listType = null;
-    listItems = [];
-  };
-
-  lines.forEach((rawLine) => {
-    const line = rawLine.trim();
-    if (!line) {
-      flushParagraph();
-      flushList();
-      return;
-    }
-
-    const heading = /^(#{2,4})\s+(.+)$/.exec(line);
-    if (heading) {
-      flushParagraph();
-      flushList();
-      const marker = heading[1] ?? '##';
-      const headingText = (heading[2] ?? '').trim();
-      blocks.push({ type: 'heading', depth: marker.length, text: headingText });
-      return;
-    }
-
-    const ordered = /^\d+\.\s+(.+)$/.exec(line);
-    if (ordered) {
-      flushParagraph();
-      if (listType !== 'ol') flushList();
-      listType = 'ol';
-      listItems.push((ordered[1] ?? '').trim());
-      return;
-    }
-
-    const unordered = /^[-*]\s+(.+)$/.exec(line);
-    if (unordered) {
-      flushParagraph();
-      if (listType !== 'ul') flushList();
-      listType = 'ul';
-      listItems.push((unordered[1] ?? '').trim());
-      return;
-    }
-
-    flushList();
-    paragraph.push(line);
-  });
-
-  flushParagraph();
-  flushList();
-  return blocks;
-};
-
-const renderAssistantInline = (text: string) => {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
-  return parts.map((part, index) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <Box component="strong" key={`${part}-${index}`} sx={{ fontWeight: 900 }}>
-          {part.slice(2, -2)}
-        </Box>
-      );
-    }
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return (
-        <Box
-          component="code"
-          key={`${part}-${index}`}
-          sx={{
-            px: 0.45,
-            py: 0.1,
-            borderRadius: 0.6,
-            bgcolor: '#eef4ff',
-            color: appleColors.ink,
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-            fontSize: '0.88em',
-          }}
-        >
-          {part.slice(1, -1)}
-        </Box>
-      );
-    }
-    return part;
-  });
-};
-
-function AssistantMarkdown({ text }: { text: string }) {
-  const blocks = parseAssistantMarkdown(text);
-  return (
-    <Stack spacing={0.9}>
-      {blocks.map((block, index) => {
-        if (block.type === 'heading') {
-          return (
-            <Typography
-              key={`${block.type}-${index}`}
-              variant="subtitle2"
-              sx={{
-                mt: index === 0 ? 0 : 0.75,
-                fontWeight: 950,
-                color: appleColors.ink,
-                lineHeight: 1.35,
-              }}
-            >
-              {renderAssistantInline(block.text)}
-            </Typography>
-          );
-        }
-        if (block.type === 'paragraph') {
-          return (
-            <Typography key={`${block.type}-${index}`} variant="body2" sx={{ lineHeight: 1.7, color: appleColors.ink }}>
-              {renderAssistantInline(block.text)}
-            </Typography>
-          );
-        }
-        return (
-          <Box
-            key={`${block.type}-${index}`}
-            component={block.type}
-            sx={{
-              m: 0,
-              pl: 2.35,
-              display: 'grid',
-              gap: 0.7,
-              color: appleColors.ink,
-              '& li::marker': { color: appleColors.purple, fontWeight: 900 },
-            }}
-          >
-            {block.items.map((item, itemIndex) => (
-              <Box key={`${item}-${itemIndex}`} component="li" sx={{ pl: 0.25 }}>
-                <Typography component="span" variant="body2" sx={{ lineHeight: 1.65, color: appleColors.ink }}>
-                  {renderAssistantInline(item)}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        );
-      })}
-    </Stack>
-  );
-}
-
-const assistantRecordText = (record: Record<string, unknown>, keys: string[], fallback = '') => {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'string' && value.trim()) return value.trim();
-    if (typeof value === 'number') return String(value);
-  }
-  return fallback;
-};
-
-const assistantActionLabel = (action: Record<string, unknown>) =>
-  assistantRecordText(action, ['label', 'title', 'name'], 'Review proposed action');
-
-const assistantSourceLabel = (source: Record<string, unknown>) =>
-  assistantRecordText(source, ['title', 'name', 'id', 'type'], 'Source');
-
-function StudioAssistantCard({
-  title,
-  description,
-  prompt,
-  conversationId,
-  context,
-  disabled,
-  accent = appleColors.purple,
-  compact = false,
-  cta = 'Ask AI',
-  onConfirmAction,
-  actionDisabledReason,
-}: StudioAssistantCardProps) {
-  const [pendingAction, setPendingAction] = useState<Record<string, unknown> | null>(null);
-  const assistantQuery = useMutation({
-    mutationFn: () =>
-      postJson<AssistantQueryResponse, {
-        conversationId: string;
-        query: string;
-        mode: string;
-        position: string;
-        context: StudioAssistantContext;
-      }>('/ai/assistant/query-once', {
-        conversationId,
-        query: prompt,
-        mode: 'thinker',
-        position: 'productization',
-        context,
-      }),
-  });
-  const confirmAssistantAction = useMutation({
-    mutationFn: async (action: Record<string, unknown>) => {
-      if (onConfirmAction) {
-        await onConfirmAction(action);
-        return;
-      }
-      throw new Error('This proposed action needs a product-specific confirmation flow before execution.');
-    },
-    onSuccess: () => setPendingAction(null),
-  });
-
-  const result = assistantQuery.data;
-  const isLive = Boolean(result && result.provider === 'LOOMAI' && result.mode !== 'FALLBACK');
-  const actionDisabled = pendingAction ? actionDisabledReason?.(pendingAction) || (!onConfirmAction ? 'This proposed action is displayed for review only.' : '') : '';
-
-  return (
-    <Box
-      sx={{
-        p: compact ? 1.25 : 1.5,
-        borderRadius: 1,
-        border: '1px solid',
-        borderColor: assistantQuery.isError ? '#fecdd3' : `${accent}30`,
-        bgcolor: assistantQuery.isError ? '#fff7f8' : '#ffffff',
-        boxShadow: compact ? 'none' : '0 12px 32px rgba(15, 23, 42, 0.045)',
-      }}
-    >
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} justifyContent="space-between" alignItems={{ sm: 'flex-start' }}>
-        <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ minWidth: 0 }}>
-          <Box
-            sx={{
-              width: compact ? 34 : 40,
-              height: compact ? 34 : 40,
-              borderRadius: 1,
-              bgcolor: `${accent}12`,
-              color: accent,
-              display: 'grid',
-              placeItems: 'center',
-              flex: '0 0 auto',
-            }}
-          >
-            <AutoAwesomeOutlined fontSize="small" />
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap alignItems="center">
-              <Typography variant={compact ? 'body2' : 'h4'} sx={{ fontWeight: 900 }}>
-                {title}
-              </Typography>
-              {result && (
-                <PastelChip
-                  label={isLive ? 'LoomAI live' : 'ProdUS fallback'}
-                  accent={isLive ? appleColors.purple : appleColors.blue}
-                  bg={isLive ? '#f1efff' : '#eaf3ff'}
-                />
-              )}
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>
-              {description}
-            </Typography>
-          </Box>
-        </Stack>
-        <Button
-          size="small"
-          variant="contained"
-          startIcon={<AutoAwesomeOutlined />}
-          disabled={disabled || assistantQuery.isPending}
-          onClick={() => assistantQuery.mutate()}
-          sx={{
-            minHeight: 36,
-            minWidth: 118,
-            borderRadius: 1,
-            bgcolor: accent,
-            boxShadow: `0 10px 22px ${accent}2e`,
-            '&:hover': { bgcolor: accent, boxShadow: `0 14px 28px ${accent}38` },
-          }}
-        >
-          {assistantQuery.isPending ? 'Thinking...' : cta}
-        </Button>
-      </Stack>
-
-      {assistantQuery.isPending && <LinearProgress sx={{ borderRadius: 999, mt: 1.25 }} />}
-
-      {assistantQuery.isError && (
-        <Alert severity="warning" sx={{ mt: 1.25, borderRadius: 1 }}>
-          The assistant could not answer this request. Try again after checking the backend AI status.
-        </Alert>
-      )}
-
-      {result && (
-        <Box sx={{ mt: 1.25, p: 1.25, borderRadius: 1, bgcolor: '#fbfdff', border: '1px solid', borderColor: appleColors.line }}>
-          <AssistantMarkdown text={assistantAnswerText(result)} />
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-            {typeof result.confidence === 'number' && (
-              <PastelChip label={`${Math.round(result.confidence * 100)}% confidence`} accent={accent} />
-            )}
-            {result.providerRequestId && (
-              <PastelChip label={`trace ${result.providerRequestId.slice(0, 8)}`} accent={appleColors.cyan} bg="#e4f9fd" />
-            )}
-            {result.sources?.length ? (
-              <PastelChip label={`${result.sources.length} sources`} accent={appleColors.green} bg="#e7f8ee" />
-            ) : null}
-            {result.fallbackReason && (
-              <PastelChip label={formatLabel(result.fallbackReason)} accent={appleColors.amber} bg="#fff4dc" />
-            )}
-          </Stack>
-          {!!result.sources?.length && (
-            <Box sx={{ mt: 1.25 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.65, fontWeight: 900, textTransform: 'uppercase' }}>
-                Source basis
-              </Typography>
-              <Stack spacing={0.75}>
-                {result.sources.slice(0, 4).map((source, index) => (
-                  <Box key={`${assistantSourceLabel(source)}-${index}`} sx={{ p: 1, border: '1px solid', borderColor: '#dbeafe', borderRadius: 1, bgcolor: '#f8fbff' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{assistantSourceLabel(source)}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {assistantRecordText(source, ['summary', 'description', 'type'], 'Authorized ProdUS context')}
-                    </Typography>
-                  </Box>
-                ))}
-              </Stack>
-            </Box>
-          )}
-          {!!result.actions?.length && (
-            <Box sx={{ mt: 1.25 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.65, fontWeight: 900, textTransform: 'uppercase' }}>
-                Proposed actions
-              </Typography>
-              <Stack spacing={0.75}>
-                {result.actions.slice(0, 3).map((action, index) => {
-                  const disabledReason = actionDisabledReason?.(action) || (!onConfirmAction ? 'Review only. No confirmed action handler is attached here.' : '');
-                  return (
-                    <Box key={`${assistantActionLabel(action)}-${index}`} sx={{ p: 1, border: '1px solid', borderColor: '#e7ddff', borderRadius: 1, bgcolor: '#f8f7ff' }}>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 900 }}>{assistantActionLabel(action)}</Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                            {assistantRecordText(action, ['rationale', 'summary'], 'Requires explicit human confirmation before ProdUS executes anything.')}
-                          </Typography>
-                          {disabledReason && (
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35 }}>
-                              {disabledReason}
-                            </Typography>
-                          )}
-                        </Box>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          disabled={!!disabledReason}
-                          onClick={() => setPendingAction(action)}
-                          sx={{ minWidth: 112, minHeight: 34, bgcolor: accent, '&:hover': { bgcolor: accent } }}
-                        >
-                          Confirm
-                        </Button>
-                      </Stack>
-                    </Box>
-                  );
-                })}
-              </Stack>
-            </Box>
-          )}
-        </Box>
-      )}
-      <Dialog open={!!pendingAction} onClose={() => setPendingAction(null)} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ fontWeight: 900 }}>Confirm AI Proposed Action</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ fontWeight: 900 }}>{pendingAction ? assistantActionLabel(pendingAction) : ''}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
-            {pendingAction ? assistantRecordText(pendingAction, ['rationale', 'summary'], 'ProdUS will execute this only after this confirmation.') : ''}
-          </Typography>
-          {pendingAction && assistantRecordText(pendingAction, ['riskLevel']) && (
-            <Box sx={{ mt: 1.25 }}>
-              <PastelChip label={`Risk ${assistantRecordText(pendingAction, ['riskLevel'])}`} accent={appleColors.amber} bg="#fff4dc" />
-            </Box>
-          )}
-          {confirmAssistantAction.isError && (
-            <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 1 }}>
-              {confirmAssistantAction.error instanceof Error ? confirmAssistantAction.error.message : 'Could not execute this proposed action.'}
-            </Alert>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setPendingAction(null)} disabled={confirmAssistantAction.isPending}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={() => pendingAction && confirmAssistantAction.mutate(pendingAction)}
-            disabled={!pendingAction || !!actionDisabled || confirmAssistantAction.isPending}
-          >
-            {confirmAssistantAction.isPending ? 'Confirming...' : 'Confirm'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
-  );
-}
 
 export default function OwnerProductizationWorkspace({
   productId,
@@ -2377,91 +1936,16 @@ export default function OwnerProductizationWorkspace({
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 340px' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
           {selectedProduct ? (
-            <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 55%, #f6fff9 100%)' }}>
-              <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} alignItems={{ lg: 'flex-start' }} justifyContent="space-between">
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'flex-start' }} sx={{ minWidth: 0 }}>
-                  <Box sx={{ width: 64, height: 64, borderRadius: 1, bgcolor: '#f1efff', color: appleColors.purple, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                    <Inventory2Outlined />
-                  </Box>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                      <Typography variant="h2">{selectedProduct.name}</Typography>
-                      <PastelChip label={formatLabel(selectedProduct.businessStage)} accent={appleColors.purple} />
-                      <PastelChip label={launchStatus.label} accent={launchStatus.accent} bg={`${launchStatus.accent}12`} />
-                    </Stack>
-                    <Typography color="text.secondary" sx={{ maxWidth: 760, lineHeight: 1.7, mt: 0.75 }}>
-                      {selectedProduct.summary || 'Capture a concise product summary to drive service recommendations.'}
-                    </Typography>
-                  </Box>
-                </Stack>
-                <Stack direction="row" spacing={1.5} alignItems="center" justifyContent={{ xs: 'flex-start', lg: 'flex-end' }}>
-                  <ProgressRing value={launchStatus.score} size={104} color={launchStatus.accent} label="ready" />
-                  <Box sx={{ minWidth: 150 }}>
-                    <Typography variant="caption" color="text.secondary">Launch decision</Typography>
-                    <Typography variant="h4" sx={{ color: launchStatus.accent }}>{launchStatus.label}</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>{launchStatus.confidence}</Typography>
-                  </Box>
-                </Stack>
-              </Stack>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)' }, gap: 1.5, mt: 2.25 }}>
-                <Box sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: `${launchStatus.accent}35`, bgcolor: '#fff' }}>
-                  <Typography variant="caption" color="text.secondary">Status reason</Typography>
-                  <Typography variant="h4" sx={{ mt: 0.5, color: appleColors.ink }}>
-                    {launchStatus.headline}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
-                    {launchStatus.reason}
-                  </Typography>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 1.5 }}>
-                    <Button
-                      variant="contained"
-                      startIcon={<RocketLaunchOutlined />}
-                      onClick={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}
-                      sx={{ minHeight: 42 }}
-                    >
-                      {topOwnerRisks.length ? 'Review launch blockers' : 'Plan next service'}
-                    </Button>
-                    <Button variant="outlined" startIcon={<ShieldOutlined />} onClick={() => openFindingsView('technical')} sx={{ minHeight: 42 }}>
-                      View scanner proof
-                    </Button>
-                    <Button variant="outlined" startIcon={<CloudUploadOutlined />} onClick={() => createEvidenceExport.mutate()} disabled={createEvidenceExport.isPending} sx={{ minHeight: 42 }}>
-                      Export report
-                    </Button>
-                  </Stack>
-                </Box>
-                <Box sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: appleColors.line, bgcolor: '#fff' }}>
-                  <Typography variant="caption" color="text.secondary">Top risks</Typography>
-                  <Stack spacing={1} sx={{ mt: 1 }}>
-                    {topOwnerRisks.slice(0, 3).length ? topOwnerRisks.slice(0, 3).map((risk) => {
-                      const category = ownerCategoryFromSignal(risk.sourceTool, risk.readinessArea, risk.title);
-                      return (
-                        <Box key={risk.id} sx={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', gap: 1, alignItems: 'flex-start' }}>
-                          <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: severityAccent(risk.severity), mt: 0.65 }} />
-                          <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 900, lineHeight: 1.35 }}>{risk.title}</Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                              {ownerProofLine({ sourceTool: risk.sourceTool, sourceRuleId: risk.sourceRuleId, category })}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      );
-                    }) : (
-                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
-                        No launch blockers are visible from the latest stored evidence.
-                      </Typography>
-                    )}
-                  </Stack>
-                </Box>
-              </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1.25, mt: 1.5 }}>
-                {evidenceSummaryItems.map((item) => (
-                  <Box key={item.label} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: `${item.accent}32`, bgcolor: '#fff', minHeight: 84 }}>
-                    <Typography variant="caption" color="text.secondary">{item.label}</Typography>
-                    <Typography variant="body2" sx={{ mt: 0.55, fontWeight: 900, lineHeight: 1.35, overflowWrap: 'anywhere' }}>{item.value}</Typography>
-                  </Box>
-                ))}
-              </Box>
-            </Surface>
+            <OwnerWorkspaceProductHero
+              product={selectedProduct}
+              launchStatus={launchStatus}
+              topOwnerRisks={topOwnerRisks}
+              evidenceSummaryItems={evidenceSummaryItems}
+              onPrimaryAction={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}
+              onViewProof={() => openFindingsView('technical')}
+              onExportReport={() => createEvidenceExport.mutate()}
+              isExporting={createEvidenceExport.isPending}
+            />
           ) : (
             <EmptyState label="Create a product profile to start the owner productization workflow." />
           )}
