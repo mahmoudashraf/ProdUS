@@ -6,15 +6,12 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   AddShoppingCartOutlined,
   ArrowForwardOutlined,
-  AutoAwesomeOutlined,
   DeleteOutlineOutlined,
   FactCheckOutlined,
   GroupsOutlined,
-  OpenInNewOutlined,
   PersonSearchOutlined,
-  RocketLaunchOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Divider, IconButton, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, IconButton, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { deleteJson, getJson, postJson, putJson } from './api';
 import { isPlaceholderProduct, sortProductsForOwner } from './displayOrder';
@@ -37,6 +34,7 @@ import type { CatalogRuleItem } from './types';
 import { DraftCartJourneyNavigation, isCartJourneyView, type CartJourneyItem, type CartJourneyView } from './DraftCartJourneyNavigation';
 import ProjectStartPlanOverview from './ProjectStartPlanOverview';
 import ProjectStartReadinessPanel from './ProjectStartReadinessPanel';
+import ProjectStartApprovalPanel from './ProjectStartApprovalPanel';
 
 interface CartUpdatePayload {
   productProfileId?: string;
@@ -73,28 +71,28 @@ export default function DraftProjectCartPage() {
     mutationFn: (payload: CartUpdatePayload) => putJson<ProductizationCart, CartUpdatePayload>('/productization-cart/current', payload),
     onSuccess: async () => {
       setCreatedWorkspace(null);
-      setNotice('Draft cart product updated.');
+      setNotice('Start plan product updated.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const removeService = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
     onSuccess: async () => {
-      setNotice('Service removed from the draft cart.');
+      setNotice('Service removed from the start plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const removeTalent = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/talent/${itemId}`),
     onSuccess: async () => {
-      setNotice('Team or expert removed from the draft cart.');
+      setNotice('Team or expert removed from the start plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const addRecommendedService = useMutation({
     mutationFn: (payload: { serviceModuleId: string; notes: string }) => postJson<ProductizationCart, { serviceModuleId: string; notes: string }>('/productization-cart/services', payload),
     onSuccess: async () => {
-      setNotice('Recommended service added to the draft.');
+      setNotice('Recommended service added to the start plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -102,7 +100,7 @@ export default function DraftProjectCartPage() {
     mutationFn: (templateId: string) => postJson<ProductizationCart, Record<string, never>>(`/productization-cart/templates/${templateId}/apply`, {}),
     onSuccess: async () => {
       setCreatedWorkspace(null);
-      setNotice('Package template applied. Review the suggested next steps before starting the workspace.');
+      setNotice('Launch-hardening template applied. Review the suggested next steps before approving the workspace.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -110,9 +108,9 @@ export default function DraftProjectCartPage() {
     mutationFn: () =>
       postJson<ProductizationCartConvertResponse, CartConvertPayload>('/productization-cart/convert', {
         projectName: projectName || `${cart.data?.productProfile?.name || 'Product'} productization workspace`,
-      }),
+    }),
     onSuccess: async (result) => {
-      setNotice('Workspace created. Your draft cart became a service plan, milestones, participants, and a project workspace.');
+      setNotice('Workspace created. Your approved plan became service milestones, participants, and a project workspace.');
       setCreatedWorkspace(result.workspace);
       setProjectName('');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
@@ -198,8 +196,8 @@ export default function DraftProjectCartPage() {
     },
     {
       value: 'handoff',
-      label: 'Handoff',
-      detail: 'Name and start the project workspace when scope is ready.',
+      label: 'Approve',
+      detail: 'Approve the launch-hardening plan when scope is ready.',
       accent: appleColors.green,
       meta: <PastelChip label={canStartWorkspace ? 'Can start' : 'Blocked'} accent={canStartWorkspace ? appleColors.green : appleColors.amber} bg={canStartWorkspace ? '#e7f8ee' : '#fff4dc'} />,
     },
@@ -227,7 +225,7 @@ export default function DraftProjectCartPage() {
     <>
       <PageHeader
         title="Project Start Plan"
-        description="Collect the services, teams, and experts that help this prototype become a real project workspace."
+        description="Approve the services, teams, and launch-hardening scope that turn this prototype into a real project workspace."
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button component={NextLink} href="/services" variant="outlined" startIcon={<AddShoppingCartOutlined />} sx={{ minHeight: 44 }}>
@@ -438,110 +436,21 @@ export default function DraftProjectCartPage() {
         </Stack>
 
         {cartDetailOpen && cartView === 'handoff' && (
-        <Stack spacing={2.5}>
-          <Surface>
-            <SectionTitle title="Start Workspace" action={<RocketLaunchOutlined sx={{ color: appleColors.purple }} />} />
-            <Stack spacing={1.5}>
-              <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                Starting creates a service plan, service milestones, workspace participants, and team shortlist records from this draft.
-              </Typography>
-              <TextField
-                size="small"
-                label="Workspace name"
-                value={projectName}
-                onChange={(event) => setProjectName(event.target.value)}
-                placeholder={product ? `${product.name} productization workspace` : 'Productization workspace'}
-              />
-              <Button
-                variant="contained"
-                startIcon={<RocketLaunchOutlined />}
-                disabled={!canStartWorkspace || convertCart.isPending}
-                onClick={() => convertCart.mutate()}
-                sx={{ minHeight: 46 }}
-              >
-                {convertCart.isPending ? 'Starting...' : 'Start Project Workspace'}
-              </Button>
-              {(!product || hasPlaceholderProduct) && <DotLabel label="Select a production product first" color={appleColors.amber} />}
-              {product && !serviceCount && <DotLabel label="Add at least one service" color={appleColors.amber} />}
-              {serviceCount > 0 && blockers > 0 && (
-                <Surface sx={{ boxShadow: 'none', bgcolor: '#fff7ed', borderColor: '#fed7aa' }}>
-                  <Stack spacing={1}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <AutoAwesomeOutlined sx={{ color: appleColors.amber }} />
-                      <Typography variant="body2" sx={{ fontWeight: 900 }}>
-                        Add these services before starting
-                      </Typography>
-                    </Stack>
-                    {blockingRecommendations.map((item) => (
-                      <Box
-                        key={item.recommendedModule.id}
-                        sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr auto' }, gap: 1, alignItems: 'center' }}
-                      >
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 900 }}>{item.recommendedModule.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">{item.reason || item.recommendedModule.ownerOutcome}</Typography>
-                        </Box>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          startIcon={<AddShoppingCartOutlined />}
-                          disabled={addRecommendedService.isPending}
-                          onClick={() => addCatalogRecommendation(item)}
-                          sx={{ minHeight: 36 }}
-                        >
-                          Add
-                        </Button>
-                      </Box>
-                    ))}
-                  </Stack>
-                </Surface>
-              )}
-              {(createdWorkspace || currentCart?.convertedWorkspace) && (
-                <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>
-                  Open created workspace
-                </Button>
-              )}
-            </Stack>
-          </Surface>
-
-          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
-            <SectionTitle title="What Happens When You Start" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
-            <Stack spacing={1.25}>
-              {[
-                'Services become the service plan modules and milestones.',
-                'Teams become shortlist records and workspace participants.',
-                'Solo experts become specialist participants.',
-                'The product becomes the workspace context.',
-              ].map((item) => (
-                <Stack key={item} direction="row" spacing={1} alignItems="flex-start">
-                  <Box sx={{ width: 7, height: 7, mt: 1, borderRadius: '50%', bgcolor: appleColors.purple, boxShadow: `0 0 0 4px ${appleColors.purple}14` }} />
-                  <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                    {item}
-                  </Typography>
-                </Stack>
-              ))}
-            </Stack>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>
-              Product briefs are separate. Use them when you need to describe a specific business goal and generate a service plan from that brief.
-            </Typography>
-          </Surface>
-
-          <Surface>
-            <SectionTitle title="Continue Planning" />
-            <Stack spacing={1}>
-              <Button component={NextLink} href="/products/new" variant="outlined" sx={{ minHeight: 42 }}>
-                Create another product
-              </Button>
-              <Button component={NextLink} href={product ? `/products/${product.id}` : '/products'} variant="outlined" sx={{ minHeight: 42 }}>
-                Open product workspace
-              </Button>
-              <Button component={NextLink} href="/dashboard" variant="text" sx={{ minHeight: 42 }}>
-                Back to command center
-              </Button>
-            </Stack>
-          </Surface>
-        </Stack>
+          <ProjectStartApprovalPanel
+            product={product}
+            projectName={projectName}
+            canStartWorkspace={canStartWorkspace}
+            serviceCount={serviceCount}
+            blockers={blockers}
+            blockingRecommendations={blockingRecommendations}
+            createdWorkspace={createdWorkspace}
+            convertedWorkspace={currentCart?.convertedWorkspace}
+            isStartingWorkspace={convertCart.isPending}
+            isAddingService={addRecommendedService.isPending}
+            onProjectNameChange={setProjectName}
+            onStartWorkspace={() => convertCart.mutate()}
+            onAddCatalogRecommendation={addCatalogRecommendation}
+          />
         )}
       </Box>
     </>
