@@ -10,24 +10,19 @@ import {
   DeleteOutlineOutlined,
   FactCheckOutlined,
   GroupsOutlined,
-  Inventory2Outlined,
   OpenInNewOutlined,
   PersonSearchOutlined,
   RocketLaunchOutlined,
-  ShoppingCartOutlined,
-  WorkspacesOutlined,
 } from '@mui/icons-material';
-import { Alert, Box, Button, Divider, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Divider, IconButton, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { deleteJson, getJson, postJson, putJson } from './api';
 import { isPlaceholderProduct, sortProductsForOwner } from './displayOrder';
 import {
   DotLabel,
   EmptyState,
-  MetricTile,
   PageHeader,
   PastelChip,
-  ProgressRing,
   QueryState,
   SectionTitle,
   StatusChip,
@@ -40,6 +35,8 @@ import {
 import { PackageTemplate, ProductProfile, ProductizationCart, ProductizationCartConvertResponse, ProjectWorkspace } from './types';
 import type { CatalogRuleItem } from './types';
 import { DraftCartJourneyNavigation, isCartJourneyView, type CartJourneyItem, type CartJourneyView } from './DraftCartJourneyNavigation';
+import ProjectStartPlanOverview from './ProjectStartPlanOverview';
+import ProjectStartReadinessPanel from './ProjectStartReadinessPanel';
 
 interface CartUpdatePayload {
   productProfileId?: string;
@@ -252,89 +249,21 @@ export default function DraftProjectCartPage() {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: cartDetailOpen && cartView === 'handoff' ? '1fr 360px' : '1fr' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
-          <Surface sx={{ p: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
-            <Box sx={{ p: { xs: 2.5, md: 3 }, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.75fr 1.25fr' }, gap: 3, alignItems: 'center' }}>
-              <Stack spacing={2}>
-                <PastelChip label={hasPlaceholderProduct ? 'Choose product' : 'Not started yet'} accent={hasPlaceholderProduct ? appleColors.amber : appleColors.purple} />
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <ProgressRing value={score} size={108} color={canStartWorkspace ? appleColors.green : appleColors.purple} label="ready" />
-                  <Box>
-                    <Typography variant="h2">{hasPlaceholderProduct ? 'Choose a real product for this draft' : currentCart?.title || 'Productization draft'}</Typography>
-                    <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
-                      Nothing starts until you press Start Project Workspace.
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Stack>
-
-              <Stack spacing={2}>
-                {notice && (
-                  <Alert severity="success" onClose={() => setNotice('')} sx={{ borderRadius: 1 }}>
-                    {notice}
-                  </Alert>
-                )}
-                {hasPlaceholderProduct && (
-                  <Alert severity="warning" sx={{ borderRadius: 1 }}>
-                    This draft is attached to a temporary test product. Select a production product below before starting a workspace.
-                  </Alert>
-                )}
-                <TextField
-                  select
-                  fullWidth
-                  label="Product this draft belongs to"
-                  value={hasPlaceholderProduct ? '' : product?.id || ''}
-                  onChange={(event) => selectProduct(event.target.value)}
-                  disabled={updateCart.isPending}
-                  InputLabelProps={{ shrink: true }}
-                  SelectProps={{ displayEmpty: true }}
-                  sx={{
-                    '& .MuiSelect-select': {
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      pr: 5
-                    }
-                  }}
-                >
-                  <MenuItem value="" disabled>
-                    Choose product
-                  </MenuItem>
-                  {(selectableProducts.length ? selectableProducts : productList).map((item) => (
-                    <MenuItem key={item.id} value={item.id}>
-                      {item.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                {product && !hasPlaceholderProduct ? (
-                  <Surface sx={{ boxShadow: 'none', background: '#fff' }}>
-                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                      <Box sx={{ width: 46, height: 46, borderRadius: 1, display: 'grid', placeItems: 'center', bgcolor: '#f1efff', color: appleColors.purple }}>
-                        <Inventory2Outlined />
-                      </Box>
-                      <Box>
-                        <Typography variant="h4">{product.name}</Typography>
-                        <Typography color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>
-                          {product.summary || 'No product summary yet.'}
-                        </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                          <PastelChip label={formatLabel(product.businessStage)} accent={appleColors.purple} />
-                          {product.techStack && <PastelChip label={product.techStack} accent={appleColors.cyan} bg="#e4f9fd" />}
-                        </Stack>
-                      </Box>
-                    </Stack>
-                  </Surface>
-                ) : (
-                  <EmptyState label="Select or create a production product before this draft can become a workspace." />
-                )}
-              </Stack>
-            </Box>
-          </Surface>
-
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
-            <MetricTile label="Selected services" value={serviceCount} detail="Converted into service plan modules" accent={appleColors.purple} icon={<ShoppingCartOutlined />} sparkline />
-            <MetricTile label="Teams / experts" value={talentCount} detail="Added as shortlist and participants" accent={appleColors.cyan} icon={<GroupsOutlined />} sparkline />
-            <MetricTile label="Workspace status" value={canStartWorkspace ? 'Ready' : 'Needs scope'} detail={canStartWorkspace ? 'Product and services selected' : 'Product plus one service required'} accent={canStartWorkspace ? appleColors.green : appleColors.amber} icon={<WorkspacesOutlined />} sparkline />
-          </Box>
+          <ProjectStartPlanOverview
+            title={currentCart?.title}
+            product={product}
+            productOptions={selectableProducts.length ? selectableProducts : productList}
+            hasPlaceholderProduct={hasPlaceholderProduct}
+            score={score}
+            canStartWorkspace={canStartWorkspace}
+            blockers={blockers}
+            serviceCount={serviceCount}
+            talentCount={talentCount}
+            notice={notice}
+            isUpdatingProduct={updateCart.isPending}
+            onNoticeClose={() => setNotice('')}
+            onSelectProduct={selectProduct}
+          />
 
           <DraftCartJourneyNavigation
             detailOpen={cartDetailOpen}
@@ -442,94 +371,23 @@ export default function DraftProjectCartPage() {
           )}
 
           {cartDetailOpen && cartView === 'readiness' && (
-          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fffaf1 100%)' }}>
-            <SectionTitle
-              title="Before You Start"
-              action={<StatusChip label={startReadiness?.status || (blockers ? `${blockers} service gaps` : 'Looks complete')} color={canStartWorkspace ? 'success' : blockers ? 'error' : 'warning'} />}
+            <ProjectStartReadinessPanel
+              startReadiness={startReadiness}
+              startGaps={startGaps}
+              blockingStartGaps={blockingStartGaps}
+              currentCart={currentCart}
+              serviceCount={serviceCount}
+              blockers={blockers}
+              canStartWorkspace={canStartWorkspace}
+              isAddingService={addRecommendedService.isPending}
+              onAddGapService={(gap) =>
+                gap.serviceModule &&
+                addRecommendedService.mutate({
+                  serviceModuleId: gap.serviceModule.id,
+                  notes: `Added from the start readiness path. ${gap.description || ''}`.trim(),
+                })
+              }
             />
-            {startReadiness?.summary && (
-              <Typography color="text.secondary" sx={{ lineHeight: 1.65, mb: 1.5 }}>
-                {startReadiness.summary}
-              </Typography>
-            )}
-            {blockingStartGaps.length > 0 ? (
-              <Alert severity="warning" sx={{ borderRadius: 1, mb: 1.5 }}>
-                {blockingStartGaps.length === 1
-                  ? `${blockingStartGaps[0]?.title} is needed before starting.`
-                  : `${blockingStartGaps.length} practical gaps need attention before starting.`}
-              </Alert>
-            ) : (
-              <Alert severity={serviceCount ? 'success' : 'info'} sx={{ borderRadius: 1, mb: 1.5 }}>
-                {serviceCount
-                  ? 'The selected services fit together for this draft. You can start the workspace when the product and service list are ready.'
-                  : 'Add productization services first. ProdUS will show service gaps here before you start the workspace.'}
-              </Alert>
-            )}
-            {startGaps.length ? (
-              <Stack spacing={1.25}>
-                {startGaps.slice(0, 6).map((gap) => (
-                  <Box
-                    key={`${gap.type}-${gap.serviceModule?.id || gap.title}`}
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: { xs: '1fr', md: '1fr auto' },
-                      gap: 1.5,
-                      alignItems: 'center',
-                      p: 1.5,
-                      border: '1px solid',
-                      borderColor: gap.severity === 'BLOCKER' ? '#fecdd3' : '#fde68a',
-                      borderRadius: 1,
-                      bgcolor: '#fff',
-                    }}
-                  >
-                    <Box>
-                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                        <Typography sx={{ fontWeight: 900 }}>{gap.title}</Typography>
-                        <StatusChip label={gap.severity} color={gap.severity === 'BLOCKER' ? 'error' : 'warning'} />
-                      </Stack>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
-                        {gap.description || 'Recommended before this workspace starts.'}
-                      </Typography>
-                    </Box>
-                    {gap.serviceModule ? (
-                      <Button
-                        variant="contained"
-                        startIcon={<AddShoppingCartOutlined />}
-                        disabled={addRecommendedService.isPending}
-                        onClick={() =>
-                          addRecommendedService.mutate({
-                            serviceModuleId: gap.serviceModule!.id,
-                            notes: `Added from the start readiness path. ${gap.description || ''}`.trim(),
-                          })
-                        }
-                        sx={{ minHeight: 42, minWidth: 148 }}
-                      >
-                        {gap.actionLabel || 'Add service'}
-                      </Button>
-                    ) : (
-                      <Button
-                        component={NextLink}
-                        href={gap.type === 'PRODUCT' ? '/products/new' : '/services'}
-                        variant="outlined"
-                        sx={{ minHeight: 42, minWidth: 148 }}
-                      >
-                        {gap.actionLabel || 'Open'}
-                      </Button>
-                    )}
-                  </Box>
-                ))}
-                <Stack spacing={0.75}>
-                  {(startReadiness?.nextBestActions || currentCart?.catalogEvaluation?.nextBestActions || []).map((action) => (
-                    <DotLabel key={action} label={action} color={blockers ? appleColors.red : appleColors.amber} />
-                  ))}
-                </Stack>
-              </Stack>
-            ) : (
-              <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-                AI-ready metadata is attached when available, but no AI execution is performed from this panel.
-              </Typography>
-            )}
-          </Surface>
           )}
 
           {cartDetailOpen && cartView === 'talent' && (
