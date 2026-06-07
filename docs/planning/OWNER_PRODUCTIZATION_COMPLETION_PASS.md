@@ -475,7 +475,7 @@ Solution:
 
 Status:
 
-- Implemented locally and verified against staging data using a Playwright API proxy.
+- Implemented at UI commit `06bfb0a` and live-verified in batched Coolify frontend deployment `e9gy8cnxqhthi1tvsx5ivi0w` at deployed UI commit `56a0ac2`.
 - `PublicProfilePage.tsx` is now 109 lines, with detail UI split into:
   - `PublicProfileFocusNav.tsx`
   - `PublicProfileHeroPanel.tsx`
@@ -490,6 +490,13 @@ Status:
   - `tmp/live-verification/2026-06-07/112-public-expert-profile-overview-local.png`
   - `tmp/live-verification/2026-06-07/113-public-expert-profile-proof-local.png`
   - `tmp/live-verification/2026-06-07/114-mobile-public-team-profile-local.png`
+- Live verification refreshed:
+  - `tmp/live-verification/2026-06-07/109-public-team-profile-overview-live.png`
+  - `tmp/live-verification/2026-06-07/110-public-team-profile-proof-live.png`
+  - `tmp/live-verification/2026-06-07/111-public-team-profile-signals-live.png`
+  - `tmp/live-verification/2026-06-07/112-public-expert-profile-overview-live.png`
+  - `tmp/live-verification/2026-06-07/113-public-expert-profile-proof-live.png`
+  - `tmp/live-verification/2026-06-07/114-mobile-public-team-profile-live.png`
 
 ### Current Pass: Team Delivery Workspace Completion
 
@@ -512,7 +519,7 @@ Solution:
 
 Status:
 
-- Implemented locally and verified against staging data using a Playwright API proxy.
+- Implemented, committed, deployed, and live-verified at UI commit `56a0ac2`, Coolify frontend deployment `e9gy8cnxqhthi1tvsx5ivi0w`.
 - `TeamDeliveryWorkspace.tsx` is now 243 lines, with delivery UI split into:
   - `TeamDeliveryFocusNav.tsx`
   - `TeamDeliveryHeroPanel.tsx`
@@ -527,6 +534,13 @@ Status:
   - `tmp/live-verification/2026-06-07/117-team-delivery-support-local.png`
   - `tmp/live-verification/2026-06-07/118-team-delivery-team-local.png`
   - `tmp/live-verification/2026-06-07/119-mobile-team-delivery-local.png`
+- Live verification refreshed:
+  - `tmp/live-verification/2026-06-07/115-team-delivery-opportunities-live.png`
+  - `tmp/live-verification/2026-06-07/116-team-delivery-proof-live.png`
+  - `tmp/live-verification/2026-06-07/117-team-delivery-support-live.png`
+  - `tmp/live-verification/2026-06-07/118-team-delivery-team-live.png`
+  - `tmp/live-verification/2026-06-07/119-mobile-team-delivery-live.png`
+- Full owner journey verification passed for commit `56a0ac2`; scanner coverage remained stored and mapped with all 10 scanners complete.
 
 ## Implementation Loop
 
