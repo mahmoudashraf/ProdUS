@@ -8,7 +8,7 @@ import { useAdvancedForm } from '@/hooks/enterprise';
 import {
   ProductAnalysisProgress,
   ProductIntakeFrontDoor,
-} from './OwnerJourneyCards';
+} from './OwnerOnboardingJourneyCards';
 import { postFormData, postJson, putJson } from './api';
 import {
   appleColors,

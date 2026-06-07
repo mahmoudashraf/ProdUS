@@ -3,14 +3,16 @@
 import type { ReactNode } from 'react';
 import { ExpandMoreOutlined } from '@mui/icons-material';
 import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Stack, Typography } from '@mui/material';
-import { AiOpportunityDiscoveryPanel } from './OwnerJourneyCards';
+import { AiOpportunityDiscoveryPanel } from './OwnerOnboardingJourneyCards';
 import {
   AiAttributeCard,
   AiDocumentUsageList,
   AiReviewList,
+} from './ProductOnboardingAiPanels';
+import {
   AiServicePlanReview,
   LoomAIOverviewPanel,
-} from './ProductOnboardingAiPanels';
+} from './ProductOnboardingServiceReviewPanels';
 import { appleColors } from './PlatformComponents';
 import type { AiAssistedProductAnalysisResponse, ServiceModuleRecommendation } from './types';
 
