@@ -73,6 +73,7 @@ import {
 import ShipConfidencePanel from './ShipConfidencePanel';
 import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
+import { OwnerWorkspaceJourneyNav, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import {
   OwnerControlPanel,
   OwnerLaunchReadyCelebration,
@@ -130,6 +131,11 @@ import {
   LaunchReadinessReport,
   FullHostedScanResponse,
 } from './types';
+
+type OverviewJourneyView = 'decision' | 'progress';
+type ActionJourneyView = 'plan' | 'diagnosis';
+type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
+type ServicesJourneyView = 'recommend' | 'plan' | 'team';
 
 interface ProductProfilePayload {
   name: string;
@@ -1328,6 +1334,10 @@ export default function OwnerProductizationWorkspace({
     reason: 'Scheduled evidence refresh for productization readiness.',
   });
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('overview');
+  const [overviewView, setOverviewView] = useState<OverviewJourneyView>('decision');
+  const [actionView, setActionView] = useState<ActionJourneyView>('plan');
+  const [findingsView, setFindingsView] = useState<FindingsJourneyView>('risks');
+  const [servicesView, setServicesView] = useState<ServicesJourneyView>('recommend');
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [selectedFindingId, setSelectedFindingId] = useState('');
   const [evidenceFilter, setEvidenceFilter] = useState<'ALL' | 'FINDINGS' | 'MILESTONES' | 'REDACTED'>('ALL');
@@ -2341,6 +2351,108 @@ export default function OwnerProductizationWorkspace({
     }
   }, [cart.data?.businessGoal, cart.data?.productProfile?.id, cart.data?.status, selectedProduct?.id]);
 
+  const openOverviewView = (view: OverviewJourneyView) => {
+    setOverviewView(view);
+    setWorkspaceTab('overview');
+  };
+
+  const openActionView = (view: ActionJourneyView) => {
+    setActionView(view);
+    setWorkspaceTab('actions');
+  };
+
+  const openFindingsView = (view: FindingsJourneyView) => {
+    setFindingsView(view);
+    setWorkspaceTab('findings');
+  };
+
+  const openServicesView = (view: ServicesJourneyView) => {
+    setServicesView(view);
+    setWorkspaceTab('services');
+  };
+
+  const overviewJourneyItems: JourneyStepItem<OverviewJourneyView>[] = [
+    {
+      value: 'decision',
+      label: 'Decision',
+      detail: 'Verdict, blockers, top actions, proof summary.',
+      accent: launchStatus.accent,
+      meta: <PastelChip label={launchStatus.confidence} accent={launchStatus.accent} bg={`${launchStatus.accent}12`} />,
+    },
+    {
+      value: 'progress',
+      label: 'Progress',
+      detail: 'Confidence history and the shareable readiness report.',
+      accent: appleColors.cyan,
+      meta: <PastelChip label={launchReadinessReport.data ? 'Report ready' : 'Report'} accent={appleColors.cyan} bg="#e4f9fd" />,
+    },
+  ];
+
+  const actionJourneyItems: JourneyStepItem<ActionJourneyView>[] = [
+    {
+      value: 'plan',
+      label: 'Action plan',
+      detail: 'Do now, schedule next, and monitor after launch.',
+      accent: appleColors.purple,
+      meta: <PastelChip label={`${launchStatus.blockerCount} blockers`} accent={launchStatus.blockerCount ? appleColors.red : appleColors.green} bg={launchStatus.blockerCount ? '#fff1f2' : '#e7f8ee'} />,
+    },
+    {
+      value: 'diagnosis',
+      label: 'Diagnosis',
+      detail: 'Stored owner brief, mapped rough edges, and AI explanation.',
+      accent: appleColors.blue,
+      meta: <PastelChip label={latestDiagnosis ? `${latestDiagnosis.findings.length} findings` : 'Not run'} accent={latestDiagnosis ? appleColors.amber : appleColors.blue} />,
+    },
+  ];
+
+  const findingsJourneyItems: JourneyStepItem<FindingsJourneyView>[] = [
+    {
+      value: 'risks',
+      label: 'Owner risks',
+      detail: 'Plain-language launch risks before raw scanner detail.',
+      accent: appleColors.amber,
+      meta: <PastelChip label={`${topOwnerRisks.length} risks`} accent={topOwnerRisks.length ? appleColors.amber : appleColors.green} bg={topOwnerRisks.length ? '#fff4dc' : '#e7f8ee'} />,
+    },
+    {
+      value: 'evidence',
+      label: 'Stored proof',
+      detail: 'Authorized sources, evidence exports, and repo readout.',
+      accent: appleColors.cyan,
+      meta: <PastelChip label={`${filteredScannerEvidence.length} proof`} accent={appleColors.cyan} bg="#e4f9fd" />,
+    },
+    {
+      value: 'technical',
+      label: 'Technical proof',
+      detail: 'Scanner operations, fix path, decisions, and reruns.',
+      accent: appleColors.green,
+      meta: <PastelChip label={`${scannerCounts?.total || 0} findings`} accent={scannerOpenFindings.length ? appleColors.amber : appleColors.green} bg={scannerOpenFindings.length ? '#fff4dc' : '#e7f8ee'} />,
+    },
+  ];
+
+  const servicesJourneyItems: JourneyStepItem<ServicesJourneyView>[] = [
+    {
+      value: 'recommend',
+      label: 'Recommended service',
+      detail: 'Pick the work that answers the launch verdict.',
+      accent: appleColors.purple,
+      meta: <PastelChip label={`${categories.data?.length || 0} families`} accent={appleColors.purple} />,
+    },
+    {
+      value: 'plan',
+      label: 'Service plan',
+      detail: 'Turn the selected work into a scoped owner-ready plan.',
+      accent: appleColors.blue,
+      meta: <PastelChip label={selectedPackage ? 'Plan exists' : 'Draft'} accent={selectedPackage ? appleColors.green : appleColors.amber} bg={selectedPackage ? '#e7f8ee' : '#fff4dc'} />,
+    },
+    {
+      value: 'team',
+      label: 'Team match',
+      detail: 'Compare teams, experts, workspace handoff, and risk.',
+      accent: appleColors.cyan,
+      meta: <PastelChip label={`${teamRecommendations.data?.length || 0} matches`} accent={appleColors.cyan} bg="#e4f9fd" />,
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -2375,8 +2487,8 @@ export default function OwnerProductizationWorkspace({
             risks={verdictRisks}
             completedChecks={latestCompletedTools}
             totalChecks={scanToolOptions.length}
-            onSeePlan={() => setWorkspaceTab(launchStatus.blockerCount ? 'actions' : 'services')}
-            onViewProof={() => setWorkspaceTab('findings')}
+            onSeePlan={() => launchStatus.blockerCount ? openActionView('plan') : openServicesView('recommend')}
+            onViewProof={() => openFindingsView('technical')}
           />
         </Box>
       )}
@@ -2423,12 +2535,12 @@ export default function OwnerProductizationWorkspace({
                     <Button
                       variant="contained"
                       startIcon={<RocketLaunchOutlined />}
-                      onClick={() => setWorkspaceTab(topOwnerRisks.length ? 'actions' : 'services')}
+                      onClick={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}
                       sx={{ minHeight: 42 }}
                     >
                       {topOwnerRisks.length ? 'Review launch blockers' : 'Plan next service'}
                     </Button>
-                    <Button variant="outlined" startIcon={<ShieldOutlined />} onClick={() => setWorkspaceTab('findings')} sx={{ minHeight: 42 }}>
+                    <Button variant="outlined" startIcon={<ShieldOutlined />} onClick={() => openFindingsView('technical')} sx={{ minHeight: 42 }}>
                       View scanner proof
                     </Button>
                     <Button variant="outlined" startIcon={<CloudUploadOutlined />} onClick={() => createEvidenceExport.mutate()} disabled={createEvidenceExport.isPending} sx={{ minHeight: 42 }}>
@@ -2508,6 +2620,15 @@ export default function OwnerProductizationWorkspace({
                 onGenerateReport={() => generateLaunchReadinessReport.mutate()}
               />
 
+              <OwnerWorkspaceJourneyNav
+                label="Overview journey"
+                value={overviewView}
+                items={overviewJourneyItems}
+                onChange={openOverviewView}
+              />
+
+              {overviewView === 'decision' && (
+                <>
               <Surface>
                 <SectionTitle
                   title="Launch Decision"
@@ -2541,7 +2662,7 @@ export default function OwnerProductizationWorkspace({
                     <Button
                       variant="contained"
                       startIcon={topRecommendedServiceName ? <AddShoppingCartOutlined /> : <ShieldOutlined />}
-                      onClick={() => setWorkspaceTab(topRecommendedServiceName ? 'services' : 'findings')}
+                      onClick={() => topRecommendedServiceName ? openServicesView('recommend') : openFindingsView('evidence')}
                       sx={{ mt: 1.25, minHeight: 40 }}
                     >
                       {topRecommendedServiceName ? 'Review service path' : 'Open proof'}
@@ -2580,7 +2701,7 @@ export default function OwnerProductizationWorkspace({
                                   Evidence: {ownerProofLine({ sourceTool: risk.sourceTool, sourceRuleId: risk.sourceRuleId, category })}
                                 </Typography>
                               </Box>
-                              <Button size="small" variant="outlined" onClick={() => setWorkspaceTab('findings')} sx={{ minHeight: 34, minWidth: 112 }}>
+                              <Button size="small" variant="outlined" onClick={() => openFindingsView('risks')} sx={{ minHeight: 34, minWidth: 112 }}>
                                 Inspect
                               </Button>
                             </Stack>
@@ -2660,7 +2781,7 @@ export default function OwnerProductizationWorkspace({
                     <Stack spacing={1}>
                       <Typography variant="h4">{selectedPackage.name}</Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>{selectedPackage.summary}</Typography>
-                      <Button variant="outlined" startIcon={<OpenInNewOutlined />} onClick={() => setWorkspaceTab('services')} sx={{ minHeight: 40, alignSelf: 'flex-start' }}>
+                      <Button variant="outlined" startIcon={<OpenInNewOutlined />} onClick={() => openServicesView('plan')} sx={{ minHeight: 40, alignSelf: 'flex-start' }}>
                         Review services
                       </Button>
                     </Stack>
@@ -2670,7 +2791,7 @@ export default function OwnerProductizationWorkspace({
                       <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
                         This service appears because scanner findings mapped to launch-readiness work.
                       </Typography>
-                      <Button variant="contained" startIcon={<AddShoppingCartOutlined />} onClick={() => setWorkspaceTab('services')} sx={{ minHeight: 40, alignSelf: 'flex-start' }}>
+                      <Button variant="contained" startIcon={<AddShoppingCartOutlined />} onClick={() => openServicesView('recommend')} sx={{ minHeight: 40, alignSelf: 'flex-start' }}>
                         Add services
                       </Button>
                     </Stack>
@@ -2679,10 +2800,21 @@ export default function OwnerProductizationWorkspace({
                   )}
                 </Surface>
               </Box>
+                </>
+              )}
             </Stack>
           )}
 
           {selectedProduct && workspaceTab === 'actions' && (
+            <OwnerWorkspaceJourneyNav
+              label="Action journey"
+              value={actionView}
+              items={actionJourneyItems}
+              onChange={setActionView}
+            />
+          )}
+
+          {selectedProduct && workspaceTab === 'actions' && actionView === 'plan' && (
             <Surface>
               <SectionTitle title="Action Plan" action={<PastelChip label="Do now / week / monitor" accent={appleColors.purple} />} />
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
@@ -2704,7 +2836,7 @@ export default function OwnerProductizationWorkspace({
                             </Typography>
                           )}
                           {'service' in item && item.service && (
-                            <Button size="small" variant="outlined" onClick={() => setWorkspaceTab('services')} sx={{ mt: 0.75, minHeight: 32 }}>
+                            <Button size="small" variant="outlined" onClick={() => openServicesView('recommend')} sx={{ mt: 0.75, minHeight: 32 }}>
                               Review {item.service}
                             </Button>
                           )}
@@ -2720,6 +2852,15 @@ export default function OwnerProductizationWorkspace({
           )}
 
           {selectedProduct && workspaceTab === 'findings' && (
+            <OwnerWorkspaceJourneyNav
+              label="Findings journey"
+              value={findingsView}
+              items={findingsJourneyItems}
+              onChange={setFindingsView}
+            />
+          )}
+
+          {selectedProduct && workspaceTab === 'findings' && findingsView === 'risks' && (
             <Surface>
               <SectionTitle
                 title="Findings"
@@ -2795,7 +2936,7 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          {selectedProduct && workspaceTab === 'findings' && (
+          {selectedProduct && workspaceTab === 'findings' && findingsView === 'evidence' && (
             <Surface>
               <SectionTitle
                 title="Evidence and Stored Proof"
@@ -2872,7 +3013,7 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          {selectedProduct && workspaceTab === 'findings' && (
+          {selectedProduct && workspaceTab === 'findings' && findingsView === 'evidence' && (
             <RepoReadoutPanel
               summary={repoSignals.data}
               scannerSummary={scannerSummary.data}
@@ -2882,7 +3023,7 @@ export default function OwnerProductizationWorkspace({
             />
           )}
 
-          {selectedProduct && workspaceTab === 'actions' && (
+          {selectedProduct && workspaceTab === 'actions' && actionView === 'diagnosis' && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
               <SectionTitle
                 title="Product Diagnosis"
@@ -3015,7 +3156,7 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          {selectedProduct && workspaceTab === 'overview' && (
+          {selectedProduct && workspaceTab === 'overview' && overviewView === 'progress' && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f9fcff 100%)' }}>
               <ShipConfidencePanel
                 history={shipConfidence.data}
@@ -3027,7 +3168,7 @@ export default function OwnerProductizationWorkspace({
             </Surface>
           )}
 
-          {selectedProduct && workspaceTab === 'overview' && (
+          {selectedProduct && workspaceTab === 'overview' && overviewView === 'progress' && (
             <LaunchReadinessReportPanel
               report={launchReadinessReport.data ?? null}
               isLoading={launchReadinessReport.isFetching}
@@ -3038,7 +3179,7 @@ export default function OwnerProductizationWorkspace({
             />
           )}
 
-          {selectedProduct && workspaceTab === 'findings' && (
+          {selectedProduct && workspaceTab === 'findings' && findingsView === 'technical' && (
             <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
               <SectionTitle
                 title="Technical Proof and Scanner Fix Path"
@@ -4250,7 +4391,17 @@ export default function OwnerProductizationWorkspace({
           )}
 
           {workspaceTab === 'services' && (
+            <OwnerWorkspaceJourneyNav
+              label="Services journey"
+              value={servicesView}
+              items={servicesJourneyItems}
+              onChange={setServicesView}
+            />
+          )}
+
+          {workspaceTab === 'services' && (
             <>
+              {servicesView === 'recommend' && (
               <Surface>
                 <SectionTitle title="Lifecycle Services" action={<PastelChip label={`${categories.data?.length || 0} service families`} accent={appleColors.purple} />} />
                 <Box sx={{ mb: 1.5 }}>
@@ -4363,7 +4514,10 @@ export default function OwnerProductizationWorkspace({
               })}
                 </Box>
               </Surface>
+              )}
 
+              {servicesView === 'plan' && (
+                <>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: showProductCreation ? '420px 1fr' : '1fr' }, gap: 2.5 }}>
             {showProductCreation && (
               <Surface>
@@ -4527,7 +4681,10 @@ export default function OwnerProductizationWorkspace({
               <EmptyState label="No service plan exists for this product yet. Create one from a product brief or convert the cart into a project workspace." />
             )}
               </Surface>
+                </>
+              )}
 
+              {servicesView === 'team' && (
               <Surface>
             <SectionTitle title="Team Shortlist and Compare" action={<PastelChip label={`${teamRecommendations.data?.length || 0} matches`} accent={appleColors.cyan} />} />
             {teamRecommendations.data?.length ? (
@@ -4652,6 +4809,7 @@ export default function OwnerProductizationWorkspace({
               </Stack>
             )}
               </Surface>
+              )}
             </>
           )}
         </Stack>
@@ -4663,7 +4821,7 @@ export default function OwnerProductizationWorkspace({
               primaryAction={launchStatus.blockerCount ? 'Open action plan' : topRecommendedServiceName ? 'Review service path' : 'Open proof'}
               lastScanLabel={scannerSummary.data?.recentRuns[0]?.completedAt ? shortDateTime(scannerSummary.data.recentRuns[0].completedAt) : latestCompletedTools ? `${latestCompletedTools} checks completed` : 'No completed check yet'}
               evidenceLabel={`${latestCompletedTools}/${scanToolOptions.length} checks`}
-              onPrimaryAction={() => setWorkspaceTab(launchStatus.blockerCount ? 'actions' : topRecommendedServiceName ? 'services' : 'findings')}
+              onPrimaryAction={() => launchStatus.blockerCount ? openActionView('plan') : topRecommendedServiceName ? openServicesView('recommend') : openFindingsView('evidence')}
               secondary={
                 <Button variant="outlined" startIcon={<EventRepeatOutlined />} onClick={() => setTimelineOpen(true)} sx={{ minHeight: 38 }}>
                   View timeline
@@ -4672,6 +4830,7 @@ export default function OwnerProductizationWorkspace({
             />
           )}
 
+          {workspaceTab === 'services' && (servicesView === 'plan' || servicesView === 'team') && (
           <Box id="project-cart" sx={{ scrollMarginTop: 96 }}>
           <Surface>
             <SectionTitle
@@ -4849,7 +5008,9 @@ export default function OwnerProductizationWorkspace({
             </Stack>
           </Surface>
           </Box>
+          )}
 
+          {(workspaceTab === 'overview' || workspaceTab === 'actions') && (
           <Surface>
             <SectionTitle
               title="AI Owner Brief"
@@ -4913,8 +5074,9 @@ export default function OwnerProductizationWorkspace({
               </Typography>
             )}
           </Surface>
+          )}
 
-          {workspaceTab === 'services' && (
+          {workspaceTab === 'services' && servicesView === 'team' && (
           <Surface>
             <SectionTitle title="Delivery Workspace" action={selectedWorkspace && <StatusChip label={selectedWorkspace.status} />} />
             {selectedWorkspace ? (
@@ -4950,7 +5112,7 @@ export default function OwnerProductizationWorkspace({
           </Surface>
           )}
 
-          {workspaceTab === 'services' && (
+          {workspaceTab === 'services' && servicesView === 'team' && (
           <Surface sx={{ background: productSupport.some((request) => request.slaStatus === 'OVERDUE') ? '#fff7f8' : '#f6fffb' }}>
             <SectionTitle title="Support and Risk" />
             {productSupport.length ? (

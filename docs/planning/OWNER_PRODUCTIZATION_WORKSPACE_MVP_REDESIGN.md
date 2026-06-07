@@ -194,6 +194,31 @@ The default tab should be `Overview`.
 
 Scanners and evidence should not be top-level tabs in the MVP. They should live inside `Findings` as trust/audit sections and filters. Timeline should open from Overview as a drawer or compact modal, because it is useful context but not a primary owner decision.
 
+## Journey Navigation V2
+
+The four top-level tabs are still too broad if each one becomes a long page. Each tab should have a short internal journey switch that reveals one purpose at a time.
+
+Implemented target:
+
+| Top-level tab | Default step | Secondary steps | Purpose |
+| --- | --- | --- | --- |
+| Overview | Decision | Progress | Keep the launch answer first. Move ship-confidence history and readiness report into Progress. |
+| Action Plan | Action plan | Diagnosis | Show what to do now by default. Keep the deterministic/AI diagnosis as a deliberate detail view. |
+| Findings | Owner risks | Stored proof, Technical proof | Start with plain-language risks. Put evidence export/repo readout and scanner operations behind explicit proof steps. |
+| Services | Recommended service | Service plan, Team match | Tie the top blocker to the recommended service first. Move package creation, cart, team comparison, delivery workspace, and support into later service steps. |
+
+Navigation rules:
+
+- A click from a verdict CTA should land on the exact journey step it implies.
+- `View scanner proof` opens Findings -> Technical proof.
+- `Open proof` from the decision opens Findings -> Stored proof.
+- `Review service path` opens Services -> Recommended service.
+- `Review services` for an existing package opens Services -> Service plan.
+- The project start plan/right rail appears only during Service plan or Team match, not while the owner is reading the verdict or findings.
+- AI suggestions should stay secondary to deterministic readiness and should not compete with the launch decision.
+
+This keeps the workspace from behaving like a single long document. The owner sees a short path, while technical reviewers can still reach the full scanner and evidence machinery.
+
 ## First Viewport Redesign
 
 The first viewport should contain only the information needed to make sense of the product state.
