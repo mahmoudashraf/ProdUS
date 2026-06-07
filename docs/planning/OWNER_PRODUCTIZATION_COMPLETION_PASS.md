@@ -263,6 +263,7 @@ Status:
 - Top Start Plan actions now read `Choose services`, `Choose teams`, and `Find experts`.
 - Mobile Start Plan hides the secondary product summary card, keeps a smaller readiness ring, and shows a compact service/team/status strip before the journey cards.
 - README business language now describes Project Start Plans instead of project carts.
+- Follow-up wording sweep changed remaining primary owner CTAs from add/cart language to choose/attach/approve language across overview, finding review, scanner proof, team match, public profiles, and service plan empty states.
 - Focused local mobile verification passed with screenshots:
   - `tmp/live-verification/2026-06-07/79-mobile-start-plan-close-local.png`
   - `tmp/live-verification/2026-06-07/80-mobile-start-plan-services-close-local.png`

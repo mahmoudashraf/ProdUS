@@ -54,7 +54,7 @@ export default function ProjectStartPlanOverview({
   const displayTitle = hasPlaceholderProduct
     ? 'Choose a real product'
     : product?.name
-      ? `${product.name} start plan`
+      ? product.name
       : title || 'Productization start plan';
 
   return (
