@@ -141,7 +141,7 @@ function PublicTeamCard({
             }}
             sx={{ minHeight: 42 }}
           >
-            {!isLoggedIn ? 'Sign In To Add Team' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Add Team To Plan') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign In To Attach Team' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Attach Team To Plan') : 'Open Dashboard'}
           </Button>
         </Stack>
       </Stack>
@@ -233,7 +233,7 @@ function ExpertCard({
             }}
             sx={{ minHeight: 42 }}
           >
-            {!isLoggedIn ? 'Sign In To Add Expert' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Add Expert To Plan') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign In To Attach Expert' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Attach Expert To Plan') : 'Open Dashboard'}
           </Button>
         </Stack>
       </Stack>

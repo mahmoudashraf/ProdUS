@@ -124,7 +124,7 @@ export default function ScannerFixPathPanel({
                       onClick={() => onAddService(recommendedModule, 'Fix path from scanner findings')}
                       sx={{ minHeight: 34, minWidth: 128 }}
                     >
-                      {inCart ? 'In Plan' : 'Add Service'}
+                      {inCart ? 'In Plan' : 'Choose Service'}
                     </Button>
                   </Stack>
                 ) : (

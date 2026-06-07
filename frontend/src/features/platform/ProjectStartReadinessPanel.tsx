@@ -103,7 +103,7 @@ export default function ProjectStartReadinessPanel({
                   onClick={() => onAddGapService(gap)}
                   sx={{ minHeight: 42, minWidth: 148 }}
                 >
-                  {gap.actionLabel || 'Add service'}
+                  {gap.actionLabel || 'Choose service'}
                 </Button>
               ) : (
                 <Button

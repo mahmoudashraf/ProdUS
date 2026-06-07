@@ -166,7 +166,7 @@ function TeamProfile({
             }}
             sx={{ minHeight: 44, minWidth: 180 }}
           >
-            {!isLoggedIn ? 'Sign In To Add Team' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Add Team To Plan') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign In To Attach Team' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Attach Team To Plan') : 'Open Dashboard'}
           </Button>
           <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
             {canUseProjectCart ? 'Review start plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
@@ -310,7 +310,7 @@ function ExpertProfileView({
             }}
             sx={{ minHeight: 44, minWidth: 180 }}
           >
-            {!isLoggedIn ? 'Sign In To Add Expert' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Add Expert To Plan') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign In To Attach Expert' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Attach Expert To Plan') : 'Open Dashboard'}
           </Button>
           <Button component={NextLink} href="/solo-experts" variant="outlined" sx={{ minHeight: 44, minWidth: 150 }}>
             Browse Experts

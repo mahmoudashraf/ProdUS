@@ -151,7 +151,7 @@ export default function OwnerServicePlanDetailPanel({
           </Box>
         </Stack>
       ) : (
-        <EmptyState label="No service plan exists for this product yet. Create one from a product brief or convert the cart into a project workspace." />
+        <EmptyState label="No service plan exists for this product yet. Create one from a product brief or approve the Project Start Plan into a workspace." />
       )}
     </Surface>
   );

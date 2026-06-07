@@ -178,7 +178,7 @@ export default function OwnerFindingReviewDrawer({
                   {finding.recommendedModule.name}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45, lineHeight: 1.45 }}>
-                  {finding.recommendedModule.ownerOutcome || finding.recommendedModule.description || 'Add this service to the productization plan for tracked remediation.'}
+                  {finding.recommendedModule.ownerOutcome || finding.recommendedModule.description || 'Choose this service for tracked remediation in the productization plan.'}
                 </Typography>
                 <Button
                   size="small"
@@ -188,7 +188,7 @@ export default function OwnerFindingReviewDrawer({
                   onClick={() => finding.recommendedModule && onAddService(finding.recommendedModule, 'Finding review')}
                   sx={{ mt: 1, minHeight: 34 }}
                 >
-                  {recommendedInCart ? 'Already in plan' : 'Add service'}
+                  {recommendedInCart ? 'Already in plan' : 'Choose service'}
                 </Button>
               </Box>
             )}

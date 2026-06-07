@@ -164,7 +164,7 @@ export default function ScannerProofFindingDecisionList({
                     onClick={() => onAddService(recommendedModule, 'Scanner findings')}
                     sx={{ minHeight: 34, minWidth: 142 }}
                   >
-                    {recommendedInCart ? 'In Plan' : 'Add Service'}
+                    {recommendedInCart ? 'In Plan' : 'Choose Service'}
                   </Button>
                 </Stack>
               </Box>

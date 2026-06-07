@@ -121,7 +121,7 @@ export default function OwnerTeamMatchPanel({
                     }}
                     disabled={isAddingTalent || isRemovingTalent}
                   >
-                    {cartTeamItem ? 'Remove Team' : 'Add Team'}
+                    {cartTeamItem ? 'Remove Team' : 'Attach Team'}
                   </Button>
                   <Button
                     variant={compared ? 'contained' : 'outlined'}
@@ -155,7 +155,7 @@ export default function OwnerTeamMatchPanel({
         <Stack spacing={1.5}>
           <Box sx={{ p: 1.5, border: '1px dashed', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-              {hasServicePlan ? 'No ranked team matches are available yet.' : 'Create a service plan to unlock ranked matches. You can still add promising teams or solo experts to the project start plan now.'}
+              {hasServicePlan ? 'No ranked team matches are available yet.' : 'Create a service plan to unlock ranked matches. You can still attach promising teams or solo experts to the project start plan now.'}
             </Typography>
           </Box>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 1.5 }}>

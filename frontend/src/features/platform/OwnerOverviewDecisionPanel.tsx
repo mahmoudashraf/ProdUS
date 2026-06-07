@@ -265,7 +265,7 @@ export default function OwnerOverviewDecisionPanel({
                 This service appears because scanner findings mapped to launch-readiness work.
               </Typography>
               <Button variant="contained" startIcon={<AddTaskOutlined />} onClick={onOpenServicesRecommend} sx={{ minHeight: 40, alignSelf: 'flex-start' }}>
-                Add services
+                Choose services
               </Button>
             </Stack>
           ) : (
