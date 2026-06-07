@@ -3,29 +3,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
-  AddOutlined,
   AddShoppingCartOutlined,
   ArticleOutlined,
   BugReportOutlined,
   CancelOutlined,
-  CloudUploadOutlined,
-  ContentCopyOutlined,
   EventRepeatOutlined,
   FactCheckOutlined,
   InfoOutlined,
-  OpenInNewOutlined,
-  PlayArrowOutlined,
   RefreshOutlined,
-  ShieldOutlined,
 } from '@mui/icons-material';
 import {
-  Alert,
   Box,
   Button,
   Checkbox,
-  Divider,
   FormControlLabel,
-  IconButton,
   LinearProgress,
   MenuItem,
   Stack,
@@ -62,6 +53,7 @@ import OwnerFindingsRiskPanel from './OwnerFindingsRiskPanel';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import OwnerOverviewDecisionPanel from './OwnerOverviewDecisionPanel';
 import OwnerScannerEvidenceCenterPanel from './OwnerScannerEvidenceCenterPanel';
+import OwnerScannerProofOperationsPanel from './OwnerScannerProofOperationsPanel';
 import ScannerCoverageGrid from './ScannerCoverageGrid';
 import ScannerFixPathPanel from './ScannerFixPathPanel';
 import ScannerProofRunway from './ScannerProofRunway';
@@ -2181,609 +2173,56 @@ export default function OwnerProductizationWorkspace({
               </Box>
 
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: 2 }}>
-                <Stack spacing={2}>
-                  <Box component="form" onSubmit={(event) => {
-                    event.preventDefault();
-                    if (selectedProduct && scanSourceForm.displayName.trim()) createScanSource.mutate();
-                  }}>
-                    <Stack spacing={1.25}>
-                      <Typography sx={{ fontWeight: 900 }}>Connect evidence source</Typography>
-                      <TextField
-                        select
-                        size="small"
-                        label="Source type"
-                        value={scanSourceForm.providerType}
-                        onChange={(event) => setScanSourceForm((current) => ({ ...current, providerType: event.target.value as ScanSource['providerType'] }))}
-                      >
-                        <MenuItem value="GITHUB">GitHub</MenuItem>
-                        <MenuItem value="GITLAB">GitLab</MenuItem>
-                        <MenuItem value="CI_UPLOAD">CI upload</MenuItem>
-                        <MenuItem value="RUNTIME_URL">Runtime URL</MenuItem>
-                        <MenuItem value="EXTERNAL_TOOL">External tool</MenuItem>
-                      </TextField>
-                      {selectedConnectorPermission && (
-                        <Box sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#dbeafe', bgcolor: '#f8fbff' }}>
-                          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 900 }}>{selectedConnectorPermission.label}</Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35, lineHeight: 1.45 }}>
-                                {selectedConnectorPermission.purpose}
-                              </Typography>
-                            </Box>
-                            {selectedConnectorPermission.appConnectorPreferred && <PastelChip label="App Preferred" accent={appleColors.purple} />}
-                          </Stack>
-                          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                            {selectedConnectorPermission.permissions.map((permission) => (
-                              <PastelChip key={permission} label={permission} accent={appleColors.cyan} bg="#e8f8ff" />
-                            ))}
-                          </Stack>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, lineHeight: 1.45 }}>
-                            {selectedConnectorPermission.operatingNote}
-                          </Typography>
-                        </Box>
-                      )}
-                      {(scanSourceForm.providerType === 'GITHUB' || scanSourceForm.providerType === 'GITLAB') && (
-                        <Box sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e7e4ff', bgcolor: '#fbfaff' }}>
-                          <Stack spacing={1}>
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
-                              <Box>
-                                <Typography variant="body2" sx={{ fontWeight: 900 }}>
-                                  {scanSourceForm.providerType === 'GITHUB' ? 'GitHub App connection' : 'GitLab project connection'}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  Connect once, then attach repository sources to this product with an auditable installation record.
-                                </Typography>
-                              </Box>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                startIcon={<OpenInNewOutlined />}
-                                onClick={() => requestConnectorInstall.mutate(scanSourceForm.providerType === 'GITHUB' ? 'github' : 'gitlab')}
-                                disabled={requestConnectorInstall.isPending}
-                                sx={{ minHeight: 36, minWidth: 154 }}
-                              >
-                                Connect App
-                              </Button>
-                            </Stack>
-                            {activeProviderInstallations.length ? (
-                              <>
-                                <TextField
-                                  select
-                                  size="small"
-                                  label="Connected account"
-                                  value={providerSourceForm.installationId || activeProviderInstallations[0]?.id || ''}
-                                  onChange={(event) => setProviderSourceForm((current) => ({ ...current, installationId: event.target.value }))}
-                                >
-                                  {activeProviderInstallations.map((installation) => (
-                                    <MenuItem key={installation.id} value={installation.id}>
-                                      {installation.accountLogin || installation.externalInstallationId} · {formatLabel(installation.providerType)}
-                                    </MenuItem>
-                                  ))}
-                                </TextField>
-                                <TextField
-                                  size="small"
-                                  label="Repository full name"
-                                  placeholder={scanSourceForm.providerType === 'GITHUB' ? 'owner/repository' : 'group/project'}
-                                  value={providerSourceForm.repositoryFullName}
-                                  onChange={(event) => setProviderSourceForm((current) => ({ ...current, repositoryFullName: event.target.value }))}
-                                />
-                                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 2fr' }, gap: 1 }}>
-                                  <TextField
-                                    size="small"
-                                    label="Default branch"
-                                    value={providerSourceForm.defaultBranch}
-                                    onChange={(event) => setProviderSourceForm((current) => ({ ...current, defaultBranch: event.target.value }))}
-                                  />
-                                  <TextField
-                                    size="small"
-                                    label="Clone URL override"
-                                    placeholder="Optional. Leave empty for standard provider HTTPS URL."
-                                    value={providerSourceForm.cloneUrl}
-                                    onChange={(event) => setProviderSourceForm((current) => ({ ...current, cloneUrl: event.target.value }))}
-                                  />
-                                </Box>
-                                <Button
-                                  variant="contained"
-                                  startIcon={<AddOutlined />}
-                                  disabled={!selectedProduct || !providerSourceForm.repositoryFullName.trim() || !(providerSourceForm.installationId || activeProviderInstallations[0]?.id) || createProviderSource.isPending}
-                                  onClick={() => createProviderSource.mutate()}
-                                  sx={{ minHeight: 42 }}
-                                >
-                                  Add Repository Source
-                                </Button>
-                              </>
-                            ) : (
-                              <Alert severity="info" sx={{ borderRadius: 1 }}>
-                                No active {formatLabel(scanSourceForm.providerType)} connector is attached yet. Manual source entry still works for public repositories and CI imports.
-                              </Alert>
-                            )}
-                          </Stack>
-                        </Box>
-                      )}
-                      <TextField
-                        size="small"
-                        label="Display name"
-                        value={scanSourceForm.displayName}
-                        onChange={(event) => setScanSourceForm((current) => ({ ...current, displayName: event.target.value }))}
-                      />
-                      <TextField
-                        size="small"
-                        label="Reference"
-                        placeholder="Repository, pipeline, or scanner URL"
-                        value={scanSourceForm.externalReference}
-                        onChange={(event) => setScanSourceForm((current) => ({ ...current, externalReference: event.target.value }))}
-                      />
-                      <TextField
-                        size="small"
-                        label="Scope note"
-                        value={scanSourceForm.scopeNote}
-                        onChange={(event) => setScanSourceForm((current) => ({ ...current, scopeNote: event.target.value }))}
-                        multiline
-                        minRows={2}
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={scanSourceForm.authorizationConfirmed}
-                            onChange={(event) => setScanSourceForm((current) => ({ ...current, authorizationConfirmed: event.target.checked }))}
-                          />
-                        }
-                        label={
-                          <Typography variant="body2" color="text.secondary">
-                            I confirm this source is authorized for scanner evidence collection.
-                          </Typography>
-                        }
-                      />
-                      <Button
-                        type="submit"
-                        variant="outlined"
-                        startIcon={<AddOutlined />}
-                        disabled={!selectedProduct || !scanSourceForm.displayName.trim() || createScanSource.isPending}
-                        sx={{ minHeight: 42 }}
-                      >
-                        Save Source
-                      </Button>
-                    </Stack>
-                  </Box>
-
-                  <Divider />
-
-                  <Box component="form" onSubmit={(event) => {
-                    event.preventDefault();
-                    if (!hostedScanBlockedReason && !activeScanRun) startHostedScan.mutate();
-                  }}>
-                    <Stack spacing={1.25}>
-                      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-                        <Typography sx={{ fontWeight: 900 }}>Run governed scan</Typography>
-                        {activeScanRun && <StatusChip label={activeScanRun.status} color={activeScanRun.status === 'RUNNING' ? 'warning' : 'default'} />}
-                      </Stack>
-                      <TextField
-                        select
-                        size="small"
-                        label="Evidence source"
-                        value={hostedScanForm.sourceId}
-                        onChange={(event) => setHostedScanForm((current) => ({ ...current, sourceId: event.target.value }))}
-                      >
-                        <MenuItem value="">Use product repository / target</MenuItem>
-                        {(scannerSummary.data?.sources || []).map((source) => (
-                          <MenuItem key={source.id} value={source.id}>
-                            {source.displayName} · {formatLabel(source.authorizationStatus)}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                      <TextField
-                        select
-                        size="small"
-                        label="Scan depth"
-                        value={hostedScanForm.depth}
-                        onChange={(event) => {
-                          const depth = event.target.value as ScanRun['depth'];
-                          setHostedScanForm((current) => ({ ...current, depth, toolKeys: defaultToolsForDepth(depth) }));
-                        }}
-                      >
-                        <MenuItem value="SAFE_STATIC">L1 Safe static</MenuItem>
-                        <MenuItem value="DEPENDENCY_CONTAINER">L2 Dependency / container</MenuItem>
-                        <MenuItem value="RUNTIME_BASELINE">L3 Runtime baseline</MenuItem>
-                      </TextField>
-                      <TextField
-                        select
-                        size="small"
-                        label="Scanner tools"
-                        value={hostedScanForm.toolKeys}
-                        SelectProps={{ multiple: true }}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setHostedScanForm((current) => ({
-                            ...current,
-                            toolKeys: typeof value === 'string' ? value.split(',') : value as string[],
-                          }));
-                        }}
-                      >
-                        {scanToolOptions
-                          .filter((tool) => (tool.depths as readonly string[]).includes(hostedScanForm.depth))
-                          .map((tool) => (
-                            <MenuItem key={tool.key} value={tool.key}>{tool.label}</MenuItem>
-                          ))}
-                      </TextField>
-                      {hostedScanForm.depth === 'SAFE_STATIC' && (
-                        <TextField
-                          size="small"
-                          label="Branch"
-                          value={hostedScanForm.branchRef}
-                          onChange={(event) => setHostedScanForm((current) => ({ ...current, branchRef: event.target.value }))}
-                        />
-                      )}
-                      {hostedScanForm.depth === 'DEPENDENCY_CONTAINER' && (
-                        <TextField
-                          size="small"
-                          label="Container image"
-                          placeholder="registry.example.com/app:sha"
-                          value={hostedScanForm.containerImageRef}
-                          onChange={(event) => setHostedScanForm((current) => ({ ...current, containerImageRef: event.target.value }))}
-                        />
-                      )}
-                      {hostedScanForm.depth === 'RUNTIME_BASELINE' && (
-                        <TextField
-                          size="small"
-                          label="Runtime URL"
-                          placeholder={selectedProduct?.productUrl || 'https://staging.example.com'}
-                          value={hostedScanForm.runtimeTargetUrl}
-                          onChange={(event) => setHostedScanForm((current) => ({ ...current, runtimeTargetUrl: event.target.value }))}
-                        />
-                      )}
-                      <TextField
-                        size="small"
-                        label="Audit reason"
-                        value={hostedScanForm.reason}
-                        onChange={(event) => setHostedScanForm((current) => ({ ...current, reason: event.target.value }))}
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={hostedScanForm.authorizationConfirmed}
-                            onChange={(event) => setHostedScanForm((current) => ({ ...current, authorizationConfirmed: event.target.checked }))}
-                          />
-                        }
-                        label={<Typography variant="body2" color="text.secondary">I am authorized to run selected scanners on this source.</Typography>}
-                      />
-                      {hostedScanForm.depth === 'RUNTIME_BASELINE' && (
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={hostedScanForm.runtimeAuthorizationConfirmed}
-                              onChange={(event) => setHostedScanForm((current) => ({ ...current, runtimeAuthorizationConfirmed: event.target.checked }))}
-                            />
-                          }
-                          label={<Typography variant="body2" color="text.secondary">I confirm the runtime URL/domain is authorized for baseline scanning.</Typography>}
-                        />
-                      )}
-                      {hostedScanBlockedReason && <Alert severity="info" sx={{ borderRadius: 1 }}>{hostedScanBlockedReason}</Alert>}
-                      {fullHostedScanBlockedReason && fullHostedScanBlockedReason !== hostedScanBlockedReason && (
-                        <Alert severity="info" sx={{ borderRadius: 1 }}>Full suite: {fullHostedScanBlockedReason}</Alert>
-                      )}
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                        <Button
-                          type="submit"
-                          variant="contained"
-                          startIcon={<PlayArrowOutlined />}
-                          disabled={!!hostedScanBlockedReason || !!activeScanRun || startHostedScan.isPending}
-                          sx={{ minHeight: 44, flex: 1 }}
-                        >
-                          Start Scan
-                        </Button>
-                        <Tooltip title={fullHostedScanBlockedReason || 'Queue every configured scanner across repository, image, and runtime targets.'}>
-                          <span style={{ flex: 1 }}>
-                            <Button
-                              type="button"
-                              variant="outlined"
-                              startIcon={<ShieldOutlined />}
-                              disabled={!!fullHostedScanBlockedReason || !!activeScanRun || startFullHostedScan.isPending}
-                              onClick={() => startFullHostedScan.mutate()}
-                              sx={{ minHeight: 44, width: '100%' }}
-                            >
-                              Run Full Suite
-                            </Button>
-                          </span>
-                        </Tooltip>
-                        {activeScanRun && (
-                          <Button
-                            variant="outlined"
-                            color="error"
-                            startIcon={<CancelOutlined />}
-                            disabled={cancelScannerRun.isPending}
-                            onClick={() => cancelScannerRun.mutate(activeScanRun.id)}
-                            sx={{ minHeight: 44, flex: 1 }}
-                          >
-                            Cancel
-                          </Button>
-                        )}
-                      </Stack>
-                    </Stack>
-                  </Box>
-
-                  <Box component="form" onSubmit={(event) => {
-                    event.preventDefault();
-                    if (!scheduleBlockedReason) createScannerSchedule.mutate();
-                  }}>
-                    <Stack spacing={1.25}>
-                      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                        <Typography sx={{ fontWeight: 900 }}>Schedule evidence refresh</Typography>
-                        <EventRepeatOutlined sx={{ color: appleColors.cyan }} />
-                      </Stack>
-                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1.4fr' }, gap: 1 }}>
-                        <TextField
-                          size="small"
-                          type="number"
-                          label="Every days"
-                          value={scheduleForm.intervalDays}
-                          inputProps={{ min: 1, max: 90 }}
-                          onChange={(event) => setScheduleForm((current) => ({ ...current, intervalDays: event.target.value }))}
-                        />
-                        <TextField
-                          size="small"
-                          type="datetime-local"
-                          label="First run"
-                          value={scheduleForm.nextRunAt}
-                          onChange={(event) => setScheduleForm((current) => ({ ...current, nextRunAt: event.target.value }))}
-                          InputLabelProps={{ shrink: true }}
-                        />
-                      </Box>
-                      <TextField
-                        size="small"
-                        label="Schedule reason"
-                        value={scheduleForm.reason}
-                        onChange={(event) => setScheduleForm((current) => ({ ...current, reason: event.target.value }))}
-                      />
-                      {scheduleBlockedReason && <Alert severity="info" sx={{ borderRadius: 1 }}>{scheduleBlockedReason}</Alert>}
-                      <Button
-                        type="submit"
-                        variant="outlined"
-                        startIcon={<EventRepeatOutlined />}
-                        disabled={!!scheduleBlockedReason || createScannerSchedule.isPending}
-                        sx={{ minHeight: 42 }}
-                      >
-                        Create Schedule
-                      </Button>
-                    </Stack>
-                  </Box>
-
-                  <Divider />
-
-                  <Box component="form" onSubmit={(event) => {
-                    event.preventDefault();
-                    if (selectedProduct && scannerUploadForm.toolName.trim() && scannerUploadForm.artifactPayload.trim()) uploadScannerEvidence.mutate();
-                  }}>
-                    <Stack spacing={1.25}>
-                      <Typography sx={{ fontWeight: 900 }}>Upload CI evidence</Typography>
-                      <TextField
-                        select
-                        size="small"
-                        label="Evidence source"
-                        value={scannerUploadForm.sourceId}
-                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, sourceId: event.target.value }))}
-                      >
-                        <MenuItem value="">Auto-create CI source</MenuItem>
-                        {(scannerSummary.data?.sources || []).map((source) => (
-                          <MenuItem key={source.id} value={source.id}>{source.displayName}</MenuItem>
-                        ))}
-                      </TextField>
-                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 120px' }, gap: 1 }}>
-                        <TextField
-                          size="small"
-                          label="Tool"
-                          value={scannerUploadForm.toolName}
-                          onChange={(event) => setScannerUploadForm((current) => ({ ...current, toolName: event.target.value }))}
-                        />
-                        <TextField
-                          select
-                          size="small"
-                          label="Format"
-                          value={scannerUploadForm.format}
-                          onChange={(event) => setScannerUploadForm((current) => ({ ...current, format: event.target.value as ScannerUploadPayload['format'] }))}
-                        >
-                          <MenuItem value="SARIF">SARIF</MenuItem>
-                          <MenuItem value="JSON">JSON</MenuItem>
-                          <MenuItem value="LOG">Log</MenuItem>
-                          <MenuItem value="JUNIT">JUnit</MenuItem>
-                        </TextField>
-                      </Box>
-                      <TextField
-                        size="small"
-                        label="Tool version"
-                        value={scannerUploadForm.toolVersion}
-                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, toolVersion: event.target.value }))}
-                      />
-                      <TextField
-                        size="small"
-                        label="Artifact file name"
-                        value={scannerUploadForm.artifactFileName}
-                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, artifactFileName: event.target.value }))}
-                      />
-                      {selectedWorkspace && (
-                        <TextField
-                          select
-                          size="small"
-                          label="Attach to milestone"
-                          value={scannerUploadForm.milestoneId}
-                          onChange={(event) => setScannerUploadForm((current) => ({ ...current, milestoneId: event.target.value }))}
-                        >
-                          <MenuItem value="">Product-level evidence</MenuItem>
-                          {(milestones.data || []).map((milestone) => (
-                            <MenuItem key={milestone.id} value={milestone.id}>{milestone.title}</MenuItem>
-                          ))}
-                        </TextField>
-                      )}
-                      <TextField
-                        size="small"
-                        label="Artifact payload"
-                        placeholder="Paste SARIF, JSON, JUnit XML, or CI log output from a real scanner run."
-                        value={scannerUploadForm.artifactPayload}
-                        onChange={(event) => setScannerUploadForm((current) => ({ ...current, artifactPayload: event.target.value }))}
-                        multiline
-                        minRows={7}
-                        InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13, alignItems: 'flex-start' } }}
-                      />
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        startIcon={<CloudUploadOutlined />}
-                        disabled={!selectedProduct || !scannerUploadForm.toolName.trim() || !scannerUploadForm.artifactPayload.trim() || uploadScannerEvidence.isPending}
-                        sx={{ minHeight: 44 }}
-                      >
-                        Normalize Evidence
-                      </Button>
-                    </Stack>
-                  </Box>
-
-                  <Divider />
-
-                  <Box component="form" onSubmit={(event) => {
-                    event.preventDefault();
-                    if (selectedProduct && externalImportForm.toolName.trim() && externalImportForm.artifactPayload.trim()) importExternalEvidence.mutate();
-                  }}>
-                    <Stack spacing={1.25}>
-                      <Typography sx={{ fontWeight: 900 }}>Import external tool results</Typography>
-                      <TextField
-                        select
-                        size="small"
-                        label="Provider"
-                        value={externalImportForm.provider}
-                        onChange={(event) => {
-                          const provider = externalImportProviders.find((item) => item.value === event.target.value) ?? externalImportProviders[0]!;
-                          setExternalImportForm((current) => ({
-                            ...current,
-                            provider: provider.value,
-                            toolName: provider.toolName,
-                            format: provider.format,
-                            artifactFileName: provider.format === 'SARIF' ? 'external-results.sarif' : `${provider.value.toLowerCase().replaceAll('_', '-')}.json`,
-                          }));
-                        }}
-                      >
-                        {externalImportProviders.map((provider) => (
-                          <MenuItem key={provider.value} value={provider.value}>{provider.label}</MenuItem>
-                        ))}
-                      </TextField>
-                      <TextField
-                        select
-                        size="small"
-                        label="Source"
-                        value={externalImportForm.sourceId}
-                        onChange={(event) => setExternalImportForm((current) => ({ ...current, sourceId: event.target.value }))}
-                      >
-                        <MenuItem value="">Create provider source automatically</MenuItem>
-                        {(scannerSummary.data?.sources || []).map((source) => (
-                          <MenuItem key={source.id} value={source.id}>{source.displayName}</MenuItem>
-                        ))}
-                      </TextField>
-                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 120px' }, gap: 1 }}>
-                        <TextField
-                          size="small"
-                          label="Tool"
-                          value={externalImportForm.toolName}
-                          onChange={(event) => setExternalImportForm((current) => ({ ...current, toolName: event.target.value }))}
-                        />
-                        <TextField
-                          select
-                          size="small"
-                          label="Format"
-                          value={externalImportForm.format}
-                          onChange={(event) => setExternalImportForm((current) => ({ ...current, format: event.target.value as ScannerUploadPayload['format'] }))}
-                        >
-                          <MenuItem value="SARIF">SARIF</MenuItem>
-                          <MenuItem value="JSON">JSON</MenuItem>
-                          <MenuItem value="LOG">Log</MenuItem>
-                        </TextField>
-                      </Box>
-                      <TextField
-                        size="small"
-                        label="External reference"
-                        placeholder="Run URL, import job ID, commit SHA, or provider project URL"
-                        value={externalImportForm.externalReference}
-                        onChange={(event) => setExternalImportForm((current) => ({ ...current, externalReference: event.target.value }))}
-                      />
-                      {selectedWorkspace && (
-                        <TextField
-                          select
-                          size="small"
-                          label="Attach to milestone"
-                          value={externalImportForm.milestoneId}
-                          onChange={(event) => setExternalImportForm((current) => ({ ...current, milestoneId: event.target.value }))}
-                        >
-                          <MenuItem value="">Product-level evidence</MenuItem>
-                          {(milestones.data || []).map((milestone) => (
-                            <MenuItem key={milestone.id} value={milestone.id}>{milestone.title}</MenuItem>
-                          ))}
-                        </TextField>
-                      )}
-                      <TextField
-                        size="small"
-                        label="Artifact payload"
-                        placeholder="Paste a real provider JSON, SARIF, or scanner export."
-                        value={externalImportForm.artifactPayload}
-                        onChange={(event) => setExternalImportForm((current) => ({ ...current, artifactPayload: event.target.value }))}
-                        multiline
-                        minRows={6}
-                        InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13, alignItems: 'flex-start' } }}
-                      />
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        startIcon={<CloudUploadOutlined />}
-                        disabled={!selectedProduct || !externalImportForm.toolName.trim() || !externalImportForm.artifactPayload.trim() || importExternalEvidence.isPending}
-                        sx={{ minHeight: 44 }}
-                      >
-                        Import Results
-                      </Button>
-                    </Stack>
-                  </Box>
-
-                  <Divider />
-
-                  <Box>
-                    <Stack spacing={1.25}>
-                      <Typography sx={{ fontWeight: 900 }}>Customer-owned CI template</Typography>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                        <TextField
-                          select
-                          size="small"
-                          label="Template"
-                          value={ciTemplateType}
-                          onChange={(event) => setCiTemplateType(event.target.value as CiTemplateResponse['type'])}
-                          sx={{ flex: 1 }}
-                        >
-                          <MenuItem value="GITHUB_ACTIONS">GitHub Actions</MenuItem>
-                          <MenuItem value="GITLAB_CI">GitLab CI</MenuItem>
-                          <MenuItem value="GENERIC_CURL">Generic curl</MenuItem>
-                        </TextField>
-                        <Button
-                          variant="outlined"
-                          onClick={() => selectedProduct && fetchCiTemplate.mutate()}
-                          disabled={!selectedProduct || fetchCiTemplate.isPending}
-                          sx={{ minHeight: 40, minWidth: 132 }}
-                        >
-                          Generate
-                        </Button>
-                      </Stack>
-                      {ciTemplate && (
-                        <Box sx={{ border: 1, borderColor: appleColors.line, bgcolor: '#fbfdff', borderRadius: 1, overflow: 'hidden' }}>
-                          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: appleColors.line }}>
-                            <Typography variant="caption" color="text.secondary">
-                              Uses `{ciTemplate.tokenEnvironmentVariable}` and uploads to ProdUS.
-                            </Typography>
-                            <Tooltip title="Copy template">
-                              <IconButton size="small" onClick={() => navigator.clipboard?.writeText(ciTemplate.template)}>
-                                <ContentCopyOutlined fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
-                          <Box component="pre" sx={{ m: 0, p: 1.25, maxHeight: 240, overflow: 'auto', fontSize: 12, lineHeight: 1.5, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
-                            {ciTemplate.template}
-                          </Box>
-                        </Box>
-                      )}
-                    </Stack>
-                  </Box>
-                </Stack>
+                <OwnerScannerProofOperationsPanel
+                  selectedProduct={selectedProduct}
+                  selectedWorkspace={selectedWorkspace}
+                  milestones={milestones.data || []}
+                  scannerSources={scannerSummary.data?.sources || []}
+                  scanToolOptions={scanToolOptions}
+                  externalImportProviders={externalImportProviders}
+                  selectedConnectorPermission={selectedConnectorPermission}
+                  activeProviderInstallations={activeProviderInstallations}
+                  activeScanRun={activeScanRun}
+                  hostedScanBlockedReason={hostedScanBlockedReason}
+                  fullHostedScanBlockedReason={fullHostedScanBlockedReason}
+                  scheduleBlockedReason={scheduleBlockedReason}
+                  scanSourceForm={scanSourceForm}
+                  setScanSourceForm={setScanSourceForm}
+                  providerSourceForm={providerSourceForm}
+                  setProviderSourceForm={setProviderSourceForm}
+                  hostedScanForm={hostedScanForm}
+                  setHostedScanForm={setHostedScanForm}
+                  scheduleForm={scheduleForm}
+                  setScheduleForm={setScheduleForm}
+                  scannerUploadForm={scannerUploadForm}
+                  setScannerUploadForm={setScannerUploadForm}
+                  externalImportForm={externalImportForm}
+                  setExternalImportForm={setExternalImportForm}
+                  ciTemplateType={ciTemplateType}
+                  setCiTemplateType={setCiTemplateType}
+                  ciTemplate={ciTemplate}
+                  isCreatingSource={createScanSource.isPending}
+                  isRequestingConnectorInstall={requestConnectorInstall.isPending}
+                  isCreatingProviderSource={createProviderSource.isPending}
+                  isStartingHostedScan={startHostedScan.isPending}
+                  isStartingFullHostedScan={startFullHostedScan.isPending}
+                  isCancelingScan={cancelScannerRun.isPending}
+                  isCreatingSchedule={createScannerSchedule.isPending}
+                  isUploadingEvidence={uploadScannerEvidence.isPending}
+                  isImportingExternalEvidence={importExternalEvidence.isPending}
+                  isFetchingCiTemplate={fetchCiTemplate.isPending}
+                  onCreateScanSource={() => createScanSource.mutate()}
+                  onRequestConnectorInstall={(provider) => requestConnectorInstall.mutate(provider)}
+                  onCreateProviderSource={() => createProviderSource.mutate()}
+                  onStartHostedScan={() => startHostedScan.mutate()}
+                  onStartFullHostedScan={() => startFullHostedScan.mutate()}
+                  onCancelScan={(runId) => cancelScannerRun.mutate(runId)}
+                  onCreateSchedule={() => createScannerSchedule.mutate()}
+                  onUploadScannerEvidence={() => uploadScannerEvidence.mutate()}
+                  onImportExternalEvidence={() => importExternalEvidence.mutate()}
+                  onFetchCiTemplate={() => selectedProduct && fetchCiTemplate.mutate()}
+                  defaultToolsForDepth={defaultToolsForDepth}
+                />
 
                 <Stack spacing={1.5}>
                   {(scannerSummary.isFetching || createScannerReadinessDiagnosis.isPending || createProviderSource.isPending || requestConnectorInstall.isPending || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || startFullHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending || openSignedEvidence.isPending || createEvidenceExport.isPending) && <LinearProgress sx={{ borderRadius: 999 }} />}
