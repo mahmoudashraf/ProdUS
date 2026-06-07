@@ -23,9 +23,10 @@ import { getJson, postJson, putJson } from './api';
 import PlatformAssistantCard from './PlatformAssistantCard';
 import ShipConfidencePanel from './ShipConfidencePanel';
 import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
+import WorkspaceCommandHero from './WorkspaceCommandHero';
+import WorkspaceCommandJourneyNav, { type WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import { sortWorkspacesForOwner } from './displayOrder';
 import {
-  DotLabel,
   EmptyState,
   MetricTile,
   PageHeader,
@@ -246,6 +247,7 @@ export default function WorkspaceCommandPage() {
   const [disputeResolutionById, setDisputeResolutionById] = useState<Record<string, string>>({});
   const [governanceNotice, setGovernanceNotice] = useState('');
   const [integrationProvider, setIntegrationProvider] = useState<IntegrationConnection['providerType']>('GITHUB');
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceCommandView>('overview');
   const [scannerUploadForm, setScannerUploadForm] = useState({
     toolName: 'CodeQL',
     toolVersion: '',
@@ -646,6 +648,7 @@ export default function WorkspaceCommandPage() {
   const blockedItems = workspaceList.filter((workspace) => workspace.status === 'BLOCKED').length
     + supportList.filter((request) => request.priority === 'URGENT' || request.slaStatus === 'OVERDUE' || request.slaStatus === 'ESCALATED').length
     + disputeList.filter((dispute) => dispute.status !== 'RESOLVED' && dispute.status !== 'CANCELLED').length;
+  const roughEdgeCount = supportList.length + disputeList.length;
   const workspaceProgress = milestoneList.length ? Math.round((completedMilestones / milestoneList.length) * 100) : 0;
 
   const scopedAttachments = (scopeType: AttachmentScope, scopeId: string) => attachmentsByScope[attachmentKey(scopeType, scopeId)] || [];
@@ -798,7 +801,15 @@ export default function WorkspaceCommandPage() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', lg: '300px minmax(0, 1fr) 320px', xl: '320px minmax(0, 1fr) 360px' },
+          gridTemplateColumns: {
+            xs: '1fr',
+            lg: selectedWorkspace && (workspaceView === 'team' || workspaceView === 'handoff')
+              ? '300px minmax(0, 1fr) 320px'
+              : '300px minmax(0, 1fr)',
+            xl: selectedWorkspace && (workspaceView === 'team' || workspaceView === 'handoff')
+              ? '320px minmax(0, 1fr) 360px'
+              : '320px minmax(0, 1fr)',
+          },
           gap: 2.5,
           alignItems: 'start',
         }}
@@ -858,48 +869,86 @@ export default function WorkspaceCommandPage() {
         <Stack spacing={2}>
           {selectedWorkspace ? (
             <>
-              <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
-                <Stack direction={{ xs: 'column', xl: 'row' }} spacing={2.5} alignItems={{ xl: 'center' }} justifyContent="space-between">
-                  <Stack direction="row" spacing={2} alignItems="center">
-                    <ProgressRing value={workspaceProgress} size={104} color={workspaceAccent(selectedWorkspace.status)} label="done" />
-                    <Box>
-                      <Typography variant="h2" sx={{ fontSize: { xs: 26, md: 30 }, lineHeight: 1.12 }}>{selectedWorkspace.name}</Typography>
-                      <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
-                        {selectedWorkspace.packageInstance?.name || 'Service plan'} for {selectedWorkspace.packageInstance?.productProfile?.name || 'selected product'}.
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
-                        <StatusChip label={selectedWorkspace.status} />
-                        <PastelChip label={`${milestoneList.length} milestones`} accent={appleColors.purple} />
-                        <PastelChip label={`${participantList.length} participants`} accent={appleColors.cyan} bg="#e4f9fd" />
-                      </Stack>
-                    </Box>
-                  </Stack>
-                  <Stack direction={{ xs: 'row', xl: 'column' }} spacing={0.75} flexWrap="wrap" useFlexGap>
-                    <DotLabel label={`${deliverableList.length} fixes in focus`} color={appleColors.green} />
-                    <DotLabel label={`${scopedAttachments('WORKSPACE', selectedWorkspace.id).length} proof files`} color={appleColors.purple} />
-                    <DotLabel label={`${supportList.length + disputeList.length} open rough edges`} color={supportList.length + disputeList.length ? appleColors.amber : appleColors.green} />
-                  </Stack>
-                </Stack>
-              </Surface>
+              <WorkspaceCommandHero
+                workspace={selectedWorkspace}
+                progress={workspaceProgress}
+                accent={workspaceAccent(selectedWorkspace.status)}
+                milestoneCount={milestoneList.length}
+                participantCount={participantList.length}
+                deliverableCount={deliverableList.length}
+                proofFileCount={scopedAttachments('WORKSPACE', selectedWorkspace.id).length}
+                roughEdgeCount={roughEdgeCount}
+              />
 
               {(milestones.isFetching || deliverables.isFetching || supportRequests.isFetching || disputes.isFetching || attachments.isFetching) && <LinearProgress />}
 
-              <PlatformAssistantCard
-                title="AI Launch Proof Advisor"
-                description="Summarize what is supported, what is still fuzzy, and what decision is safe next."
-                prompt={`Do not call tools for this answer. Use only the facts in this prompt and the supplied safe summaries. Create an owner-facing proof readiness note for the delivery named "${selectedWorkspace.name}". Product is ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}. Service plan is ${selectedWorkspace.packageInstance?.name || 'not recorded'}. Current review area is "${selectedMilestone?.title || 'not selected'}", status ${selectedMilestone?.status || 'unknown'}. Deliverables in focus: ${deliverableList.slice(0, 5).map((deliverable) => `${deliverable.title} (${deliverable.status})`).join('; ') || 'none'}. Acceptance checklist: ${selectedMilestoneCriteria.slice(0, 5).map((criterion) => `${criterion.title} (${criterion.status})`).join('; ') || 'none generated'}. Missing proof count is ${missingEvidenceCount}. Scanner proof count is ${scannerEvidenceList.length}. Explain what is already supported, what is still missing, what needs human review, and what owner decision is safe next. Do not certify production readiness.`}
-                conversationId={`workspace-evidence-advisor-${selectedWorkspace.id}-${selectedMilestone?.id || 'summary'}`}
-                context={{
-                  pageType: 'milestone-review',
-                  productId: selectedWorkspaceProductId,
-                  packageId: selectedWorkspace.packageInstance?.id,
-                  workspaceId: selectedWorkspace.id,
-                  milestoneId: selectedMilestone?.id,
-                }}
-                accent={missingEvidenceCount ? appleColors.amber : appleColors.green}
-                cta="Review Proof"
+              <WorkspaceCommandJourneyNav
+                value={workspaceView}
+                onChange={setWorkspaceView}
+                priorityFixes={readiness?.blockerCount || 0}
+                proofGaps={readiness?.missingEvidenceCount || missingEvidenceCount}
+                milestoneCount={milestoneList.length}
+                participantCount={participantList.length}
+                supportCount={supportList.length}
+                riskCount={disputeList.length}
+                integrationCount={integrationList.length}
+                hasHandoff={!!latestHandoff}
               />
 
+              {workspaceView === 'overview' && (
+                <>
+                  <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
+                    <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} justifyContent="space-between" alignItems={{ lg: 'center' }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="h3" sx={{ fontSize: { xs: 22, md: 26 } }}>
+                          Delivery Answer
+                        </Typography>
+                        <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65, maxWidth: 780 }}>
+                          {readiness?.blockerCount
+                            ? `Not ready for owner handoff yet. ${readiness.blockerCount} priority fix${readiness.blockerCount === 1 ? '' : 'es'} must be handled before this workspace can be treated as launch-safe.`
+                            : missingEvidenceCount
+                              ? `Close the proof gap first. ${missingEvidenceCount} required evidence item${missingEvidenceCount === 1 ? '' : 's'} still need attachment or verification.`
+                              : 'On track for the next launch decision. Keep scanner proof, acceptance evidence, and handoff records current before calling it ready.'}
+                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
+                          <PastelChip label={`${readiness?.blockerCount || 0} priority fixes`} accent={readiness?.blockerCount ? appleColors.red : appleColors.green} bg={readiness?.blockerCount ? '#fff1f1' : '#e7f8ee'} />
+                          <PastelChip label={`${missingEvidenceCount} proof gaps`} accent={missingEvidenceCount ? appleColors.amber : appleColors.green} bg={missingEvidenceCount ? '#fff4dc' : '#e7f8ee'} />
+                          <PastelChip label={`${milestoneList.length} checkpoints`} accent={appleColors.purple} />
+                          <PastelChip label={`${roughEdgeCount} open rough edges`} accent={roughEdgeCount ? appleColors.amber : appleColors.green} bg={roughEdgeCount ? '#fff4dc' : '#e7f8ee'} />
+                        </Stack>
+                      </Box>
+                      <Stack direction={{ xs: 'column', sm: 'row', lg: 'column' }} spacing={1} sx={{ minWidth: { lg: 220 } }}>
+                        <Button variant="contained" onClick={() => setWorkspaceView('proof')} sx={{ minHeight: 42 }}>
+                          Review Fixes And Proof
+                        </Button>
+                        <Button variant="outlined" onClick={() => setWorkspaceView(roughEdgeCount ? 'team' : 'handoff')} sx={{ minHeight: 42 }}>
+                          {roughEdgeCount ? 'Resolve Team Risks' : 'Prepare Handoff'}
+                        </Button>
+                      </Stack>
+                    </Stack>
+                  </Surface>
+
+                  <PlatformAssistantCard
+                    title="AI Launch Proof Advisor"
+                    description="Summarize what is supported, what is still fuzzy, and what decision is safe next."
+                    prompt={`Do not call tools for this answer. Use only the facts in this prompt and the supplied safe summaries. Create an owner-facing proof readiness note for the delivery named "${selectedWorkspace.name}". Product is ${selectedWorkspace.packageInstance?.productProfile?.name || 'not recorded'}. Service plan is ${selectedWorkspace.packageInstance?.name || 'not recorded'}. Current review area is "${selectedMilestone?.title || 'not selected'}", status ${selectedMilestone?.status || 'unknown'}. Deliverables in focus: ${deliverableList.slice(0, 5).map((deliverable) => `${deliverable.title} (${deliverable.status})`).join('; ') || 'none'}. Acceptance checklist: ${selectedMilestoneCriteria.slice(0, 5).map((criterion) => `${criterion.title} (${criterion.status})`).join('; ') || 'none generated'}. Missing proof count is ${missingEvidenceCount}. Scanner proof count is ${scannerEvidenceList.length}. Explain what is already supported, what is still missing, what needs human review, and what owner decision is safe next. Do not certify production readiness.`}
+                    conversationId={`workspace-evidence-advisor-${selectedWorkspace.id}-${selectedMilestone?.id || 'summary'}`}
+                    context={{
+                      pageType: 'milestone-review',
+                      productId: selectedWorkspaceProductId,
+                      packageId: selectedWorkspace.packageInstance?.id,
+                      workspaceId: selectedWorkspace.id,
+                      milestoneId: selectedMilestone?.id,
+                    }}
+                    accent={missingEvidenceCount ? appleColors.amber : appleColors.green}
+                    cta="Review Proof"
+                  />
+
+                </>
+              )}
+
+              {workspaceView === 'proof' && (
+                <>
               <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f5fbff 46%, #fffaf2 100%)' }}>
                 <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} alignItems={{ lg: 'center' }} justifyContent="space-between">
                   <Stack direction="row" spacing={2} alignItems="center">
@@ -1343,6 +1392,8 @@ export default function WorkspaceCommandPage() {
                   <EmptyState label={selectedMilestone ? 'No acceptance checklist exists yet. Generate it from the selected milestone service plan.' : 'Select a milestone to review acceptance criteria.'} />
                 )}
               </Surface>
+                </>
+              )}
             </>
           ) : (
             <Surface>
@@ -1351,8 +1402,8 @@ export default function WorkspaceCommandPage() {
           )}
         </Stack>
 
-        <Stack spacing={2}>
-          {selectedWorkspace && (
+        <Stack spacing={2} sx={{ display: selectedWorkspace && (workspaceView === 'team' || workspaceView === 'handoff') ? 'flex' : 'none' }}>
+          {selectedWorkspace && workspaceView === 'handoff' && (
             <PlatformAssistantCard
               title="AI Handoff Readiness"
               description="Identify support handoff gaps across runbooks, access, monitoring, unresolved risks, and evidence quality."
@@ -1369,6 +1420,8 @@ export default function WorkspaceCommandPage() {
               cta="Check Handoff"
             />
           )}
+          {workspaceView === 'team' && (
+            <>
           <Surface>
             <SectionTitle title="Participants" action={<PastelChip label={`${participantList.length}`} accent={appleColors.cyan} bg="#e4f9fd" />} />
             {selectedWorkspace && canCoordinate && (
@@ -1397,6 +1450,97 @@ export default function WorkspaceCommandPage() {
             </Stack>
           </Surface>
 
+          <Surface>
+            <SectionTitle title="Support" action={<PastelChip label={`${supportList.length} requests`} accent={supportList.length ? appleColors.amber : appleColors.green} />} />
+            {selectedWorkspace && canCoordinate && (
+              <Box component="form" onSubmit={supportForm.handleSubmit(() => createSupport.mutate())} sx={{ mb: 2 }}>
+                <Stack spacing={1}>
+                  <TextField select size="small" label="Team" value={supportForm.values.teamId || ''} onChange={(event) => supportForm.setValue('teamId', event.target.value || null)}>
+                    {(teams.data || []).map((team) => <MenuItem key={team.id} value={team.id}>{team.name}</MenuItem>)}
+                  </TextField>
+                  <TextField size="small" label="Request title" value={supportForm.values.title} onChange={(event) => supportForm.setValue('title', event.target.value)} />
+                  <TextField select size="small" label="Priority" value={supportForm.values.priority} onChange={(event) => supportForm.setValue('priority', event.target.value as SupportRequest['priority'])}>
+                    {supportPriorities.map((priority) => <MenuItem key={priority} value={priority}>{formatLabel(priority)}</MenuItem>)}
+                  </TextField>
+                  <TextField size="small" label="Context" value={supportForm.values.description} onChange={(event) => supportForm.setValue('description', event.target.value)} multiline />
+                  <Button type="submit" variant="outlined" disabled={!supportForm.values.teamId || !supportForm.values.title || !supportForm.values.description || createSupport.isPending}>
+                    Open support request
+                  </Button>
+                </Stack>
+              </Box>
+            )}
+            <Stack spacing={1.25}>
+              {supportList.length ? supportList.map((request) => (
+                <Box key={request.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.25 }}>
+                  <Stack direction="row" spacing={1} justifyContent="space-between">
+                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{request.title}</Typography>
+                    <StatusChip label={request.slaStatus} />
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">{request.team.name} · {formatLabel(request.priority)}</Typography>
+                  {request.description && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.5 }}>{request.description}</Typography>}
+                  {canCoordinate && (
+                    <Stack spacing={1} sx={{ mt: 1 }}>
+                      <TextField select size="small" label="Status" value={supportStatusById[request.id] || request.status} onChange={(event) => setSupportStatusById((current) => ({ ...current, [request.id]: event.target.value as SupportRequest['status'] }))}>
+                        {supportStatuses.map((status) => <MenuItem key={status} value={status}>{formatLabel(status)}</MenuItem>)}
+                      </TextField>
+                      <TextField size="small" label="Resolution note" value={supportResolutionById[request.id] ?? request.resolution ?? ''} onChange={(event) => setSupportResolutionById((current) => ({ ...current, [request.id]: event.target.value }))} />
+                      <Button variant="outlined" onClick={() => updateSupport.mutate({ id: request.id, payload: { status: supportStatusById[request.id] || request.status, resolution: supportResolutionById[request.id] || request.resolution || '' } })} disabled={updateSupport.isPending}>
+                        Update request
+                      </Button>
+                    </Stack>
+                  )}
+                </Box>
+              )) : <Typography variant="body2" color="text.secondary">No support requests are open.</Typography>}
+            </Stack>
+          </Surface>
+
+          <Surface sx={{ background: disputeList.length ? '#fff7f8' : '#f4fbf7' }}>
+            <SectionTitle title="Risks" action={<PastelChip label={`${disputeList.length}`} accent={disputeList.length ? appleColors.red : appleColors.green} />} />
+            {selectedWorkspace && canCoordinate && (
+              <Box component="form" onSubmit={disputeForm.handleSubmit(() => createDispute.mutate())} sx={{ mb: 2 }}>
+                <Stack spacing={1}>
+                  <TextField select size="small" label="Team" value={disputeForm.values.teamId || ''} onChange={(event) => disputeForm.setValue('teamId', event.target.value || null)}>
+                    <MenuItem value="">Unassigned</MenuItem>
+                    {(teams.data || []).map((team) => <MenuItem key={team.id} value={team.id}>{team.name}</MenuItem>)}
+                  </TextField>
+                  <TextField size="small" label="Issue title" value={disputeForm.values.title} onChange={(event) => disputeForm.setValue('title', event.target.value)} />
+                  <TextField select size="small" label="Severity" value={disputeForm.values.severity} onChange={(event) => disputeForm.setValue('severity', event.target.value as DisputeCase['severity'])}>
+                    {disputeSeverities.map((severity) => <MenuItem key={severity} value={severity}>{formatLabel(severity)}</MenuItem>)}
+                  </TextField>
+                  <TextField size="small" label="Context" value={disputeForm.values.description} onChange={(event) => disputeForm.setValue('description', event.target.value)} multiline />
+                  <Button type="submit" variant="outlined" disabled={!disputeForm.values.title || !disputeForm.values.description || createDispute.isPending}>Open risk</Button>
+                </Stack>
+              </Box>
+            )}
+            <Stack spacing={1.25}>
+              {disputeList.length ? disputeList.map((dispute) => (
+                <Box key={dispute.id} sx={{ border: 1, borderColor: '#fecdd3', borderRadius: 1, p: 1.25, background: '#fff' }}>
+                  <Stack direction="row" spacing={1} justifyContent="space-between">
+                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{dispute.title}</Typography>
+                    <StatusChip label={dispute.status} />
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">{dispute.team?.name || 'Unassigned'} · {formatLabel(dispute.severity)}</Typography>
+                  {dispute.description && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.5 }}>{dispute.description}</Typography>}
+                  {canCoordinate && (
+                    <Stack spacing={1} sx={{ mt: 1 }}>
+                      <TextField select size="small" label="Status" value={disputeStatusById[dispute.id] || dispute.status} onChange={(event) => setDisputeStatusById((current) => ({ ...current, [dispute.id]: event.target.value as DisputeCase['status'] }))}>
+                        {disputeStatuses.map((status) => <MenuItem key={status} value={status}>{formatLabel(status)}</MenuItem>)}
+                      </TextField>
+                      <TextField size="small" label="Resolution note" value={disputeResolutionById[dispute.id] ?? dispute.resolution ?? ''} onChange={(event) => setDisputeResolutionById((current) => ({ ...current, [dispute.id]: event.target.value }))} />
+                      <Button variant="outlined" onClick={() => updateDispute.mutate({ id: dispute.id, payload: { status: disputeStatusById[dispute.id] || dispute.status, resolution: disputeResolutionById[dispute.id] || dispute.resolution || '' } })} disabled={updateDispute.isPending}>
+                        Update risk
+                      </Button>
+                    </Stack>
+                  )}
+                  {evidencePanel('DISPUTE', dispute.id)}
+                </Box>
+              )) : <Typography variant="body2" color="text.secondary">No risks are open for this workspace.</Typography>}
+            </Stack>
+          </Surface>
+            </>
+          )}
+          {workspaceView === 'handoff' && (
+            <>
           <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f6fffb)' }}>
             <SectionTitle title="Handoff And Health" action={<PastelChip label={latestHealthReview ? `${latestHealthReview.healthScore}/100` : 'No review'} accent={latestHealthReview ? appleColors.green : appleColors.purple} bg={latestHealthReview ? '#e7f8ee' : '#f1efff'} />} />
             <Stack spacing={1.25}>
@@ -1506,94 +1650,8 @@ export default function WorkspaceCommandPage() {
               )}
             </Stack>
           </Surface>
-
-          <Surface>
-            <SectionTitle title="Support" action={<PastelChip label={`${supportList.length} requests`} accent={supportList.length ? appleColors.amber : appleColors.green} />} />
-            {selectedWorkspace && canCoordinate && (
-              <Box component="form" onSubmit={supportForm.handleSubmit(() => createSupport.mutate())} sx={{ mb: 2 }}>
-                <Stack spacing={1}>
-                  <TextField select size="small" label="Team" value={supportForm.values.teamId || ''} onChange={(event) => supportForm.setValue('teamId', event.target.value || null)}>
-                    {(teams.data || []).map((team) => <MenuItem key={team.id} value={team.id}>{team.name}</MenuItem>)}
-                  </TextField>
-                  <TextField size="small" label="Request title" value={supportForm.values.title} onChange={(event) => supportForm.setValue('title', event.target.value)} />
-                  <TextField select size="small" label="Priority" value={supportForm.values.priority} onChange={(event) => supportForm.setValue('priority', event.target.value as SupportRequest['priority'])}>
-                    {supportPriorities.map((priority) => <MenuItem key={priority} value={priority}>{formatLabel(priority)}</MenuItem>)}
-                  </TextField>
-                  <TextField size="small" label="Context" value={supportForm.values.description} onChange={(event) => supportForm.setValue('description', event.target.value)} multiline />
-                  <Button type="submit" variant="outlined" disabled={!supportForm.values.teamId || !supportForm.values.title || !supportForm.values.description || createSupport.isPending}>
-                    Open support request
-                  </Button>
-                </Stack>
-              </Box>
-            )}
-            <Stack spacing={1.25}>
-              {supportList.length ? supportList.map((request) => (
-                <Box key={request.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.25 }}>
-                  <Stack direction="row" spacing={1} justifyContent="space-between">
-                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{request.title}</Typography>
-                    <StatusChip label={request.slaStatus} />
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary">{request.team.name} · {formatLabel(request.priority)}</Typography>
-                  {request.description && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.5 }}>{request.description}</Typography>}
-                  {canCoordinate && (
-                    <Stack spacing={1} sx={{ mt: 1 }}>
-                      <TextField select size="small" label="Status" value={supportStatusById[request.id] || request.status} onChange={(event) => setSupportStatusById((current) => ({ ...current, [request.id]: event.target.value as SupportRequest['status'] }))}>
-                        {supportStatuses.map((status) => <MenuItem key={status} value={status}>{formatLabel(status)}</MenuItem>)}
-                      </TextField>
-                      <TextField size="small" label="Resolution note" value={supportResolutionById[request.id] ?? request.resolution ?? ''} onChange={(event) => setSupportResolutionById((current) => ({ ...current, [request.id]: event.target.value }))} />
-                      <Button variant="outlined" onClick={() => updateSupport.mutate({ id: request.id, payload: { status: supportStatusById[request.id] || request.status, resolution: supportResolutionById[request.id] || request.resolution || '' } })} disabled={updateSupport.isPending}>
-                        Update request
-                      </Button>
-                    </Stack>
-                  )}
-                </Box>
-              )) : <Typography variant="body2" color="text.secondary">No support requests are open.</Typography>}
-            </Stack>
-          </Surface>
-
-          <Surface sx={{ background: disputeList.length ? '#fff7f8' : '#f4fbf7' }}>
-            <SectionTitle title="Risks" action={<PastelChip label={`${disputeList.length}`} accent={disputeList.length ? appleColors.red : appleColors.green} />} />
-            {selectedWorkspace && canCoordinate && (
-              <Box component="form" onSubmit={disputeForm.handleSubmit(() => createDispute.mutate())} sx={{ mb: 2 }}>
-                <Stack spacing={1}>
-                  <TextField select size="small" label="Team" value={disputeForm.values.teamId || ''} onChange={(event) => disputeForm.setValue('teamId', event.target.value || null)}>
-                    <MenuItem value="">Unassigned</MenuItem>
-                    {(teams.data || []).map((team) => <MenuItem key={team.id} value={team.id}>{team.name}</MenuItem>)}
-                  </TextField>
-                  <TextField size="small" label="Issue title" value={disputeForm.values.title} onChange={(event) => disputeForm.setValue('title', event.target.value)} />
-                  <TextField select size="small" label="Severity" value={disputeForm.values.severity} onChange={(event) => disputeForm.setValue('severity', event.target.value as DisputeCase['severity'])}>
-                    {disputeSeverities.map((severity) => <MenuItem key={severity} value={severity}>{formatLabel(severity)}</MenuItem>)}
-                  </TextField>
-                  <TextField size="small" label="Context" value={disputeForm.values.description} onChange={(event) => disputeForm.setValue('description', event.target.value)} multiline />
-                  <Button type="submit" variant="outlined" disabled={!disputeForm.values.title || !disputeForm.values.description || createDispute.isPending}>Open risk</Button>
-                </Stack>
-              </Box>
-            )}
-            <Stack spacing={1.25}>
-              {disputeList.length ? disputeList.map((dispute) => (
-                <Box key={dispute.id} sx={{ border: 1, borderColor: '#fecdd3', borderRadius: 1, p: 1.25, background: '#fff' }}>
-                  <Stack direction="row" spacing={1} justifyContent="space-between">
-                    <Typography variant="body2" sx={{ fontWeight: 900 }}>{dispute.title}</Typography>
-                    <StatusChip label={dispute.status} />
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary">{dispute.team?.name || 'Unassigned'} · {formatLabel(dispute.severity)}</Typography>
-                  {dispute.description && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.5 }}>{dispute.description}</Typography>}
-                  {canCoordinate && (
-                    <Stack spacing={1} sx={{ mt: 1 }}>
-                      <TextField select size="small" label="Status" value={disputeStatusById[dispute.id] || dispute.status} onChange={(event) => setDisputeStatusById((current) => ({ ...current, [dispute.id]: event.target.value as DisputeCase['status'] }))}>
-                        {disputeStatuses.map((status) => <MenuItem key={status} value={status}>{formatLabel(status)}</MenuItem>)}
-                      </TextField>
-                      <TextField size="small" label="Resolution note" value={disputeResolutionById[dispute.id] ?? dispute.resolution ?? ''} onChange={(event) => setDisputeResolutionById((current) => ({ ...current, [dispute.id]: event.target.value }))} />
-                      <Button variant="outlined" onClick={() => updateDispute.mutate({ id: dispute.id, payload: { status: disputeStatusById[dispute.id] || dispute.status, resolution: disputeResolutionById[dispute.id] || dispute.resolution || '' } })} disabled={updateDispute.isPending}>
-                        Update risk
-                      </Button>
-                    </Stack>
-                  )}
-                  {evidencePanel('DISPUTE', dispute.id)}
-                </Box>
-              )) : <Typography variant="body2" color="text.secondary">No risks are open for this workspace.</Typography>}
-            </Stack>
-          </Surface>
+            </>
+          )}
         </Stack>
       </Box>
     </>
