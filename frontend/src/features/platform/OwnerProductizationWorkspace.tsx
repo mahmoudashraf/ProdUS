@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { EventRepeatOutlined } from '@mui/icons-material';
 import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
-import { deleteJson, getJson, patchJson, postJson, putJson } from './api';
+import { deleteJson, postJson, putJson } from './api';
 import {
   EmptyState,
   PageHeader,
@@ -16,7 +16,7 @@ import {
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
 import { type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import OwnerFindingReviewDrawer from './OwnerFindingReviewDrawer';
-import StudioAssistantCard, { assistantRecordText, type StudioAssistantContext } from './StudioAssistantCard';
+import StudioAssistantCard from './StudioAssistantCard';
 import OwnerWorkspaceActionsPane from './OwnerWorkspaceActionsPane';
 import OwnerWorkspaceFindingsPane from './OwnerWorkspaceFindingsPane';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
@@ -26,6 +26,8 @@ import OwnerWorkspaceNavigationPanel from './OwnerWorkspaceNavigationPanel';
 import OwnerWorkspaceSideRailPane from './OwnerWorkspaceSideRailPane';
 import { findingStatusAccent } from './ownerFindingPresentation';
 import { OwnerReadinessVerdictReveal } from './OwnerJourneyCards';
+import { buildOwnerWorkspaceAssistantActions } from './ownerWorkspaceAssistantActions';
+import { buildOwnerWorkspaceStartPlanState } from './ownerWorkspaceStartPlanState';
 import {
   buildOwnerWorkspaceJourneyItems,
 } from './ownerWorkspaceJourneyConfig';
@@ -50,74 +52,39 @@ import {
   CartTalentPayload,
   CartUpdatePayload,
   DiagnosisPayload,
-  DisconnectSourcePayload,
-  ExternalImportPayload,
   FindingStatusPayload,
-  FullHostedScanPayload,
-  HostedScanPayload,
   ProductProfilePayload,
-  ProviderSourcePayload,
   RequirementPayload,
-  ScanSourcePayload,
   ScannerReadinessDiagnosisPayload,
-  ScannerSchedulePayload,
-  ScannerUploadPayload,
   ShortlistPayload,
   defaultToolsForDepth,
   externalImportProviders,
-  fullHostedScanBlockReason,
-  hostedScanBlockReason,
   productHealth,
   productInitialValues,
   requirementInitialValues,
   scanToolOptions,
   shortDateTime,
 } from './ownerProductizationWorkspaceConfig';
-import type {
-  ExternalImportForm,
-  HostedScanForm,
-  ProviderSourceForm,
-  ScannerScheduleForm,
-  ScannerUploadForm,
-  ScanSourceForm,
-} from './scannerProofOperationsTypes';
 import {
-  AIRecommendation,
-  Milestone,
   PackageInstance,
-  PackageModule,
   ProductDiagnosis,
   ProductProfile,
-  ProductScannerSummary,
   ProductizationCart,
   ProductizationCartConvertResponse,
-  ProjectWorkspace,
   QuoteProposal,
   RequirementIntake,
   RepoSignalSummary,
-  ServiceCategory,
   ServiceModule,
-  SupportRequest,
   ExpertProfile,
   Team,
   TeamRecommendation,
   TeamShortlist,
   NormalizedFinding,
-  ScanRun,
-  ScanSource,
-  CiTemplateResponse,
-  ConnectorPermission,
-  ConnectorInstallUrlResponse,
-  EvidenceExportBundle,
-  AssistantSuggestionsResponse,
-  ScannerConnectorInstallation,
-  ScannerEvidenceItem,
-  SignedArtifactResponse,
-  ShipConfidenceHistory,
   LaunchReadinessReport,
-  FullHostedScanResponse,
 } from './types';
 import { useOwnerWorkspaceNavigationState } from './useOwnerWorkspaceNavigationState';
+import { useOwnerProductizationWorkspaceData } from './useOwnerProductizationWorkspaceData';
+import { useOwnerWorkspaceScannerOperations, type ScannerEvidenceFilter } from './useOwnerWorkspaceScannerOperations';
 
 export default function OwnerProductizationWorkspace({
   productId,
@@ -127,136 +94,12 @@ export default function OwnerProductizationWorkspace({
   showProductCreation?: boolean;
 } = {}) {
   const queryClient = useQueryClient();
-  const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
-  const requirements = useQuery({ queryKey: ['requirements'], queryFn: () => getJson<RequirementIntake[]>('/requirements') });
-  const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
-  const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
-  const categories = useQuery({ queryKey: ['catalog-categories'], queryFn: () => getJson<ServiceCategory[]>('/catalog/categories') });
-  const catalogModules = useQuery({ queryKey: ['catalog-modules'], queryFn: () => getJson<ServiceModule[]>('/catalog/modules') });
-  const proposals = useQuery({ queryKey: ['commerce-proposals'], queryFn: () => getJson<QuoteProposal[]>('/commerce/proposals') });
-  const supportRequests = useQuery({ queryKey: ['commerce-support-requests'], queryFn: () => getJson<SupportRequest[]>('/commerce/support-requests') });
-  const recommendations = useQuery({ queryKey: ['ai-recommendations'], queryFn: () => getJson<AIRecommendation[]>('/ai/recommendations') });
-  const teams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
-  const experts = useQuery({ queryKey: ['expert-profiles'], queryFn: () => getJson<ExpertProfile[]>('/expert-profiles') });
-  const cart = useQuery({ queryKey: ['productization-cart'], queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
 
   const [selectedProductId, setSelectedProductId] = useState(productId || '');
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [pendingRequirementId, setPendingRequirementId] = useState('');
   const [projectName, setProjectName] = useState('');
   const [cartNotice, setCartNotice] = useState('');
-  const [lastDiagnosisRefreshRunId, setLastDiagnosisRefreshRunId] = useState('');
-  const diagnoses = useQuery({
-    queryKey: ['productization-engine', selectedProductId, 'diagnoses'],
-    enabled: !!selectedProductId,
-    queryFn: () => getJson<ProductDiagnosis[]>(`/productization-engine/products/${selectedProductId}/diagnoses`),
-  });
-  const shipConfidence = useQuery({
-    queryKey: ['productization-engine', selectedProductId, 'ship-confidence'],
-    enabled: !!selectedProductId,
-    queryFn: () => getJson<ShipConfidenceHistory>(`/productization-engine/products/${selectedProductId}/ship-confidence`),
-  });
-  const launchReadinessReport = useQuery({
-    queryKey: ['productization-engine', selectedProductId, 'launch-readiness-report'],
-    enabled: !!selectedProductId,
-    retry: false,
-    queryFn: async () => {
-      try {
-        return await getJson<LaunchReadinessReport>(`/productization-engine/products/${selectedProductId}/launch-readiness-report/latest`);
-      } catch (error: any) {
-        if (error?.response?.status === 400 && String(error?.response?.data?.detail || '').includes('No launch readiness report')) {
-          return null;
-        }
-        throw error;
-      }
-    },
-  });
-  const scannerSummary = useQuery({
-    queryKey: ['scanner-summary', selectedProductId],
-    enabled: !!selectedProductId,
-    queryFn: () => getJson<ProductScannerSummary>(`/scanner/products/${selectedProductId}/summary`),
-    refetchInterval: (query) => {
-      const data = query.state.data as ProductScannerSummary | undefined;
-      return data?.recentRuns.some((run) => run.status === 'QUEUED' || run.status === 'RUNNING') ? 5000 : false;
-    },
-  });
-  const repoSignals = useQuery({
-    queryKey: ['repo-signals', selectedProductId],
-    enabled: !!selectedProductId,
-    queryFn: () => getJson<RepoSignalSummary>(`/products/${selectedProductId}/repo-signals`),
-  });
-  const latestCompletedScannerRunId = scannerSummary.data?.recentRuns.find((run) => run.status === 'COMPLETED')?.id || '';
-  useEffect(() => {
-    if (!selectedProductId || !latestCompletedScannerRunId || latestCompletedScannerRunId === lastDiagnosisRefreshRunId) return;
-    setLastDiagnosisRefreshRunId(latestCompletedScannerRunId);
-    queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProductId, 'diagnoses'] });
-    queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProductId, 'ship-confidence'] });
-    queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
-    queryClient.invalidateQueries({ queryKey: ['repo-signals', selectedProductId] });
-  }, [latestCompletedScannerRunId, lastDiagnosisRefreshRunId, queryClient, selectedProductId]);
-  const connectorPermissions = useQuery({
-    queryKey: ['scanner-connector-permissions'],
-    queryFn: () => getJson<ConnectorPermission[]>('/scanner/connector-permissions'),
-  });
-  const scannerConnectors = useQuery({
-    queryKey: ['scanner-connectors'],
-    queryFn: () => getJson<ScannerConnectorInstallation[]>('/scanner/connectors'),
-  });
-
-  const [scanSourceForm, setScanSourceForm] = useState<ScanSourceForm>({
-    providerType: 'GITHUB',
-    displayName: 'GitHub Security Pipeline',
-    externalReference: '',
-    authorizationConfirmed: false,
-    scopeNote: 'CI and security evidence imported for production readiness review.',
-  });
-  const [providerSourceForm, setProviderSourceForm] = useState<ProviderSourceForm>({
-    installationId: '',
-    repositoryFullName: '',
-    cloneUrl: '',
-    defaultBranch: 'main',
-  });
-  const [hostedScanForm, setHostedScanForm] = useState<HostedScanForm>({
-    sourceId: '',
-    depth: 'SAFE_STATIC',
-    toolKeys: defaultToolsForDepth('SAFE_STATIC'),
-    branchRef: 'main',
-    runtimeTargetUrl: '',
-    containerImageRef: '',
-    authorizationConfirmed: false,
-    runtimeAuthorizationConfirmed: false,
-    reason: 'Owner authorized scanner execution for productization readiness.',
-  });
-  const [scannerUploadForm, setScannerUploadForm] = useState<ScannerUploadForm>({
-    sourceId: '',
-    toolName: 'CodeQL',
-    toolVersion: '',
-    format: 'SARIF' as ScannerUploadPayload['format'],
-    artifactFileName: 'scanner-results.sarif',
-    artifactPayload: '',
-    milestoneId: '',
-  });
-  const [externalImportForm, setExternalImportForm] = useState<ExternalImportForm>({
-    sourceId: '',
-    provider: 'GITHUB_CODE_SCANNING',
-    importMethod: 'MANUAL_API_IMPORT',
-    toolName: 'GitHub Code Scanning',
-    toolVersion: '',
-    format: 'JSON',
-    artifactFileName: 'github-code-scanning-alerts.json',
-    artifactPayload: '',
-    externalReference: '',
-    milestoneId: '',
-    scopeNote: 'Customer-owned scanner evidence imported without source code upload.',
-  });
-  const [ciTemplateType, setCiTemplateType] = useState<CiTemplateResponse['type']>('GITHUB_ACTIONS');
-  const [ciTemplate, setCiTemplate] = useState<CiTemplateResponse | null>(null);
-  const [deleteArtifactsOnDisconnect, setDeleteArtifactsOnDisconnect] = useState(false);
-  const [scheduleForm, setScheduleForm] = useState<ScannerScheduleForm>({
-    intervalDays: '7',
-    nextRunAt: '',
-    reason: 'Scheduled evidence refresh for productization readiness.',
-  });
   const {
     workspaceTab,
     overviewView,
@@ -274,9 +117,95 @@ export default function OwnerProductizationWorkspace({
   const [selectedFindingId, setSelectedFindingId] = useState('');
   const [findingDrawerOpen, setFindingDrawerOpen] = useState(false);
   const [openFindingGroups, setOpenFindingGroups] = useState<Record<string, boolean>>({ 'Launch blockers': true });
-  const [evidenceFilter, setEvidenceFilter] = useState<'ALL' | 'FINDINGS' | 'MILESTONES' | 'REDACTED'>('ALL');
+  const [evidenceFilter, setEvidenceFilter] = useState<ScannerEvidenceFilter>('ALL');
   const [findingReasonById, setFindingReasonById] = useState<Record<string, string>>({});
   const [findingReviewDueById, setFindingReviewDueById] = useState<Record<string, string>>({});
+  const {
+    categories,
+    catalogModules,
+    proposals,
+    supportRequests,
+    recommendations,
+    teams,
+    experts,
+    cart,
+    diagnoses,
+    shipConfidence,
+    launchReadinessReport,
+    scannerSummary,
+    repoSignals,
+    connectorPermissions,
+    scannerConnectors,
+    packageModules,
+    teamRecommendations,
+    milestones,
+    shortlists,
+    assistantSuggestions,
+    productList,
+    selectedProduct,
+    selectedPackage,
+    selectedProductRequirements,
+    selectedWorkspace,
+    queriesLoading,
+    queryError,
+  } = useOwnerProductizationWorkspaceData({
+    selectedProductId,
+    selectedPackageId,
+    selectedFindingId,
+  });
+  const {
+    activeProviderInstallations,
+    activeScanRun,
+    ciTemplate,
+    ciTemplateType,
+    createEvidenceExport,
+    createProviderSource,
+    createScanSource,
+    createScannerSchedule,
+    deleteArtifactsOnDisconnect,
+    disconnectScanSource,
+    externalImportForm,
+    fetchCiTemplate,
+    filteredScannerEvidence,
+    fullHostedScanBlockedReason,
+    hostedScanBlockedReason,
+    hostedScanForm,
+    importExternalEvidence,
+    openEvidenceArtifact,
+    openSignedEvidence,
+    providerSourceForm,
+    requestConnectorInstall,
+    rescanRun,
+    scheduleBlockedReason,
+    scheduleForm,
+    scannerOperationBusy,
+    scannerOperationError,
+    scannerUploadForm,
+    scanSourceForm,
+    selectedConnectorPermission,
+    setCiTemplateType,
+    setDeleteArtifactsOnDisconnect,
+    setExternalImportForm,
+    setHostedScanForm,
+    setProviderSourceForm,
+    setScheduleForm,
+    setScannerUploadForm,
+    setScanSourceForm,
+    startFullHostedScan,
+    startHostedScan,
+    updateFindingStatus,
+    updateScannerSchedule,
+    uploadScannerEvidence,
+    cancelScannerRun,
+  } = useOwnerWorkspaceScannerOperations({
+    connectorPermissions: connectorPermissions.data || [],
+    evidenceFilter,
+    scannerConnectors: scannerConnectors.data || [],
+    scannerSummary: scannerSummary.data,
+    selectedProduct,
+    selectedWorkspace,
+    setCartNotice,
+  });
 
   const productForm = useAdvancedForm<ProductProfilePayload>({
     initialValues: productInitialValues,
@@ -299,47 +228,6 @@ export default function OwnerProductizationWorkspace({
     },
   });
 
-  const productList = products.data || [];
-  const packageList = packages.data || [];
-  const selectedProduct = useMemo(
-    () => productList.find((product) => product.id === selectedProductId) || productList[0],
-    [productList, selectedProductId]
-  );
-  const selectedProductPackages = useMemo(
-    () => packageList.filter((item) => item.productProfile?.id === selectedProduct?.id),
-    [packageList, selectedProduct?.id]
-  );
-  const selectedPackage = useMemo(
-    () => selectedProductPackages.find((item) => item.id === selectedPackageId) || selectedProductPackages[0],
-    [selectedPackageId, selectedProductPackages]
-  );
-  const selectedProductRequirements = useMemo(
-    () => (requirements.data || []).filter((requirement) => requirement.productProfile?.id === selectedProduct?.id),
-    [requirements.data, selectedProduct?.id]
-  );
-  const selectedWorkspace = useMemo(
-    () => (workspaces.data || []).find((workspace) => workspace.packageInstance?.id === selectedPackage?.id),
-    [selectedPackage?.id, workspaces.data]
-  );
-  const assistantSuggestions = useQuery({
-    queryKey: ['assistant-suggestions', selectedProduct?.id, selectedPackage?.id, selectedWorkspace?.id, selectedFindingId],
-    enabled: false,
-    queryFn: () =>
-      postJson<AssistantSuggestionsResponse, { content: string; conversationId: string; maxSuggestions: number; context: Record<string, string | undefined> }>('/ai/assistant/suggestions', {
-        content: `Suggest the next useful productization actions for ${selectedProduct?.name || 'this product'}.`,
-        conversationId: `owner-productization-${selectedProduct?.id || 'product'}`,
-        maxSuggestions: 4,
-        context: {
-          pageType: 'owner-product-workspace',
-          productId: selectedProduct?.id,
-          packageId: selectedPackage?.id,
-          workspaceId: selectedWorkspace?.id,
-          findingId: selectedFindingId || undefined,
-        },
-      }),
-    retry: false,
-  });
-
   useEffect(() => {
     if (!selectedProductId && productList[0]) {
       setSelectedProductId(productList[0].id);
@@ -351,27 +239,6 @@ export default function OwnerProductizationWorkspace({
       setSelectedPackageId(selectedPackage.id);
     }
   }, [selectedPackage, selectedPackageId]);
-
-  const packageModules = useQuery({
-    queryKey: ['packages', selectedPackage?.id, 'modules'],
-    enabled: !!selectedPackage?.id,
-    queryFn: () => getJson<PackageModule[]>(`/packages/${selectedPackage?.id}/modules`),
-  });
-  const teamRecommendations = useQuery({
-    queryKey: ['packages', selectedPackage?.id, 'team-recommendations'],
-    enabled: !!selectedPackage?.id,
-    queryFn: () => getJson<TeamRecommendation[]>(`/packages/${selectedPackage?.id}/team-recommendations`),
-  });
-  const milestones = useQuery({
-    queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'],
-    enabled: !!selectedWorkspace?.id,
-    queryFn: () => getJson<Milestone[]>(`/workspaces/${selectedWorkspace?.id}/milestones`),
-  });
-  const shortlists = useQuery({
-    queryKey: ['shortlists', selectedPackage?.id],
-    enabled: !!selectedPackage?.id,
-    queryFn: () => getJson<TeamShortlist[]>(`/shortlists?packageId=${selectedPackage?.id}`),
-  });
 
   const createProduct = useMutation({
     mutationFn: () => postJson<ProductProfile, ProductProfilePayload>('/products', productForm.values),
@@ -526,276 +393,29 @@ export default function OwnerProductizationWorkspace({
       await queryClient.invalidateQueries({ queryKey: ['repo-signals', selectedProduct?.id] });
     },
   });
-  const createScanSource = useMutation({
-    mutationFn: () => {
-      const payload: ScanSourcePayload = {
-        productId: selectedProduct?.id || '',
-        providerType: scanSourceForm.providerType,
-        displayName: scanSourceForm.displayName,
-        externalReference: scanSourceForm.externalReference,
-        authorizationStatus: scanSourceForm.providerType === 'CI_UPLOAD' || scanSourceForm.authorizationConfirmed ? 'AUTHORIZED' : 'PENDING',
-        scopeNote: scanSourceForm.scopeNote,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      return postJson<ScanSource, ScanSourcePayload>('/scanner/sources', payload);
-    },
-    onSuccess: async (source) => {
-      setScannerUploadForm((current) => ({ ...current, sourceId: source.id }));
-      setHostedScanForm((current) => ({ ...current, sourceId: source.id }));
-      setScanSourceForm((current) => ({ ...current, externalReference: '', authorizationConfirmed: false }));
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-    },
-  });
-  const requestConnectorInstall = useMutation({
-    mutationFn: (provider: 'github' | 'gitlab') =>
-      postJson<ConnectorInstallUrlResponse, { returnPath: string }>(`/scanner/connectors/${provider}/install-url`, {
-        returnPath: typeof window === 'undefined' ? '/owner/productization' : window.location.pathname + window.location.search,
-      }),
-    onSuccess: (response) => {
-      if (response.url) {
-        window.location.assign(response.url);
-      }
-    },
-  });
-  const createProviderSource = useMutation({
-    mutationFn: () => {
-      const provider = scanSourceForm.providerType === 'GITLAB' ? 'gitlab' : 'github';
-      const payload: ProviderSourcePayload = {
-        installationId: providerSourceForm.installationId || activeProviderInstallations[0]?.id || '',
-        productId: selectedProduct?.id || '',
-        repositoryFullName: providerSourceForm.repositoryFullName.trim(),
-        defaultBranch: providerSourceForm.defaultBranch.trim() || 'main',
-        displayName: scanSourceForm.displayName || providerSourceForm.repositoryFullName,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (providerSourceForm.cloneUrl.trim()) payload.cloneUrl = providerSourceForm.cloneUrl.trim();
-      return postJson<ScanSource, ProviderSourcePayload>(`/scanner/connectors/${provider}/sources`, payload);
-    },
-    onSuccess: async (source) => {
-      setScannerUploadForm((current) => ({ ...current, sourceId: source.id }));
-      setHostedScanForm((current) => ({ ...current, sourceId: source.id }));
-      setProviderSourceForm((current) => ({ ...current, repositoryFullName: '', cloneUrl: '' }));
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-    },
-  });
-  const uploadScannerEvidence = useMutation({
-    mutationFn: () => {
-      const payload: ScannerUploadPayload = {
-        productId: selectedProduct?.id || '',
-        toolName: scannerUploadForm.toolName,
-        toolVersion: scannerUploadForm.toolVersion,
-        format: scannerUploadForm.format,
-        artifactFileName: scannerUploadForm.artifactFileName,
-        artifactPayload: scannerUploadForm.artifactPayload,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (scannerUploadForm.sourceId) payload.sourceId = scannerUploadForm.sourceId;
-      if (scannerUploadForm.milestoneId) payload.milestoneId = scannerUploadForm.milestoneId;
-      return postJson<ScanRun, ScannerUploadPayload>('/scanner/runs/ci-upload', payload);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
-      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
-    },
-  });
-  const importExternalEvidence = useMutation({
-    mutationFn: () => {
-      const payload: ExternalImportPayload = {
-        productId: selectedProduct?.id || '',
-        provider: externalImportForm.provider,
-        importMethod: externalImportForm.importMethod,
-        toolName: externalImportForm.toolName,
-        format: externalImportForm.format,
-        artifactPayload: externalImportForm.artifactPayload,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (externalImportForm.sourceId) payload.sourceId = externalImportForm.sourceId;
-      if (externalImportForm.milestoneId) payload.milestoneId = externalImportForm.milestoneId;
-      if (externalImportForm.toolVersion) payload.toolVersion = externalImportForm.toolVersion;
-      if (externalImportForm.artifactFileName) payload.artifactFileName = externalImportForm.artifactFileName;
-      if (externalImportForm.externalReference) payload.externalReference = externalImportForm.externalReference;
-      if (externalImportForm.scopeNote) payload.scopeNote = externalImportForm.scopeNote;
-      return postJson('/scanner/imports/external', payload);
-    },
-    onSuccess: async () => {
-      setExternalImportForm((current) => ({ ...current, artifactPayload: '', externalReference: '' }));
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
-      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
-    },
-  });
-  const fetchCiTemplate = useMutation({
-    mutationFn: async () => {
-      const params = new URLSearchParams({ productId: selectedProduct?.id || '' });
-      if (selectedWorkspace?.id) params.set('workspaceId', selectedWorkspace.id);
-      if (scannerUploadForm.sourceId) params.set('sourceId', scannerUploadForm.sourceId);
-      return getJson<CiTemplateResponse>(`/scanner/ci-templates/${ciTemplateType}?${params.toString()}`);
-    },
-    onSuccess: (template) => {
-      setCiTemplate(template);
-    },
-  });
-  const disconnectScanSource = useMutation({
-    mutationFn: (sourceId: string) => postJson<ScanSource, DisconnectSourcePayload>(`/scanner/sources/${sourceId}/disconnect`, {
-      reason: deleteArtifactsOnDisconnect ? 'Owner disconnected source and requested scanner artifact deletion from Studio.' : 'Owner disconnected source from Studio.',
-      deleteArtifacts: deleteArtifactsOnDisconnect,
-    }),
-    onSuccess: async () => {
-      setDeleteArtifactsOnDisconnect(false);
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-    },
-  });
-  const startHostedScan = useMutation({
-    mutationFn: () => {
-      const payload: HostedScanPayload = {
-        productId: selectedProduct?.id || '',
-        depth: hostedScanForm.depth,
-        toolKeys: hostedScanForm.toolKeys,
-        authorizationConfirmed: hostedScanForm.authorizationConfirmed,
-        runtimeAuthorizationConfirmed: hostedScanForm.depth === 'RUNTIME_BASELINE' ? hostedScanForm.runtimeAuthorizationConfirmed : false,
-        reason: hostedScanForm.reason,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (hostedScanForm.sourceId) payload.sourceId = hostedScanForm.sourceId;
-      if (hostedScanForm.branchRef.trim()) payload.branchRef = hostedScanForm.branchRef.trim();
-      if (hostedScanForm.runtimeTargetUrl.trim()) payload.runtimeTargetUrl = hostedScanForm.runtimeTargetUrl.trim();
-      if (hostedScanForm.containerImageRef.trim()) payload.containerImageRef = hostedScanForm.containerImageRef.trim();
-      return postJson<ScanRun, HostedScanPayload>('/scanner/runs/hosted', payload);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-    },
-  });
-  const startFullHostedScan = useMutation({
-    mutationFn: () => {
-      const payload: FullHostedScanPayload = {
-        productId: selectedProduct?.id || '',
-        authorizationConfirmed: hostedScanForm.authorizationConfirmed,
-        runtimeAuthorizationConfirmed: hostedScanForm.runtimeAuthorizationConfirmed,
-        reason: hostedScanForm.reason,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (hostedScanForm.sourceId) payload.sourceId = hostedScanForm.sourceId;
-      if (hostedScanForm.branchRef.trim()) payload.branchRef = hostedScanForm.branchRef.trim();
-      if (hostedScanForm.runtimeTargetUrl.trim()) payload.runtimeTargetUrl = hostedScanForm.runtimeTargetUrl.trim();
-      if (hostedScanForm.containerImageRef.trim()) payload.containerImageRef = hostedScanForm.containerImageRef.trim();
-      return postJson<FullHostedScanResponse, FullHostedScanPayload>('/scanner/runs/hosted/full', payload);
-    },
-    onSuccess: async (response) => {
-      setCartNotice(`Full scanner suite queued ${response.queuedToolKeys.length} tool${response.queuedToolKeys.length === 1 ? '' : 's'} across ${response.queuedRuns.length} run${response.queuedRuns.length === 1 ? '' : 's'}.`);
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
-      await queryClient.invalidateQueries({ queryKey: ['repo-signals', selectedProduct?.id] });
-      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
-    },
-  });
-  const cancelScannerRun = useMutation({
-    mutationFn: (runId: string) => postJson<ScanRun, { reason: string }>(`/scanner/runs/${runId}/cancel`, { reason: 'Owner canceled scanner run from Studio.' }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-    },
-  });
-  const rescanRun = useMutation({
-    mutationFn: (runId: string) => postJson<ScanRun, { reason: string }>(`/scanner/runs/${runId}/rescan`, { reason: 'Owner requested rescan after remediation or evidence review.' }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-    },
-  });
-  const createScannerSchedule = useMutation({
-    mutationFn: () => {
-      const intervalDays = Number.parseInt(scheduleForm.intervalDays, 10);
-      const payload: ScannerSchedulePayload = {
-        productId: selectedProduct?.id || '',
-        sourceId: hostedScanForm.sourceId,
-        depth: hostedScanForm.depth,
-        toolKeys: hostedScanForm.toolKeys,
-        intervalDays: Number.isFinite(intervalDays) ? intervalDays : 7,
-        reason: scheduleForm.reason,
-        active: true,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (hostedScanForm.branchRef.trim()) payload.branchRef = hostedScanForm.branchRef.trim();
-      if (hostedScanForm.runtimeTargetUrl.trim()) payload.runtimeTargetUrl = hostedScanForm.runtimeTargetUrl.trim();
-      if (hostedScanForm.containerImageRef.trim()) payload.containerImageRef = hostedScanForm.containerImageRef.trim();
-      if (scheduleForm.nextRunAt) payload.nextRunAt = scheduleForm.nextRunAt;
-      return postJson('/scanner/schedules', payload);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-    },
-  });
-  const updateScannerSchedule = useMutation({
-    mutationFn: ({ scheduleId, active }: { scheduleId: string; active: boolean }) =>
-      patchJson(`/scanner/schedules/${scheduleId}`, { active }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-    },
-  });
-  const updateFindingStatus = useMutation({
-    mutationFn: ({ findingId, payload }: { findingId: string; payload: FindingStatusPayload }) =>
-      patchJson<NormalizedFinding, FindingStatusPayload>(`/scanner/findings/${findingId}/status`, payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-    },
-  });
-  const openSignedEvidence = useMutation({
-    mutationFn: (evidenceId: string) => getJson<SignedArtifactResponse>(`/scanner/evidence/${evidenceId}/artifact-url`),
-    onSuccess: (response) => {
-      window.open(response.signedUrl, '_blank', 'noopener,noreferrer');
-    },
-  });
-  const createEvidenceExport = useMutation({
-    mutationFn: () => postJson<EvidenceExportBundle, { productId: string; workspaceId?: string }>('/scanner/evidence-exports', {
-      productId: selectedProduct?.id || '',
-      ...(selectedWorkspace?.id ? { workspaceId: selectedWorkspace.id } : {}),
-    }),
-    onSuccess: async (bundle) => {
-      if (bundle.signedUrl) {
-        window.open(bundle.signedUrl, '_blank', 'noopener,noreferrer');
-      }
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-    },
-  });
-
   const productProposals = (proposals.data || []).filter((proposal) => proposal.packageInstance?.productProfile?.id === selectedProduct?.id);
   const activeShortlists = (shortlists.data || []).filter((shortlist) => shortlist.status !== 'ARCHIVED');
   const productSupport = (supportRequests.data || []).filter(
     (request) => request.workspace?.packageInstance?.productProfile?.id === selectedProduct?.id
   );
-  const recommendedServices = packageModules.data?.length
-    ? packageModules.data.map((module) => module.serviceModule)
-    : selectedProductRequirements.map((requirement) => requirement.requestedServiceModule).filter(Boolean) as ServiceModule[];
-  const cartServiceItems = cart.data?.serviceItems || [];
-  const cartTalentItems = cart.data?.talentItems || [];
-  const cartServiceIds = new Set(cartServiceItems.map((item) => item.serviceModule.id));
-  const cartStartReadiness = cart.data?.startReadiness;
-  const cartStartGaps = cartStartReadiness?.gaps || [];
-  const cartBlockers = cartStartReadiness?.blockerCount ?? cart.data?.catalogEvaluation?.blockerCount ?? 0;
-  const cartBlockingRecommendations = (cart.data?.catalogEvaluation?.recommendations || []).filter(
-    (item) => item.severity === 'BLOCKER' && !item.alreadySelected
-  );
-  const cartBlockingGaps = cartStartGaps.filter((gap) => gap.blocking);
-  const canStartProjectWorkspace = !!selectedProduct && (cartStartReadiness?.ready ?? (cartServiceItems.length > 0 && cartBlockers === 0));
-  const cartStartContext = cartStartReadiness
-    ? {
-        status: cartStartReadiness.status,
-        ready: cartStartReadiness.ready,
-        summary: cartStartReadiness.summary,
-        gaps: cartStartGaps.slice(0, 8).map((gap) => ({
-          type: gap.type,
-          severity: gap.severity,
-          title: gap.title,
-          description: gap.description,
-          serviceModuleId: gap.serviceModule?.id,
-          serviceModuleCode: gap.serviceModule?.stableCode || gap.serviceModule?.slug,
-        })),
-      }
-    : undefined;
-  const cartStartPromptFacts = `Project start plan: status ${cartStartReadiness?.status || 'not evaluated'}, ready ${cartStartReadiness?.ready ? 'yes' : 'no'}, summary "${cartStartReadiness?.summary || 'not available'}". Selected services: ${cartServiceItems.map((item) => `${item.serviceModule.name}${item.serviceModule.stableCode ? ` (${item.serviceModule.stableCode})` : ''}`).join(', ') || 'none'}. Start gaps: ${cartStartGaps.slice(0, 8).map((gap) => `${gap.title} (${gap.severity}${gap.serviceModule?.stableCode ? `, ${gap.serviceModule.stableCode}` : ''}): ${gap.description || 'no description'}`).join('; ') || 'none'}. Next actions: ${(cartStartReadiness?.nextBestActions || []).join('; ') || 'none'}.`;
+  const {
+    canStartProjectWorkspace,
+    cartBlockers,
+    cartBlockingGaps,
+    cartBlockingRecommendations,
+    cartServiceIds,
+    cartServiceItems,
+    cartStartContext,
+    cartStartGaps,
+    cartStartPromptFacts,
+    cartTalentItems,
+    recommendedServices,
+  } = buildOwnerWorkspaceStartPlanState({
+    cart: cart.data,
+    packageModules: packageModules.data,
+    selectedProduct,
+    selectedProductRequirements,
+  });
   const suggestedTeams = (teams.data || []).slice(0, 3);
   const suggestedExperts = (experts.data || []).filter((expert) => expert.active).slice(0, 3);
   const health = productHealth(selectedProduct, selectedPackage, packageModules.data);
@@ -825,35 +445,11 @@ export default function OwnerProductizationWorkspace({
   const diagnosisPromptFacts = latestDiagnosis
     ? `Visible diagnosis facts: readiness score ${latestDiagnosis.readinessScore}/100, status ${formatLabel(latestDiagnosis.status)}, source ${formatLabel(latestDiagnosis.diagnosisSource || 'MANUAL_DETERMINISTIC')}, AI state ${latestDiagnosis.aiExecuted ? 'AI executed' : 'AI context ready'}, finding count ${latestDiagnosis.findings.length}. Diagnosis summary: "${latestDiagnosis.summary || 'not recorded'}". Access signals: "${latestDiagnosis.accessSignals || 'not recorded'}". Top findings: ${latestDiagnosis.findings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.status}, area ${finding.readinessArea || 'not classified'}, recommended service ${finding.recommendedModuleName || 'not mapped'}): ${finding.businessRisk || finding.description}`).join('; ') || 'none recorded'}. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings; scanner top findings ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none open'}. Ship-confidence history: ${shipConfidence.data?.trendSummary || 'not available yet'} Latest checkpoint: ${shipConfidence.data?.latest ? `${shipConfidence.data.latest.shipConfidenceScore}/100, ${shipConfidence.data.latest.statusLabel}, next step ${shipConfidence.data.latest.suggestedNextStep}` : 'none'}. ${scannerReadinessPromptFacts}`
     : `No deterministic productization diagnosis exists yet for ${selectedProduct?.name || 'this product'}. Ask the owner to run diagnosis before making readiness claims. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings.`;
-  const filteredScannerEvidence = (scannerSummary.data?.evidence || []).filter((item) => {
-    if (evidenceFilter === 'FINDINGS') return !!item.findingId;
-    if (evidenceFilter === 'MILESTONES') return !!item.milestoneId;
-    if (evidenceFilter === 'REDACTED') return item.redactionStatus !== 'NONE';
-    return true;
-  });
-  const activeScanRun = scannerSummary.data?.recentRuns.find((run) => run.status === 'QUEUED' || run.status === 'RUNNING');
-  const selectedScanSource = (scannerSummary.data?.sources || []).find((source) => source.id === hostedScanForm.sourceId);
-  const hostedScanBlockedReason = hostedScanBlockReason(selectedProduct, selectedScanSource, hostedScanForm);
-  const fullHostedScanBlockedReason = fullHostedScanBlockReason(selectedProduct, selectedScanSource, hostedScanForm);
   const scannerToolCoverage = scannerSummary.data?.toolCoverage || [];
   const latestCoveredTools = scannerToolCoverage.filter((tool) => !!tool.latestStatus).length;
   const latestCompletedTools = scannerToolCoverage.filter((tool) => tool.latestStatus === 'COMPLETED').length;
   const latestMappedToolFindings = scannerToolCoverage.reduce((total, tool) => total + (tool.mappedFindingCount || 0), 0);
   const unavailableScannerTools = scannerToolCoverage.filter((tool) => tool.enabled && !tool.executableAvailable).length;
-  const selectedConnectorPermission = (connectorPermissions.data || []).find((permission) => permission.providerType === scanSourceForm.providerType);
-  const activeProviderInstallations = (scannerConnectors.data || []).filter(
-    (connector) => connector.providerType === scanSourceForm.providerType && connector.status === 'ACTIVE'
-  );
-  const scheduleInterval = Number.parseInt(scheduleForm.intervalDays, 10);
-  const scheduleBlockedReason = !selectedProduct
-    ? 'Select a product first.'
-    : !hostedScanForm.sourceId || !selectedScanSource
-      ? 'Choose an authorized evidence source before scheduling scans.'
-      : selectedScanSource.authorizationStatus !== 'AUTHORIZED'
-        ? 'Only authorized evidence sources can be scheduled.'
-        : !Number.isFinite(scheduleInterval) || scheduleInterval < 1 || scheduleInterval > 90
-          ? 'Use a schedule interval between 1 and 90 days.'
-          : '';
   const blockedMilestones = (milestones.data || []).filter((milestone) => milestone.status === 'BLOCKED').length;
   const submittedRequirement = selectedProductRequirements.find((requirement) => requirement.status === 'SUBMITTED' || requirement.status === 'PACKAGE_RECOMMENDED');
   const buildTargetRequirementId = pendingRequirementId || submittedRequirement?.id || '';
@@ -922,94 +518,38 @@ export default function OwnerProductizationWorkspace({
   const selectedMilestone = (milestones.data || []).find((milestone) => milestone.status === 'BLOCKED')
     || (milestones.data || []).find((milestone) => milestone.status === 'SUBMITTED' || milestone.status === 'IN_PROGRESS')
     || (milestones.data || [])[0];
-  const assistantContext = (pageType: string, overrides: Partial<StudioAssistantContext> = {}): StudioAssistantContext => ({
-    pageType,
-    productId: selectedProduct?.id,
-    packageId: selectedPackage?.id,
-    workspaceId: selectedWorkspace?.id,
-    startReadiness: cartStartContext,
-    ...overrides,
-  });
-  const assistantActionName = (action: Record<string, unknown>) =>
-    assistantRecordText(action, ['name', 'action', 'toolName']).toLowerCase();
-  const assistantActionInput = (action: Record<string, unknown>) =>
-    action.input && typeof action.input === 'object' && !Array.isArray(action.input)
-      ? action.input as Record<string, unknown>
-      : {};
-  const assistantActionDisabledReason = (action: Record<string, unknown>) => {
-    const name = assistantActionName(action);
-    if (name.includes('package.build') || name.includes('requirement.submit')) {
-      const requirementId = assistantActionInput(action).requirementId;
-      return typeof requirementId === 'string' || buildTargetRequirementId ? '' : 'Submit a product brief before building a package.';
-    }
-    if (name.includes('workspace.create')) {
-      if (!(cart.data?.serviceItems || []).length) {
-        return 'Choose at least one lifecycle service for the start plan first.';
-      }
-      if (cartBlockers > 0) {
-        return `Choose required services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`;
-      }
-      return '';
-    }
-    if (name.includes('scan.start')) {
-      return hostedScanBlockedReason;
-    }
-    if (name.includes('finding.accept_risk')) {
-      return selectedFinding?.id ? '' : 'Select a scanner finding first.';
-    }
-    return 'This action is not in the confirmed ProdUS execution allowlist yet.';
-  };
-  const handleAssistantAction = async (action: Record<string, unknown>) => {
-    const name = assistantActionName(action);
-    const input = assistantActionInput(action);
-    if (name.includes('package.build') || name.includes('requirement.submit')) {
-      const requirementId = typeof input.requirementId === 'string' && input.requirementId ? input.requirementId : buildTargetRequirementId;
-      if (!requirementId) throw new Error('No requirement intake is available for package creation.');
-      await buildPackage.mutateAsync(requirementId);
-      return;
-    }
-    if (name.includes('workspace.create')) {
-      if (!(cart.data?.serviceItems || []).length) throw new Error('Choose lifecycle services for the start plan before creating a workspace.');
-      if (cartBlockers > 0) {
-        throw new Error(`Choose required services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}.`);
-      }
-      await convertCart.mutateAsync();
-      return;
-    }
-    if (name.includes('scan.start')) {
-      if (hostedScanBlockedReason) throw new Error(hostedScanBlockedReason);
-      await startHostedScan.mutateAsync();
-      return;
-    }
-    if (name.includes('finding.accept_risk')) {
+  const { assistantActionProps, assistantContext } = buildOwnerWorkspaceAssistantActions({
+    buildTargetRequirementId,
+    cartBlockers,
+    cartBlockingGapTitles: cartBlockingGaps.map((gap) => gap.title),
+    cartBlockingRecommendationNames: cartBlockingRecommendations.map((item) => item.recommendedModule.name),
+    cartServiceItemCount: cartServiceItems.length,
+    hostedScanBlockedReason,
+    onAcceptFindingRisk: async (reason) => {
       if (!selectedFinding?.id) throw new Error('Select a scanner finding first.');
       await updateFindingStatus.mutateAsync({
         findingId: selectedFinding.id,
         payload: {
           status: 'ACCEPTED_RISK',
-          reason: assistantRecordText(action, ['rationale', 'summary'], 'Owner confirmed AI-proposed risk acceptance for review tracking.'),
+          reason,
         },
       });
-      return;
-    }
-    throw new Error('This AI proposed action is not enabled for execution in this surface.');
-  };
-  const assistantActionProps = {
-    onConfirmAction: handleAssistantAction,
-    actionDisabledReason: assistantActionDisabledReason,
-  };
-
-  useEffect(() => {
-    if (!scannerUploadForm.sourceId && scannerSummary.data?.sources[0]?.id) {
-      setScannerUploadForm((current) => ({ ...current, sourceId: scannerSummary.data?.sources[0]?.id || '' }));
-    }
-    if (!hostedScanForm.sourceId && scannerSummary.data?.sources[0]?.id) {
-      setHostedScanForm((current) => ({ ...current, sourceId: scannerSummary.data?.sources[0]?.id || '' }));
-    }
-    if (!externalImportForm.sourceId && scannerSummary.data?.sources[0]?.id) {
-      setExternalImportForm((current) => ({ ...current, sourceId: scannerSummary.data?.sources[0]?.id || '' }));
-    }
-  }, [scannerSummary.data?.sources, scannerUploadForm.sourceId, hostedScanForm.sourceId, externalImportForm.sourceId]);
+    },
+    onBuildPackage: async (requirementId) => {
+      await buildPackage.mutateAsync(requirementId);
+    },
+    onConvertCart: async () => {
+      await convertCart.mutateAsync();
+    },
+    onStartHostedScan: async () => {
+      await startHostedScan.mutateAsync();
+    },
+    selectedFindingId: selectedFinding?.id,
+    selectedPackage,
+    selectedProduct,
+    selectedWorkspace,
+    startReadiness: cartStartContext,
+  });
 
   const submitProduct = productForm.handleSubmit(() => createProduct.mutate());
   const submitRequirement = requirementForm.handleSubmit(() => {
@@ -1019,8 +559,8 @@ export default function OwnerProductizationWorkspace({
     }
   });
 
-  const loading = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, launchReadinessReport, scannerSummary, repoSignals, scannerConnectors].some((query) => query.isLoading);
-  const error = [products, requirements, packages, workspaces, categories, catalogModules, proposals, supportRequests, recommendations, teams, experts, cart, diagnoses, shipConfidence, launchReadinessReport, scannerSummary, repoSignals, scannerConnectors, packageModules, teamRecommendations, milestones, shortlists].find((query) => query.error)?.error
+  const loading = queriesLoading;
+  const error = queryError
     || createProduct.error
     || createRequirement.error
     || buildPackage.error
@@ -1036,19 +576,7 @@ export default function OwnerProductizationWorkspace({
     || createScannerReadinessDiagnosis.error
     || generateLaunchReadinessReport.error
     || refreshRepoSignals.error
-    || createScanSource.error
-    || requestConnectorInstall.error
-    || createProviderSource.error
-    || uploadScannerEvidence.error
-    || importExternalEvidence.error
-    || fetchCiTemplate.error
-    || disconnectScanSource.error
-    || startHostedScan.error
-    || cancelScannerRun.error
-    || rescanRun.error
-    || updateFindingStatus.error
-    || openSignedEvidence.error
-    || createEvidenceExport.error;
+    || scannerOperationError;
 
   const recordShortlist = (teamId: string, status: TeamShortlist['status']) => {
     if (!selectedPackage?.id) return;
@@ -1131,16 +659,6 @@ export default function OwnerProductizationWorkspace({
         title: `${product.name} productization plan`,
         businessGoal: cart.data?.businessGoal || `Move ${product.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
       });
-    }
-  };
-
-  const openEvidenceArtifact = (evidence: ScannerEvidenceItem) => {
-    if (evidence.storageKey) {
-      openSignedEvidence.mutate(evidence.id);
-      return;
-    }
-    if (evidence.artifactRef) {
-      window.open(evidence.artifactRef, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -1486,7 +1004,7 @@ export default function OwnerProductizationWorkspace({
                   deleteArtifactsOnDisconnect,
                   activeScanRun,
                   hasProduct: !!selectedProduct,
-                  isBusy: scannerSummary.isFetching || createScannerReadinessDiagnosis.isPending || createProviderSource.isPending || requestConnectorInstall.isPending || uploadScannerEvidence.isPending || importExternalEvidence.isPending || fetchCiTemplate.isPending || disconnectScanSource.isPending || startHostedScan.isPending || startFullHostedScan.isPending || cancelScannerRun.isPending || rescanRun.isPending || createScannerSchedule.isPending || updateScannerSchedule.isPending || updateFindingStatus.isPending || openSignedEvidence.isPending || createEvidenceExport.isPending,
+                  isBusy: scannerSummary.isFetching || createScannerReadinessDiagnosis.isPending || scannerOperationBusy,
                   isDisconnectingSource: disconnectScanSource.isPending,
                   isUpdatingSchedule: updateScannerSchedule.isPending,
                   isOpeningEvidence: openSignedEvidence.isPending,
