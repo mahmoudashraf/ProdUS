@@ -29,8 +29,6 @@ import {
   LinearProgress,
   MenuItem,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -54,7 +52,7 @@ import {
 import ShipConfidencePanel from './ShipConfidencePanel';
 import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
-import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+import { type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import OwnerFindingReviewDrawer from './OwnerFindingReviewDrawer';
 import RepoReadoutPanel from './RepoReadoutPanel';
 import StudioAssistantCard, { assistantRecordText, type StudioAssistantContext } from './StudioAssistantCard';
@@ -71,6 +69,7 @@ import OwnerServicesRecommendationPanel, { type OwnerServiceRiskSummary } from '
 import OwnerProjectStartPanel from './OwnerProjectStartPanel';
 import OwnerTeamMatchPanel from './OwnerTeamMatchPanel';
 import OwnerServicePlanPanel from './OwnerServicePlanPanel';
+import OwnerWorkspaceNavigationPanel from './OwnerWorkspaceNavigationPanel';
 import {
   OwnerAiBriefPanel,
   OwnerDeliveryWorkspacePanel,
@@ -1872,50 +1871,17 @@ export default function OwnerProductizationWorkspace({
             <EmptyState label="Create a product profile to start the owner productization workflow." />
           )}
 
-          <Surface sx={{ p: { xs: 1, md: 1 }, boxShadow: 'none', position: { xl: 'sticky' }, top: { xl: 76 }, zIndex: 2 }}>
-            <Tabs
-              value={workspaceTab}
-              onChange={(_, value) => openWorkspaceArea(value as WorkspaceTab)}
-              variant="scrollable"
-              scrollButtons="auto"
-              sx={{
-                minHeight: 44,
-                '& .MuiTab-root': {
-                  minHeight: 44,
-                  textTransform: 'none',
-                  fontWeight: 850,
-                  letterSpacing: 0,
-                  borderRadius: 1,
-                },
-              }}
-            >
-              {workspaceTabs.map((tab) => (
-                <Tab key={tab.value} value={tab.value} label={tab.label} />
-              ))}
-            </Tabs>
-          </Surface>
-
-          {selectedProduct && (
-            workspaceDetailOpen ? (
-              <WorkspaceBreadcrumbs
-                items={[
-                  { label: 'Workspace', onClick: () => openWorkspaceArea('overview') },
-                  { label: selectedProduct.name, onClick: () => openWorkspaceArea('overview') },
-                  { label: currentAreaLabel, onClick: () => openWorkspaceArea(workspaceTab) },
-                  { label: currentDetailLabel },
-                ]}
-                backLabel={`${currentAreaLabel} hub`}
-                onBack={() => openWorkspaceArea(workspaceTab)}
-              />
-            ) : (
-              <OwnerWorkspaceJourneyNav
-                label={`${currentAreaLabel} hub`}
-                value={currentJourneyValue}
-                items={currentJourneyItems}
-                onChange={(value) => openWorkspaceDetail(workspaceTab, value)}
-              />
-            )
-          )}
+          <OwnerWorkspaceNavigationPanel
+            currentAreaLabel={currentAreaLabel}
+            currentDetailLabel={currentDetailLabel}
+            currentJourneyItems={currentJourneyItems}
+            currentJourneyValue={currentJourneyValue}
+            productName={selectedProduct?.name}
+            workspaceDetailOpen={workspaceDetailOpen}
+            workspaceTab={workspaceTab}
+            onAreaChange={openWorkspaceArea}
+            onDetailChange={(value) => openWorkspaceDetail(workspaceTab, value)}
+          />
 
           {selectedProduct && workspaceTab === 'overview' && (
             <Stack spacing={2.5}>
