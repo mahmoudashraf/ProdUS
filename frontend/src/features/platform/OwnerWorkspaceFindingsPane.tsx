@@ -1,13 +1,12 @@
 'use client';
 
 import type { ComponentProps } from 'react';
-import { Box } from '@mui/material';
 import OwnerFindingsEvidencePanel from './OwnerFindingsEvidencePanel';
 import OwnerFindingsRiskPanel from './OwnerFindingsRiskPanel';
 import OwnerScannerProofCompanionPanel from './OwnerScannerProofCompanionPanel';
 import OwnerScannerProofOperationsPanel from './OwnerScannerProofOperationsPanel';
+import OwnerTechnicalProofJourneyPanel from './OwnerTechnicalProofJourneyPanel';
 import type { FindingsJourneyView } from './ownerWorkspaceJourneyConfig';
-import { Surface } from './PlatformComponents';
 import RepoReadoutPanel from './RepoReadoutPanel';
 import ScannerCoverageGrid from './ScannerCoverageGrid';
 import ScannerFixPathPanel from './ScannerFixPathPanel';
@@ -62,22 +61,7 @@ export default function OwnerWorkspaceFindingsPane({
   }
 
   if (view === 'technical') {
-    return (
-      <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
-        <ScannerProofRunway {...technical.runway} />
-        <ScannerCoverageGrid {...technical.coverage} />
-        <ScannerFixPathPanel {...technical.fixPath} />
-
-        <Box sx={{ mb: 2 }}>
-          <StudioAssistantCard {...technical.assistant} />
-        </Box>
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '360px minmax(0, 1fr)' }, gap: 2 }}>
-          <OwnerScannerProofOperationsPanel {...technical.operations} />
-          <OwnerScannerProofCompanionPanel {...technical.companion} />
-        </Box>
-      </Surface>
-    );
+    return <OwnerTechnicalProofJourneyPanel technical={technical} />;
   }
 
   return <OwnerFindingsRiskPanel {...risks} />;

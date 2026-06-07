@@ -18,6 +18,7 @@ import {
 } from './types';
 
 type OwnerScannerProofCompanionPanelProps = {
+  view?: 'result' | 'stored' | 'decisions' | undefined;
   scannerSummary: ProductScannerSummary | undefined;
   filteredScannerEvidence: ScannerEvidenceItem[];
   evidenceFilter: OwnerEvidenceFilter;
@@ -57,6 +58,7 @@ type OwnerScannerProofCompanionPanelProps = {
 };
 
 export default function OwnerScannerProofCompanionPanel({
+  view,
   scannerSummary,
   filteredScannerEvidence,
   evidenceFilter,
@@ -96,57 +98,68 @@ export default function OwnerScannerProofCompanionPanel({
   const imports = scannerSummary?.imports || [];
   const findings = scannerSummary?.findings || [];
   const recentRuns = scannerSummary?.recentRuns || [];
+  const showResult = !view || view === 'result';
+  const showStored = !view || view === 'stored';
+  const showDecisions = !view || view === 'decisions';
 
   return (
     <Stack spacing={1.5}>
       {isBusy && <LinearProgress sx={{ borderRadius: 999 }} />}
-      <ScannerProofSourceSummaryPanel
-        sources={sources}
-        deleteArtifactsOnDisconnect={deleteArtifactsOnDisconnect}
-        isDisconnecting={isDisconnectingSource}
-        onDeleteArtifactsChange={onDeleteArtifactsChange}
-        onDisconnectSource={onDisconnectSource}
-      />
-      <ScannerProofScheduleSummaryPanel
-        schedules={schedules}
-        isUpdating={isUpdatingSchedule}
-        onToggleSchedule={onToggleSchedule}
-        formatDateTime={formatDateTime}
-      />
-      <ScannerProofImportSummaryPanel imports={imports} />
-      <OwnerScannerEvidenceCenterPanel
-        hasProduct={hasProduct}
-        evidence={filteredScannerEvidence}
-        evidenceFilter={evidenceFilter}
-        isExporting={isExportingEvidence}
-        isOpeningEvidence={isOpeningEvidence}
-        onEvidenceFilterChange={onEvidenceFilterChange}
-        onExport={onExportEvidence}
-        onOpenEvidence={onOpenEvidence}
-        formatDateTime={formatDateTime}
-      />
-      <ScannerProofFindingDecisionList
-        findings={findings}
-        selectedFinding={selectedFinding}
-        cartServiceIds={cartServiceIds}
-        findingReasonById={findingReasonById}
-        findingReviewDueById={findingReviewDueById}
-        isUpdatingStatus={isUpdatingFindingStatus}
-        isAddingService={isAddingService}
-        onSelectFinding={onSelectFinding}
-        onFindingReasonChange={onFindingReasonChange}
-        onFindingReviewDueChange={onFindingReviewDueChange}
-        onAddService={onAddService}
-        onRecordDecision={onRecordFindingDecision}
-      />
-      <ScannerProofRecentRunsPanel
-        recentRuns={recentRuns}
-        activeScanRun={activeScanRun}
-        isCanceling={isCancelingScan}
-        isRescanning={isRescanning}
-        onCancelRun={onCancelRun}
-        onRescanRun={onRescanRun}
-      />
+      {showResult && (
+        <>
+          <ScannerProofSourceSummaryPanel
+            sources={sources}
+            deleteArtifactsOnDisconnect={deleteArtifactsOnDisconnect}
+            isDisconnecting={isDisconnectingSource}
+            onDeleteArtifactsChange={onDeleteArtifactsChange}
+            onDisconnectSource={onDisconnectSource}
+          />
+          <ScannerProofScheduleSummaryPanel
+            schedules={schedules}
+            isUpdating={isUpdatingSchedule}
+            onToggleSchedule={onToggleSchedule}
+            formatDateTime={formatDateTime}
+          />
+          <ScannerProofImportSummaryPanel imports={imports} />
+          <ScannerProofRecentRunsPanel
+            recentRuns={recentRuns}
+            activeScanRun={activeScanRun}
+            isCanceling={isCancelingScan}
+            isRescanning={isRescanning}
+            onCancelRun={onCancelRun}
+            onRescanRun={onRescanRun}
+          />
+        </>
+      )}
+      {showStored && (
+        <OwnerScannerEvidenceCenterPanel
+          hasProduct={hasProduct}
+          evidence={filteredScannerEvidence}
+          evidenceFilter={evidenceFilter}
+          isExporting={isExportingEvidence}
+          isOpeningEvidence={isOpeningEvidence}
+          onEvidenceFilterChange={onEvidenceFilterChange}
+          onExport={onExportEvidence}
+          onOpenEvidence={onOpenEvidence}
+          formatDateTime={formatDateTime}
+        />
+      )}
+      {showDecisions && (
+        <ScannerProofFindingDecisionList
+          findings={findings}
+          selectedFinding={selectedFinding}
+          cartServiceIds={cartServiceIds}
+          findingReasonById={findingReasonById}
+          findingReviewDueById={findingReviewDueById}
+          isUpdatingStatus={isUpdatingFindingStatus}
+          isAddingService={isAddingService}
+          onSelectFinding={onSelectFinding}
+          onFindingReasonChange={onFindingReasonChange}
+          onFindingReviewDueChange={onFindingReviewDueChange}
+          onAddService={onAddService}
+          onRecordDecision={onRecordFindingDecision}
+        />
+      )}
     </Stack>
   );
 }

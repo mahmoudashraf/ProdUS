@@ -41,7 +41,7 @@ export default function ScannerFixPathPanel({
 }: ScannerFixPathPanelProps) {
   return (
     <Box sx={{ mb: 2, p: 1.5, borderRadius: 1, border: '1px solid', borderColor: '#dbeafe', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
-      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ lg: 'center' }}>
+      <Stack direction={{ xs: 'column', xl: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xl: 'center' }}>
         <Stack direction="row" spacing={1.25} alignItems="center">
           <Box sx={{ width: 44, height: 44, borderRadius: 1, bgcolor: '#eaf3ff', color: appleColors.blue, display: 'grid', placeItems: 'center' }}>
             <AutoAwesomeOutlined />

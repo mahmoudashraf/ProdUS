@@ -4,8 +4,8 @@ Date: 2026-06-07
 
 Baseline:
 
-- Latest live-verified commit before the Workspace Command completion pass: `011c9b7`.
-- Latest live-verified Coolify deployment before the Workspace Command completion pass: `1084`.
+- Latest live-verified commit before the Technical Proof completion pass: `449b646`.
+- Latest live-verified Coolify deployment before the Technical Proof completion pass: `1085`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
 - Live verification script: `tmp/live-verification/2026-06-07/live-owner-hub-spoke-navigation.js`.
 - Current largest owner-facing active files after the completed splits:
@@ -55,7 +55,8 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - Services now lead with a proof-linked `Priority Services` list before expandable service-family catalog depth.
 - Shopping/cart visual metaphors were removed from the owner platform TSX surfaces and replaced with checklist/action/start-plan icons.
 - Onboarding review now keeps the owner summary visible, moves validation and AI help behind progressive panels, and leaves the first detailed AI section collapsed by default.
-- Latest live verification at commit `011c9b7` confirmed the full journey and all 10 scanners completed/mapped, including `zap-baseline`.
+- Workspace Command now has Team/Risk and Handoff substeps, with route orchestration split into focused hooks and panels.
+- Latest live verification at commit `449b646` confirmed the full journey and all 10 scanners completed, including `zap-baseline`; nonzero scanner findings were normalized and mapped in latest coverage.
 
 ## Completion Sequence
 
@@ -91,7 +92,7 @@ Status:
 
 - Complete. The route still owns data and mutations, while stable visual panes, side-rail panels, onboarding panels, workspace command panels, and start-plan navigation are split into focused components.
 
-### Pass 1: Technical Proof Completion
+### Current Pass: Technical Proof Completion
 
 Problem:
 
@@ -107,9 +108,16 @@ Solution:
 
 Immediate implementation target:
 
-- Extract the scanner proof operations from `OwnerProductizationWorkspace.tsx`.
-- Add owner-first section labels and progressive operation groups.
+- Split the technical proof page into the four owner proof substeps.
+- Keep Run Proof, Review Result, Fix Path, and Stored Proof as separate views.
+- Keep scanner run controls, latest coverage, mapped services, finding decisions, and stored artifacts available without one long all-in-one page.
 - Keep existing API calls and scanner payload contracts unchanged.
+
+Status:
+
+- Local implementation is in progress. `OwnerWorkspaceFindingsPane` now delegates the technical view to `OwnerTechnicalProofJourneyPanel`.
+- Technical Proof now opens on `Run Proof`, with `Review Result`, `Fix Path`, and `Stored Proof` as focused substeps.
+- `OwnerScannerProofCompanionPanel` can render result, stored proof, or finding-decision sections independently while preserving its old full-panel behavior when no view is passed.
 
 ### Completed: Cart And Start-Project Completion
 
@@ -180,7 +188,7 @@ Status:
 
 - Complete. `/products/new` now shows the AI understanding review as a calm owner decision surface, with `Creation checks`, optional analysis help, and detailed product understanding behind deliberate expansion.
 
-### Current Pass: Workspace Command Completion
+### Completed: Workspace Command Completion
 
 Problem:
 
@@ -203,7 +211,7 @@ Immediate implementation target:
 
 Status:
 
-- Local implementation complete, pending the batched Coolify deploy/live verification. Team/Risk and Handoff now have focused substep navigation and smaller panel components, and selecting either top-level step scrolls the owner to the chosen substep area.
+- Complete and live-verified at commit `449b646`, Coolify deployment `1085`. Team/Risk and Handoff now have focused substep navigation and smaller panel components, and selecting either top-level step scrolls the owner to the chosen substep area.
 - Route orchestration was reduced by extracting workspace/milestone selection, derived readiness summaries, and evidence attachment controls. `WorkspaceCommandPage.tsx` is now 805 lines.
 - Focused local verification against staging data passed with screenshots:
   - `tmp/live-verification/2026-06-07/68-workspaces-team-substeps-local.png`
@@ -213,6 +221,9 @@ Status:
   - `tmp/live-verification/2026-06-07/72-workspaces-handoff-review-local.png`
   - `tmp/live-verification/2026-06-07/73-workspaces-handoff-signals-local.png`
   - `tmp/live-verification/2026-06-07/74-workspaces-handoff-ai-local.png`
+- Live verification refreshed the workspace screenshots:
+  - `tmp/live-verification/2026-06-07/44-workspaces-team-risks-live.png`
+  - `tmp/live-verification/2026-06-07/45-workspaces-handoff-live.png`
 
 ### Pass 6: Copy, Mobile, And Documentation Close
 
