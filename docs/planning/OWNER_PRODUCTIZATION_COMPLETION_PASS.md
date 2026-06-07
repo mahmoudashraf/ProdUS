@@ -432,7 +432,7 @@ Solution:
 
 Status:
 
-- Implemented locally and verified against staging data using a Playwright API proxy.
+- Implemented, committed, deployed, and live-verified at UI commit `552c72f`, Coolify frontend deployment `e10vx9t4bni4cw8oqhfjet14`.
 - `TeamProfilesPage.tsx` is now 360 lines, with profile studio views split into:
   - `TeamProfileStudioNavigation.tsx`
   - `TeamProfileIdentityPanel.tsx`
@@ -447,6 +447,13 @@ Status:
   - `tmp/live-verification/2026-06-07/106-team-profile-studio-expert-local.png`
   - `tmp/live-verification/2026-06-07/107-team-profile-studio-access-local.png`
   - `tmp/live-verification/2026-06-07/108-mobile-team-profile-studio-local.png`
+- Live verification refreshed:
+  - `tmp/live-verification/2026-06-07/104-team-profile-studio-profile-live.png`
+  - `tmp/live-verification/2026-06-07/105-team-profile-studio-people-live.png`
+  - `tmp/live-verification/2026-06-07/106-team-profile-studio-expert-live.png`
+  - `tmp/live-verification/2026-06-07/107-team-profile-studio-access-live.png`
+  - `tmp/live-verification/2026-06-07/108-mobile-team-profile-studio-live.png`
+- Full owner journey verification passed for commit `552c72f`; scanner coverage remained stored and mapped with all 10 scanners complete.
 
 ## Implementation Loop
 
