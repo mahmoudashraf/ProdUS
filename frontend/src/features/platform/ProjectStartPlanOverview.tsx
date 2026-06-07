@@ -51,19 +51,38 @@ export default function ProjectStartPlanOverview({
 }: ProjectStartPlanOverviewProps) {
   const statusLabel = canStartWorkspace ? 'Ready to start' : hasPlaceholderProduct ? 'Choose product' : blockers ? 'Blocked' : 'Needs scope';
   const statusAccent = canStartWorkspace ? appleColors.green : hasPlaceholderProduct || blockers ? appleColors.amber : appleColors.purple;
+  const displayTitle = hasPlaceholderProduct
+    ? 'Choose a real product'
+    : product?.name
+      ? `${product.name} start plan`
+      : title || 'Productization start plan';
 
   return (
     <>
       <Surface sx={{ p: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
-        <Box sx={{ p: { xs: 2.5, md: 3 }, minWidth: 0, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: '0.75fr 1.25fr' }, gap: 3, alignItems: 'center' }}>
-          <Stack spacing={2} sx={{ minWidth: 0 }}>
+        <Box sx={{ p: { xs: 1.75, md: 3 }, minWidth: 0, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: '0.75fr 1.25fr' }, gap: { xs: 2, md: 3 }, alignItems: 'center' }}>
+          <Stack spacing={{ xs: 1.5, md: 2 }} sx={{ minWidth: 0 }}>
             <PastelChip label={statusLabel} accent={statusAccent} bg={`${statusAccent}12`} />
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }} sx={{ minWidth: 0 }}>
-              <ProgressRing value={score} size={108} color={canStartWorkspace ? appleColors.green : appleColors.purple} label="ready" />
+            <Stack direction="row" spacing={{ xs: 1.25, sm: 2 }} alignItems="center" sx={{ minWidth: 0 }}>
+              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                <ProgressRing value={score} size={76} color={canStartWorkspace ? appleColors.green : appleColors.purple} label="ready" />
+              </Box>
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                <ProgressRing value={score} size={108} color={canStartWorkspace ? appleColors.green : appleColors.purple} label="ready" />
+              </Box>
               <Box sx={{ minWidth: 0 }}>
-                <Typography variant="h2" sx={{ overflowWrap: 'anywhere' }}>{hasPlaceholderProduct ? 'Choose a real product for this plan' : title || 'Productization start plan'}</Typography>
-                <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
-                  Build the launch plan here: scope the services, confirm the delivery team, then start the workspace when the plan is ready.
+                <Typography
+                  variant="h2"
+                  sx={{
+                    fontSize: { xs: 26, sm: 34, md: 38 },
+                    lineHeight: { xs: 1.12, sm: 1.15 },
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  {displayTitle}
+                </Typography>
+                <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6, fontSize: { xs: 14, sm: 16 } }}>
+                  Scope the services and delivery support, then approve the workspace when the plan is ready.
                 </Typography>
               </Box>
             </Stack>
@@ -108,14 +127,14 @@ export default function ProjectStartPlanOverview({
               ))}
             </TextField>
             {product && !hasPlaceholderProduct ? (
-              <Surface sx={{ boxShadow: 'none', background: '#fff' }}>
+              <Surface sx={{ display: { xs: 'none', sm: 'block' }, boxShadow: 'none', background: '#fff' }}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="flex-start" sx={{ minWidth: 0 }}>
                   <Box sx={{ width: 46, height: 46, borderRadius: 1, display: 'grid', placeItems: 'center', bgcolor: '#f1efff', color: appleColors.purple }}>
                     <Inventory2Outlined />
                   </Box>
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="h4" sx={{ overflowWrap: 'anywhere' }}>{product.name}</Typography>
-                    <Typography color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>
+                    <Typography color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: { xs: 3, md: 'unset' }, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {product.summary || 'No product summary yet.'}
                     </Typography>
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
@@ -132,17 +151,45 @@ export default function ProjectStartPlanOverview({
         </Box>
       </Surface>
 
-      <Box sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 2 }}>
-        <MetricTile label="Selected services" value={serviceCount} detail="Become service plan modules" accent={appleColors.purple} icon={<PlaylistAddCheckOutlined />} sparkline />
-        <MetricTile label="Teams / experts" value={talentCount} detail="Become shortlist and participants" accent={appleColors.cyan} icon={<GroupsOutlined />} sparkline />
-        <MetricTile
-          label="Workspace status"
-          value={canStartWorkspace ? 'Ready' : 'Needs scope'}
-          detail={canStartWorkspace ? 'Product and services selected' : 'Product plus one service required'}
-          accent={canStartWorkspace ? appleColors.green : appleColors.amber}
-          icon={<WorkspacesOutlined />}
-          sparkline
-        />
+      <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ display: { xs: 'grid', sm: 'none' }, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1 }}>
+          {[
+            { label: 'Services', value: serviceCount, accent: appleColors.purple },
+            { label: 'Team', value: talentCount, accent: appleColors.cyan },
+            { label: 'Status', value: canStartWorkspace ? 'Ready' : 'Scope', accent: canStartWorkspace ? appleColors.green : appleColors.amber },
+          ].map((item) => (
+            <Box
+              key={item.label}
+              sx={{
+                border: '1px solid',
+                borderColor: `${item.accent}2e`,
+                borderRadius: 1,
+                bgcolor: `${item.accent}0d`,
+                p: 1,
+                minWidth: 0,
+              }}
+            >
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 800 }}>
+                {item.label}
+              </Typography>
+              <Typography sx={{ mt: 0.25, fontWeight: 900, color: appleColors.ink, fontSize: 18, lineHeight: 1 }}>
+                {item.value}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+        <Box sx={{ minWidth: 0, display: { xs: 'none', sm: 'grid' }, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 2 }}>
+          <MetricTile label="Selected services" value={serviceCount} detail="Become service plan modules" accent={appleColors.purple} icon={<PlaylistAddCheckOutlined />} sparkline />
+          <MetricTile label="Teams / experts" value={talentCount} detail="Become shortlist and participants" accent={appleColors.cyan} icon={<GroupsOutlined />} sparkline />
+          <MetricTile
+            label="Workspace status"
+            value={canStartWorkspace ? 'Ready' : 'Needs scope'}
+            detail={canStartWorkspace ? 'Product and services selected' : 'Product plus one service required'}
+            accent={canStartWorkspace ? appleColors.green : appleColors.amber}
+            icon={<WorkspacesOutlined />}
+            sparkline
+          />
+        </Box>
       </Box>
     </>
   );

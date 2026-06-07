@@ -250,6 +250,22 @@ Solution:
 - Verify desktop and mobile screenshots.
 - Reconsider README language after the UI completion pass, so the docs match the live product.
 
+Immediate implementation target:
+
+- Polish the mobile Project Start Plan so it reads as approving scope, not filling a cart.
+- Replace remaining owner-facing `add services` / project-cart language with `choose services` / Project Start Plan language where the compatibility API names do not need to change.
+- Keep the Start Plan mobile first viewport compact enough to show actions, readiness, selected product, and service/team/status summary.
+
+Status:
+
+- Local implementation complete, pending Coolify deploy/live verification.
+- Top Start Plan actions now read `Choose services`, `Choose teams`, and `Find experts`.
+- Mobile Start Plan hides the secondary product summary card, keeps a smaller readiness ring, and shows a compact service/team/status strip before the journey cards.
+- README business language now describes Project Start Plans instead of project carts.
+- Focused local mobile verification passed with screenshots:
+  - `tmp/live-verification/2026-06-07/79-mobile-start-plan-close-local.png`
+  - `tmp/live-verification/2026-06-07/80-mobile-start-plan-services-close-local.png`
+
 ## Implementation Loop
 
 For each slice:

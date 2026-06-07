@@ -27,7 +27,7 @@ export default function ProjectStartLifecycleServicesPanel({
 }: ProjectStartLifecycleServicesPanelProps) {
   return (
     <Surface>
-      <SectionTitle title="Lifecycle Services" action={<Button component={NextLink} href="/services" variant="text" endIcon={<ArrowForwardOutlined />}>Add service</Button>} />
+      <SectionTitle title="Lifecycle Services" action={<Button component={NextLink} href="/services" variant="text" endIcon={<ArrowForwardOutlined />}>Choose service</Button>} />
       {serviceItems.length ? (
         <Stack spacing={1.25}>
           {serviceItems.map((item, index) => {
@@ -88,7 +88,7 @@ export default function ProjectStartLifecycleServicesPanel({
           })}
         </Stack>
       ) : (
-        <EmptyState label="No services yet. Add productization services such as validation, security, cloud, database, launch, or support." />
+        <EmptyState label="No services yet. Choose productization services such as validation, security, cloud, database, launch, or support." />
       )}
     </Surface>
   );

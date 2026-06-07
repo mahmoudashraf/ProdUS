@@ -3,7 +3,7 @@
 import NextLink from 'next/link';
 import { useState } from 'react';
 import {
-  AddTaskOutlined,
+  FactCheckOutlined,
   GroupsOutlined,
   PersonSearchOutlined,
 } from '@mui/icons-material';
@@ -138,7 +138,7 @@ export default function ProjectStartPlanPage() {
     {
       value: 'services',
       label: 'Services',
-      detail: 'Review selected lifecycle services and add missing ones.',
+      detail: 'Review selected lifecycle services and choose missing ones.',
       accent: appleColors.purple,
       meta: <PastelChip label={`${serviceCount} selected`} accent={serviceCount ? appleColors.purple : appleColors.amber} />,
     },
@@ -183,14 +183,14 @@ export default function ProjectStartPlanPage() {
         description="Approve the services, teams, and launch-hardening scope that turn this prototype into a real project workspace."
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <Button component={NextLink} href="/services" variant="outlined" startIcon={<AddTaskOutlined />} sx={{ minHeight: 44 }}>
-              Add services
+            <Button component={NextLink} href="/services" variant="outlined" startIcon={<FactCheckOutlined />} sx={{ minHeight: 44 }}>
+              Choose services
             </Button>
             <Button component={NextLink} href="/teams" variant="outlined" startIcon={<GroupsOutlined />} sx={{ minHeight: 44 }}>
-              Add teams
+              Choose teams
             </Button>
             <Button component={NextLink} href="/solo-experts" variant="outlined" startIcon={<PersonSearchOutlined />} sx={{ minHeight: 44 }}>
-              Add experts
+              Find experts
             </Button>
           </Stack>
         }

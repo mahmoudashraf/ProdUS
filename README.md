@@ -130,7 +130,7 @@ The main objectives are:
 - Diagnose product readiness using catalog knowledge, scanner findings, evidence, and owner-provided context.
 - Translate technical findings into owner-readable blockers, improvements, and next actions.
 - Recommend lifecycle services such as validation, code rewrite, cloud deployment, security hardening, database readiness, launch readiness, testing, and operations support.
-- Let owners build packages and project carts that combine services, teams, solo experts, and workspace creation.
+- Let owners build Project Start Plans that combine services, teams, solo experts, and workspace creation.
 - Match owners with verified teams or solo experts based on capabilities, reputation, service fit, and availability.
 - Provide workspaces that make milestones, evidence, blockers, participants, and delivery state visible.
 - Use AI as a first-class assistant where it adds value, while keeping ProdUS as the system of record for authorization, business data, audit, and mutations.
@@ -142,7 +142,7 @@ ProdUS is organized into two primary product domains:
 
 1. Studio
 
-   Studio is the productization workspace for product owners. It covers product creation, AI project analysis, product diagnosis, scanner integration, lifecycle services, packages, carts, team shortlists, workspace delivery, milestones, evidence, and readiness decisions.
+   Studio is the productization workspace for product owners. It covers product creation, AI project analysis, product diagnosis, scanner integration, lifecycle services, start plans, team shortlists, workspace delivery, milestones, evidence, and readiness decisions.
 
 2. Network
 
@@ -191,7 +191,7 @@ The primary owner journey is:
 7. Product/project creation occurs through the governed ProdUS action flow.
 8. Owner runs diagnosis and connects repository or scanner sources.
 9. ProdUS normalizes findings, evidence, and readiness state.
-10. Owner selects lifecycle services and builds a package/cart.
+10. Owner selects lifecycle services and approves a Project Start Plan.
 11. Owner reviews matched teams and solo experts.
 12. Owner creates a workspace with selected participants and delivery scope.
 13. Teams and experts execute milestones, attach evidence, and resolve blockers.
@@ -265,7 +265,7 @@ The catalog must support:
 - AI-safe capability descriptions
 - team and expert service coverage
 
-Owners should be able to add services to a project cart and convert that cart into a productization workspace. Teams and solo experts should be able to declare which services they provide.
+Owners should be able to choose services for a Project Start Plan and approve that plan into a productization workspace. Teams and solo experts should be able to declare which services they provide.
 
 ### 8. Scanner and Evidence Foundation
 
@@ -305,7 +305,7 @@ It includes:
 - messaging and community interaction
 - reputation and proof of work
 
-Owner-facing team selection should be focused on product outcomes, not generic hiring. Owners need shortlists, compare views, service fit, reputation, availability, and clear actions to add teams or experts to a project cart.
+Owner-facing team selection should be focused on product outcomes, not generic hiring. Owners need shortlists, compare views, service fit, reputation, availability, and clear actions to attach teams or experts to a Project Start Plan.
 
 ## Integration, Quality, And Readiness
 
@@ -402,7 +402,7 @@ Frontend:
 - role-aware Studio and Network UI
 - owner productization flows
 - AI project creation UI
-- service catalog and cart UI
+- service catalog and Project Start Plan UI
 - expert network UI
 - scanner and evidence UI
 
@@ -421,7 +421,7 @@ Product success should be measured by:
 - percentage of projects with scanner evidence attached
 - percentage of AI project analyses with document usage evidence
 - service package creation rate
-- workspace creation rate from project carts
+- workspace creation rate from Project Start Plans
 - milestone evidence completion rate
 - reduction in unresolved readiness blockers
 - owner acceptance of AI-generated project attributes
