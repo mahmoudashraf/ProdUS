@@ -1,15 +1,9 @@
 'use client';
 
-import { Alert, Box, Stack, Typography } from '@mui/material';
-import { AiOpportunityDiscoveryPanel } from './OwnerJourneyCards';
-import {
-  AiAttributeCard,
-  AiDocumentUsageList,
-  AiReviewList,
-  AiServicePlanReview,
-  LoomAIOverviewPanel,
-} from './ProductOnboardingAiPanels';
+import { Box, Stack, Typography } from '@mui/material';
 import { DotLabel, appleColors, formatLabel } from './PlatformComponents';
+import ProductOnboardingUnderstandingSummary from './ProductOnboardingUnderstandingSummary';
+import ProductOnboardingDetailedReviewSections, { type ProductOnboardingAttributeItem } from './ProductOnboardingDetailedReviewSections';
 import type { ProductOnboardingProfileDraft } from './ProductOnboardingAnalysisTypes';
 import type { AiAssistedProductAnalysisResponse, ServiceModuleRecommendation } from './types';
 
@@ -32,7 +26,7 @@ export default function ProductOnboardingAiReviewContent({
   const documentUsageMissing =
     Boolean(analysis.aiSharedDocuments.length) && documentUsage.length === 0;
   const missingCatalogCoverage = analysis.analysis.missingCatalogCoverage ?? [];
-  const projectAttributes = [
+  const projectAttributes: ProductOnboardingAttributeItem[] = [
     {
       label: 'Product name',
       value: analysis.analysis.productName,
@@ -113,7 +107,7 @@ export default function ProductOnboardingAiReviewContent({
         p: 1.5,
       }}
     >
-      <Stack spacing={1}>
+      <Stack spacing={1.1}>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           spacing={1}
@@ -121,140 +115,29 @@ export default function ProductOnboardingAiReviewContent({
           alignItems={{ sm: 'center' }}
         >
           <Typography variant="body2" sx={{ fontWeight: 900 }}>
-            AI project attributes
+            AI understanding review
           </Typography>
           <DotLabel
             label={analysis.intent.analysisProviderRequestId ? 'LoomAI analyzed' : 'Fallback analysis'}
             color={analysis.intent.analysisProviderRequestId ? appleColors.green : appleColors.amber}
           />
         </Stack>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-            gap: 1,
-          }}
-        >
-          {projectAttributes.map(item => (
-            <AiAttributeCard
-              key={item.label}
-              label={item.label}
-              value={item.value}
-              source={item.source}
-              accent={item.accent}
-              wide={item.wide}
-            />
-          ))}
-        </Box>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', xl: 'repeat(3, 1fr)' },
-            gap: 1,
-          }}
-        >
-          <AiReviewList
-            title="Core capabilities"
-            items={analysis.analysis.coreCapabilities ?? []}
-            empty="No capabilities extracted yet."
-            accent={appleColors.purple}
-          />
-          <AiReviewList
-            title="Business outcomes"
-            items={analysis.analysis.businessOutcomes ?? []}
-            empty="No outcomes extracted yet."
-            accent={appleColors.green}
-          />
-          <AiReviewList
-            title="Launch goals"
-            items={analysis.analysis.readinessGoals ?? []}
-            empty="No launch goals extracted yet."
-            accent={appleColors.blue}
-          />
-          <AiReviewList
-            title="Scanner focus"
-            items={analysis.analysis.scannerFocusAreas ?? []}
-            empty="No scanner focus returned."
-            accent={appleColors.red}
-          />
-          <AiReviewList
-            title="Source insights"
-            items={analysis.analysis.sourceInsights ?? []}
-            empty="No source insights returned."
-            accent={appleColors.cyan}
-          />
-        </Box>
-        <AiServicePlanReview
-          recommendations={reviewedServiceRecommendations}
-          selectedCodes={selectedServiceCodes}
-          onToggle={onToggleServiceRecommendation}
-          onMove={onMoveServiceRecommendation}
+        <ProductOnboardingUnderstandingSummary
+          analysis={analysis}
+          profile={profile}
+          reviewedServiceRecommendations={reviewedServiceRecommendations}
+          selectedServiceCodes={selectedServiceCodes}
         />
-        <AiOpportunityDiscoveryPanel report={analysis.aiOpportunityReport} />
-        <LoomAIOverviewPanel overview={analysis.loomaiIntegrationOverview} />
-        {missingCatalogCoverage.length > 0 && (
-          <Box
-            sx={{
-              p: 1.2,
-              borderRadius: 1,
-              border: `1px solid ${appleColors.amber}28`,
-              bgcolor: `${appleColors.amber}08`,
-            }}
-          >
-            <Typography variant="caption" sx={{ fontWeight: 950 }}>
-              Service gaps
-            </Typography>
-            <Stack spacing={0.5} sx={{ mt: 0.75 }}>
-              {missingCatalogCoverage.slice(0, 4).map(item => (
-                <Typography
-                  key={`${item.need}-${item.reason}`}
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', lineHeight: 1.5 }}
-                >
-                  <Box component="strong" sx={{ color: appleColors.ink }}>
-                    {item.need}
-                  </Box>
-                  {item.reason ? ` - ${item.reason}` : ''}
-                  {item.suggestedCatalogAction ? ` (${item.suggestedCatalogAction})` : ''}
-                </Typography>
-              ))}
-            </Stack>
-          </Box>
-        )}
-        <AiReviewList
-          title="Suggested next steps"
-          items={analysis.analysis.suggestedNextSteps ?? []}
-          empty="No next steps returned."
-          accent={appleColors.green}
+        <ProductOnboardingDetailedReviewSections
+          analysis={analysis}
+          documentUsageMissing={documentUsageMissing}
+          missingCatalogCoverage={missingCatalogCoverage}
+          projectAttributes={projectAttributes}
+          reviewedServiceRecommendations={reviewedServiceRecommendations}
+          selectedServiceCodes={selectedServiceCodes}
+          onMoveServiceRecommendation={onMoveServiceRecommendation}
+          onToggleServiceRecommendation={onToggleServiceRecommendation}
         />
-        {documentUsage.length > 0 && <AiDocumentUsageList usage={documentUsage} />}
-        {documentUsageMissing && (
-          <Alert severity="warning" sx={{ borderRadius: 1 }}>
-            LoomAI analyzed the brief but did not return document usage evidence. Re-run analysis or
-            treat the uploaded file as not proven for this creation decision.
-          </Alert>
-        )}
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-            gap: 1,
-          }}
-        >
-          <AiReviewList
-            title="Assumptions"
-            items={analysis.analysis.assumptions}
-            empty="No assumptions returned."
-            accent={appleColors.blue}
-          />
-          <AiReviewList
-            title="Missing proof"
-            items={analysis.analysis.missingEvidence}
-            empty="No missing proof returned."
-            accent={appleColors.amber}
-          />
-        </Box>
       </Stack>
     </Box>
   );
