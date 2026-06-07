@@ -8,11 +8,8 @@ import {
   CheckCircleOutlineOutlined,
   CloudUploadOutlined,
   ErrorOutlineOutlined,
-  Inventory2Outlined,
-  LinkOutlined,
   PsychologyAltOutlined,
   RuleOutlined,
-  SecurityOutlined,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -21,7 +18,6 @@ import {
   Checkbox,
   Divider,
   FormControlLabel,
-  MenuItem,
   Stack,
   TextField,
   Typography,
@@ -48,15 +44,14 @@ import {
   DotLabel,
   PageHeader,
   QueryState,
-  SaveButton,
   SectionTitle,
   Surface,
   TextInput,
   appleColors,
-  categoryPalette,
   errorMessageFromUnknown,
   formatLabel,
 } from './PlatformComponents';
+import ProductOnboardingManualProfilePanel from './ProductOnboardingManualProfilePanel';
 import {
   AiAssistedProductAnalysisResponse,
   ProductAnalysisMode,
@@ -76,14 +71,6 @@ interface ProductProfilePayload {
   riskProfile: string;
 }
 
-const stages: ProductProfile['businessStage'][] = [
-  'IDEA',
-  'PROTOTYPE',
-  'VALIDATED',
-  'LIVE',
-  'SCALING',
-];
-
 const initialValues: ProductProfilePayload = {
   name: '',
   summary: '',
@@ -93,27 +80,6 @@ const initialValues: ProductProfilePayload = {
   repositoryUrl: '',
   riskProfile: '',
 };
-
-const setupSteps = [
-  {
-    title: 'Product context',
-    detail: 'Name the product and explain what outcome production readiness should unlock.',
-    icon: Inventory2Outlined,
-    accent: appleColors.purple,
-  },
-  {
-    title: 'Helpful links',
-    detail: 'Attach the app, repo, and notes so ProdUS can understand what is real.',
-    icon: LinkOutlined,
-    accent: appleColors.cyan,
-  },
-  {
-    title: 'Known rough edges',
-    detail: 'Capture what feels unfinished so the project starts with practical next steps.',
-    icon: SecurityOutlined,
-    accent: appleColors.amber,
-  },
-];
 
 const analysisModeOptions: Array<{
   mode: ProductAnalysisMode;
@@ -1334,148 +1300,12 @@ export default function ProductOnboardingWizard() {
           </Surface>
           )}
 
-          <Surface id="manual-product-profile" sx={{ background: 'linear-gradient(135deg, #ffffff, #f7fbff)' }}>
-            <Stack spacing={2}>
-              <SectionTitle
-                title="Guided Setup"
-                action={<DotLabel label="Owner first" color={appleColors.purple} />}
-              />
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-                  gap: 1.5,
-                }}
-              >
-                {setupSteps.map((step, index) => {
-                  const Icon = step.icon;
-                  const palette =
-                    categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
-                  return (
-                    <Box
-                      key={step.title}
-                      sx={{
-                        p: 2,
-                        borderRadius: 1,
-                        border: '1px solid',
-                        borderColor: `${step.accent}33`,
-                        borderTop: `3px solid ${step.accent}`,
-                        background: `linear-gradient(145deg, #fff, ${palette.soft})`,
-                      }}
-                    >
-                      <Stack spacing={1.3}>
-                        <Box
-                          sx={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 1,
-                            display: 'grid',
-                            placeItems: 'center',
-                            color: step.accent,
-                            bgcolor: `${step.accent}14`,
-                          }}
-                        >
-                          <Icon />
-                        </Box>
-                        <Box>
-                          <Typography variant="h4">{step.title}</Typography>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mt: 0.75, lineHeight: 1.55 }}
-                          >
-                            {step.detail}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Box>
-                  );
-                })}
-              </Box>
-            </Stack>
-          </Surface>
-
-          <Surface>
-            <Box component="form" onSubmit={submit}>
-              <Stack spacing={2.25}>
-                <SectionTitle
-                  title="Product Profile"
-                  action={<Inventory2Outlined sx={{ color: appleColors.purple }} />}
-                />
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', md: '1.2fr 0.8fr' },
-                    gap: 2,
-                  }}
-                >
-                  <TextInput
-                    label="Product name"
-                    value={form.values.name}
-                    onChange={name => form.setValue('name', name)}
-                  />
-                  <TextField
-                    select
-                    fullWidth
-                    label="Business stage"
-                    value={form.values.businessStage}
-                    onChange={event =>
-                      form.setValue(
-                        'businessStage',
-                        event.target.value as ProductProfile['businessStage']
-                      )
-                    }
-                  >
-                    {stages.map(stage => (
-                      <MenuItem key={stage} value={stage}>
-                        {formatLabel(stage)}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Box>
-                <TextInput
-                  label="Product outcome"
-                  value={form.values.summary}
-                  onChange={summary => form.setValue('summary', summary)}
-                  multiline
-                />
-                <TextInput
-                  label="Tech stack"
-                  value={form.values.techStack}
-                  onChange={techStack => form.setValue('techStack', techStack)}
-                />
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-                    gap: 2,
-                  }}
-                >
-                  <TextInput
-                    label="Product URL"
-                    value={form.values.productUrl}
-                    onChange={productUrl => form.setValue('productUrl', productUrl)}
-                  />
-                  <TextInput
-                    label="Repository URL"
-                    value={form.values.repositoryUrl}
-                    onChange={repositoryUrl => form.setValue('repositoryUrl', repositoryUrl)}
-                  />
-                </Box>
-                <TextInput
-                  label="Known risks or constraints"
-                  value={form.values.riskProfile}
-                  onChange={riskProfile => form.setValue('riskProfile', riskProfile)}
-                  multiline
-                />
-                <SaveButton
-                  disabled={!form.values.name || !form.values.summary || createProduct.isPending}
-                  label={createProduct.isPending ? 'Creating product...' : 'Create product'}
-                  endIcon={<ArrowForwardOutlined />}
-                />
-              </Stack>
-            </Box>
-          </Surface>
+          <ProductOnboardingManualProfilePanel
+            values={form.values}
+            isCreating={createProduct.isPending}
+            onValueChange={form.setValue}
+            onSubmit={submit}
+          />
         </Stack>
 
         <Stack spacing={2.5}>
