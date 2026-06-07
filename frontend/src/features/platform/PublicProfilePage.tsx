@@ -4,7 +4,7 @@ import NextLink from 'next/link';
 import { useParams } from 'next/navigation';
 import { ReactNode } from 'react';
 import {
-  AddShoppingCartOutlined,
+  AddCircleOutlineOutlined,
   AutoAwesomeOutlined,
   LanguageOutlined,
   LaunchOutlined,
@@ -157,7 +157,7 @@ function TeamProfile({
             component={NextLink}
             href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
             variant="contained"
-            startIcon={<AddShoppingCartOutlined />}
+            startIcon={<AddCircleOutlineOutlined />}
             disabled={canUseProjectCart && isAdding}
             onClick={(event) => {
               if (!canUseProjectCart) return;
@@ -301,7 +301,7 @@ function ExpertProfileView({
             component={NextLink}
             href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
             variant="contained"
-            startIcon={<AddShoppingCartOutlined />}
+            startIcon={<AddCircleOutlineOutlined />}
             disabled={canUseProjectCart && isAdding}
             onClick={(event) => {
               if (!canUseProjectCart) return;

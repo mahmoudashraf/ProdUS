@@ -1,7 +1,7 @@
 'use client';
 
 import NextLink from 'next/link';
-import { AddShoppingCartOutlined } from '@mui/icons-material';
+import { AddTaskOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import {
   DotLabel,
@@ -98,7 +98,7 @@ export default function ProjectStartReadinessPanel({
               {gap.serviceModule ? (
                 <Button
                   variant="contained"
-                  startIcon={<AddShoppingCartOutlined />}
+                  startIcon={<AddTaskOutlined />}
                   disabled={isAddingService}
                   onClick={() => onAddGapService(gap)}
                   sx={{ minHeight: 42, minWidth: 148 }}

@@ -3,7 +3,7 @@
 import {
   GroupsOutlined,
   Inventory2Outlined,
-  ShoppingCartOutlined,
+  PlaylistAddCheckOutlined,
   WorkspacesOutlined,
 } from '@mui/icons-material';
 import { Alert, Box, MenuItem, Stack, TextField, Typography } from '@mui/material';
@@ -133,7 +133,7 @@ export default function ProjectStartPlanOverview({
       </Surface>
 
       <Box sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 2 }}>
-        <MetricTile label="Selected services" value={serviceCount} detail="Become service plan modules" accent={appleColors.purple} icon={<ShoppingCartOutlined />} sparkline />
+        <MetricTile label="Selected services" value={serviceCount} detail="Become service plan modules" accent={appleColors.purple} icon={<PlaylistAddCheckOutlined />} sparkline />
         <MetricTile label="Teams / experts" value={talentCount} detail="Become shortlist and participants" accent={appleColors.cyan} icon={<GroupsOutlined />} sparkline />
         <MetricTile
           label="Workspace status"

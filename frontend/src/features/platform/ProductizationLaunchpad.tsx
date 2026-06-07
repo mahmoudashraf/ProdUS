@@ -8,7 +8,7 @@ import {
   FactCheckOutlined,
   GroupsOutlined,
   Inventory2Outlined,
-  ShoppingCartOutlined,
+  PlaylistAddCheckOutlined,
   WorkspacesOutlined,
 } from '@mui/icons-material';
 import { Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
@@ -62,7 +62,7 @@ const steps = [
     title: 'Select lifecycle services',
     detail: 'Add validation, security, cloud, database, launch, or support services to the start plan.',
     href: '/services',
-    icon: ShoppingCartOutlined,
+    icon: PlaylistAddCheckOutlined,
     accent: appleColors.cyan,
   },
   {
@@ -117,7 +117,7 @@ export default function ProductizationLaunchpad() {
             <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44, minWidth: 150 }}>
               New product
             </Button>
-            <Button component={NextLink} href="/owner/project-cart" variant="outlined" startIcon={<ShoppingCartOutlined />} sx={{ minHeight: 44, minWidth: 168 }}>
+            <Button component={NextLink} href="/owner/project-cart" variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 44, minWidth: 168 }}>
               Review start plan
             </Button>
           </Stack>
@@ -154,7 +154,7 @@ export default function ProductizationLaunchpad() {
 
               <Surface sx={{ boxShadow: '0 18px 60px rgba(98, 92, 255, 0.12)' }}>
                 <Stack spacing={2}>
-                  <SectionTitle title="Current start plan" action={<ShoppingCartOutlined sx={{ color: appleColors.purple }} />} />
+                  <SectionTitle title="Current start plan" action={<PlaylistAddCheckOutlined sx={{ color: appleColors.purple }} />} />
                   <Stack direction="row" spacing={2} alignItems="center">
                     <ProgressRing value={clampScore((draftServices * 18) + (draftTalent * 14) + (nextProduct ? 28 : 0))} size={92} color={appleColors.purple} label="ready" />
                     <Box>
@@ -179,7 +179,7 @@ export default function ProductizationLaunchpad() {
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2 }}>
             <MetricTile label="Products" value={productList.length} detail={`${requirements.data?.length || 0} product briefs`} accent={appleColors.purple} icon={<Inventory2Outlined />} sparkline />
-            <MetricTile label="Start plan" value={draftServices + draftTalent} detail={`${draftServices} services, ${draftTalent} talent`} accent={appleColors.cyan} icon={<ShoppingCartOutlined />} sparkline />
+            <MetricTile label="Start plan" value={draftServices + draftTalent} detail={`${draftServices} services, ${draftTalent} talent`} accent={appleColors.cyan} icon={<PlaylistAddCheckOutlined />} sparkline />
             <MetricTile label="Health" value={averageHealth ? `${averageHealth}/100` : 'New'} detail="Service plan confidence" accent={averageHealth >= 70 ? appleColors.green : appleColors.amber} icon={<FactCheckOutlined />} sparkline />
             <MetricTile label="Workspaces" value={activeWorkspaces.length} detail={`${workspaceList.length} total`} accent={appleColors.green} icon={<WorkspacesOutlined />} sparkline />
           </Box>

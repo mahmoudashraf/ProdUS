@@ -4,15 +4,15 @@ Date: 2026-06-07
 
 Baseline:
 
-- Latest live-verified commit before the product-workspace shell pass: `c5dbfac`.
-- Latest live-verified Coolify deployment before the product-workspace shell pass: `ov2c9mk5t8xhcqenbof088v3`.
+- Latest live-verified commit before the services priority pass: `48496fe`.
+- Latest live-verified Coolify deployment before the services priority pass: `1082`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
 - Live verification script: `tmp/live-verification/2026-06-07/live-owner-hub-spoke-navigation.js`.
-- Current largest owner-facing active files:
-  - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`: 2258 lines.
-  - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 944 lines.
-  - `frontend/src/features/platform/ProductOnboardingWizard.tsx`: 354 lines.
-  - `frontend/src/features/platform/DraftProjectCartPage.tsx`: 336 lines.
+- Current largest owner-facing active files after the completed splits:
+  - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`: 2129 lines.
+  - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 907 lines.
+  - `frontend/src/features/platform/ProductizationLaunchpad.tsx`: 332 lines.
+  - `frontend/src/features/platform/ProjectStartPlanPage.tsx`: 280 lines.
   - `frontend/src/features/platform/OwnerOverviewDecisionPanel.tsx`: 278 lines.
 
 ## Goal
@@ -46,9 +46,17 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - Large components are split when a journey slice is touched.
 - `npm run type-check`, `npm run build`, `git diff --check`, Coolify deploy, and live screenshot verification pass for each shipped slice.
 
+## Shipped Progress
+
+- Product workspace now opens on a hub instead of a long detail page, with URL-backed spokes for Overview, Findings, Services, and workspace delivery.
+- Findings are split into owner risks, stored proof, and technical proof. Raw scanner proof is still reachable, but it no longer leads the owner journey.
+- Product onboarding, workspace command, start-plan board, and the owner side rail have been split into smaller route/panel components.
+- The old visible cart language has been replaced with `Project Start Plan` / `Start Plan`. The `/owner/project-cart` URL remains only as a compatibility route.
+- Latest live verification at commit `48496fe` confirmed the full journey and all 10 scanners completed/mapped, including `zap-baseline`.
+
 ## Completion Sequence
 
-### Current Pass: Product Workspace Shell Completion
+### Completed: Product Workspace Shell Completion
 
 Problem:
 
@@ -76,6 +84,10 @@ Immediate implementation target:
 - Remove router/search-param orchestration from `OwnerProductizationWorkspace.tsx`.
 - Run local checks, deploy, and live-verify the same product workspace screenshots.
 
+Status:
+
+- Complete. The route still owns data and mutations, while stable visual panes, side-rail panels, onboarding panels, workspace command panels, and start-plan navigation are split into focused components.
+
 ### Pass 1: Technical Proof Completion
 
 Problem:
@@ -96,7 +108,7 @@ Immediate implementation target:
 - Add owner-first section labels and progressive operation groups.
 - Keep existing API calls and scanner payload contracts unchanged.
 
-### Pass 2: Cart And Start-Project Completion
+### Completed: Cart And Start-Project Completion
 
 Problem:
 
@@ -105,22 +117,36 @@ Problem:
 
 Solution:
 
-- Reframe the cart page around `Approve plan`, `Review blockers covered`, `Confirm service scope`, and `Start delivery`.
+- Reframe the start-plan page around `Approve plan`, `Review blockers covered`, `Confirm service scope`, and `Start delivery`.
 - Tie the top selected service to the highest launch blocker.
 - Keep service details in a spoke view instead of one long page.
-- Split `DraftProjectCartPage.tsx` if touched.
+- Split `ProjectStartPlanPage.tsx` if touched.
 
-### Pass 3: Services Recommendation Completion
+Status:
+
+- Mostly complete. `ProjectStartPlanPage.tsx` now opens as a route-backed Start Plan hub with Readiness, Services, Talent, and Approve spokes. Remaining polish is to keep service and talent editing calm on mobile and avoid any shopping/cart visual metaphor.
+
+### Current Pass: Services Recommendation Completion
 
 Problem:
 
 - Services are improved, but they still need to consistently reinforce the top owner action.
+- The services recommendation spoke can still feel like browsing a catalog after the owner sees the recommended work path.
 
 Solution:
 
 - Keep the recommended service beside the top action.
 - Show why the service exists using blocker language first and scanner/tool evidence second.
+- Show a short `Priority Services` list before catalog depth.
+- Put the full service-family catalog behind deliberate expansion.
+- Replace shopping/cart visual metaphors with start-plan and checklist metaphors.
 - Keep team matching as a separate decision step.
+
+Immediate implementation target:
+
+- Split the services recommendation surface into a small composer plus priority-service and catalog-family components.
+- Keep `Recommended Work Path` and `AI Service Selector` live-verifier expectations unchanged.
+- Run local checks, deploy, and live-verify the product, services, start-plan, workspace, and mobile screenshots.
 
 ### Pass 4: Onboarding Review Completion
 

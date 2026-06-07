@@ -1,6 +1,6 @@
 'use client';
 
-import { AddShoppingCartOutlined, InfoOutlined } from '@mui/icons-material';
+import { AddTaskOutlined, InfoOutlined } from '@mui/icons-material';
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 
 import { EmptyState, PastelChip, appleColors, formatLabel } from './PlatformComponents';
@@ -160,7 +160,7 @@ export default function ScannerProofFindingDecisionList({
                     size="small"
                     variant={recommendedInCart ? 'outlined' : 'contained'}
                     disabled={recommendedInCart || isAddingService}
-                    startIcon={<AddShoppingCartOutlined />}
+                    startIcon={<AddTaskOutlined />}
                     onClick={() => onAddService(recommendedModule, 'Scanner findings')}
                     sx={{ minHeight: 34, minWidth: 142 }}
                   >

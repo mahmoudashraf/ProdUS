@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  AddShoppingCartOutlined,
+  AddTaskOutlined,
   BugReportOutlined,
   EventRepeatOutlined,
   FactCheckOutlined,
@@ -134,7 +134,7 @@ export default function OwnerOverviewDecisionPanel({
             </Typography>
             <Button
               variant="contained"
-              startIcon={topRecommendedServiceName ? <AddShoppingCartOutlined /> : <ShieldOutlined />}
+              startIcon={topRecommendedServiceName ? <AddTaskOutlined /> : <ShieldOutlined />}
               onClick={topRecommendedServiceName ? onOpenServicesRecommend : onOpenFindingsEvidence}
               sx={{ mt: 1.25, minHeight: 40 }}
             >
@@ -264,7 +264,7 @@ export default function OwnerOverviewDecisionPanel({
               <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
                 This service appears because scanner findings mapped to launch-readiness work.
               </Typography>
-              <Button variant="contained" startIcon={<AddShoppingCartOutlined />} onClick={onOpenServicesRecommend} sx={{ minHeight: 40, alignSelf: 'flex-start' }}>
+              <Button variant="contained" startIcon={<AddTaskOutlined />} onClick={onOpenServicesRecommend} sx={{ minHeight: 40, alignSelf: 'flex-start' }}>
                 Add services
               </Button>
             </Stack>

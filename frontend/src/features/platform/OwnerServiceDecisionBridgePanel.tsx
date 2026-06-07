@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  AddShoppingCartOutlined,
+  AddTaskOutlined,
   CheckCircleOutlined,
   ShieldOutlined,
 } from '@mui/icons-material';
@@ -125,7 +125,7 @@ export default function OwnerServiceDecisionBridgePanel({
             {primaryService && (
               <Button
                 variant={primaryServiceInPlan ? 'outlined' : 'contained'}
-                startIcon={primaryServiceInPlan ? <CheckCircleOutlined /> : <AddShoppingCartOutlined />}
+                startIcon={primaryServiceInPlan ? <CheckCircleOutlined /> : <AddTaskOutlined />}
                 disabled={primaryServiceInPlan || isAddingService}
                 onClick={() => onAddPrimaryService(primaryService, primaryService.category?.name)}
                 sx={{ minHeight: 42 }}

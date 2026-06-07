@@ -2,7 +2,7 @@
 
 import NextLink from 'next/link';
 import {
-  AddShoppingCartOutlined,
+  AddCircleOutlineOutlined,
   AutoAwesomeOutlined,
   GroupsOutlined,
   PersonSearchOutlined,
@@ -132,7 +132,7 @@ function PublicTeamCard({
             href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
             variant="contained"
             fullWidth
-            startIcon={<AddShoppingCartOutlined />}
+            startIcon={<AddCircleOutlineOutlined />}
             disabled={canUseProjectCart && isAdding}
             onClick={(event) => {
               if (!canUseProjectCart) return;
@@ -224,7 +224,7 @@ function ExpertCard({
             href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
             variant="contained"
             fullWidth
-            startIcon={<AddShoppingCartOutlined />}
+            startIcon={<AddCircleOutlineOutlined />}
             disabled={canUseProjectCart && isAdding}
             onClick={(event) => {
               if (!canUseProjectCart) return;

@@ -2,7 +2,7 @@
 
 import NextLink from 'next/link';
 import {
-  AddShoppingCartOutlined,
+  AddTaskOutlined,
   CloudQueueOutlined,
   CodeOutlined,
   FactCheckOutlined,
@@ -180,7 +180,7 @@ export default function CatalogPage() {
                       <Button
                         {...(!canUseProjectCart ? { component: NextLink, href: cartHref } : {})}
                         variant={templateApplied ? 'outlined' : 'contained'}
-                        startIcon={<AddShoppingCartOutlined />}
+                        startIcon={<AddTaskOutlined />}
                         disabled={canUseProjectCart && (templateApplied || applyTemplateToCart.isPending)}
                         onClick={(event) => {
                           if (!canUseProjectCart) return;
@@ -262,7 +262,7 @@ export default function CatalogPage() {
                             type="button"
                             variant={inCart ? 'contained' : 'outlined'}
                             size="small"
-                            startIcon={<AddShoppingCartOutlined />}
+                            startIcon={<AddTaskOutlined />}
                             disabled={canUseProjectCart && (inCart || addServiceToCart.isPending)}
                             onClick={(event) => {
                               if (!canUseProjectCart) return;

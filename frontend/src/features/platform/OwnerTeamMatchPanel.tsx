@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  AddShoppingCartOutlined,
+  AddCircleOutlineOutlined,
   DeleteOutlineOutlined,
   GroupAddOutlined,
   PersonAddAltOutlined,
@@ -111,7 +111,7 @@ export default function OwnerTeamMatchPanel({
                   <Button
                     variant={cartTeamItem ? 'contained' : 'outlined'}
                     size="small"
-                    startIcon={cartTeamItem ? <DeleteOutlineOutlined /> : <AddShoppingCartOutlined />}
+                    startIcon={cartTeamItem ? <DeleteOutlineOutlined /> : <GroupAddOutlined />}
                     onClick={() => {
                       if (cartTeamItem) {
                         onRemoveTalent(cartTeamItem.id);
@@ -179,7 +179,7 @@ export default function OwnerTeamMatchPanel({
                         disabled={isAddingTalent || isRemovingTalent}
                         sx={{ borderRadius: 1, color: cartTeamItem ? appleColors.red : appleColors.cyan, bgcolor: cartTeamItem ? '#fff7f8' : '#e4f9fd' }}
                       >
-                        {cartTeamItem ? <DeleteOutlineOutlined fontSize="small" /> : <AddShoppingCartOutlined fontSize="small" />}
+                        {cartTeamItem ? <DeleteOutlineOutlined fontSize="small" /> : <AddCircleOutlineOutlined fontSize="small" />}
                       </IconButton>
                     </Stack>
                   );
@@ -206,7 +206,7 @@ export default function OwnerTeamMatchPanel({
                         disabled={isAddingTalent || isRemovingTalent}
                         sx={{ borderRadius: 1, color: cartExpertItem ? appleColors.red : appleColors.purple, bgcolor: cartExpertItem ? '#fff7f8' : '#f1efff' }}
                       >
-                        {cartExpertItem ? <DeleteOutlineOutlined fontSize="small" /> : <AddShoppingCartOutlined fontSize="small" />}
+                        {cartExpertItem ? <DeleteOutlineOutlined fontSize="small" /> : <AddCircleOutlineOutlined fontSize="small" />}
                       </IconButton>
                     </Stack>
                   );

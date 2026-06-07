@@ -2,12 +2,12 @@
 
 import NextLink from 'next/link';
 import {
-  AddShoppingCartOutlined,
+  AddTaskOutlined,
   AutoAwesomeOutlined,
   DeleteOutlineOutlined,
   OpenInNewOutlined,
+  PlaylistAddCheckOutlined,
   RocketLaunchOutlined,
-  ShoppingCartOutlined,
 } from '@mui/icons-material';
 import { Alert, Box, Button, Divider, IconButton, Stack, TextField, Typography } from '@mui/material';
 import {
@@ -79,7 +79,7 @@ export default function OwnerProjectStartPanel({
       <Surface>
         <SectionTitle
           title="Project Start Plan"
-          action={<ShoppingCartOutlined sx={{ color: appleColors.purple }} />}
+          action={<PlaylistAddCheckOutlined sx={{ color: appleColors.purple }} />}
         />
         <Stack spacing={1.5}>
           {notice && (
@@ -172,7 +172,7 @@ export default function OwnerProjectStartPanel({
                       <Button
                         size="small"
                         variant="contained"
-                        startIcon={<AddShoppingCartOutlined />}
+                        startIcon={<AddTaskOutlined />}
                         disabled={isAddingService}
                         onClick={() => onAddGapService(gap.serviceModule!, `Added from the project start plan. ${gap.description || ''}`.trim())}
                         sx={{ minHeight: 36 }}

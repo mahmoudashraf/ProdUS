@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  AddShoppingCartOutlined,
+  AddTaskOutlined,
   AutoAwesomeOutlined,
   RefreshOutlined,
 } from '@mui/icons-material';
@@ -120,7 +120,7 @@ export default function ScannerFixPathPanel({
                       size="small"
                       variant={inCart ? 'outlined' : 'contained'}
                       disabled={inCart || isAddingService}
-                      startIcon={<AddShoppingCartOutlined />}
+                      startIcon={<AddTaskOutlined />}
                       onClick={() => onAddService(recommendedModule, 'Fix path from scanner findings')}
                       sx={{ minHeight: 34, minWidth: 128 }}
                     >

@@ -2,7 +2,7 @@
 
 import NextLink from 'next/link';
 import {
-  AddShoppingCartOutlined,
+  AddTaskOutlined,
   AutoAwesomeOutlined,
   OpenInNewOutlined,
   RocketLaunchOutlined,
@@ -112,7 +112,7 @@ export default function ProjectStartApprovalPanel({
                   <Button
                     size="small"
                     variant="contained"
-                    startIcon={<AddShoppingCartOutlined />}
+                    startIcon={<AddTaskOutlined />}
                     disabled={isAddingService}
                     onClick={() => onAddCatalogRecommendation(item)}
                     sx={{ minHeight: 36 }}

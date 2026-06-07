@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { AddShoppingCartOutlined, CancelOutlined } from '@mui/icons-material';
+import { AddTaskOutlined, CancelOutlined } from '@mui/icons-material';
 import { Box, Button, Drawer, IconButton, Stack, TextField, Typography } from '@mui/material';
 import { ownerImpactForCategory, ownerProofLine } from './ownerWorkspaceModel';
 import { findingStatusAccent, severityAccent } from './ownerFindingPresentation';
@@ -184,7 +184,7 @@ export default function OwnerFindingReviewDrawer({
                   size="small"
                   variant={recommendedInCart ? 'outlined' : 'contained'}
                   disabled={recommendedInCart || isAddingService}
-                  startIcon={<AddShoppingCartOutlined />}
+                  startIcon={<AddTaskOutlined />}
                   onClick={() => finding.recommendedModule && onAddService(finding.recommendedModule, 'Finding review')}
                   sx={{ mt: 1, minHeight: 34 }}
                 >

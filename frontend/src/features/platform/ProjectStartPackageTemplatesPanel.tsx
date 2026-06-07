@@ -1,6 +1,6 @@
 'use client';
 
-import { AddShoppingCartOutlined, FactCheckOutlined } from '@mui/icons-material';
+import { AddTaskOutlined, FactCheckOutlined } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import {
   PastelChip,
@@ -64,7 +64,7 @@ export default function ProjectStartPackageTemplatesPanel({
                 </Stack>
                 <Button
                   variant={templateApplied ? 'outlined' : 'contained'}
-                  startIcon={<AddShoppingCartOutlined />}
+                  startIcon={<AddTaskOutlined />}
                   disabled={templateApplied || isApplyingTemplate}
                   onClick={() => onApplyTemplate(template.id)}
                   sx={{ minHeight: 42, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}

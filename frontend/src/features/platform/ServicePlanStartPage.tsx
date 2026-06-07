@@ -7,8 +7,8 @@ import {
   AutoAwesomeOutlined,
   DescriptionOutlined,
   Inventory2Outlined,
+  PlaylistAddCheckOutlined,
   SendOutlined,
-  ShoppingCartOutlined,
 } from '@mui/icons-material';
 import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -63,7 +63,7 @@ export default function ServicePlanStartPage() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
         <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
           <Stack spacing={2}>
-            <SectionTitle title="Use Start Plan" action={<ShoppingCartOutlined sx={{ color: appleColors.purple }} />} />
+            <SectionTitle title="Use Start Plan" action={<PlaylistAddCheckOutlined sx={{ color: appleColors.purple }} />} />
             <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
               Best when the owner has already selected lifecycle services, teams, or solo experts. Starting the workspace creates the service plan, milestones, participants, and shortlist records together.
             </Typography>

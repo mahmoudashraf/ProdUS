@@ -3,7 +3,7 @@
 import NextLink from 'next/link';
 import { useState } from 'react';
 import {
-  AddShoppingCartOutlined,
+  AddTaskOutlined,
   GroupsOutlined,
   PersonSearchOutlined,
 } from '@mui/icons-material';
@@ -183,7 +183,7 @@ export default function ProjectStartPlanPage() {
         description="Approve the services, teams, and launch-hardening scope that turn this prototype into a real project workspace."
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <Button component={NextLink} href="/services" variant="outlined" startIcon={<AddShoppingCartOutlined />} sx={{ minHeight: 44 }}>
+            <Button component={NextLink} href="/services" variant="outlined" startIcon={<AddTaskOutlined />} sx={{ minHeight: 44 }}>
               Add services
             </Button>
             <Button component={NextLink} href="/teams" variant="outlined" startIcon={<GroupsOutlined />} sx={{ minHeight: 44 }}>
