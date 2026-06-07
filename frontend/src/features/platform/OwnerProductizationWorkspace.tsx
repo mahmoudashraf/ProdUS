@@ -12,19 +12,14 @@ import {
   CancelOutlined,
   CloudUploadOutlined,
   ContentCopyOutlined,
-  DeleteOutlineOutlined,
   EventRepeatOutlined,
   ExpandMoreOutlined,
   FactCheckOutlined,
-  GroupAddOutlined,
   InfoOutlined,
   OpenInNewOutlined,
-  PersonAddAltOutlined,
   PlayArrowOutlined,
   RefreshOutlined,
-  RocketLaunchOutlined,
   SendOutlined,
-  ShoppingCartOutlined,
   ShieldOutlined,
   VisibilityOutlined,
 } from '@mui/icons-material';
@@ -80,6 +75,9 @@ import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import ScannerCoverageGrid from './ScannerCoverageGrid';
 import ScannerFixPathPanel from './ScannerFixPathPanel';
 import ScannerProofRunway from './ScannerProofRunway';
+import OwnerServicesRecommendationPanel, { type OwnerServiceRiskSummary } from './OwnerServicesRecommendationPanel';
+import OwnerProjectStartPanel from './OwnerProjectStartPanel';
+import OwnerTeamMatchPanel from './OwnerTeamMatchPanel';
 import { findingStatusAccent, severityAccent } from './ownerFindingPresentation';
 import {
   OwnerControlPanel,
@@ -374,9 +372,6 @@ const externalImportProviders: { value: ExternalImportProvider; label: string; t
   { value: 'SARIF', label: 'SARIF', toolName: 'SARIF Import', format: 'SARIF' },
   { value: 'GENERIC_JSON', label: 'Generic scanner JSON', toolName: 'External Scanner JSON', format: 'JSON' },
 ];
-
-const formatMoney = (amountCents: number, currency: string) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format((amountCents || 0) / 100);
 
 const statusAccent = (status?: string) => {
   if (!status) return appleColors.purple;
@@ -1379,6 +1374,16 @@ export default function OwnerProductizationWorkspace({
     { label: 'Scanner suite', value: `${latestCompletedTools}/${scanToolOptions.length} checks completed`, accent: latestCompletedTools === scanToolOptions.length ? appleColors.green : latestCompletedTools ? appleColors.amber : appleColors.muted },
   ];
   const topRecommendedServiceName = scannerMappedServices[0] || selectedPackage?.name || cartServiceItems[0]?.serviceModule.name || '';
+  const serviceRiskItems: OwnerServiceRiskSummary[] = topOwnerRisks.slice(0, 3).map((risk, index) => {
+    const category = ownerCategoryFromSignal(risk.sourceTool, risk.readinessArea, risk.title);
+    return {
+      id: risk.id,
+      title: risk.title,
+      impact: risk.businessRisk || ownerImpactForCategory(category),
+      proof: ownerProofLine({ sourceTool: risk.sourceTool, sourceRuleId: risk.sourceRuleId, category }),
+      service: risk.recommendedModuleName || (index === 0 ? topRecommendedServiceName : undefined),
+    };
+  });
   const ownerActionGroups: {
     label: string;
     accent: string;
@@ -3533,118 +3538,25 @@ export default function OwnerProductizationWorkspace({
           {workspaceTab === 'services' && workspaceDetailOpen && (
             <>
               {servicesView === 'recommend' && (
-              <Surface>
-                <SectionTitle title="Lifecycle Services" action={<PastelChip label={`${categories.data?.length || 0} service families`} accent={appleColors.purple} />} />
-                <Box sx={{ mb: 1.5 }}>
-                  <StudioAssistantCard
-                    title="AI Service Selector"
-                    description="Use catalog knowledge and current product context to narrow the services that belong in the draft cart."
-                    prompt={`Recommend the most relevant lifecycle services for ${selectedProduct?.name || 'the selected product'}. Consider current diagnosis, scanner findings, product stage, cart services, dependencies, and launch readiness. Use these visible project start facts directly: ${cartStartPromptFacts} Explain why each service should or should not be selected, identify which missing services are required before workspace start, and avoid proposing services that are already in the cart unless the owner should revisit scope.`}
-                    conversationId={`studio-services-${selectedProduct?.id || 'none'}`}
-                    context={assistantContext('service-selection')}
-                    disabled={!selectedProduct}
-                    {...assistantActionProps}
-                    accent={appleColors.cyan}
-                    cta="Recommend Services"
-                  />
-                </Box>
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 1.5 }}>
-              {(categories.data || []).map((category, index) => {
-                const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
-                const categoryModules = (catalogModules.data || []).filter((module) => module.category?.id === category.id);
-                const selected = recommendedServices.some((module) => module.category?.id === category.id)
-                  || categoryModules.some((module) => cartServiceIds.has(module.id));
-
-                return (
-                  <Box
-                    key={category.id}
-                    sx={{
-                      p: 2,
-                      borderRadius: 1,
-                      border: '1px solid',
-                      borderColor: selected ? `${palette.accent}66` : 'divider',
-                      borderTop: `3px solid ${palette.accent}`,
-                      background: selected ? `linear-gradient(180deg, ${palette.soft}, #fff)` : '#fff',
-                      minHeight: 190,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <Stack spacing={1.25}>
-                      <Box sx={{ width: 48, height: 48, borderRadius: 1, bgcolor: palette.bg, color: palette.accent, display: 'grid', placeItems: 'center', fontWeight: 900 }}>
-                        {index + 1}
-                      </Box>
-                      <Typography variant="h4">{category.name}</Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                        {category.description || 'Specialist service category.'}
-                      </Typography>
-                      <Stack spacing={0.75}>
-                        {categoryModules.slice(0, 3).map((module) => {
-                          const cartItem = cartServiceItems.find((item) => item.serviceModule.id === module.id);
-                          const inCart = !!cartItem;
-                          return (
-                            <Box
-                              key={module.id}
-                              sx={{
-                                display: 'grid',
-                                gridTemplateColumns: 'minmax(0, 1fr) 38px',
-                                alignItems: 'center',
-                                gap: 0.75,
-                                minHeight: 42,
-                                px: 1,
-                                py: 0.75,
-                                borderRadius: 1,
-                                border: '1px solid',
-                                borderColor: inCart ? `${palette.accent}55` : '#e5edf7',
-                                bgcolor: inCart ? palette.bg : '#fff',
-                              }}
-                            >
-                              <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 850, color: appleColors.ink }} noWrap>
-                                  {module.name}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap>
-                                  {module.timelineRange || module.priceRange || 'Lifecycle module'}
-                                </Typography>
-                              </Box>
-                              <Tooltip title={inCart ? 'Remove from draft cart' : 'Add to draft cart for this product'}>
-                                <span>
-                                  <IconButton
-                                    size="small"
-                                    disabled={!selectedProduct || addServiceToCart.isPending || removeServiceFromCart.isPending}
-                                    onClick={() => {
-                                      if (cartItem) {
-                                        removeServiceFromCart.mutate(cartItem.id);
-                                      } else {
-                                        addLifecycleService(module, category.name);
-                                      }
-                                    }}
-                                    sx={{
-                                      width: 34,
-                                      height: 34,
-                                      borderRadius: 1,
-                                      color: inCart ? appleColors.red : palette.accent,
-                                      bgcolor: inCart ? '#fff7f8' : palette.bg,
-                                      border: '1px solid',
-                                      borderColor: inCart ? '#fecdd3' : `${palette.accent}24`,
-                                    }}
-                                  >
-                                    {inCart ? <DeleteOutlineOutlined fontSize="small" /> : <AddShoppingCartOutlined fontSize="small" />}
-                                  </IconButton>
-                                </span>
-                              </Tooltip>
-                            </Box>
-                          );
-                        })}
-                      </Stack>
-                    </Stack>
-                    <DotLabel label={selected ? 'Selected for plan' : 'Available'} color={selected ? palette.accent : appleColors.muted} />
-                  </Box>
-                );
-              })}
-                </Box>
-              </Surface>
+                <OwnerServicesRecommendationPanel
+                  product={selectedProduct}
+                  categories={categories.data || []}
+                  catalogModules={catalogModules.data || []}
+                  recommendedServices={recommendedServices}
+                  cartServiceItems={cartServiceItems}
+                  cartServiceIds={cartServiceIds}
+                  blockerCount={launchStatus.blockerCount}
+                  improvementCount={launchStatus.improvementCount}
+                  mappedServiceNames={scannerMappedServices}
+                  ownerRisks={serviceRiskItems}
+                  cartStartPromptFacts={cartStartPromptFacts}
+                  assistantContext={assistantContext('service-selection')}
+                  assistantActions={assistantActionProps}
+                  isAddingService={addServiceToCart.isPending}
+                  isRemovingService={removeServiceFromCart.isPending}
+                  onAddService={addLifecycleService}
+                  onRemoveService={(itemId) => removeServiceFromCart.mutate(itemId)}
+                />
               )}
 
               {servicesView === 'plan' && (
@@ -3816,130 +3728,25 @@ export default function OwnerProductizationWorkspace({
               )}
 
               {servicesView === 'team' && (
-              <Surface>
-            <SectionTitle title="Team Shortlist and Compare" action={<PastelChip label={`${teamRecommendations.data?.length || 0} matches`} accent={appleColors.cyan} />} />
-            {teamRecommendations.data?.length ? (
-              <Stack spacing={1.5}>
-                {teamRecommendations.data.slice(0, 4).map((recommendation, index) => {
-                  const proposal = productProposals.find((item) => item.team.id === recommendation.team.id);
-                  const cartTeamItem = cartTalentItems.find((item) => item.team?.id === recommendation.team.id);
-                  return (
-                    <Box key={recommendation.team.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '82px 1.2fr 1.5fr auto' }, gap: 1.5, alignItems: 'center', py: 1.5, borderTop: index === 0 ? 0 : '1px solid', borderColor: 'divider' }}>
-                      <ProgressRing value={Math.round(recommendation.score * 100)} size={72} color={appleColors.cyan} label="match" />
-                      <Box>
-                        <Typography variant="h4">{recommendation.team.name}</Typography>
-                        <Typography variant="body2" color="text.secondary">{recommendation.team.timezone || recommendation.team.typicalProjectSize}</Typography>
-                        {proposal && <Typography variant="body2" color="text.secondary">{formatMoney(proposal.fixedPriceCents + proposal.platformFeeCents, proposal.currency)} · {proposal.timelineDays} days</Typography>}
-                      </Box>
-                      <Stack spacing={0.5}>
-                        {recommendation.reasons.slice(0, 3).map((reason) => <DotLabel key={reason} label={reason} color={appleColors.green} />)}
-                      </Stack>
-                      <Stack spacing={1}>
-                        <Button
-                          variant={cartTeamItem ? 'contained' : 'outlined'}
-                          size="small"
-                          startIcon={cartTeamItem ? <DeleteOutlineOutlined /> : <AddShoppingCartOutlined />}
-                          onClick={() => {
-                            if (cartTeamItem) {
-                              removeTalentFromCart.mutate(cartTeamItem.id);
-                            } else {
-                              addRecommendationTeamToCart(recommendation);
-                            }
-                          }}
-                          disabled={addTalentToCart.isPending || removeTalentFromCart.isPending}
-                        >
-                          {cartTeamItem ? 'Remove Team' : 'Add Team'}
-                        </Button>
-                        <Button
-                          variant={activeShortlists.some((item) => item.team.id === recommendation.team.id && item.status === 'COMPARED') ? 'contained' : 'outlined'}
-                          size="small"
-                          onClick={() => recordShortlist(recommendation.team.id, 'COMPARED')}
-                          disabled={upsertShortlist.isPending}
-                        >
-                          Compare
-                        </Button>
-                        <Button
-                          variant={activeShortlists.some((item) => item.team.id === recommendation.team.id) ? 'contained' : 'outlined'}
-                          size="small"
-                          onClick={() => recordShortlist(recommendation.team.id, 'ACTIVE')}
-                          disabled={upsertShortlist.isPending}
-                        >
-                          Shortlist
-                        </Button>
-                        {proposal?.status === 'SUBMITTED' ? (
-                          <Button variant="contained" size="small" onClick={() => acceptProposal.mutate(proposal.id)} disabled={acceptProposal.isPending}>
-                            Accept
-                          </Button>
-                        ) : (
-                          <StatusChip label={proposal?.status || recommendation.team.verificationStatus} color={proposal?.status === 'OWNER_ACCEPTED' ? 'success' : 'default'} />
-                        )}
-                      </Stack>
-                    </Box>
-                  );
-                })}
-              </Stack>
-            ) : (
-              <Stack spacing={1.5}>
-                <EmptyState label={selectedPackage ? 'No team recommendations available yet.' : 'Create a service plan to unlock ranked matches. You can still add promising teams or solo experts to the draft cart now.'} />
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 1.5 }}>
-                  <Box>
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                      <GroupAddOutlined sx={{ color: appleColors.cyan }} />
-                      <Typography sx={{ fontWeight: 900 }}>Teams to consider</Typography>
-                    </Stack>
-                    <Stack spacing={1}>
-                      {suggestedTeams.map((team) => {
-                        const cartTeamItem = cartTalentItems.find((item) => item.team?.id === team.id);
-                        return (
-                          <Stack key={team.id} direction="row" spacing={1} justifyContent="space-between" alignItems="center" sx={{ border: '1px solid', borderColor: appleColors.line, borderRadius: 1, p: 1 }}>
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{team.name}</Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap>{team.headline || team.typicalProjectSize}</Typography>
-                            </Box>
-                            <IconButton
-                              size="small"
-                              onClick={() => cartTeamItem ? removeTalentFromCart.mutate(cartTeamItem.id) : addTeamToCart(team)}
-                              disabled={addTalentToCart.isPending || removeTalentFromCart.isPending}
-                              sx={{ borderRadius: 1, color: cartTeamItem ? appleColors.red : appleColors.cyan, bgcolor: cartTeamItem ? '#fff7f8' : '#e4f9fd' }}
-                            >
-                              {cartTeamItem ? <DeleteOutlineOutlined fontSize="small" /> : <AddShoppingCartOutlined fontSize="small" />}
-                            </IconButton>
-                          </Stack>
-                        );
-                      })}
-                    </Stack>
-                  </Box>
-                  <Box>
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                      <PersonAddAltOutlined sx={{ color: appleColors.purple }} />
-                      <Typography sx={{ fontWeight: 900 }}>Solo experts</Typography>
-                    </Stack>
-                    <Stack spacing={1}>
-                      {suggestedExperts.map((expert) => {
-                        const cartExpertItem = cartTalentItems.find((item) => item.expertProfile?.id === expert.id);
-                        return (
-                          <Stack key={expert.id} direction="row" spacing={1} justifyContent="space-between" alignItems="center" sx={{ border: '1px solid', borderColor: appleColors.line, borderRadius: 1, p: 1 }}>
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{expert.displayName}</Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap>{expert.headline || expert.skills}</Typography>
-                            </Box>
-                            <IconButton
-                              size="small"
-                              onClick={() => cartExpertItem ? removeTalentFromCart.mutate(cartExpertItem.id) : addExpertToCart(expert)}
-                              disabled={addTalentToCart.isPending || removeTalentFromCart.isPending}
-                              sx={{ borderRadius: 1, color: cartExpertItem ? appleColors.red : appleColors.purple, bgcolor: cartExpertItem ? '#fff7f8' : '#f1efff' }}
-                            >
-                              {cartExpertItem ? <DeleteOutlineOutlined fontSize="small" /> : <AddShoppingCartOutlined fontSize="small" />}
-                            </IconButton>
-                          </Stack>
-                        );
-                      })}
-                    </Stack>
-                  </Box>
-                </Box>
-              </Stack>
-            )}
-              </Surface>
+                <OwnerTeamMatchPanel
+                  recommendations={teamRecommendations.data || []}
+                  productProposals={productProposals}
+                  cartTalentItems={cartTalentItems}
+                  activeShortlists={activeShortlists}
+                  suggestedTeams={suggestedTeams}
+                  suggestedExperts={suggestedExperts}
+                  hasServicePlan={!!selectedPackage}
+                  isAddingTalent={addTalentToCart.isPending}
+                  isRemovingTalent={removeTalentFromCart.isPending}
+                  isShortlisting={upsertShortlist.isPending}
+                  isAcceptingProposal={acceptProposal.isPending}
+                  onAddRecommendationTeam={addRecommendationTeamToCart}
+                  onAddTeam={addTeamToCart}
+                  onAddExpert={addExpertToCart}
+                  onRemoveTalent={(itemId) => removeTalentFromCart.mutate(itemId)}
+                  onRecordShortlist={recordShortlist}
+                  onAcceptProposal={(proposalId) => acceptProposal.mutate(proposalId)}
+                />
               )}
             </>
           )}
@@ -3962,183 +3769,27 @@ export default function OwnerProductizationWorkspace({
           )}
 
           {workspaceTab === 'services' && workspaceDetailOpen && (servicesView === 'plan' || servicesView === 'team') && (
-          <Box id="project-cart" sx={{ scrollMarginTop: 96 }}>
-          <Surface>
-            <SectionTitle
-              title="Project Start Plan"
-              action={<ShoppingCartOutlined sx={{ color: appleColors.purple }} />}
+            <OwnerProjectStartPanel
+              product={selectedProduct}
+              cart={cart.data}
+              notice={cartNotice}
+              canStartWorkspace={canStartProjectWorkspace}
+              blockers={cartBlockers}
+              blockingGaps={cartBlockingGaps}
+              blockingRecommendationNames={cartBlockingRecommendations.map((item) => item.recommendedModule.name)}
+              projectName={projectName}
+              hasWorkspace={!!(selectedWorkspace || cart.data?.convertedWorkspace)}
+              isAddingService={addServiceToCart.isPending}
+              isRemovingService={removeServiceFromCart.isPending}
+              isRemovingTalent={removeTalentFromCart.isPending}
+              isConverting={convertCart.isPending}
+              onNoticeClose={() => setCartNotice('')}
+              onProjectNameChange={setProjectName}
+              onAddGapService={(serviceModule, notes) => addServiceToCart.mutate({ serviceModuleId: serviceModule.id, notes })}
+              onRemoveService={(itemId) => removeServiceFromCart.mutate(itemId)}
+              onRemoveTalent={(itemId) => removeTalentFromCart.mutate(itemId)}
+              onConvert={() => convertCart.mutate()}
             />
-            <Stack spacing={1.5}>
-              {cartNotice && (
-                <Alert severity="success" onClose={() => setCartNotice('')} sx={{ borderRadius: 1 }}>
-                  {cartNotice}
-                </Alert>
-              )}
-              <Box>
-                <Typography variant="body2" color="text.secondary">
-                  {selectedProduct ? `Draft for ${selectedProduct.name}` : 'Select a product before starting a workspace'}
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                  <PastelChip label={`${cart.data?.serviceItems.length || 0} services`} accent={appleColors.purple} />
-                  <PastelChip label={`${cart.data?.talentItems.length || 0} teams / experts`} accent={appleColors.cyan} bg="#e4f9fd" />
-                  {cartStartReadiness?.status && <PastelChip label={formatLabel(cartStartReadiness.status)} accent={canStartProjectWorkspace ? appleColors.green : cartBlockers > 0 ? appleColors.red : appleColors.amber} bg={canStartProjectWorkspace ? '#e7f8ee' : cartBlockers > 0 ? '#fff1f2' : '#fff7ed'} />}
-                </Stack>
-                {cartStartReadiness?.summary && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.55 }}>
-                    {cartStartReadiness.summary}
-                  </Typography>
-                )}
-              </Box>
-
-              {(cart.data?.serviceItems || []).length ? (
-                <Stack spacing={0.75}>
-                  {(cart.data?.serviceItems || []).map((item) => (
-                    <Stack
-                      key={item.id}
-                      direction="row"
-                      spacing={1}
-                      justifyContent="space-between"
-                      alignItems="center"
-                      sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}
-                    >
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>
-                          {item.serviceModule.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.serviceModule.category?.name || 'Lifecycle service'}
-                        </Typography>
-                      </Box>
-                      <Button
-                        size="small"
-                        variant="text"
-                        color="error"
-                        onClick={() => removeServiceFromCart.mutate(item.id)}
-                        disabled={removeServiceFromCart.isPending}
-                        sx={{ minHeight: 32, minWidth: 72 }}
-                      >
-                        Remove
-                      </Button>
-                    </Stack>
-                  ))}
-                </Stack>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  Use the add-to-cart buttons on productization services to collect the work needed before this becomes a project.
-                </Typography>
-              )}
-
-              {cartBlockingGaps.length > 0 && (
-                <Surface sx={{ boxShadow: 'none', bgcolor: '#fff7ed', borderColor: '#fed7aa' }}>
-                  <Stack spacing={1}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <AutoAwesomeOutlined sx={{ color: appleColors.amber }} />
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 900 }}>
-                          Before this becomes a workspace
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          These practical gaps keep the first project workspace useful instead of vague.
-                        </Typography>
-                      </Box>
-                    </Stack>
-                    {cartBlockingGaps.map((gap) => (
-                      <Box
-                        key={`${gap.type}-${gap.serviceModule?.id || gap.title}`}
-                        sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr auto' }, gap: 1, alignItems: 'center' }}
-                      >
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 900 }}>{gap.title}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {gap.description || 'Required before starting.'}
-                          </Typography>
-                        </Box>
-                        {gap.serviceModule ? (
-                          <Button
-                            size="small"
-                            variant="contained"
-                            startIcon={<AddShoppingCartOutlined />}
-                            disabled={addServiceToCart.isPending}
-                            onClick={() => addServiceToCart.mutate({
-                              serviceModuleId: gap.serviceModule!.id,
-                              notes: `Added from the project start plan. ${gap.description || ''}`.trim(),
-                            })}
-                            sx={{ minHeight: 36 }}
-                          >
-                            Add
-                          </Button>
-                        ) : (
-                          <Button component={NextLink} href={gap.type === 'PRODUCT' ? '/products/new' : '/services'} size="small" variant="outlined" sx={{ minHeight: 36 }}>
-                            Open
-                          </Button>
-                        )}
-                      </Box>
-                    ))}
-                  </Stack>
-                </Surface>
-              )}
-
-              {(cart.data?.talentItems || []).length ? (
-                <Stack spacing={0.75}>
-                  {(cart.data?.talentItems || []).map((item) => (
-                    <Stack key={item.id} direction="row" spacing={1} justifyContent="space-between" alignItems="center" sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>
-                          {item.team?.name || item.expertProfile?.displayName}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">{formatLabel(item.itemType)}</Typography>
-                      </Box>
-                      <IconButton
-                        size="small"
-                        onClick={() => removeTalentFromCart.mutate(item.id)}
-                        disabled={removeTalentFromCart.isPending}
-                        sx={{ width: 34, height: 34, borderRadius: 1, color: appleColors.red, bgcolor: '#fff7f8' }}
-                      >
-                        <DeleteOutlineOutlined fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                  ))}
-                </Stack>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  Add matched teams or solo experts before converting this draft into a project workspace.
-                </Typography>
-              )}
-
-              <Divider />
-              <TextField
-                size="small"
-                label="Project workspace name"
-                value={projectName}
-                onChange={(event) => setProjectName(event.target.value)}
-                placeholder={selectedProduct ? `${selectedProduct.name} productization workspace` : 'Productization workspace'}
-              />
-
-              <Button
-                variant="contained"
-                startIcon={<RocketLaunchOutlined />}
-                disabled={!canStartProjectWorkspace || convertCart.isPending}
-                onClick={() => convertCart.mutate()}
-                sx={{ minHeight: 44 }}
-              >
-                {convertCart.isPending ? 'Creating...' : 'Start Project Workspace'}
-              </Button>
-              {!selectedProduct && <DotLabel label="Select a product before starting" color={appleColors.amber} />}
-              {selectedProduct && !cartServiceItems.length && <DotLabel label="Add at least one productization service" color={appleColors.amber} />}
-              {selectedProduct && cartServiceItems.length > 0 && cartBlockers > 0 && (
-                <DotLabel
-                  label={`Add these services first: ${cartBlockingGaps.map((gap) => gap.title).join(', ') || cartBlockingRecommendations.map((item) => item.recommendedModule.name).join(', ')}`}
-                  color={appleColors.red}
-                />
-              )}
-              {(selectedWorkspace || cart.data?.convertedWorkspace) && (
-                <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>
-                  Open Project Workspace
-                </Button>
-              )}
-            </Stack>
-          </Surface>
-          </Box>
           )}
 
           {workspaceDetailOpen && (workspaceTab === 'overview' || workspaceTab === 'actions') && (
