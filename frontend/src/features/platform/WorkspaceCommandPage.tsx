@@ -1,12 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import {
-  CalendarMonthOutlined,
-  ErrorOutlineOutlined,
-  FactCheckOutlined,
-  TaskAltOutlined,
-} from '@mui/icons-material';
 import { Alert, Box, Button, LinearProgress, Link, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import FileUpload from '@/components/ui-component/FileUpload';
@@ -19,6 +13,7 @@ import WorkspaceAcceptanceReviewPanel from './WorkspaceAcceptanceReviewPanel';
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
 import WorkspaceCommandHero from './WorkspaceCommandHero';
 import WorkspaceCommandJourneyNav, { type WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
+import WorkspaceCommandMetricsPanel from './WorkspaceCommandMetricsPanel';
 import WorkspaceCommandSidebar from './WorkspaceCommandSidebar';
 import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
 import WorkspaceOverviewDeliveryAnswerPanel from './WorkspaceOverviewDeliveryAnswerPanel';
@@ -28,7 +23,6 @@ import WorkspaceProofReadinessPanel from './WorkspaceProofReadinessPanel';
 import { sortWorkspacesForOwner } from './displayOrder';
 import {
   EmptyState,
-  MetricTile,
   PageHeader,
   QueryState,
   Surface,
@@ -773,12 +767,14 @@ export default function WorkspaceCommandPage() {
           {attachmentOpenError}
         </Alert>
       )}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 2, mb: 2.5 }}>
-        <MetricTile label="Active workspaces" value={activeWorkspaceCount} detail={`${workspaceList.length} total productization paths`} accent={appleColors.cyan} icon={<FactCheckOutlined />} />
-        <MetricTile label="Launch checkpoints" value={completedMilestones} detail={`${milestoneList.length} in selected workspace`} accent={appleColors.green} icon={<TaskAltOutlined />} />
-        <MetricTile label="Rough edges" value={blockedItems} detail="Needs owner or specialist attention" accent={appleColors.red} icon={<ErrorOutlineOutlined />} />
-        <MetricTile label="Timed checks" value={milestoneList.filter((milestone) => milestone.dueDate).length} detail="Scheduled launch checkpoints" accent={appleColors.purple} icon={<CalendarMonthOutlined />} />
-      </Box>
+      <WorkspaceCommandMetricsPanel
+        activeWorkspaceCount={activeWorkspaceCount}
+        blockedItems={blockedItems}
+        completedMilestones={completedMilestones}
+        scheduledMilestoneCount={milestoneList.filter((milestone) => milestone.dueDate).length}
+        totalMilestoneCount={milestoneList.length}
+        totalWorkspaceCount={workspaceList.length}
+      />
 
       <Box
         sx={{
