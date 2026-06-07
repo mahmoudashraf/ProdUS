@@ -2,11 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  CheckCircleOutlineOutlined,
-  PsychologyAltOutlined,
-} from '@mui/icons-material';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import {
@@ -15,14 +11,13 @@ import {
 } from './OwnerJourneyCards';
 import { postFormData, postJson, putJson } from './api';
 import {
+  appleColors,
   PageHeader,
   QueryState,
-  SectionTitle,
-  Surface,
-  appleColors,
 } from './PlatformComponents';
 import ProductOnboardingAnalysisResultPanel from './ProductOnboardingAnalysisResultPanel';
 import ProductOnboardingManualProfilePanel from './ProductOnboardingManualProfilePanel';
+import ProductOnboardingSideGuidePanel from './ProductOnboardingSideGuidePanel';
 import {
   AiAssistedProductAnalysisResponse,
   ProductAnalysisMode,
@@ -471,40 +466,7 @@ export default function ProductOnboardingWizard() {
           />
         </Stack>
 
-        <Stack spacing={2.5}>
-          <Surface>
-            <SectionTitle
-              title="What Happens Next"
-              action={<PsychologyAltOutlined sx={{ color: appleColors.purple }} />}
-            />
-            <Stack spacing={1.5}>
-              {[
-                'The product becomes the selected owner context.',
-                'Private documents remain attached to that product.',
-                'AI-selected document access expires after a short window.',
-                'You can edit the product normally after creation.',
-              ].map(item => (
-                <Stack key={item} direction="row" spacing={1.2} alignItems="flex-start">
-                  <CheckCircleOutlineOutlined
-                    sx={{ color: appleColors.green, fontSize: 20, mt: 0.2 }}
-                  />
-                  <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                    {item}
-                  </Typography>
-                </Stack>
-              ))}
-            </Stack>
-          </Surface>
-
-          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
-            <SectionTitle title="Design Principle" />
-            <Typography variant="h4">Product first, pages second.</Typography>
-            <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
-              Owners should not hunt across scattered pages. Each route should answer where the
-              product is, what needs to happen next, and which decisions are ready.
-            </Typography>
-          </Surface>
-        </Stack>
+        <ProductOnboardingSideGuidePanel />
       </Box>
     </>
   );
