@@ -393,6 +393,24 @@ Status:
   - `tmp/live-verification/2026-06-07/98-solo-experts-default-live.png`
 - Full owner journey verification passed for commit `338bd67`.
 
+### Completed: Active Workspaces Legacy Cleanup
+
+Problem:
+
+- `frontend/src/features/platform/WorkspacesPage.tsx` remained a 1075-line legacy all-in-one delivery surface.
+- The live `/workspaces` route no longer used it; the route imports `WorkspaceCommandPage`, which was already redefined earlier in this completion pass.
+- Keeping the unused file in the platform folder made the remaining large-file inventory look worse than the actual live journey and increased maintenance risk.
+
+Solution:
+
+- Verified there were no imports of `WorkspacesPage`.
+- Removed the unused legacy file instead of continuing to redesign a dead route.
+- Re-ran type-check and production build to confirm the live `/workspaces` route remains intact.
+
+Status:
+
+- Complete locally. No extra deployment was required because this removed unused source, not live route behavior.
+
 ## Implementation Loop
 
 For each slice:
