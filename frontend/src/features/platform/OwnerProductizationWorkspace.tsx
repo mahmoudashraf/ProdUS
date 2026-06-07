@@ -13,7 +13,6 @@ import {
   CloudUploadOutlined,
   ContentCopyOutlined,
   EventRepeatOutlined,
-  ExpandMoreOutlined,
   FactCheckOutlined,
   InfoOutlined,
   OpenInNewOutlined,
@@ -25,9 +24,6 @@ import {
 } from '@mui/icons-material';
 import {
   Alert,
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Box,
   Button,
   Checkbox,
@@ -68,6 +64,7 @@ import OwnerFindingReviewDrawer from './OwnerFindingReviewDrawer';
 import RepoReadoutPanel from './RepoReadoutPanel';
 import StudioAssistantCard, { assistantRecordText, type StudioAssistantContext } from './StudioAssistantCard';
 import OwnerActionPlanPanel from './OwnerActionPlanPanel';
+import OwnerFindingsRiskPanel from './OwnerFindingsRiskPanel';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import OwnerOverviewDecisionPanel from './OwnerOverviewDecisionPanel';
 import ScannerCoverageGrid from './ScannerCoverageGrid';
@@ -1972,100 +1969,17 @@ export default function OwnerProductizationWorkspace({
           )}
 
           {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'risks' && (
-            <Surface>
-              <SectionTitle
-                title="Findings"
-                action={<PastelChip label={`${scannerSummary.data?.findings.length || 0} total`} accent={(scannerSummary.data?.findings.length || 0) ? appleColors.amber : appleColors.green} bg={(scannerSummary.data?.findings.length || 0) ? '#fff4dc' : '#e7f8ee'} />}
-              />
-              <Stack spacing={1.25}>
-                {groupedFindings.map((group) => (
-                  <Accordion
-                    key={group.label}
-                    expanded={!!openFindingGroups[group.label]}
-                    onChange={(_, expanded) => setOpenFindingGroups((current) => ({ ...current, [group.label]: expanded }))}
-                    disableGutters
-                    sx={{
-                      border: '1px solid',
-                      borderColor: `${group.accent}30`,
-                      borderRadius: 1,
-                      bgcolor: '#fff',
-                      overflow: 'hidden',
-                      boxShadow: 'none',
-                      '&:before': { display: 'none' },
-                    }}
-                  >
-                    <AccordionSummary
-                      expandIcon={<ExpandMoreOutlined />}
-                      sx={{
-                        px: 1.5,
-                        py: 0.35,
-                        bgcolor: `${group.accent}0f`,
-                        borderBottom: openFindingGroups[group.label] ? '1px solid' : 0,
-                        borderColor: `${group.accent}20`,
-                        minHeight: 58,
-                        '& .MuiAccordionSummary-content': { my: 0.8 },
-                      }}
-                    >
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ width: '100%', pr: 1 }}>
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography sx={{ fontWeight: 950 }}>{group.label}</Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4 }}>
-                            {group.findings[0]?.title || 'No findings in this group.'}
-                          </Typography>
-                        </Box>
-                        <PastelChip label={`${group.findings.length}`} accent={group.accent} bg="#fff" />
-                      </Stack>
-                    </AccordionSummary>
-                    <AccordionDetails sx={{ p: 0 }}>
-                      {group.findings.length ? (
-                        <Stack spacing={0} divider={<Divider />}>
-                          {group.findings.slice(0, group.label === 'Launch blockers' ? 8 : 5).map((finding) => {
-                            const category = ownerCategoryFromSignal(finding.sourceTool, finding.readinessArea, finding.title);
-                            return (
-                              <Box key={finding.id} sx={{ p: 1.35 }}>
-                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'flex-start' }}>
-                                  <Box sx={{ minWidth: 0 }}>
-                                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                                      <PastelChip label={formatLabel(finding.severity)} accent={severityAccent(finding.severity)} bg={`${severityAccent(finding.severity)}12`} />
-                                      <PastelChip label={category} accent={group.accent} bg={`${group.accent}12`} />
-                                    </Stack>
-                                    <Typography sx={{ mt: 0.8, fontWeight: 950, lineHeight: 1.35 }}>{finding.title}</Typography>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>{finding.businessRisk || finding.description || ownerImpactForCategory(category)}</Typography>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45 }}>
-                                      {finding.sourceTool}{finding.sourceRuleId ? ` · ${finding.sourceRuleId}` : ''}
-                                    </Typography>
-                                  </Box>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={() => {
-                                      setSelectedFindingId(finding.id);
-                                      setFindingDrawerOpen(true);
-                                    }}
-                                    sx={{ minHeight: 34, minWidth: 112 }}
-                                  >
-                                    Review
-                                  </Button>
-                                </Stack>
-                              </Box>
-                            );
-                          })}
-                          {group.findings.length > (group.label === 'Launch blockers' ? 8 : 5) && (
-                            <Box sx={{ p: 1.25 }}>
-                              <Button size="small" variant="text" onClick={() => openFindingsView('technical')} sx={{ minHeight: 34 }}>
-                                View all {group.findings.length}
-                              </Button>
-                            </Box>
-                          )}
-                        </Stack>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>No findings in this group.</Typography>
-                      )}
-                    </AccordionDetails>
-                  </Accordion>
-                ))}
-              </Stack>
-            </Surface>
+            <OwnerFindingsRiskPanel
+              groups={groupedFindings}
+              totalFindingCount={scannerSummary.data?.findings.length || 0}
+              openGroups={openFindingGroups}
+              onGroupToggle={(label, expanded) => setOpenFindingGroups((current) => ({ ...current, [label]: expanded }))}
+              onReviewFinding={(findingId) => {
+                setSelectedFindingId(findingId);
+                setFindingDrawerOpen(true);
+              }}
+              onOpenTechnicalProof={() => openFindingsView('technical')}
+            />
           )}
 
           {selectedProduct && workspaceTab === 'findings' && workspaceDetailOpen && findingsView === 'evidence' && (
