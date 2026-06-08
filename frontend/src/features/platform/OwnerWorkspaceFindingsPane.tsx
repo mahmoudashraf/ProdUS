@@ -7,6 +7,7 @@ import OwnerScannerProofCompanionPanel from './OwnerScannerProofCompanionPanel';
 import OwnerScannerProofOperationsPanel from './OwnerScannerProofOperationsPanel';
 import OwnerTechnicalProofJourneyPanel from './OwnerTechnicalProofJourneyPanel';
 import type { FindingsJourneyView } from './ownerWorkspaceJourneyConfig';
+import type { TechnicalProofView } from './ownerTechnicalProofJourneyModel';
 import RepoReadoutPanel from './RepoReadoutPanel';
 import ScannerCoverageGrid from './ScannerCoverageGrid';
 import ScannerFixPathPanel from './ScannerFixPathPanel';
@@ -39,6 +40,10 @@ interface OwnerWorkspaceFindingsPaneProps {
   evidence: EvidencePanelProps;
   repoReadout: RepoReadoutProps;
   technical: TechnicalProofProps;
+  technicalProofView?: TechnicalProofView;
+  technicalProofDetailOpen?: boolean;
+  onOpenTechnicalProofHub?: () => void;
+  onOpenTechnicalProofView?: (view: TechnicalProofView) => void;
 }
 
 export default function OwnerWorkspaceFindingsPane({
@@ -48,6 +53,10 @@ export default function OwnerWorkspaceFindingsPane({
   evidence,
   repoReadout,
   technical,
+  technicalProofView = 'run',
+  technicalProofDetailOpen = false,
+  onOpenTechnicalProofHub = () => {},
+  onOpenTechnicalProofView = () => {},
 }: OwnerWorkspaceFindingsPaneProps) {
   if (!detailOpen) return null;
 
@@ -61,7 +70,15 @@ export default function OwnerWorkspaceFindingsPane({
   }
 
   if (view === 'technical') {
-    return <OwnerTechnicalProofJourneyPanel technical={technical} />;
+    return (
+      <OwnerTechnicalProofJourneyPanel
+        detailOpen={technicalProofDetailOpen}
+        technical={technical}
+        view={technicalProofView}
+        onOpenHub={onOpenTechnicalProofHub}
+        onViewChange={onOpenTechnicalProofView}
+      />
+    );
   }
 
   return <OwnerFindingsRiskPanel {...risks} />;

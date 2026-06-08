@@ -7,8 +7,10 @@ import { UserRole } from '@/types/auth';
 import { getJson } from './api';
 import { PageHeader, QueryState } from './PlatformComponents';
 import {
+  ServicePlanDetailNavigation,
   ServicePlanHeroPanel,
   ServicePlanJourneyPanel,
+  ServicePlanSelectedContextPanel,
   ServicePlanSelectorPanel,
 } from './ServicePlanBuilderPanels';
 import ServicePlanCommercialPanel from './ServicePlanCommercialPanel';
@@ -46,9 +48,11 @@ export default function PackagesPage() {
     buildForm,
     contractForm,
     contractProposalId,
+    detailOpen,
     eligibleRequirements,
     invoiceContractId,
     invoiceForm,
+    openPlanHub,
     openPlanView,
     packageList,
     planView,
@@ -146,32 +150,50 @@ export default function PackagesPage() {
       />
 
       <Stack spacing={2.5}>
-        <ServicePlanSelectorPanel
-          packageList={packageList}
-          selectedPackage={selectedPackage}
-          onSelectPackage={selectPackage}
-        />
-
-        {selectedPackage && (
+        {!detailOpen && (
           <>
-          <ServicePlanHeroPanel
-            selectedPackage={selectedPackage}
-            score={score}
-            moduleCount={moduleList.length}
-            teamMatchCount={teamRecommendationList.length}
-            proposalCount={proposalList.length}
-            estimatedBudget={estimatedBudget}
-            onChangeView={openPlanView}
-          />
+            <ServicePlanSelectorPanel
+              packageList={packageList}
+              selectedPackage={selectedPackage}
+              onSelectPackage={selectPackage}
+            />
 
-          <ServicePlanJourneyPanel
-            value={planView}
-            moduleCount={moduleList.length}
-            teamMatchCount={teamRecommendationList.length}
-            proposalCount={proposalList.length}
-            contractCount={packageContracts.length}
-            onChange={openPlanView}
-          />
+            {selectedPackage && (
+              <>
+                <ServicePlanHeroPanel
+                  selectedPackage={selectedPackage}
+                  score={score}
+                  moduleCount={moduleList.length}
+                  teamMatchCount={teamRecommendationList.length}
+                  proposalCount={proposalList.length}
+                  estimatedBudget={estimatedBudget}
+                  onChangeView={openPlanView}
+                />
+
+                <ServicePlanJourneyPanel
+                  value={planView}
+                  moduleCount={moduleList.length}
+                  teamMatchCount={teamRecommendationList.length}
+                  proposalCount={proposalList.length}
+                  contractCount={packageContracts.length}
+                  onChange={openPlanView}
+                />
+              </>
+            )}
+          </>
+        )}
+
+        {selectedPackage && detailOpen && (
+          <>
+            <ServicePlanDetailNavigation currentView={planView} onOpenHub={openPlanHub} />
+            <ServicePlanSelectedContextPanel
+              selectedPackage={selectedPackage}
+              score={score}
+              moduleCount={moduleList.length}
+              teamMatchCount={teamRecommendationList.length}
+              proposalCount={proposalList.length}
+              estimatedBudget={estimatedBudget}
+            />
 
           {planView === 'summary' && (
             <ServicePlanSummaryPanel

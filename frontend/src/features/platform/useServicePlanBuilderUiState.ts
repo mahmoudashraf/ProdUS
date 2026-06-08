@@ -31,7 +31,8 @@ export function useServicePlanBuilderUiState({
   const searchParams = useSearchParams();
   const searchParamString = searchParams?.toString() || '';
   const viewParam = searchParams?.get('view') || null;
-  const planView: ServicePlanBuilderView = isServicePlanBuilderView(viewParam) ? viewParam : 'summary';
+  const detailOpen = isServicePlanBuilderView(viewParam);
+  const planView: ServicePlanBuilderView = detailOpen ? viewParam : 'summary';
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [contractProposalId, setContractProposalId] = useState('');
   const [invoiceContractId, setInvoiceContractId] = useState('');
@@ -91,6 +92,13 @@ export function useServicePlanBuilderUiState({
     [pathname, router, searchParamString]
   );
 
+  const openPlanHub = useCallback(() => {
+    const next = new URLSearchParams(searchParamString);
+    next.delete('view');
+    const suffix = next.toString();
+    router.push(suffix ? `${pathname || '/packages'}?${suffix}` : pathname || '/packages', { scroll: false });
+  }, [pathname, router, searchParamString]);
+
   const selectPackage = useCallback((packageId: string) => {
     setSelectedPackageId(packageId);
     setContractProposalId('');
@@ -101,10 +109,12 @@ export function useServicePlanBuilderUiState({
     buildForm,
     contractForm,
     contractProposalId,
+    detailOpen,
     eligibleRequirements,
     invoiceContractId,
     invoiceForm,
     openPlanView,
+    openPlanHub,
     packageList,
     planView,
     proposalForm,

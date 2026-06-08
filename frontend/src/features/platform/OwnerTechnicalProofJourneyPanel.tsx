@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, type ComponentProps } from 'react';
-import { Box, Stack } from '@mui/material';
-import { OwnerWorkspaceJourneyNav, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+import { type ComponentProps } from 'react';
+import { Box, Stack, Typography } from '@mui/material';
+import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import OwnerScannerProofCompanionPanel from './OwnerScannerProofCompanionPanel';
 import OwnerScannerProofOperationsPanel from './OwnerScannerProofOperationsPanel';
 import { PastelChip, Surface, appleColors } from './PlatformComponents';
@@ -10,6 +10,7 @@ import ScannerCoverageGrid from './ScannerCoverageGrid';
 import ScannerFixPathPanel from './ScannerFixPathPanel';
 import ScannerProofRunway from './ScannerProofRunway';
 import StudioAssistantCard from './StudioAssistantCard';
+import type { TechnicalProofView } from './ownerTechnicalProofJourneyModel';
 
 type ScannerRunwayProps = ComponentProps<typeof ScannerProofRunway>;
 type ScannerCoverageProps = ComponentProps<typeof ScannerCoverageGrid>;
@@ -17,8 +18,6 @@ type ScannerFixPathProps = ComponentProps<typeof ScannerFixPathPanel>;
 type AssistantProps = ComponentProps<typeof StudioAssistantCard>;
 type ScannerOperationsProps = ComponentProps<typeof OwnerScannerProofOperationsPanel>;
 type ScannerCompanionProps = ComponentProps<typeof OwnerScannerProofCompanionPanel>;
-
-type TechnicalProofView = 'run' | 'result' | 'fix' | 'stored';
 
 export interface OwnerTechnicalProofProps {
   runway: ScannerRunwayProps;
@@ -31,10 +30,17 @@ export interface OwnerTechnicalProofProps {
 
 export default function OwnerTechnicalProofJourneyPanel({
   technical,
+  view,
+  detailOpen,
+  onOpenHub,
+  onViewChange,
 }: {
   technical: OwnerTechnicalProofProps;
+  view: TechnicalProofView;
+  detailOpen: boolean;
+  onOpenHub: () => void;
+  onViewChange: (view: TechnicalProofView) => void;
 }) {
-  const [view, setView] = useState<TechnicalProofView>('run');
   const openFindingCount = technical.runway.openFindingCount;
   const completedTools = technical.coverage.latestCoveredTools;
   const totalTools = technical.coverage.totalTools;
@@ -95,46 +101,86 @@ export default function OwnerTechnicalProofJourneyPanel({
       ),
     },
   ];
+  const selectedItem = items.find((item) => item.value === view) ?? items[0]!;
+  const proofContent = (
+    <>
+      {view === 'run' && (
+        <Stack spacing={2}>
+          <ScannerProofRunway {...technical.runway} />
+          <OwnerScannerProofOperationsPanel {...technical.operations} />
+        </Stack>
+      )}
+
+      {view === 'result' && (
+        <Stack spacing={2}>
+          <ScannerCoverageGrid {...technical.coverage} />
+          <OwnerScannerProofCompanionPanel {...technical.companion} view="result" />
+        </Stack>
+      )}
+
+      {view === 'fix' && (
+        <Stack spacing={2}>
+          <ScannerFixPathPanel {...technical.fixPath} />
+          <Box>
+            <StudioAssistantCard {...technical.assistant} />
+          </Box>
+          <OwnerScannerProofCompanionPanel {...technical.companion} view="decisions" />
+        </Stack>
+      )}
+
+      {view === 'stored' && (
+        <OwnerScannerProofCompanionPanel {...technical.companion} view="stored" />
+      )}
+    </>
+  );
+
+  if (!detailOpen) {
+    return (
+      <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
+        <Stack spacing={2}>
+          <Box>
+            <PastelChip label="Scanner proof workspace" accent={appleColors.green} bg="#e7f8ee" />
+            <Typography variant="h3" sx={{ mt: 1 }}>
+              Choose the proof task to work on
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.5, maxWidth: 780, lineHeight: 1.65 }}>
+              Start with the scanner run, review the latest result, convert blockers into a fix path, or open stored proof. Each task opens as its own internal proof view.
+            </Typography>
+          </Box>
+          <OwnerWorkspaceJourneyNav
+            label="Technical proof journey"
+            value={view}
+            items={items}
+            maxColumns={4}
+            onChange={onViewChange}
+          />
+        </Stack>
+      </Surface>
+    );
+  }
 
   return (
-    <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
-      <Stack spacing={2}>
-        <OwnerWorkspaceJourneyNav
-          label="Technical proof journey"
-          value={view}
-          items={items}
-          maxColumns={4}
-          onChange={setView}
-        />
-
-        {view === 'run' && (
-          <Stack spacing={2}>
-            <ScannerProofRunway {...technical.runway} />
-            <OwnerScannerProofOperationsPanel {...technical.operations} />
+    <Stack spacing={2}>
+      <WorkspaceBreadcrumbs
+        items={[
+          { label: 'Technical proof', onClick: onOpenHub },
+          { label: selectedItem.label },
+        ]}
+        backLabel="Proof choices"
+        onBack={onOpenHub}
+      />
+      <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography variant="h3">{selectedItem.label}</Typography>
+            {selectedItem.meta}
           </Stack>
-        )}
-
-        {view === 'result' && (
-          <Stack spacing={2}>
-            <ScannerCoverageGrid {...technical.coverage} />
-            <OwnerScannerProofCompanionPanel {...technical.companion} view="result" />
-          </Stack>
-        )}
-
-        {view === 'fix' && (
-          <Stack spacing={2}>
-            <ScannerFixPathPanel {...technical.fixPath} />
-            <Box>
-              <StudioAssistantCard {...technical.assistant} />
-            </Box>
-            <OwnerScannerProofCompanionPanel {...technical.companion} view="decisions" />
-          </Stack>
-        )}
-
-        {view === 'stored' && (
-          <OwnerScannerProofCompanionPanel {...technical.companion} view="stored" />
-        )}
-      </Stack>
-    </Surface>
+          <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
+            {selectedItem.detail}
+          </Typography>
+          {proofContent}
+        </Stack>
+      </Surface>
+    </Stack>
   );
 }

@@ -81,3 +81,5 @@ export const shareExpiryOptions = [
 ] as const;
 
 export type ShareExpiryMode = (typeof shareExpiryOptions)[number]['value'];
+export type ShareAudienceOption = (typeof shareAudienceOptions)[number];
+export type ShareSectionOption = (typeof shareSectionOptions)[number];

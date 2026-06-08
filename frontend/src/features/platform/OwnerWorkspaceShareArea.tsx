@@ -3,22 +3,11 @@
 import NextLink from 'next/link';
 import { useMemo, useState } from 'react';
 import {
-  AddLinkOutlined,
-  ContentCopyOutlined,
-  LockOutlined,
-  PublicOutlined,
   VisibilityOutlined,
 } from '@mui/icons-material';
 import {
-  Alert,
-  Box,
   Button,
-  Checkbox,
-  FormControlLabel,
-  FormGroup,
-  MenuItem,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -27,12 +16,12 @@ import {
   EmptyState,
   PastelChip,
   QueryState,
-  SectionTitle,
-  StatusChip,
   Surface,
   appleColors,
-  formatLabel,
 } from './PlatformComponents';
+import OwnerShareLinkCreatePanel from './OwnerShareLinkCreatePanel';
+import OwnerShareLinksListPanel from './OwnerShareLinksListPanel';
+import OwnerSharePreviewRulesPanel from './OwnerSharePreviewRulesPanel';
 import type {
   ProductProfile,
   ProductShareAudience,
@@ -161,245 +150,64 @@ export default function OwnerWorkspaceShareArea({
         </Surface>
       )}
 
-      {detailOpen && view === 'links' && (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 0.95fr) minmax(0, 1.05fr)' }, gap: 2.5 }}>
-          <Surface>
-            <SectionTitle title="Create Share Link" action={<AddLinkOutlined sx={{ color: appleColors.purple }} />} />
-            <Stack spacing={1.5}>
-              <TextField
-                label="Link title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder={`${selectedProduct.name} product summary`}
-                fullWidth
-              />
-              <TextField
-                select
-                label="Who should this link be for?"
-                value={audience}
-                onChange={(event) => setAudience(event.target.value as ProductShareAudience)}
-                fullWidth
-              >
-                {shareAudienceOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1.25 }}>
-                <TextField
-                  select
-                  label="Expiry"
-                  value={expiryMode}
-                  onChange={(event) => setExpiryMode(event.target.value as ShareExpiryMode)}
-                  fullWidth
-                >
-                  {shareExpiryOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextField
-                  label="Custom expiry date"
-                  type="date"
-                  value={customExpiryDate}
-                  disabled={expiryMode !== 'custom'}
-                  onChange={(event) => setCustomExpiryDate(event.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-              </Box>
-              <TextField
-                label="Owner note"
-                value={ownerNote}
-                onChange={(event) => setOwnerNote(event.target.value)}
-                placeholder="Optional context for the person opening this link"
-                multiline
-                minRows={3}
-                fullWidth
-              />
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '0.75fr 1.25fr' }, gap: 1.25 }}>
-                <TextField
-                  label="Viewer action label"
-                  value={viewerActionLabel}
-                  onChange={(event) => setViewerActionLabel(event.target.value)}
-                  placeholder="Request access"
-                  fullWidth
-                />
-                <TextField
-                  label="Viewer action URL"
-                  value={viewerActionUrl}
-                  onChange={(event) => setViewerActionUrl(event.target.value)}
-                  placeholder="https://calendly.com/... or mailto:owner@example.com"
-                  fullWidth
-                />
-              </Box>
-              <Box sx={{ p: 1.25, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
-                <Typography sx={{ fontWeight: 950 }}>
-                  {shareAudienceOptions.find((option) => option.value === audience)?.label}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.5 }}>
-                  {shareAudienceOptions.find((option) => option.value === audience)?.detail}
-                </Typography>
-              </Box>
-              <FormGroup>
-                {shareSectionOptions.map((section) => (
-                  <Box key={section.value} sx={{ borderTop: '1px solid', borderColor: appleColors.line, py: 1 }}>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={selectedSectionSet.has(section.value)}
-                          disabled={section.value === 'PRODUCT_SUMMARY'}
-                          onChange={(event) => toggleSection(section.value, event.target.checked)}
-                        />
-                      }
-                      label={
-                        <Box>
-                          <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
-                            <Typography sx={{ fontWeight: 900 }}>{section.label}</Typography>
-                            {section.sensitive && <PastelChip label="summary only" accent={appleColors.amber} bg="#fff4dc" />}
-                          </Stack>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.45 }}>
-                            {section.detail}
-                          </Typography>
-                        </Box>
-                      }
-                    />
-                  </Box>
-                ))}
-              </FormGroup>
-              <Alert severity="info" icon={<LockOutlined />} sx={{ borderRadius: 1 }}>
-                Share links never expose detailed findings or evidence artifacts. This first version shares safe summaries only.
-              </Alert>
-              <Button
-                variant="contained"
-                startIcon={<PublicOutlined />}
-                disabled={createLink.isPending}
-                onClick={() => {
-                  const expiresAt = buildExpiresAt();
-                  const payload: ProductShareLinkRequest = {
-                    title: title || `${selectedProduct.name} product summary`,
-                    audience,
-                    visibleSections,
-                    ownerNote,
-                    viewerActionLabel,
-                    viewerActionUrl,
-                  };
-                  if (expiresAt) {
-                    payload.expiresAt = expiresAt;
-                  }
-                  createLink.mutate(payload);
-                }}
-                sx={{ minHeight: 44 }}
-              >
-                {createLink.isPending
-                  ? 'Creating...'
-                  : audience === 'INTERNAL_ONLY'
-                    ? 'Create internal link'
-                    : 'Create share link'}
-              </Button>
-            </Stack>
-          </Surface>
+      {detailOpen && view === 'create' && (
+        <OwnerShareLinkCreatePanel
+          audience={audience}
+          audienceOptions={shareAudienceOptions}
+          customExpiryDate={customExpiryDate}
+          expiryMode={expiryMode}
+          expiryOptions={shareExpiryOptions}
+          isCreating={createLink.isPending}
+          ownerNote={ownerNote}
+          product={selectedProduct}
+          sectionOptions={shareSectionOptions}
+          selectedSections={selectedSectionSet}
+          title={title}
+          viewerActionLabel={viewerActionLabel}
+          viewerActionUrl={viewerActionUrl}
+          onAudienceChange={setAudience}
+          onCreateLink={() => {
+            const expiresAt = buildExpiresAt();
+            const payload: ProductShareLinkRequest = {
+              title: title || `${selectedProduct.name} product summary`,
+              audience,
+              visibleSections,
+              ownerNote,
+              viewerActionLabel,
+              viewerActionUrl,
+            };
+            if (expiresAt) {
+              payload.expiresAt = expiresAt;
+            }
+            createLink.mutate(payload);
+          }}
+          onCustomExpiryDateChange={setCustomExpiryDate}
+          onExpiryModeChange={setExpiryMode}
+          onOwnerNoteChange={setOwnerNote}
+          onTitleChange={setTitle}
+          onToggleSection={toggleSection}
+          onViewerActionLabelChange={setViewerActionLabel}
+          onViewerActionUrlChange={setViewerActionUrl}
+        />
+      )}
 
-          <Surface>
-            <SectionTitle title="Active Share Links" action={<PastelChip label={`${activeLinks.length}`} accent={appleColors.green} bg="#e7f8ee" />} />
-            {links.data?.length ? (
-              <Stack spacing={1.25}>
-                {links.data.map((link) => {
-                  const href = `/share/product/${link.token}`;
-                  const absoluteHref = shareBaseUrl ? `${shareBaseUrl}${href}` : href;
-                  const canPreview = link.active && link.audience !== 'INTERNAL_ONLY';
-                  return (
-                    <Box key={link.id} sx={{ p: 1.35, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: link.active ? '#fff' : '#f8fafc' }}>
-                      <Stack spacing={1}>
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between">
-                          <Box sx={{ minWidth: 0 }}>
-                            <Typography sx={{ fontWeight: 950, overflowWrap: 'anywhere' }}>{link.title}</Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-                              {absoluteHref}
-                            </Typography>
-                          </Box>
-                          <StatusChip label={link.active ? 'ACTIVE' : 'REVOKED'} />
-                        </Stack>
-                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                          <PastelChip label={formatLabel(link.audience)} accent={link.audience === 'INTERNAL_ONLY' ? appleColors.amber : appleColors.purple} />
-                          {link.visibleSections.map((section) => (
-                            <PastelChip key={section} label={formatLabel(section)} accent={appleColors.cyan} bg="#e4f9fd" />
-                          ))}
-                          <PastelChip label={`${link.accessCount} views`} accent={appleColors.purple} />
-                          {link.expiresAt && <PastelChip label="Expires" accent={appleColors.amber} bg="#fff4dc" />}
-                        </Stack>
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                          {canPreview ? (
-                            <Button component={NextLink} href={href} variant="outlined" startIcon={<VisibilityOutlined />} sx={{ minHeight: 38 }}>
-                              Preview
-                            </Button>
-                          ) : (
-                            <Button variant="outlined" disabled startIcon={<LockOutlined />} sx={{ minHeight: 38 }}>
-                              Private link
-                            </Button>
-                          )}
-                          <Button
-                            variant="outlined"
-                            startIcon={<ContentCopyOutlined />}
-                            onClick={async () => {
-                              await navigator.clipboard?.writeText(absoluteHref);
-                              setCopiedToken(link.token);
-                            }}
-                            sx={{ minHeight: 38 }}
-                          >
-                            {copiedToken === link.token ? 'Copied' : 'Copy link'}
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            color="error"
-                            disabled={!link.active || revokeLink.isPending}
-                            onClick={() => revokeLink.mutate(link.id)}
-                            sx={{ minHeight: 38 }}
-                          >
-                            Revoke
-                          </Button>
-                        </Stack>
-                      </Stack>
-                    </Box>
-                  );
-                })}
-              </Stack>
-            ) : (
-              <EmptyState label="No share links yet. Create a public summary link when you want to show this product externally without exposing private proof." />
-            )}
-          </Surface>
-        </Box>
+      {detailOpen && view === 'links' && (
+        <OwnerShareLinksListPanel
+          activeCount={activeLinks.length}
+          copiedToken={copiedToken}
+          isRevoking={revokeLink.isPending}
+          links={links.data || []}
+          shareBaseUrl={shareBaseUrl}
+          onCopy={async (token, absoluteHref) => {
+            await navigator.clipboard?.writeText(absoluteHref);
+            setCopiedToken(token);
+          }}
+          onRevoke={(linkId) => revokeLink.mutate(linkId)}
+        />
       )}
 
       {detailOpen && view === 'preview' && (
-        <Surface sx={{ background: '#fff' }}>
-          <SectionTitle title="Public Preview Rules" action={<LockOutlined sx={{ color: appleColors.amber }} />} />
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
-            {[
-              ['Anonymous first view', 'Product summary, selected public sections, and owner note only.'],
-              ['Private proof stays locked', 'Findings and evidence artifacts are never included by default.'],
-              ['Owner controls scope', 'Every link has its own section list and can be revoked.'],
-            ].map(([titleText, detail]) => (
-              <Box key={titleText} sx={{ p: 1.5, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
-                <Typography sx={{ fontWeight: 950 }}>{titleText}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
-                  {detail}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-          {publicPreviewHref ? (
-            <Button component={NextLink} href={publicPreviewHref} variant="contained" startIcon={<PublicOutlined />} sx={{ minHeight: 44, mt: 2 }}>
-              Open latest public preview
-            </Button>
-          ) : (
-            <Alert severity="warning" sx={{ borderRadius: 1, mt: 2 }}>
-              Create a share link first to preview the external page.
-            </Alert>
-          )}
-        </Surface>
+        <OwnerSharePreviewRulesPanel publicPreviewHref={publicPreviewHref} />
       )}
     </Stack>
   );

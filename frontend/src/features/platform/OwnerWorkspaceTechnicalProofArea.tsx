@@ -11,6 +11,7 @@ import {
   scanToolOptions,
   shortDateTime,
 } from './ownerProductizationWorkspaceConfig';
+import type { TechnicalProofView } from './ownerTechnicalProofJourneyModel';
 import type { useOwnerWorkspaceProductActions } from './useOwnerWorkspaceProductActions';
 import type { useOwnerWorkspaceScannerOperations } from './useOwnerWorkspaceScannerOperations';
 import type { NormalizedFinding } from './types';
@@ -53,7 +54,11 @@ interface OwnerWorkspaceTechnicalProofAreaProps {
   productActions: Pick<ProductActions, 'addServiceToCart' | 'createScannerReadinessDiagnosis'>;
   assistantActionProps: Pick<OwnerTechnicalProofProps['assistant'], 'onConfirmAction' | 'actionDisabledReason'>;
   assistantContext: (pageType: string, overrides?: Partial<StudioAssistantContext>) => StudioAssistantContext;
+  technicalProofView: TechnicalProofView;
+  technicalProofDetailOpen: boolean;
   onReviewBlockers: OwnerTechnicalProofProps['runway']['onReviewBlockers'];
+  onOpenTechnicalProofHub: () => void;
+  onOpenTechnicalProofView: (view: TechnicalProofView) => void;
   onEvidenceFilterChange: OwnerTechnicalProofProps['companion']['onEvidenceFilterChange'];
   onSelectFinding: OwnerTechnicalProofProps['companion']['onSelectFinding'];
   onFindingReasonChange: OwnerTechnicalProofProps['companion']['onFindingReasonChange'];
@@ -90,7 +95,11 @@ export default function OwnerWorkspaceTechnicalProofArea({
   productActions,
   assistantActionProps,
   assistantContext,
+  technicalProofView,
+  technicalProofDetailOpen,
   onReviewBlockers,
+  onOpenTechnicalProofHub,
+  onOpenTechnicalProofView,
   onEvidenceFilterChange,
   onSelectFinding,
   onFindingReasonChange,
@@ -151,6 +160,7 @@ export default function OwnerWorkspaceTechnicalProofArea({
 
   return (
     <OwnerTechnicalProofJourneyPanel
+      detailOpen={technicalProofDetailOpen}
       technical={{
         runway: {
           scannerReadiness,
@@ -291,6 +301,9 @@ export default function OwnerWorkspaceTechnicalProofArea({
           formatDateTime: shortDateTime,
         },
       }}
+      view={technicalProofView}
+      onOpenHub={onOpenTechnicalProofHub}
+      onViewChange={onOpenTechnicalProofView}
     />
   );
 }

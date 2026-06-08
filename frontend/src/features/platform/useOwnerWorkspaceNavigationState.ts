@@ -10,6 +10,7 @@ import type {
   ServicesJourneyView,
 } from './ownerWorkspaceJourneyConfig';
 import { workspaceViewValues } from './ownerWorkspaceJourneyConfig';
+import { isTechnicalProofView, type TechnicalProofView } from './ownerTechnicalProofJourneyModel';
 import type { WorkspaceTab } from './ownerWorkspaceModel';
 import { workspaceTabs } from './ownerWorkspaceModel';
 
@@ -30,7 +31,9 @@ export function useOwnerWorkspaceNavigationState() {
   const [actionView, setActionView] = useState<ActionJourneyView>('plan');
   const [findingsView, setFindingsView] = useState<FindingsJourneyView>('risks');
   const [servicesView, setServicesView] = useState<ServicesJourneyView>('recommend');
-  const [shareView, setShareView] = useState<ShareJourneyView>('links');
+  const [shareView, setShareView] = useState<ShareJourneyView>('create');
+  const [technicalProofView, setTechnicalProofView] = useState<TechnicalProofView>('run');
+  const [technicalProofDetailOpen, setTechnicalProofDetailOpen] = useState(false);
   const [workspaceDetailOpen, setWorkspaceDetailOpen] = useState(false);
   const searchParamString = searchParams?.toString() || '';
 
@@ -38,6 +41,7 @@ export function useOwnerWorkspaceNavigationState() {
     const currentParams = new URLSearchParams(searchParamString);
     const tabParam = currentParams.get('tab');
     const viewParam = currentParams.get('view');
+    const proofParam = currentParams.get('proof');
     const nextTab = isWorkspaceTabValue(tabParam) ? tabParam : 'overview';
 
     setWorkspaceTab(nextTab);
@@ -58,6 +62,17 @@ export function useOwnerWorkspaceNavigationState() {
     } else {
       setWorkspaceDetailOpen(false);
     }
+
+    const hasTechnicalProofRoute = nextTab === 'findings' && viewParam === 'technical';
+    if (hasTechnicalProofRoute && isTechnicalProofView(proofParam)) {
+      setTechnicalProofView(proofParam);
+      setTechnicalProofDetailOpen(true);
+    } else {
+      setTechnicalProofDetailOpen(false);
+      if (!hasTechnicalProofRoute) {
+        setTechnicalProofView('run');
+      }
+    }
   }, [searchParamString]);
 
   const pushWorkspaceLocation = (tab: WorkspaceTab, view?: string) => {
@@ -69,6 +84,7 @@ export function useOwnerWorkspaceNavigationState() {
     } else {
       next.delete('view');
     }
+    next.delete('proof');
     router.push(`${routePath}?${next.toString()}`, { scroll: false });
   };
 
@@ -79,6 +95,7 @@ export function useOwnerWorkspaceNavigationState() {
     const routePath = currentPath || pathname || '/products';
     next.delete('tab');
     next.delete('view');
+    next.delete('proof');
     const suffix = next.toString();
     router.push(`${routePath}${suffix ? `?${suffix}` : ''}`, { scroll: false });
   };
@@ -105,6 +122,33 @@ export function useOwnerWorkspaceNavigationState() {
     pushWorkspaceLocation(tab, view);
   };
 
+  const openTechnicalProofHub = () => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || '/products';
+    next.set('tab', 'findings');
+    next.set('view', 'technical');
+    next.delete('proof');
+    setWorkspaceTab('findings');
+    setFindingsView('technical');
+    setWorkspaceDetailOpen(true);
+    setTechnicalProofDetailOpen(false);
+    router.push(`${routePath}?${next.toString()}`, { scroll: false });
+  };
+
+  const openTechnicalProofView = (view: TechnicalProofView) => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || '/products';
+    next.set('tab', 'findings');
+    next.set('view', 'technical');
+    next.set('proof', view);
+    setWorkspaceTab('findings');
+    setFindingsView('technical');
+    setWorkspaceDetailOpen(true);
+    setTechnicalProofView(view);
+    setTechnicalProofDetailOpen(true);
+    router.push(`${routePath}?${next.toString()}`, { scroll: false });
+  };
+
   return {
     workspaceTab,
     overviewView,
@@ -112,6 +156,8 @@ export function useOwnerWorkspaceNavigationState() {
     findingsView,
     servicesView,
     shareView,
+    technicalProofView,
+    technicalProofDetailOpen,
     workspaceDetailOpen,
     openProductHome: () => {
       setWorkspaceTab('overview');
@@ -125,5 +171,7 @@ export function useOwnerWorkspaceNavigationState() {
     openFindingsView: (view: FindingsJourneyView) => openWorkspaceDetail('findings', view),
     openServicesView: (view: ServicesJourneyView) => openWorkspaceDetail('services', view),
     openShareView: (view: ShareJourneyView) => openWorkspaceDetail('share', view),
+    openTechnicalProofHub,
+    openTechnicalProofView,
   };
 }

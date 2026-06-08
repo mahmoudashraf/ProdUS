@@ -9,6 +9,7 @@ import OwnerWorkspaceTechnicalProofArea from './OwnerWorkspaceTechnicalProofArea
 import type { OwnerTechnicalProofProps } from './OwnerTechnicalProofJourneyPanel';
 import type { StudioAssistantContext } from './StudioAssistantCard';
 import type { FindingsJourneyView } from './ownerWorkspaceJourneyConfig';
+import type { TechnicalProofView } from './ownerTechnicalProofJourneyModel';
 import type { WorkspaceTab } from './ownerWorkspaceModel';
 import type { useOwnerWorkspaceProductActions } from './useOwnerWorkspaceProductActions';
 import type { useOwnerWorkspaceScannerOperations } from './useOwnerWorkspaceScannerOperations';
@@ -62,9 +63,13 @@ interface OwnerWorkspaceFindingsAreaProps {
   productActions: Pick<ProductActions, 'addServiceToCart' | 'createScannerReadinessDiagnosis' | 'refreshRepoSignals'>;
   assistantActionProps: Pick<OwnerTechnicalProofProps['assistant'], 'onConfirmAction' | 'actionDisabledReason'>;
   assistantContext: (pageType: string, overrides?: Partial<StudioAssistantContext>) => StudioAssistantContext;
+  technicalProofView: TechnicalProofView;
+  technicalProofDetailOpen: boolean;
   onToggleFindingGroup: RiskProps['onGroupToggle'];
   onReviewFinding: RiskProps['onReviewFinding'];
   onOpenFindingsView: (view: FindingsJourneyView) => void;
+  onOpenTechnicalProofHub: () => void;
+  onOpenTechnicalProofView: (view: TechnicalProofView) => void;
   onEvidenceFilterChange: EvidenceProps['onEvidenceFilterChange'];
   onFindingReasonChange: OwnerTechnicalProofProps['companion']['onFindingReasonChange'];
   onFindingReviewDueChange: OwnerTechnicalProofProps['companion']['onFindingReviewDueChange'];
@@ -108,9 +113,13 @@ export default function OwnerWorkspaceFindingsArea({
   productActions,
   assistantActionProps,
   assistantContext,
+  technicalProofView,
+  technicalProofDetailOpen,
   onToggleFindingGroup,
   onReviewFinding,
   onOpenFindingsView,
+  onOpenTechnicalProofHub,
+  onOpenTechnicalProofView,
   onEvidenceFilterChange,
   onFindingReasonChange,
   onFindingReviewDueChange,
@@ -176,7 +185,11 @@ export default function OwnerWorkspaceFindingsArea({
         selectedFinding={selectedFinding}
         selectedProduct={selectedProduct}
         selectedWorkspace={selectedWorkspace}
+        technicalProofDetailOpen={technicalProofDetailOpen}
+        technicalProofView={technicalProofView}
         unavailableScannerTools={unavailableScannerTools}
+        onOpenTechnicalProofHub={onOpenTechnicalProofHub}
+        onOpenTechnicalProofView={onOpenTechnicalProofView}
       />
     );
   }

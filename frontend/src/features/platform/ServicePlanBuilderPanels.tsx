@@ -5,7 +5,7 @@ import {
   FactCheckOutlined,
 } from '@mui/icons-material';
 import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import { OwnerWorkspaceJourneyNav, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import {
   PastelChip,
   ProgressRing,
@@ -20,6 +20,13 @@ import {
   servicePlanStatusAccent,
 } from './servicePlanBuilderConfig';
 import type { PackageInstance } from './types';
+
+const servicePlanViewLabel: Record<ServicePlanBuilderView, string> = {
+  summary: 'Plan Summary',
+  services: 'Services',
+  team: 'Team Match',
+  commercial: 'Handoff',
+};
 
 export function ServicePlanSelectorPanel({
   packageList,
@@ -198,6 +205,71 @@ export function ServicePlanJourneyPanel({
         items={items}
         onChange={onChange}
       />
+    </Surface>
+  );
+}
+
+export function ServicePlanDetailNavigation({
+  currentView,
+  onOpenHub,
+}: {
+  currentView: ServicePlanBuilderView;
+  onOpenHub: () => void;
+}) {
+  return (
+    <WorkspaceBreadcrumbs
+      items={[
+        { label: 'Service Plans', onClick: onOpenHub },
+        { label: servicePlanViewLabel[currentView] },
+      ]}
+      backLabel="Plans home"
+      onBack={onOpenHub}
+    />
+  );
+}
+
+export function ServicePlanSelectedContextPanel({
+  selectedPackage,
+  score,
+  moduleCount,
+  teamMatchCount,
+  proposalCount,
+  estimatedBudget,
+}: {
+  selectedPackage: PackageInstance;
+  score: number;
+  moduleCount: number;
+  teamMatchCount: number;
+  proposalCount: number;
+  estimatedBudget: number;
+}) {
+  const accent = servicePlanStatusAccent(selectedPackage.status);
+
+  return (
+    <Surface sx={{ background: '#fff' }}>
+      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} alignItems={{ lg: 'center' }} justifyContent="space-between">
+        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+          <ProgressRing value={score || 58} size={68} color={accent} label="/100" />
+          <Box sx={{ minWidth: 0 }}>
+            <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+              <PastelChip label="Selected service plan" accent={accent} bg={`${accent}12`} />
+              <StatusChip label={selectedPackage.status} />
+            </Stack>
+            <Typography variant="h3" sx={{ mt: 0.75, overflowWrap: 'anywhere' }}>
+              {selectedPackage.name}
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.35, overflowWrap: 'anywhere' }}>
+              {selectedPackage.productProfile?.name || 'Product not linked yet'}
+            </Typography>
+          </Box>
+        </Stack>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, minmax(0, 1fr))' }, gap: 1, minWidth: { lg: 460 }, width: { xs: '100%', lg: 'auto' } }}>
+          <PlanMiniMetric label="Services" value={moduleCount} />
+          <PlanMiniMetric label="Teams" value={teamMatchCount} />
+          <PlanMiniMetric label="Proposals" value={proposalCount} />
+          <PlanMiniMetric label="Budget" value={formatCompactMoney(estimatedBudget, 'USD')} />
+        </Box>
+      </Stack>
     </Surface>
   );
 }

@@ -67,6 +67,8 @@ export default function OwnerProductizationWorkspace({
     findingsView,
     servicesView,
     shareView,
+    technicalProofDetailOpen,
+    technicalProofView,
     workspaceDetailOpen,
     openProductHome,
     openWorkspaceArea,
@@ -74,6 +76,8 @@ export default function OwnerProductizationWorkspace({
     openActionView,
     openFindingsView,
     openServicesView,
+    openTechnicalProofHub,
+    openTechnicalProofView,
   } = useOwnerWorkspaceNavigationState();
   const {
     categories,
@@ -491,9 +495,13 @@ export default function OwnerProductizationWorkspace({
             selectedFinding={selectedFinding}
             selectedProduct={selectedProduct}
             selectedWorkspace={selectedWorkspace}
+            technicalProofDetailOpen={technicalProofDetailOpen}
+            technicalProofView={technicalProofView}
             unavailableScannerTools={unavailableScannerTools}
             view={findingsView}
             workspaceTab={workspaceTab}
+            onOpenTechnicalProofHub={openTechnicalProofHub}
+            onOpenTechnicalProofView={openTechnicalProofView}
           />
 
           <OwnerWorkspaceServicesArea

@@ -8,14 +8,14 @@ export type OverviewJourneyView = 'decision' | 'progress';
 export type ActionJourneyView = 'plan' | 'diagnosis';
 export type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
 export type ServicesJourneyView = 'recommend' | 'plan' | 'team';
-export type ShareJourneyView = 'links' | 'preview';
+export type ShareJourneyView = 'create' | 'links' | 'preview';
 
 export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
   overview: ['decision', 'progress'],
   actions: ['plan', 'diagnosis'],
   findings: ['risks', 'evidence', 'technical'],
   services: ['recommend', 'plan', 'team'],
-  share: ['links', 'preview'],
+  share: ['create', 'links', 'preview'],
 };
 
 interface OwnerWorkspaceJourneyConfigInput {
@@ -137,10 +137,17 @@ export const buildOwnerWorkspaceJourneyItems = ({
   ],
   shareJourneyItems: [
     {
-      value: 'links',
-      label: 'Share links',
-      detail: 'Create, review, and revoke controlled product share links.',
+      value: 'create',
+      label: 'Create link',
+      detail: 'Choose audience, safe sections, expiry, and viewer action.',
       accent: appleColors.purple,
+      meta: <PastelChip label="Safe setup" accent={appleColors.purple} bg="#f1efff" />,
+    },
+    {
+      value: 'links',
+      label: 'Manage links',
+      detail: 'Review, copy, preview, and revoke controlled product links.',
+      accent: appleColors.blue,
       meta: <PastelChip label={`${shareLinkCount} links`} accent={shareLinkCount ? appleColors.green : appleColors.purple} bg={shareLinkCount ? '#e7f8ee' : '#f1efff'} />,
     },
     {
