@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { EventRepeatOutlined } from '@mui/icons-material';
 import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
 import { useAdvancedForm } from '@/hooks/enterprise';
@@ -12,8 +12,7 @@ import {
 } from './PlatformComponents';
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
 import { type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
-import OwnerFindingReviewDrawer from './OwnerFindingReviewDrawer';
-import StudioAssistantCard from './StudioAssistantCard';
+import OwnerFindingReviewDrawerHost from './OwnerFindingReviewDrawerHost';
 import OwnerWorkspaceActionsPane from './OwnerWorkspaceActionsPane';
 import OwnerWorkspaceFindingsPane from './OwnerWorkspaceFindingsPane';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
@@ -21,19 +20,16 @@ import OwnerWorkspaceOverviewPane from './OwnerWorkspaceOverviewPane';
 import OwnerWorkspaceServicesPane from './OwnerWorkspaceServicesPane';
 import OwnerWorkspaceNavigationPanel from './OwnerWorkspaceNavigationPanel';
 import OwnerWorkspaceSideRailPane from './OwnerWorkspaceSideRailPane';
-import { findingStatusAccent } from './ownerFindingPresentation';
 import { OwnerReadinessVerdictReveal } from './OwnerJourneyCards';
 import { buildOwnerWorkspaceAssistantActions } from './ownerWorkspaceAssistantActions';
 import {
   buildOwnerWorkspaceJourneyItems,
 } from './ownerWorkspaceJourneyConfig';
 import {
-  ownerCategoryFromSignal,
   workspaceTabs,
 } from './ownerWorkspaceModel';
 import {
   DiagnosisPayload,
-  FindingStatusPayload,
   ProductProfilePayload,
   RequirementPayload,
   defaultToolsForDepth,
@@ -43,18 +39,12 @@ import {
   scanToolOptions,
   shortDateTime,
 } from './ownerProductizationWorkspaceConfig';
-import {
-  ServiceModule,
-  ExpertProfile,
-  Team,
-  TeamRecommendation,
-  TeamShortlist,
-  NormalizedFinding,
-} from './types';
 import { useOwnerWorkspaceNavigationState } from './useOwnerWorkspaceNavigationState';
 import { useOwnerProductizationWorkspaceData } from './useOwnerProductizationWorkspaceData';
 import { useOwnerWorkspaceScannerOperations } from './useOwnerWorkspaceScannerOperations';
 import { useOwnerWorkspaceProductActions } from './useOwnerWorkspaceProductActions';
+import { useOwnerWorkspaceInteractionHandlers } from './useOwnerWorkspaceInteractionHandlers';
+import { useOwnerWorkspaceFindingReviewState } from './useOwnerWorkspaceFindingReviewState';
 import { buildOwnerWorkspaceViewModel } from './ownerWorkspaceViewModel';
 import type { ScannerEvidenceFilter } from './scannerProofOperationsTypes';
 
@@ -85,11 +75,7 @@ export default function OwnerProductizationWorkspace({
   } = useOwnerWorkspaceNavigationState();
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [selectedFindingId, setSelectedFindingId] = useState('');
-  const [findingDrawerOpen, setFindingDrawerOpen] = useState(false);
-  const [openFindingGroups, setOpenFindingGroups] = useState<Record<string, boolean>>({ 'Launch blockers': true });
   const [evidenceFilter, setEvidenceFilter] = useState<ScannerEvidenceFilter>('ALL');
-  const [findingReasonById, setFindingReasonById] = useState<Record<string, string>>({});
-  const [findingReviewDueById, setFindingReviewDueById] = useState<Record<string, string>>({});
   const {
     categories,
     catalogModules,
@@ -198,18 +184,6 @@ export default function OwnerProductizationWorkspace({
     },
   });
 
-  useEffect(() => {
-    if (!selectedProductId && productList[0]) {
-      setSelectedProductId(productList[0].id);
-    }
-  }, [productList, selectedProductId]);
-
-  useEffect(() => {
-    if (selectedPackage?.id && selectedPackage.id !== selectedPackageId) {
-      setSelectedPackageId(selectedPackage.id);
-    }
-  }, [selectedPackage, selectedPackageId]);
-
   const {
     acceptProposal,
     addServiceToCart,
@@ -310,16 +284,34 @@ export default function OwnerProductizationWorkspace({
     supportRequests: supportRequests.data || [],
     teams: teams.data || [],
   });
-  const selectedFinding = (scannerSummary.data?.findings || []).find((finding) => finding.id === selectedFindingId) || scannerOpenFindings[0] || scannerSummary.data?.findings?.[0];
-  const selectedFindingOwnerCategory = selectedFinding
-    ? ownerCategoryFromSignal(selectedFinding.sourceTool, selectedFinding.readinessArea, selectedFinding.title)
-    : 'Product risk';
-  const selectedFindingEvidence = (scannerSummary.data?.evidence || []).filter((item) => item.findingId && item.findingId === selectedFinding?.id);
-  const selectedFindingReason = selectedFinding ? findingReasonById[selectedFinding.id] || '' : '';
-  const selectedFindingReviewDue = selectedFinding ? findingReviewDueById[selectedFinding.id] || '' : '';
-  const selectedFindingCanResolve = !!selectedFindingReason.trim();
-  const selectedFindingCanAcceptRisk = !!selectedFindingReason.trim() && !!selectedFindingReviewDue;
-  const selectedFindingRecommendedInCart = !!selectedFinding?.recommendedModule && cartServiceIds.has(selectedFinding.recommendedModule.id);
+  const {
+    closeFindingReview,
+    findingDrawerOpen,
+    findingReasonById,
+    findingReviewDueById,
+    openFindingGroups,
+    openFindingReview,
+    selectedFinding,
+    selectedFindingCanAcceptRisk,
+    selectedFindingCanResolve,
+    selectedFindingEvidence,
+    selectedFindingOwnerCategory,
+    selectedFindingReason,
+    selectedFindingRecommendedInCart,
+    selectedFindingReviewDue,
+    setFindingGroupOpen,
+    setFindingReason,
+    setFindingReviewDue,
+    setSelectedFindingReason,
+    setSelectedFindingReviewDue,
+  } = useOwnerWorkspaceFindingReviewState({
+    cartServiceIds,
+    scannerEvidence: scannerSummary.data?.evidence || [],
+    scannerFindings: scannerSummary.data?.findings || [],
+    scannerOpenFindings,
+    selectedFindingId,
+    setSelectedFindingId,
+  });
   const { assistantActionProps, assistantContext } = buildOwnerWorkspaceAssistantActions({
     buildTargetRequirementId,
     cartBlockers,
@@ -353,118 +345,43 @@ export default function OwnerProductizationWorkspace({
     startReadiness: cartStartContext,
   });
 
-  const submitProduct = productForm.handleSubmit(() => createProduct.mutate());
-  const submitRequirement = requirementForm.handleSubmit(() => {
-    if (selectedProduct?.id) {
-      requirementForm.setValue('productProfileId', selectedProduct.id);
-      createRequirement.mutate();
-    }
+  const {
+    addExpertToCart,
+    addLifecycleService,
+    addRecommendationTeamToCart,
+    addTeamToCart,
+    recordFindingDecision,
+    recordShortlist,
+    selectProduct,
+    submitProduct,
+    submitRequirement,
+  } = useOwnerWorkspaceInteractionHandlers({
+    addServiceToCart,
+    addTalentToCart,
+    cart: cart.data,
+    createProduct,
+    createRequirement,
+    findingReasonById,
+    findingReviewDueById,
+    productForm,
+    productId,
+    productList,
+    requirementForm,
+    selectedPackage,
+    selectedPackageId,
+    selectedProduct,
+    selectedProductId,
+    setSelectedPackageId,
+    setSelectedProductId,
+    updateCart,
+    updateFindingStatus,
+    upsertShortlist,
   });
 
   const loading = queriesLoading;
   const error = queryError
     || productActionError
     || scannerOperationError;
-
-  const recordShortlist = (teamId: string, status: TeamShortlist['status']) => {
-    if (!selectedPackage?.id) return;
-    upsertShortlist.mutate({
-      packageInstanceId: selectedPackage.id,
-      teamId,
-      status,
-      notes: status === 'COMPARED'
-        ? 'Owner compared this team against service plan needs, evidence, and commercial readiness.'
-        : 'Owner shortlisted this team for productization service plan review.',
-    });
-  };
-
-  const addLifecycleService = (serviceModule: ServiceModule, categoryName?: string) => {
-    if (!selectedProduct?.id) return;
-    const businessGoal = `Add ${serviceModule.name} to ${selectedProduct.name} so the product can move toward production-ready delivery.`;
-    requirementForm.setValue('requestedServiceModuleId', serviceModule.id);
-    requirementForm.setValue('businessGoal', businessGoal);
-    if (cart.data?.productProfile?.id !== selectedProduct.id) {
-      updateCart.mutate({
-        productProfileId: selectedProduct.id,
-        title: `${selectedProduct.name} productization plan`,
-        businessGoal,
-      });
-    }
-    addServiceToCart.mutate({
-      serviceModuleId: serviceModule.id,
-      notes: categoryName ? `Owner selected from ${categoryName}.` : 'Owner selected from lifecycle services.',
-    });
-  };
-
-  const addRecommendationTeamToCart = (recommendation: TeamRecommendation) => {
-    addTalentToCart.mutate({
-      itemType: 'TEAM',
-      teamId: recommendation.team.id,
-      notes: `Owner saved team from service plan matching. Match score ${Math.round(recommendation.score * 100)}%.`,
-    });
-  };
-
-  const addTeamToCart = (team: Team) => {
-    addTalentToCart.mutate({
-      itemType: 'TEAM',
-      teamId: team.id,
-      notes: 'Owner saved team from productization workspace recommendations.',
-    });
-  };
-
-  const addExpertToCart = (expert: ExpertProfile) => {
-    addTalentToCart.mutate({
-      itemType: 'EXPERT',
-      expertProfileId: expert.id,
-      notes: 'Owner saved solo expert from productization workspace recommendations.',
-    });
-  };
-
-  const recordFindingDecision = (finding: NormalizedFinding, status: FindingStatusPayload['status']) => {
-    const reason = findingReasonById[finding.id]?.trim();
-    const reviewDueOn = findingReviewDueById[finding.id];
-    const requiresReason = status === 'RESOLVED' || status === 'ACCEPTED_RISK' || status === 'FALSE_POSITIVE';
-    const requiresDueDate = status === 'ACCEPTED_RISK';
-    if ((requiresReason && !reason) || (requiresDueDate && !reviewDueOn)) {
-      return;
-    }
-    updateFindingStatus.mutate({
-      findingId: finding.id,
-      payload: {
-        status,
-        ...(reason ? { reason } : {}),
-        ...(reviewDueOn ? { reviewDueOn } : {}),
-      },
-    });
-  };
-
-  const selectProduct = (productId: string) => {
-    setSelectedProductId(productId);
-    const product = productList.find((item) => item.id === productId);
-    if (product) {
-      updateCart.mutate({
-        productProfileId: product.id,
-        title: `${product.name} productization plan`,
-        businessGoal: cart.data?.businessGoal || `Move ${product.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (productId && productId !== selectedProductId) {
-      setSelectedProductId(productId);
-    }
-  }, [productId, selectedProductId]);
-
-  useEffect(() => {
-    if (selectedProduct?.id && cart.data?.status === 'DRAFT' && cart.data.productProfile?.id !== selectedProduct.id && !updateCart.isPending) {
-      updateCart.mutate({
-        productProfileId: selectedProduct.id,
-        title: `${selectedProduct.name} productization plan`,
-        businessGoal: cart.data?.businessGoal || `Move ${selectedProduct.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
-      });
-    }
-  }, [cart.data?.businessGoal, cart.data?.productProfile?.id, cart.data?.status, selectedProduct?.id]);
 
   const {
     overviewJourneyItems,
@@ -651,11 +568,8 @@ export default function OwnerProductizationWorkspace({
                 groups: groupedFindings,
                 totalFindingCount: scannerSummary.data?.findings.length || 0,
                 openGroups: openFindingGroups,
-                onGroupToggle: (label, expanded) => setOpenFindingGroups((current) => ({ ...current, [label]: expanded })),
-                onReviewFinding: (findingId) => {
-                  setSelectedFindingId(findingId);
-                  setFindingDrawerOpen(true);
-                },
+                onGroupToggle: setFindingGroupOpen,
+                onReviewFinding: openFindingReview,
                 onOpenTechnicalProof: () => openFindingsView('technical'),
               }}
               evidence={{
@@ -807,12 +721,9 @@ export default function OwnerProductizationWorkspace({
                   onEvidenceFilterChange: setEvidenceFilter,
                   onExportEvidence: () => createEvidenceExport.mutate(),
                   onOpenEvidence: openEvidenceArtifact,
-                  onSelectFinding: (findingId) => {
-                    setSelectedFindingId(findingId);
-                    setFindingDrawerOpen(true);
-                  },
-                  onFindingReasonChange: (findingId, value) => setFindingReasonById((current) => ({ ...current, [findingId]: value })),
-                  onFindingReviewDueChange: (findingId, value) => setFindingReviewDueById((current) => ({ ...current, [findingId]: value })),
+                  onSelectFinding: openFindingReview,
+                  onFindingReasonChange: setFindingReason,
+                  onFindingReviewDueChange: setFindingReviewDue,
                   onAddService: addLifecycleService,
                   onRecordFindingDecision: recordFindingDecision,
                   onCancelRun: (runId) => cancelScannerRun.mutate(runId),
@@ -957,7 +868,7 @@ export default function OwnerProductizationWorkspace({
           }}
         />
       </Box>
-      <OwnerFindingReviewDrawer
+      <OwnerFindingReviewDrawerHost
         open={findingDrawerOpen}
         product={selectedProduct}
         finding={selectedFinding}
@@ -971,27 +882,14 @@ export default function OwnerProductizationWorkspace({
         isAddingService={addServiceToCart.isPending}
         isUpdatingStatus={updateFindingStatus.isPending}
         isOpeningEvidence={openSignedEvidence.isPending}
-        onClose={() => setFindingDrawerOpen(false)}
-        onDecisionReasonChange={(value) => selectedFinding && setFindingReasonById((current) => ({ ...current, [selectedFinding.id]: value }))}
-        onReviewDueChange={(value) => selectedFinding && setFindingReviewDueById((current) => ({ ...current, [selectedFinding.id]: value }))}
+        onClose={closeFindingReview}
+        onDecisionReasonChange={setSelectedFindingReason}
+        onReviewDueChange={setSelectedFindingReviewDue}
         onRecordDecision={(status) => selectedFinding && recordFindingDecision(selectedFinding, status)}
         onAddService={addLifecycleService}
         onOpenEvidence={openEvidenceArtifact}
-        assistantSlot={
-          selectedFinding && selectedProduct ? (
-            <StudioAssistantCard
-              title="AI Finding Review"
-              description="Turn this finding into an owner-readable decision with evidence needs and remediation direction."
-              prompt={`Do not call write actions for this answer. Review scanner finding ${selectedFinding.id} for ${selectedProduct.name}. Finding details: title "${selectedFinding.title}", severity ${selectedFinding.severity}, status ${selectedFinding.status}, affected area "${selectedFinding.readinessArea || selectedFinding.affectedComponent || 'not specified'}", source rule "${selectedFinding.sourceRuleId || selectedFinding.sourceTool}", description "${selectedFinding.description}", business risk "${selectedFinding.businessRisk || 'not mapped'}", required evidence "${selectedFinding.evidenceRequired || 'not mapped'}", recommended service "${selectedFinding.recommendedModule?.name || 'not mapped'}", linked evidence count ${selectedFindingEvidence.length}. Explain likely impact, what evidence is needed to resolve or accept risk, and which productization service or milestone should own follow-up. Use these provided details directly. Do not include raw artifact contents.`}
-              conversationId={`studio-finding-${selectedProduct.id}-${selectedFinding.id}`}
-              context={assistantContext('scanner-finding-review', { findingId: selectedFinding.id })}
-              {...assistantActionProps}
-              accent={findingStatusAccent(selectedFinding.status)}
-              compact
-              cta="Review Finding"
-            />
-          ) : undefined
-        }
+        assistantActions={assistantActionProps}
+        assistantContext={assistantContext}
       />
       <OwnerWorkspaceTimelineDialog
         open={timelineOpen}

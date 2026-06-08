@@ -4,16 +4,24 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getJson, patchJson, postJson } from './api';
 import {
   DisconnectSourcePayload,
-  ExternalImportPayload,
   FindingStatusPayload,
   FullHostedScanPayload,
   HostedScanPayload,
   ProviderSourcePayload,
   ScanSourcePayload,
-  ScannerSchedulePayload,
   ScannerUploadPayload,
 } from './ownerProductizationWorkspaceConfig';
 import { buildOwnerWorkspaceScannerDerivedState } from './ownerWorkspaceScannerDerivedState';
+import {
+  buildExternalImportPayload,
+  buildFullHostedScanPayload,
+  buildHostedScanPayload,
+  buildProviderSourcePayload,
+  buildScannerSchedulePayload,
+  buildScannerUploadPayload,
+  buildScanSourcePayload,
+  providerSourceProvider,
+} from './ownerWorkspaceScannerPayloads';
 import { useOwnerWorkspaceScannerForms } from './useOwnerWorkspaceScannerForms';
 import type { ScannerEvidenceFilter } from './scannerProofOperationsTypes';
 import type {
@@ -94,18 +102,12 @@ export function useOwnerWorkspaceScannerOperations({
   });
 
   const createScanSource = useMutation({
-    mutationFn: () => {
-      const payload: ScanSourcePayload = {
-        productId: selectedProduct?.id || '',
-        providerType: scanSourceForm.providerType,
-        displayName: scanSourceForm.displayName,
-        externalReference: scanSourceForm.externalReference,
-        authorizationStatus: scanSourceForm.providerType === 'CI_UPLOAD' || scanSourceForm.authorizationConfirmed ? 'AUTHORIZED' : 'PENDING',
-        scopeNote: scanSourceForm.scopeNote,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      return postJson<ScanSource, ScanSourcePayload>('/scanner/sources', payload);
-    },
+    mutationFn: () =>
+      postJson<ScanSource, ScanSourcePayload>('/scanner/sources', buildScanSourcePayload({
+        scanSourceForm,
+        selectedProduct,
+        selectedWorkspace,
+      })),
     onSuccess: async (source) => {
       setScannerUploadForm((current) => ({ ...current, sourceId: source.id }));
       setHostedScanForm((current) => ({ ...current, sourceId: source.id }));
@@ -126,17 +128,14 @@ export function useOwnerWorkspaceScannerOperations({
   });
   const createProviderSource = useMutation({
     mutationFn: () => {
-      const provider = scanSourceForm.providerType === 'GITLAB' ? 'gitlab' : 'github';
-      const payload: ProviderSourcePayload = {
-        installationId: providerSourceForm.installationId || activeProviderInstallations[0]?.id || '',
-        productId: selectedProduct?.id || '',
-        repositoryFullName: providerSourceForm.repositoryFullName.trim(),
-        defaultBranch: providerSourceForm.defaultBranch.trim() || 'main',
-        displayName: scanSourceForm.displayName || providerSourceForm.repositoryFullName,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (providerSourceForm.cloneUrl.trim()) payload.cloneUrl = providerSourceForm.cloneUrl.trim();
-      return postJson<ScanSource, ProviderSourcePayload>(`/scanner/connectors/${provider}/sources`, payload);
+      const provider = providerSourceProvider(scanSourceForm);
+      return postJson<ScanSource, ProviderSourcePayload>(`/scanner/connectors/${provider}/sources`, buildProviderSourcePayload({
+        activeProviderInstallations,
+        providerSourceForm,
+        scanSourceForm,
+        selectedProduct,
+        selectedWorkspace,
+      }));
     },
     onSuccess: async (source) => {
       setScannerUploadForm((current) => ({ ...current, sourceId: source.id }));
@@ -146,20 +145,12 @@ export function useOwnerWorkspaceScannerOperations({
     },
   });
   const uploadScannerEvidence = useMutation({
-    mutationFn: () => {
-      const payload: ScannerUploadPayload = {
-        productId: selectedProduct?.id || '',
-        toolName: scannerUploadForm.toolName,
-        toolVersion: scannerUploadForm.toolVersion,
-        format: scannerUploadForm.format,
-        artifactFileName: scannerUploadForm.artifactFileName,
-        artifactPayload: scannerUploadForm.artifactPayload,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (scannerUploadForm.sourceId) payload.sourceId = scannerUploadForm.sourceId;
-      if (scannerUploadForm.milestoneId) payload.milestoneId = scannerUploadForm.milestoneId;
-      return postJson<ScanRun, ScannerUploadPayload>('/scanner/runs/ci-upload', payload);
-    },
+    mutationFn: () =>
+      postJson<ScanRun, ScannerUploadPayload>('/scanner/runs/ci-upload', buildScannerUploadPayload({
+        scannerUploadForm,
+        selectedProduct,
+        selectedWorkspace,
+      })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
       await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
@@ -168,24 +159,12 @@ export function useOwnerWorkspaceScannerOperations({
     },
   });
   const importExternalEvidence = useMutation({
-    mutationFn: () => {
-      const payload: ExternalImportPayload = {
-        productId: selectedProduct?.id || '',
-        provider: externalImportForm.provider,
-        importMethod: externalImportForm.importMethod,
-        toolName: externalImportForm.toolName,
-        format: externalImportForm.format,
-        artifactPayload: externalImportForm.artifactPayload,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (externalImportForm.sourceId) payload.sourceId = externalImportForm.sourceId;
-      if (externalImportForm.milestoneId) payload.milestoneId = externalImportForm.milestoneId;
-      if (externalImportForm.toolVersion) payload.toolVersion = externalImportForm.toolVersion;
-      if (externalImportForm.artifactFileName) payload.artifactFileName = externalImportForm.artifactFileName;
-      if (externalImportForm.externalReference) payload.externalReference = externalImportForm.externalReference;
-      if (externalImportForm.scopeNote) payload.scopeNote = externalImportForm.scopeNote;
-      return postJson('/scanner/imports/external', payload);
-    },
+    mutationFn: () =>
+      postJson('/scanner/imports/external', buildExternalImportPayload({
+        externalImportForm,
+        selectedProduct,
+        selectedWorkspace,
+      })),
     onSuccess: async () => {
       setExternalImportForm((current) => ({ ...current, artifactPayload: '', externalReference: '' }));
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
@@ -216,41 +195,23 @@ export function useOwnerWorkspaceScannerOperations({
     },
   });
   const startHostedScan = useMutation({
-    mutationFn: () => {
-      const payload: HostedScanPayload = {
-        productId: selectedProduct?.id || '',
-        depth: hostedScanForm.depth,
-        toolKeys: hostedScanForm.toolKeys,
-        authorizationConfirmed: hostedScanForm.authorizationConfirmed,
-        runtimeAuthorizationConfirmed: hostedScanForm.depth === 'RUNTIME_BASELINE' ? hostedScanForm.runtimeAuthorizationConfirmed : false,
-        reason: hostedScanForm.reason,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (hostedScanForm.sourceId) payload.sourceId = hostedScanForm.sourceId;
-      if (hostedScanForm.branchRef.trim()) payload.branchRef = hostedScanForm.branchRef.trim();
-      if (hostedScanForm.runtimeTargetUrl.trim()) payload.runtimeTargetUrl = hostedScanForm.runtimeTargetUrl.trim();
-      if (hostedScanForm.containerImageRef.trim()) payload.containerImageRef = hostedScanForm.containerImageRef.trim();
-      return postJson<ScanRun, HostedScanPayload>('/scanner/runs/hosted', payload);
-    },
+    mutationFn: () =>
+      postJson<ScanRun, HostedScanPayload>('/scanner/runs/hosted', buildHostedScanPayload({
+        hostedScanForm,
+        selectedProduct,
+        selectedWorkspace,
+      })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
     },
   });
   const startFullHostedScan = useMutation({
-    mutationFn: () => {
-      const payload: FullHostedScanPayload = {
-        productId: selectedProduct?.id || '',
-        authorizationConfirmed: hostedScanForm.authorizationConfirmed,
-        runtimeAuthorizationConfirmed: hostedScanForm.runtimeAuthorizationConfirmed,
-        reason: hostedScanForm.reason,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (hostedScanForm.sourceId) payload.sourceId = hostedScanForm.sourceId;
-      if (hostedScanForm.branchRef.trim()) payload.branchRef = hostedScanForm.branchRef.trim();
-      if (hostedScanForm.runtimeTargetUrl.trim()) payload.runtimeTargetUrl = hostedScanForm.runtimeTargetUrl.trim();
-      if (hostedScanForm.containerImageRef.trim()) payload.containerImageRef = hostedScanForm.containerImageRef.trim();
-      return postJson<FullHostedScanResponse, FullHostedScanPayload>('/scanner/runs/hosted/full', payload);
-    },
+    mutationFn: () =>
+      postJson<FullHostedScanResponse, FullHostedScanPayload>('/scanner/runs/hosted/full', buildFullHostedScanPayload({
+        hostedScanForm,
+        selectedProduct,
+        selectedWorkspace,
+      })),
     onSuccess: async (response) => {
       setCartNotice(`Full scanner suite queued ${response.queuedToolKeys.length} tool${response.queuedToolKeys.length === 1 ? '' : 's'} across ${response.queuedRuns.length} run${response.queuedRuns.length === 1 ? '' : 's'}.`);
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
@@ -273,24 +234,13 @@ export function useOwnerWorkspaceScannerOperations({
     },
   });
   const createScannerSchedule = useMutation({
-    mutationFn: () => {
-      const intervalDays = Number.parseInt(scheduleForm.intervalDays, 10);
-      const payload: ScannerSchedulePayload = {
-        productId: selectedProduct?.id || '',
-        sourceId: hostedScanForm.sourceId,
-        depth: hostedScanForm.depth,
-        toolKeys: hostedScanForm.toolKeys,
-        intervalDays: Number.isFinite(intervalDays) ? intervalDays : 7,
-        reason: scheduleForm.reason,
-        active: true,
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      if (hostedScanForm.branchRef.trim()) payload.branchRef = hostedScanForm.branchRef.trim();
-      if (hostedScanForm.runtimeTargetUrl.trim()) payload.runtimeTargetUrl = hostedScanForm.runtimeTargetUrl.trim();
-      if (hostedScanForm.containerImageRef.trim()) payload.containerImageRef = hostedScanForm.containerImageRef.trim();
-      if (scheduleForm.nextRunAt) payload.nextRunAt = scheduleForm.nextRunAt;
-      return postJson('/scanner/schedules', payload);
-    },
+    mutationFn: () =>
+      postJson('/scanner/schedules', buildScannerSchedulePayload({
+        hostedScanForm,
+        scheduleForm,
+        selectedProduct,
+        selectedWorkspace,
+      })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
     },
