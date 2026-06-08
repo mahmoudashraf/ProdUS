@@ -17,13 +17,18 @@ export function OwnerWorkspaceJourneyNav<T extends string>({
   label,
   value,
   items,
+  maxColumns = 3,
   onChange,
 }: {
   label: string;
   value: T;
   items: JourneyStepItem<T>[];
+  maxColumns?: number;
   onChange: (value: T) => void;
 }) {
+  const mediumColumns = Math.min(items.length, Math.min(maxColumns, 3));
+  const largeColumns = Math.min(items.length, maxColumns);
+
   return (
     <Box
       aria-label={label}
@@ -31,7 +36,11 @@ export function OwnerWorkspaceJourneyNav<T extends string>({
       sx={{
         minWidth: 0,
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: `repeat(${Math.min(items.length, 3)}, minmax(0, 1fr))` },
+        gridTemplateColumns: {
+          xs: '1fr',
+          md: `repeat(${mediumColumns}, minmax(0, 1fr))`,
+          lg: `repeat(${largeColumns}, minmax(0, 1fr))`,
+        },
         gap: 1,
       }}
     >

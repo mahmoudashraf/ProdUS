@@ -103,6 +103,7 @@ export default function OwnerTechnicalProofJourneyPanel({
           label="Technical proof journey"
           value={view}
           items={items}
+          maxColumns={4}
           onChange={setView}
         />
 
