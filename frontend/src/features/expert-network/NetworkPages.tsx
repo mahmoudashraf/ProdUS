@@ -3,46 +3,35 @@
 import NextLink from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
 import {
   AddOutlined,
   ArrowForward,
-  AutoAwesomeOutlined,
   ChatBubbleOutline,
   ExploreOutlined,
   FavoriteBorderOutlined,
-  GroupAddOutlined,
-  GroupsOutlined,
-  HandshakeOutlined,
   Inventory2Outlined,
   NotificationsNoneOutlined,
   PersonAddAltOutlined,
   SendOutlined,
-  TuneOutlined,
 } from '@mui/icons-material';
 import {
   Alert,
-  Avatar,
   Box,
   Button,
   Divider,
-  LinearProgress,
   MenuItem,
   Stack,
   TextField,
   Typography,
-  type ButtonProps,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import {
-  DotLabel,
   EmptyState,
   MetricTile,
   PageHeader,
   PastelChip,
-  ProgressRing,
   QueryState,
   SectionTitle,
   StatusChip,
@@ -52,417 +41,19 @@ import {
   formatLabel,
 } from '@/features/platform/PlatformComponents';
 import TeamProfilesPage from '@/features/platform/TeamProfilesPage';
-import type { ExpertProfile, PlatformNotification, Team, TeamInvitation, TeamJoinRequest, TeamMember } from '@/features/platform/types';
+import type { ExpertProfile, Team, TeamJoinRequest } from '@/features/platform/types';
 import { networkApi } from './api';
-import type { ConversationCreatePayload, FormationPostPayload, TrialPayload, TrialStatus, UserAccount } from './types';
+import { ActivityRow, NetworkNotice, PersonAvatar, TagRow, displayName, formatDate } from './NetworkSharedPanels';
+import {
+  joinRequestForTeam,
+  messageFor,
+  trialActionsForStatus,
+  type TrialAction,
+} from './networkPresentation';
+import type { FormationPostPayload, TrialPayload, UserAccount } from './types';
+import { useNetworkMessageAction } from './useNetworkMessageAction';
 
-const serviceColors = ['#6366f1', '#2563eb', '#0891b2', '#059669', '#d97706', '#dc2626', '#7c3aed'];
-
-const splitTags = (value?: string) =>
-  (value || '')
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-
-const initials = (value?: string) =>
-  (value || 'ProdUS')
-    .split(/[\s@._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('');
-
-const displayName = (email?: string) => {
-  if (!email) return 'ProdUS user';
-  return (email.split('@')[0] ?? email)
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-};
-
-const formatDate = (value?: string) => {
-  if (!value) return 'Recently';
-  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(value));
-};
-
-const messageFor = (name: string) =>
-  `I saw ${name} on ProdUS Network and would like to discuss service fit, availability, and a scoped collaboration path for productization work.`;
-
-type ActionVariant = NonNullable<ButtonProps['variant']>;
-type ActionColor = NonNullable<ButtonProps['color']>;
-
-const sameEmail = (left?: string, right?: string) => !!left && !!right && left.trim().toLowerCase() === right.trim().toLowerCase();
-
-const joinRequestForTeam = (requests: TeamJoinRequest[] | undefined, teamId: string) =>
-  (requests || []).find((request) => request.team?.id === teamId);
-
-const memberForExpert = (members: TeamMember[] | undefined, expert: ExpertProfile) =>
-  (members || []).find((member) => member.active && sameEmail(member.user?.email, expert.user?.email));
-
-const invitationForExpert = (invitations: TeamInvitation[] | undefined, expert: ExpertProfile) =>
-  (invitations || []).find((invitation) => sameEmail(invitation.email, expert.user?.email));
-
-type TrialAction = 'accept' | 'activate' | 'complete' | 'cancel';
-
-const trialActionsForStatus = (status: TrialStatus): Array<{ action?: TrialAction; label: string; variant: ActionVariant; color: ActionColor; disabled?: boolean }> => {
-  switch (status) {
-    case 'PROPOSED':
-    case 'NEGOTIATING':
-      return [
-        { action: 'accept', label: 'Accept Trial', variant: 'contained', color: 'primary' },
-        { action: 'cancel', label: 'Cancel', variant: 'outlined', color: 'error' },
-      ];
-    case 'ACCEPTED':
-      return [
-        { action: 'activate', label: 'Activate', variant: 'contained', color: 'primary' },
-        { action: 'cancel', label: 'Cancel', variant: 'outlined', color: 'error' },
-      ];
-    case 'ACTIVE':
-    case 'MILESTONE_REVIEW':
-    case 'FORM_TEAM_PROPOSED':
-      return [
-        { action: 'complete', label: 'Complete', variant: 'contained', color: 'primary' },
-        { action: 'cancel', label: 'Cancel', variant: 'outlined', color: 'error' },
-      ];
-    case 'COMPLETED':
-      return [{ label: 'Completed', variant: 'outlined', color: 'success', disabled: true }];
-    case 'TEAM_FORMED':
-      return [{ label: 'Team Formed', variant: 'outlined', color: 'success', disabled: true }];
-    case 'CANCELLED':
-      return [{ label: 'Cancelled', variant: 'outlined', color: 'error', disabled: true }];
-    default:
-      return [{ action: 'activate', label: 'Activate', variant: 'contained', color: 'primary' }];
-  }
-};
-
-function TagRow({ value, limit = 5 }: { value?: string | undefined; limit?: number | undefined }) {
-  const tags = splitTags(value).slice(0, limit);
-  if (!tags.length) return <Typography color="text.secondary">No service tags yet.</Typography>;
-  return (
-    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-      {tags.map((tag, index) => (
-        <PastelChip key={tag} label={tag} accent={serviceColors[index % serviceColors.length] || appleColors.purple} />
-      ))}
-    </Stack>
-  );
-}
-
-function PersonAvatar({ name, src, square }: { name?: string | undefined; src?: string | undefined; square?: boolean | undefined }) {
-  return (
-    <Avatar
-      variant={square ? 'rounded' : 'circular'}
-      {...(src ? { src } : {})}
-      sx={{
-        width: 52,
-        height: 52,
-        bgcolor: '#eef2ff',
-        color: appleColors.purple,
-        fontWeight: 900,
-        borderRadius: square ? 2 : undefined,
-      }}
-    >
-      {initials(name)}
-    </Avatar>
-  );
-}
-
-function NetworkNotice({ message, severity = 'success' }: { message: string | null; severity?: 'success' | 'error' | 'info' }) {
-  if (!message) return null;
-  return <Alert severity={severity} sx={{ mb: 2, borderRadius: 2 }}>{message}</Alert>;
-}
-
-function ActivityRow({ notification, action }: { notification: PlatformNotification; action?: ReactNode }) {
-  const unread = notification.status === 'UNREAD';
-  return (
-    <Box sx={{ p: 1.5, border: `1px solid ${unread ? appleColors.purple : appleColors.line}`, borderRadius: 2, bgcolor: unread ? '#eef2ff' : '#fff' }}>
-      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1.5}>
-        <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ minWidth: 0 }}>
-          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: unread ? appleColors.purple : appleColors.line, mt: 0.7, flexShrink: 0 }} />
-          <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 900 }}>{notification.title}</Typography>
-            <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>{notification.body || formatLabel(notification.type)}</Typography>
-            <Typography variant="caption" color="text.secondary">{formatDate(notification.createdAt)} · {formatLabel(notification.priority)}</Typography>
-          </Box>
-        </Stack>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
-          {notification.actionUrl && <Button component={NextLink} href={notification.actionUrl} size="small">Open</Button>}
-          {action}
-        </Stack>
-      </Stack>
-    </Box>
-  );
-}
-
-function useMessageAction() {
-  const router = useRouter();
-  return useMutation({
-    mutationFn: (payload: ConversationCreatePayload) => networkApi.createConversation(payload),
-    onSuccess: (thread) => router.push(`/expert-network/messages?thread=${thread.id}`),
-  });
-}
-
-function TeamCard({
-  team,
-  onMessage,
-  onApply,
-  applyLabel = 'Request To Join',
-  applyVariant = 'contained',
-  applyColor = 'primary',
-  applyDisabled,
-  busy,
-}: {
-  team: Team;
-  onMessage: () => void;
-  onApply: () => void;
-  applyLabel?: string;
-  applyVariant?: ActionVariant;
-  applyColor?: ActionColor;
-  applyDisabled?: boolean | undefined;
-  busy?: boolean | undefined;
-}) {
-  return (
-    <Surface sx={{ height: '100%', p: 0, overflow: 'hidden' }}>
-      <Box
-        sx={{
-          height: 92,
-          background: team.coverPhotoUrl
-            ? `linear-gradient(90deg, rgba(99,102,241,0.28), rgba(8,145,178,0.12)), url(${team.coverPhotoUrl}) center/cover`
-            : 'linear-gradient(135deg, #eef2ff, #ecfeff)',
-          borderBottom: `1px solid ${appleColors.line}`,
-        }}
-      />
-      <Stack spacing={2} sx={{ p: 2.5, pt: 0 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mt: -3 }}>
-          <PersonAvatar name={team.name} src={team.profilePhotoUrl} square />
-          <ProgressRing value={team.verificationStatus === 'OPERATIONS_READY' ? 96 : team.verificationStatus === 'CERTIFIED' ? 88 : 82} size={70} label="fit" />
-        </Stack>
-        <Box>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Typography variant="h3">{team.name}</Typography>
-            <StatusChip label={team.verificationStatus} />
-          </Stack>
-          <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
-            {team.headline || team.description || 'Verified productization team.'}
-          </Typography>
-        </Box>
-        <TagRow value={team.capabilitiesSummary || team.description} />
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          <Button component={NextLink} href={`/expert-network/teams/${team.id}`} variant="outlined" fullWidth sx={{ minHeight: 42 }}>
-            View Team
-          </Button>
-          <Button onClick={onApply} variant={applyVariant} color={applyColor} fullWidth disabled={!!busy || !!applyDisabled} startIcon={<PersonAddAltOutlined />} sx={{ minHeight: 42 }}>
-            {applyLabel}
-          </Button>
-          <Button onClick={onMessage} variant="outlined" fullWidth disabled={!!busy} startIcon={<ChatBubbleOutline />} sx={{ minHeight: 42 }}>
-            Message
-          </Button>
-        </Stack>
-      </Stack>
-    </Surface>
-  );
-}
-
-function ExpertCard({
-  expert,
-  onMessage,
-  onInvite,
-  inviteLabel = 'Invite',
-  inviteVariant = 'contained',
-  inviteColor = 'primary',
-  inviteDisabled,
-  busy,
-}: {
-  expert: ExpertProfile;
-  onMessage: () => void;
-  onInvite: () => void;
-  inviteLabel?: string;
-  inviteVariant?: ActionVariant;
-  inviteColor?: ActionColor;
-  inviteDisabled?: boolean | undefined;
-  busy?: boolean | undefined;
-}) {
-  return (
-    <Surface sx={{ height: '100%', p: 0, overflow: 'hidden' }}>
-      <Box
-        sx={{
-          height: 92,
-          background: expert.coverPhotoUrl
-            ? `linear-gradient(90deg, rgba(8,145,178,0.22), rgba(99,102,241,0.12)), url(${expert.coverPhotoUrl}) center/cover`
-            : 'linear-gradient(135deg, #ecfeff, #f8f7ff)',
-          borderBottom: `1px solid ${appleColors.line}`,
-        }}
-      />
-      <Stack spacing={2} sx={{ p: 2.5, pt: 0 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mt: -3 }}>
-          <PersonAvatar name={expert.displayName} src={expert.profilePhotoUrl} />
-          <DotLabel label={formatLabel(expert.availability)} color={expert.availability === 'AVAILABLE' ? appleColors.green : appleColors.amber} />
-        </Stack>
-        <Box>
-          <Typography variant="h3">{expert.displayName}</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
-            {expert.headline || 'Independent productization expert.'}
-          </Typography>
-        </Box>
-        <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-          {expert.bio || 'Profile evidence, services, and availability are maintained by the expert.'}
-        </Typography>
-        <TagRow value={expert.skills} />
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          <Button component={NextLink} href={`/expert-network/experts/${expert.id}`} variant="outlined" fullWidth sx={{ minHeight: 42 }}>
-            View Profile
-          </Button>
-          <Button onClick={onMessage} variant="outlined" fullWidth disabled={!!busy} startIcon={<ChatBubbleOutline />} sx={{ minHeight: 42 }}>
-            Message
-          </Button>
-          <Button onClick={onInvite} variant={inviteVariant} color={inviteColor} fullWidth disabled={!!busy || !!inviteDisabled} startIcon={<GroupAddOutlined />} sx={{ minHeight: 42 }}>
-            {inviteLabel}
-          </Button>
-        </Stack>
-      </Stack>
-    </Surface>
-  );
-}
-
-export function NetworkDashboardPage() {
-  const queryClient = useQueryClient();
-  const { user, hasRole } = useAuth();
-  const home = useQuery({ queryKey: ['network', 'home'], queryFn: networkApi.home });
-  const notificationSummary = useQuery({ queryKey: ['network', 'notification-summary'], queryFn: networkApi.notificationSummary });
-  const [notice, setNotice] = useState<string | null>(null);
-  const updateProfile = useMutation({
-    mutationFn: (profile: ExpertProfile) =>
-      networkApi.updateExpertProfile({
-        displayName: profile.displayName,
-        headline: profile.headline || '',
-        bio: profile.bio || '',
-        profilePhotoUrl: profile.profilePhotoUrl || '',
-        coverPhotoUrl: profile.coverPhotoUrl || '',
-        location: profile.location || '',
-        timezone: profile.timezone || '',
-        websiteUrl: profile.websiteUrl || '',
-        portfolioUrl: profile.portfolioUrl || '',
-        skills: profile.skills || '',
-        preferredProjectSize: profile.preferredProjectSize || '',
-        availability: profile.availability === 'AVAILABLE' ? 'LIMITED' : 'AVAILABLE',
-        soloMode: profile.soloMode,
-        active: profile.active,
-      }),
-    onSuccess: () => {
-      setNotice('Availability updated.');
-      queryClient.invalidateQueries({ queryKey: ['network', 'home'] });
-    },
-  });
-  const isTeamLead = hasRole([UserRole.TEAM_MANAGER, UserRole.ADMIN]);
-  const profile = home.data?.expertProfile;
-
-  return (
-    <Stack spacing={3}>
-      <PageHeader
-        title={`Good morning, ${displayName(user?.email)}`}
-        description={isTeamLead ? 'Review team formation, join requests, and conversations that need a decision.' : 'Build your expert profile, find collaborators, and turn credible signals into team opportunities.'}
-        action={<Button component={NextLink} href="/expert-network/directory" variant="contained" startIcon={<ExploreOutlined />}>Browse Network</Button>}
-      />
-      <QueryState isLoading={home.isLoading} error={home.error} />
-      <NetworkNotice message={notice} />
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.4fr 1fr' }, gap: 2.5 }}>
-        <Surface>
-          <Stack spacing={2}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-              <Box>
-                <Typography variant="h3">{isTeamLead ? 'Team formation control' : 'Profile readiness'}</Typography>
-                <Typography color="text.secondary" sx={{ mt: 0.75 }}>
-                  {isTeamLead ? `${home.data?.myTeams.length || 0} managed or joined teams` : 'Complete your profile and stay visible to compatible teams.'}
-                </Typography>
-              </Box>
-              {profile && (
-                <Button variant="outlined" onClick={() => updateProfile.mutate(profile)} disabled={updateProfile.isPending} sx={{ minHeight: 42 }}>
-                  {profile.availability === 'AVAILABLE' ? 'Set Limited' : 'Set Available'}
-                </Button>
-              )}
-            </Stack>
-            <LinearProgress variant="determinate" value={profile?.coverPhotoUrl && profile?.portfolioUrl ? 92 : 78} sx={{ height: 8, borderRadius: 999 }} />
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <StatusChip label={profile?.availability || 'AVAILABLE'} color="success" />
-              <PastelChip label={profile?.soloMode ? 'Solo expert mode' : 'Team lead mode'} />
-              <PastelChip label={profile?.preferredProjectSize || 'Scoped project range'} accent={appleColors.cyan} />
-            </Stack>
-          </Stack>
-        </Surface>
-
-        <Surface sx={{ bgcolor: '#f8f7ff' }}>
-          <Stack spacing={1.5}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <AutoAwesomeOutlined sx={{ color: appleColors.purple }} />
-              <Typography variant="h3">AI suggestion</Typography>
-            </Stack>
-            <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-              {isTeamLead
-                ? 'Recent service demand suggests adding frontend and documentation coverage before accepting larger Studio packages.'
-                : 'Your backend and launch profile complements frontend-heavy teams. Apply to a team opening or publish a focused formation post.'}
-            </Typography>
-            <Button component={NextLink} href="/expert-network/formation" endIcon={<ArrowForward />} sx={{ alignSelf: 'flex-start' }}>
-              Open Formation Board
-            </Button>
-          </Stack>
-        </Surface>
-      </Box>
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2.5 }}>
-        <MetricTile label="Open teams" value={home.data?.myTeams.length || 0} detail="Managed or joined" icon={<GroupsOutlined />} accent={appleColors.purple} />
-        <MetricTile label="Join requests" value={home.data?.myJoinRequests.length || 0} detail="Sent by you" icon={<Inventory2Outlined />} accent={appleColors.cyan} />
-        <MetricTile label="Messages" value={home.data?.conversations.length || 0} detail="Recent threads" icon={<ChatBubbleOutline />} accent={appleColors.green} />
-        <MetricTile label="Trials" value={home.data?.trials.length || 0} detail="Collaboration paths" icon={<HandshakeOutlined />} accent={appleColors.amber} />
-      </Box>
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
-        <Surface>
-          <SectionTitle title="Recommended formation activity" action={<Button component={NextLink} href="/expert-network/formation">View all</Button>} />
-          <Stack spacing={1.5}>
-            {(home.data?.formationPosts || []).map((post) => (
-              <Box key={post.id} sx={{ p: 1.5, border: `1px solid ${appleColors.line}`, borderRadius: 2 }}>
-                <Stack direction="row" justifyContent="space-between" spacing={2}>
-                  <Box>
-                    <Typography sx={{ fontWeight: 900 }}>{post.title}</Typography>
-                    <Typography variant="body2" color="text.secondary">{post.body}</Typography>
-                  </Box>
-                  <StatusChip label={post.postType === 'TEAM_OPENING' ? 'Opening' : 'Looking'} />
-                </Stack>
-              </Box>
-            ))}
-            {!home.data?.formationPosts?.length && <EmptyState label="No formation activity yet." />}
-          </Stack>
-        </Surface>
-
-        <Surface>
-          <SectionTitle title="Your channels" action={<Button component={NextLink} href="/expert-network/channels">Browse</Button>} />
-          <Stack spacing={1.25}>
-            {(home.data?.channels || []).map((channel) => (
-              <Button key={channel.id} component={NextLink} href={`/expert-network/channels?channel=${channel.slug}`} sx={{ justifyContent: 'space-between', minHeight: 48, border: `1px solid ${appleColors.line}`, borderRadius: 2, px: 1.5 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: channel.color || appleColors.purple }} />
-                  <Typography sx={{ fontWeight: 900, color: appleColors.ink }}>#{channel.slug}</Typography>
-                </Stack>
-                <ArrowForward fontSize="small" />
-              </Button>
-            ))}
-          </Stack>
-        </Surface>
-      </Box>
-
-      <Surface>
-        <SectionTitle title="Recent Network activity" action={<Button component={NextLink} href="/expert-network/notifications">View notifications</Button>} />
-        <Stack spacing={1.25}>
-          {(notificationSummary.data?.latest || []).slice(0, 6).map((notification) => (
-            <ActivityRow key={notification.id} notification={notification} />
-          ))}
-          {!notificationSummary.data?.latest?.length && <EmptyState label="No Network activity yet. Posts, messages, requests, and trials will appear here." />}
-        </Stack>
-      </Surface>
-    </Stack>
-  );
-}
+export { NetworkDashboardPage } from './NetworkDashboardPage';
 
 export function NetworkSearchPage() {
   const router = useRouter();
@@ -582,195 +173,7 @@ export function NetworkNotificationsPage() {
   );
 }
 
-export function NetworkDirectoryPage() {
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const [query, setQuery] = useState('');
-  const [notice, setNotice] = useState<string | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [entityFilter, setEntityFilter] = useState<'ALL' | 'EXPERTS' | 'TEAMS'>('ALL');
-  const [availabilityFilter, setAvailabilityFilter] = useState<'ALL' | ExpertProfile['availability']>('ALL');
-  const [verificationFilter, setVerificationFilter] = useState<'ALL' | Team['verificationStatus']>('ALL');
-  const experts = useQuery({ queryKey: ['network', 'experts'], queryFn: networkApi.experts });
-  const teams = useQuery({ queryKey: ['network', 'teams'], queryFn: networkApi.teams });
-  const myTeams = useQuery({ queryKey: ['network', 'my-teams'], queryFn: networkApi.myTeams });
-  const managedTeam = (myTeams.data || []).find((team) => team.manager?.id === user?.id || user?.role === UserRole.ADMIN);
-  const teamInvitations = useQuery({
-    queryKey: ['network', 'team-invitations', managedTeam?.id],
-    queryFn: () => networkApi.teamInvitations(managedTeam!.id),
-    enabled: !!managedTeam?.id,
-  });
-  const teamMembers = useQuery({
-    queryKey: ['network', 'team-members', managedTeam?.id],
-    queryFn: () => networkApi.teamMembers(managedTeam!.id),
-    enabled: !!managedTeam?.id,
-  });
-  const sentJoinRequests = useQuery({ queryKey: ['network', 'join-requests', 'mine'], queryFn: networkApi.myJoinRequests });
-  const messageAction = useMessageAction();
-  const invite = useMutation({
-    mutationFn: (expert: ExpertProfile) => {
-      const team = managedTeam;
-      if (!team || !expert.user?.email) throw new Error('Create or join a team before inviting experts.');
-      return networkApi.inviteToTeam(team.id, {
-        email: expert.user.email,
-        role: 'SPECIALIST',
-        message: `We think your ${expert.headline || 'expert'} profile fits ${team.name}. Would you like to discuss joining?`,
-      });
-    },
-    onSuccess: (invitation) => {
-      setNotice(invitation.status === 'ACCEPTED' ? 'Expert added to your team.' : 'Invitation sent and waiting for a response.');
-      queryClient.invalidateQueries({ queryKey: ['network', 'my-teams'] });
-      queryClient.invalidateQueries({ queryKey: ['network', 'team-invitations', managedTeam?.id] });
-      queryClient.invalidateQueries({ queryKey: ['network', 'team-members', managedTeam?.id] });
-    },
-    onError: (error: Error) => setNotice(error.message),
-  });
-  const cancelInvite = useMutation({
-    mutationFn: (invitation: TeamInvitation) => networkApi.reviewInvitation(invitation.id, { status: 'CANCELLED' }),
-    onSuccess: () => {
-      setNotice('Invitation cancelled. You can invite this expert again when ready.');
-      queryClient.invalidateQueries({ queryKey: ['network', 'team-invitations', managedTeam?.id] });
-    },
-    onError: (error: Error) => setNotice(error.message),
-  });
-  const join = useMutation({
-    mutationFn: (team: Team) => networkApi.requestToJoinTeam(team.id, { message: `I would like to discuss joining ${team.name}. My profile includes production-ready service experience and I can share evidence.` }),
-    onSuccess: () => {
-      setNotice('Join request submitted to the team lead.');
-      queryClient.invalidateQueries({ queryKey: ['network', 'join-requests', 'mine'] });
-    },
-    onError: (error: Error) => setNotice(error.message),
-  });
-  const cancelJoin = useMutation({
-    mutationFn: (request: TeamJoinRequest) => networkApi.reviewJoinRequest(request.id, { status: 'CANCELLED', reviewNote: 'Cancelled by requester.' }),
-    onSuccess: () => {
-      setNotice('Join request cancelled. You can request to join again later.');
-      queryClient.invalidateQueries({ queryKey: ['network', 'join-requests', 'mine'] });
-    },
-    onError: (error: Error) => setNotice(error.message),
-  });
-
-  const normalizedQuery = query.trim().toLowerCase();
-  const visibleExperts = (experts.data || []).filter((expert) =>
-    entityFilter !== 'TEAMS'
-    && (availabilityFilter === 'ALL' || expert.availability === availabilityFilter)
-    && `${expert.displayName} ${expert.headline} ${expert.skills}`.toLowerCase().includes(normalizedQuery)
-  );
-  const visibleTeams = (teams.data || []).filter((team) =>
-    entityFilter !== 'EXPERTS'
-    && (verificationFilter === 'ALL' || team.verificationStatus === verificationFilter)
-    && `${team.name} ${team.headline} ${team.capabilitiesSummary}`.toLowerCase().includes(normalizedQuery)
-  );
-
-  return (
-    <Stack spacing={3}>
-      <PageHeader title="Expert Directory" description="Find experts and teams to collaborate with, message with context, invite credible specialists, or request to join verified teams." />
-      <QueryState isLoading={experts.isLoading || teams.isLoading} error={experts.error || teams.error} />
-      <NetworkNotice message={notice} severity={invite.isError || join.isError ? 'error' : 'success'} />
-      <Surface>
-        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} alignItems={{ lg: 'center' }}>
-          <TextField fullWidth label="Search by name, skill, service, or team" value={query} onChange={(event) => setQuery(event.target.value)} />
-          <Button variant={filtersOpen ? 'contained' : 'outlined'} startIcon={<TuneOutlined />} onClick={() => setFiltersOpen((value) => !value)} sx={{ minHeight: 52, minWidth: 140 }}>
-            Filters
-          </Button>
-        </Stack>
-        {filtersOpen && (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5, mt: 2 }}>
-            <TextField select label="Show" value={entityFilter} onChange={(event) => setEntityFilter(event.target.value as typeof entityFilter)}>
-              <MenuItem value="ALL">Experts and teams</MenuItem>
-              <MenuItem value="EXPERTS">Experts only</MenuItem>
-              <MenuItem value="TEAMS">Teams only</MenuItem>
-            </TextField>
-            <TextField select label="Expert availability" value={availabilityFilter} onChange={(event) => setAvailabilityFilter(event.target.value as typeof availabilityFilter)} disabled={entityFilter === 'TEAMS'}>
-              <MenuItem value="ALL">Any availability</MenuItem>
-              <MenuItem value="AVAILABLE">Available</MenuItem>
-              <MenuItem value="LIMITED">Limited</MenuItem>
-              <MenuItem value="BUSY">Busy</MenuItem>
-              <MenuItem value="OFFLINE">Offline</MenuItem>
-            </TextField>
-            <TextField select label="Team status" value={verificationFilter} onChange={(event) => setVerificationFilter(event.target.value as typeof verificationFilter)} disabled={entityFilter === 'EXPERTS'}>
-              <MenuItem value="ALL">Any team status</MenuItem>
-              <MenuItem value="APPLIED">Applied</MenuItem>
-              <MenuItem value="VERIFIED">Verified</MenuItem>
-              <MenuItem value="CERTIFIED">Certified</MenuItem>
-              <MenuItem value="SPECIALIST">Specialist</MenuItem>
-              <MenuItem value="OPERATIONS_READY">Operations ready</MenuItem>
-            </TextField>
-          </Box>
-        )}
-      </Surface>
-      <Surface sx={{ bgcolor: '#f8f7ff' }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }} justifyContent="space-between">
-          <Stack spacing={0.5}>
-            <Typography variant="h3">Suggested for your formation path</Typography>
-            <Typography color="text.secondary">Security, backend, frontend, and launch-readiness partners are prioritized because those services complete Studio packages.</Typography>
-          </Stack>
-          <Button component={NextLink} href="/expert-network/formation" endIcon={<ArrowForward />}>See openings</Button>
-        </Stack>
-      </Surface>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 2.5 }}>
-        <Stack spacing={2.5}>
-          <SectionTitle title={`Experts (${visibleExperts.length})`} />
-          {visibleExperts.map((expert) => {
-            const invitation = invitationForExpert(teamInvitations.data, expert);
-            const member = memberForExpert(teamMembers.data, expert);
-            const isAdded = !!member || invitation?.status === 'ACCEPTED';
-            const isPending = invitation?.status === 'PENDING';
-            return (
-              <ExpertCard
-                key={expert.id}
-                expert={expert}
-                busy={messageAction.isPending || invite.isPending || cancelInvite.isPending}
-                inviteLabel={isAdded ? 'Added' : isPending ? 'Cancel Invite' : managedTeam ? 'Invite' : 'No Managed Team'}
-                inviteVariant={isPending ? 'outlined' : isAdded || !managedTeam ? 'outlined' : 'contained'}
-                inviteColor={isPending ? 'error' : isAdded ? 'success' : 'primary'}
-                inviteDisabled={isAdded || !managedTeam}
-                onMessage={() => messageAction.mutate({ scopeType: 'EXPERT_PROFILE', scopeId: expert.id, targetUserId: expert.user?.id, title: `Conversation with ${expert.displayName}`, initialMessage: messageFor(expert.displayName) })}
-                onInvite={() => {
-                  if (isPending && invitation) {
-                    cancelInvite.mutate(invitation);
-                    return;
-                  }
-                  invite.mutate(expert);
-                }}
-              />
-            );
-          })}
-          {!visibleExperts.length && <EmptyState label="No experts match the current search and filters." />}
-        </Stack>
-        <Stack spacing={2.5}>
-          <SectionTitle title={`Teams (${visibleTeams.length})`} />
-          {visibleTeams.map((team) => {
-            const request = joinRequestForTeam(sentJoinRequests.data, team.id);
-            const isMember = (myTeams.data || []).some((myTeam) => myTeam.id === team.id);
-            const isPending = request?.status === 'PENDING';
-            const isApproved = request?.status === 'APPROVED' || isMember;
-            return (
-              <TeamCard
-                key={team.id}
-                team={team}
-                busy={messageAction.isPending || join.isPending || cancelJoin.isPending}
-                applyLabel={isApproved ? 'Joined' : isPending ? 'Cancel Request' : 'Request To Join'}
-                applyVariant={isPending || isApproved ? 'outlined' : 'contained'}
-                applyColor={isPending ? 'error' : isApproved ? 'success' : 'primary'}
-                applyDisabled={isApproved}
-                onApply={() => {
-                  if (isPending && request) {
-                    cancelJoin.mutate(request);
-                    return;
-                  }
-                  join.mutate(team);
-                }}
-                onMessage={() => messageAction.mutate({ scopeType: 'TEAM_PROFILE', scopeId: team.id, title: `Conversation with ${team.name}`, initialMessage: messageFor(team.name) })}
-              />
-            );
-          })}
-          {!visibleTeams.length && <EmptyState label="No teams match the current search and filters." />}
-        </Stack>
-      </Box>
-    </Stack>
-  );
-}
+export { NetworkDirectoryPage } from './NetworkDirectoryPage';
 
 export function NetworkFormationPage() {
   const queryClient = useQueryClient();
@@ -790,7 +193,7 @@ export function NetworkFormationPage() {
   const teams = useQuery({ queryKey: ['network', 'my-teams'], queryFn: networkApi.myTeams });
   const managedTeams = (teams.data || []).filter((team) => team.manager?.id === user?.id || user?.role === UserRole.ADMIN);
   const sentJoinRequests = useQuery({ queryKey: ['network', 'join-requests', 'mine'], queryFn: networkApi.myJoinRequests });
-  const messageAction = useMessageAction();
+  const messageAction = useNetworkMessageAction();
   const create = useMutation({
     mutationFn: () => networkApi.createFormationPost({ ...form, teamId: form.postType === 'TEAM_OPENING' ? form.teamId : undefined }),
     onSuccess: () => {
@@ -1414,7 +817,7 @@ export function NetworkExpertDetailPage() {
   const params = useParams();
   const id = String(params?.id || '');
   const expert = useQuery({ queryKey: ['network', 'expert', id], queryFn: () => networkApi.expert(id), enabled: !!id });
-  const messageAction = useMessageAction();
+  const messageAction = useNetworkMessageAction();
   const profile = expert.data;
   return (
     <Stack spacing={3}>
@@ -1459,7 +862,7 @@ export function NetworkTeamDetailPage() {
   const team = useQuery({ queryKey: ['network', 'team', id], queryFn: () => networkApi.team(id), enabled: !!id });
   const myTeams = useQuery({ queryKey: ['network', 'my-teams'], queryFn: networkApi.myTeams });
   const sentJoinRequests = useQuery({ queryKey: ['network', 'join-requests', 'mine'], queryFn: networkApi.myJoinRequests });
-  const messageAction = useMessageAction();
+  const messageAction = useNetworkMessageAction();
   const join = useMutation({
     mutationFn: () => networkApi.requestToJoinTeam(id, { message: `I would like to discuss joining ${team.data?.name}.` }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['network', 'join-requests', 'mine'] }),
