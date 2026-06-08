@@ -4,8 +4,8 @@ Date: 2026-06-07
 
 Baseline:
 
-- Latest live-verified UI commit after the repo-evidence/deploy close pass: `b61fe6b`.
-- Latest live-verified Coolify frontend deployment after the repo-evidence/deploy close pass: `y16yg8dqnx5p16tyzxkt1l0q`.
+- Latest live-verified UI commit after the expert-network split pass: `4ec6b4e`.
+- Latest live-verified Coolify frontend deployment after the expert-network split pass: `qog9aajlhgano9197y3qm7rj`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
 - Live verification script: `tmp/live-verification/2026-06-07/live-owner-hub-spoke-navigation.js`.
 - Current largest owner-facing active files after the completed splits:
@@ -15,6 +15,7 @@ Baseline:
   - `frontend/src/features/platform/OwnerWorkspaceTechnicalProofArea.tsx`: 296 lines.
   - `frontend/src/features/platform/ProjectStartPlanPage.tsx`: 280 lines.
   - `frontend/src/features/platform/OwnerOverviewDecisionPanel.tsx`: 278 lines.
+  - `frontend/src/features/expert-network/NetworkPages.tsx`: 933 lines after extracting dashboard, directory, shared cards, shared panels, and presentation helpers.
 
 ## Goal
 
@@ -63,6 +64,7 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - Evidence summary language now shows `README or documentation evidence found` when documentation proof is present, instead of falling back to `No README evidence shown`.
 - Coolify frontend Docker deploys now skip Next's duplicate build-time type validation while keeping `npm run type-check` as the explicit pre-deploy safety gate, avoiding the previous staging build timeout.
 - Latest live verification at commit `b61fe6b` confirmed the full journey, README evidence display, mobile hub/spoke flow, and all 10 scanners completed, including `OWASP ZAP Baseline`; all nonzero scanner findings remain normalized and mapped in latest coverage.
+- Expert Network dashboard and directory are now split out of the former 1,530-line `NetworkPages.tsx` route file and live-verified at commit `4ec6b4e`.
 
 ## Completion Sequence
 
@@ -585,6 +587,45 @@ Status:
   - Scanner coverage: 10/10 tools `COMPLETED`.
   - Latest mapped counts: 73 open findings, 14 high, 28 medium, 1 low, 30 info.
   - Stored evidence: 20 evidence items across 4 authorized sources.
+
+### Completed: Expert Network Dashboard And Directory Split
+
+Problem:
+
+- `frontend/src/features/expert-network/NetworkPages.tsx` was the largest live UI file at 1,530 lines after the owner/productization pass.
+- It mixed shared tag/avatar/notice/activity UI, reusable expert/team cards, message action routing, the Network dashboard, the Expert Directory, and the remaining Network pages in one component file.
+- This made future Network UX redefinition work risky because dashboard and directory changes would keep touching the same large route file.
+
+Solution:
+
+- Extracted shared Network presentation helpers:
+  - `networkPresentation.ts`
+  - `useNetworkMessageAction.ts`
+- Extracted reusable Network UI:
+  - `NetworkSharedPanels.tsx`
+  - `NetworkProfileCards.tsx`
+- Extracted route-level surfaces:
+  - `NetworkDashboardPage.tsx`
+  - `NetworkDirectoryPage.tsx`
+- Preserved the existing route imports by re-exporting those pages from `NetworkPages.tsx`.
+
+Status:
+
+- Implemented, committed, deployed, and live-verified at UI commit `4ec6b4e`, Coolify frontend deployment `qog9aajlhgano9197y3qm7rj`.
+- `NetworkPages.tsx` is now 933 lines, down from 1,530.
+- Local verification passed:
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+  - `git diff --check`
+- Focused live verification passed with screenshots:
+  - `tmp/live-verification/2026-06-07/120-network-dashboard-live.png`
+  - `tmp/live-verification/2026-06-07/121-network-directory-live.png`
+  - `tmp/live-verification/2026-06-07/122-network-directory-filters-live.png`
+  - `tmp/live-verification/2026-06-07/123-mobile-network-directory-live.png`
+- Live API notes:
+  - `/expert-profiles` returned 2 experts.
+  - `/teams` returned 1 team.
+  - `/expert-network/home` currently returns 500 for the available mock fixtures, but the dashboard route still renders its shell and Browse Network action. This appears to be a backend fixture/data issue, not a regression from the frontend split.
 
 ## Implementation Loop
 
