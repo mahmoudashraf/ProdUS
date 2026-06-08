@@ -1,8 +1,9 @@
 'use client';
 
-import { Tab, Tabs } from '@mui/material';
+import { ChevronRightOutlined, KeyboardBackspaceOutlined } from '@mui/icons-material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
-import { Surface } from './PlatformComponents';
+import { Surface, appleColors } from './PlatformComponents';
 import { WorkspaceTab, workspaceTabs } from './ownerWorkspaceModel';
 
 export default function OwnerWorkspaceNavigationPanel({
@@ -28,49 +29,10 @@ export default function OwnerWorkspaceNavigationPanel({
 }) {
   return (
     <>
-      <Surface
-        sx={{
-          p: { xs: 1, md: 1 },
-          boxShadow: 'none',
-          display: { xs: 'block', lg: 'none' },
-          position: { xl: 'sticky' },
-          top: { xl: 76 },
-          zIndex: 2,
-          overflow: 'hidden',
-        }}
-      >
-        <Tabs
-          value={workspaceTab}
-          onChange={(_, value) => onAreaChange(value as WorkspaceTab)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            maxWidth: '100%',
-            minHeight: 44,
-            '& .MuiTabs-scroller': {
-              overflowX: 'auto !important',
-            },
-            '& .MuiTabs-flexContainer': {
-              width: { xs: '100%', sm: 'auto' },
-            },
-            '& .MuiTab-root': {
-              flex: { xs: '1 1 0', sm: '0 0 auto' },
-              fontSize: { xs: 12.5, sm: 14 },
-              minWidth: { xs: 0, sm: 90 },
-              minHeight: 44,
-              px: { xs: 0.5, sm: 2 },
-              textTransform: 'none',
-              fontWeight: 850,
-              letterSpacing: 0,
-              borderRadius: 1,
-            },
-          }}
-        >
-          {workspaceTabs.map((tab) => (
-            <Tab key={tab.value} value={tab.value} label={tab.label} />
-          ))}
-        </Tabs>
-      </Surface>
+      <ProductAreaNavigation
+        workspaceTab={workspaceTab}
+        onAreaChange={onAreaChange}
+      />
 
       {productName && (
         workspaceDetailOpen ? (
@@ -94,5 +56,79 @@ export default function OwnerWorkspaceNavigationPanel({
         )
       )}
     </>
+  );
+}
+
+function ProductAreaNavigation({
+  workspaceTab,
+  onAreaChange,
+}: {
+  workspaceTab: WorkspaceTab;
+  onAreaChange: (tab: WorkspaceTab) => void;
+}) {
+  return (
+    <Surface
+      sx={{
+        p: { xs: 1, md: 1 },
+        boxShadow: 'none',
+        display: { xs: 'block', lg: 'none' },
+        zIndex: 2,
+        overflow: 'hidden',
+      }}
+    >
+      <Stack spacing={0.75}>
+        <Typography variant="caption" sx={{ color: appleColors.muted, fontWeight: 900 }}>
+          Product navigation
+        </Typography>
+        <Box
+          aria-label="Product area navigation"
+          component="nav"
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(5, minmax(0, 1fr))' },
+            gap: 0.75,
+            minWidth: 0,
+          }}
+        >
+          {workspaceTabs.map((tab) => {
+            const selected = workspaceTab === tab.value;
+            const isProductHome = tab.value === 'overview';
+            const showBackIcon = isProductHome && workspaceTab !== 'overview';
+            return (
+              <Button
+                key={tab.value}
+                aria-current={selected ? 'page' : undefined}
+                data-testid={`owner-workspace-area-${tab.value}`}
+                variant="outlined"
+                onClick={() => onAreaChange(tab.value)}
+                startIcon={showBackIcon ? <KeyboardBackspaceOutlined /> : undefined}
+                endIcon={!selected && !showBackIcon ? <ChevronRightOutlined /> : undefined}
+                sx={{
+                  minHeight: 44,
+                  justifyContent: 'space-between',
+                  borderRadius: 1,
+                  px: 1,
+                  color: selected ? appleColors.ink : appleColors.muted,
+                  bgcolor: selected ? '#f8fafc' : '#fff',
+                  borderColor: selected ? appleColors.ink : appleColors.line,
+                  fontWeight: selected ? 950 : 850,
+                  textTransform: 'none',
+                  whiteSpace: 'normal',
+                  textAlign: 'left',
+                  '& .MuiButton-startIcon': { mr: 0.5 },
+                  '& .MuiButton-endIcon': { ml: 0.5 },
+                  '&:hover': {
+                    bgcolor: selected ? '#f8fafc' : '#fbfdff',
+                    borderColor: selected ? appleColors.ink : appleColors.blue,
+                  },
+                }}
+              >
+                {tab.label}
+              </Button>
+            );
+          })}
+        </Box>
+      </Stack>
+    </Surface>
   );
 }

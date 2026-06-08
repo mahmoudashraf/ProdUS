@@ -19,6 +19,8 @@ const isWorkspaceTabValue = (value: string | null): value is WorkspaceTab =>
 const isWorkspaceViewValue = (tab: WorkspaceTab, value: string | null) =>
   !!value && workspaceViewValues[tab].includes(value);
 
+const defaultWorkspaceView = (tab: WorkspaceTab) => workspaceViewValues[tab][0] || '';
+
 export function useOwnerWorkspaceNavigationState() {
   const router = useRouter();
   const pathname = usePathname();
@@ -46,6 +48,13 @@ export function useOwnerWorkspaceNavigationState() {
       if (nextTab === 'findings') setFindingsView(viewParam as FindingsJourneyView);
       if (nextTab === 'services') setServicesView(viewParam as ServicesJourneyView);
       if (nextTab === 'share') setShareView(viewParam as ShareJourneyView);
+    } else if (tabParam && nextTab !== 'overview') {
+      const defaultView = defaultWorkspaceView(nextTab);
+      setWorkspaceDetailOpen(true);
+      if (nextTab === 'actions') setActionView(defaultView as ActionJourneyView);
+      if (nextTab === 'findings') setFindingsView(defaultView as FindingsJourneyView);
+      if (nextTab === 'services') setServicesView(defaultView as ServicesJourneyView);
+      if (nextTab === 'share') setShareView(defaultView as ShareJourneyView);
     } else {
       setWorkspaceDetailOpen(false);
     }
@@ -63,9 +72,23 @@ export function useOwnerWorkspaceNavigationState() {
     router.push(`${routePath}?${next.toString()}`, { scroll: false });
   };
 
+  const pushProductHome = () => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || '/products';
+    next.delete('tab');
+    next.delete('view');
+    const suffix = next.toString();
+    router.push(`${routePath}${suffix ? `?${suffix}` : ''}`, { scroll: false });
+  };
+
   const openWorkspaceArea = (tab: WorkspaceTab) => {
     setWorkspaceTab(tab);
-    setWorkspaceDetailOpen(false);
+    setWorkspaceDetailOpen(tab !== 'overview');
+    if (tab === 'overview') {
+      setOverviewView('decision');
+      pushProductHome();
+      return;
+    }
     pushWorkspaceLocation(tab);
   };
 
@@ -88,6 +111,12 @@ export function useOwnerWorkspaceNavigationState() {
     servicesView,
     shareView,
     workspaceDetailOpen,
+    openProductHome: () => {
+      setWorkspaceTab('overview');
+      setWorkspaceDetailOpen(false);
+      setOverviewView('decision');
+      pushProductHome();
+    },
     openWorkspaceArea,
     openWorkspaceDetail,
     openActionView: (view: ActionJourneyView) => openWorkspaceDetail('actions', view),

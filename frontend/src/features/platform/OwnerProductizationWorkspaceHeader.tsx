@@ -9,6 +9,7 @@ import {
 } from './PlatformComponents';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import OwnerWorkspaceNavigationPanel from './OwnerWorkspaceNavigationPanel';
+import OwnerWorkspaceInternalPageHeader from './OwnerWorkspaceInternalPageHeader';
 import OwnerWorkspaceSelectedProductBar from './OwnerWorkspaceSelectedProductBar';
 import { OwnerReadinessVerdictReveal } from './OwnerJourneyCards';
 import type { JourneyStepItem } from './OwnerWorkspaceJourneyNav';
@@ -28,6 +29,7 @@ export function OwnerProductizationWorkspaceHeader({
   onViewProof,
   risks,
   selectedProduct,
+  showReadinessReveal,
   totalChecks,
 }: {
   completedChecks: number;
@@ -39,6 +41,7 @@ export function OwnerProductizationWorkspaceHeader({
   onViewProof: () => void;
   risks: ReadinessRevealProps['risks'];
   selectedProduct?: ProductProfile | undefined;
+  showReadinessReveal: boolean;
   totalChecks: number;
 }) {
   return (
@@ -51,7 +54,7 @@ export function OwnerProductizationWorkspaceHeader({
 
       {selectedProduct && <OwnerWorkspaceSelectedProductBar product={selectedProduct} />}
 
-      {selectedProduct && hasLaunchEvidenceContext && (
+      {selectedProduct && showReadinessReveal && hasLaunchEvidenceContext && (
         <Box sx={{ mb: 2.5 }}>
           <OwnerReadinessVerdictReveal
             productName={selectedProduct.name}
@@ -75,10 +78,12 @@ export function OwnerProductizationWorkspaceLead({
   currentJourneyValue,
   evidenceSummaryItems,
   isExporting,
+  isProductHome,
   launchStatus,
   onAreaChange,
   onDetailChange,
   onExportReport,
+  onProductHome,
   onPrimaryAction,
   onViewProof,
   product,
@@ -92,10 +97,12 @@ export function OwnerProductizationWorkspaceLead({
   currentJourneyValue: string;
   evidenceSummaryItems: ProductHeroProps['evidenceSummaryItems'];
   isExporting?: boolean | undefined;
+  isProductHome: boolean;
   launchStatus: ProductHeroProps['launchStatus'];
   onAreaChange: (tab: WorkspaceTab) => void;
   onDetailChange: (value: string) => void;
   onExportReport: () => void;
+  onProductHome: () => void;
   onPrimaryAction: () => void;
   onViewProof: () => void;
   product?: ProductProfile | undefined;
@@ -103,9 +110,11 @@ export function OwnerProductizationWorkspaceLead({
   workspaceDetailOpen: boolean;
   workspaceTab: WorkspaceTab;
 }) {
+  const currentDetailText = currentJourneyItems.find((item) => item.value === currentJourneyValue)?.detail;
+
   return (
     <>
-      {product ? (
+      {product && isProductHome ? (
         <OwnerWorkspaceProductHero
           product={product}
           launchStatus={launchStatus}
@@ -115,6 +124,14 @@ export function OwnerProductizationWorkspaceLead({
           onViewProof={onViewProof}
           onExportReport={onExportReport}
           isExporting={Boolean(isExporting)}
+        />
+      ) : product ? (
+        <OwnerWorkspaceInternalPageHeader
+          areaLabel={currentAreaLabel}
+          detailLabel={currentDetailLabel}
+          detailText={currentDetailText}
+          productName={product.name}
+          onBackHome={onProductHome}
         />
       ) : (
         <EmptyState label="Create a product profile to start the owner productization workflow." />
@@ -126,7 +143,7 @@ export function OwnerProductizationWorkspaceLead({
         currentJourneyItems={currentJourneyItems}
         currentJourneyValue={currentJourneyValue}
         productName={product?.name}
-        workspaceDetailOpen={workspaceDetailOpen}
+        workspaceDetailOpen={isProductHome ? workspaceDetailOpen : false}
         workspaceTab={workspaceTab}
         onAreaChange={onAreaChange}
         onDetailChange={onDetailChange}

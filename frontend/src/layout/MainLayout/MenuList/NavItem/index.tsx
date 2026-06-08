@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
 // material-ui
@@ -42,6 +42,8 @@ const NavItem = ({ item, level, parentId, isParents = false }: NavItemProps) => 
   const matchDownMd = useMediaQuery(theme.breakpoints.down('md'));
 
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamString = searchParams?.toString() || '';
   const { layout, borderRadius } = useConfig();
 
   // Using Context API
@@ -84,11 +86,11 @@ const NavItem = ({ item, level, parentId, isParents = false }: NavItemProps) => 
     const currentPath = document.location.pathname.toString();
     const currentPathWithSearch = `${currentPath}${document.location.search}`;
     const currentIndex = currentPath.split('/').findIndex(id => id === item.id!);
-    if (currentIndex > -1 || item.url === currentPath || item.url === currentPathWithSearch) {
+    if (currentIndex > -1 || isMenuUrlActive(String(item.url || ''), currentPath, currentPathWithSearch)) {
       setActiveItem([item.id!]);
     }
     // eslint-disable-next-line
-  }, [pathname]);
+  }, [pathname, searchParamString, item.url]);
 
   const textColor = theme.palette.mode === 'dark' ? 'grey.400' : 'text.primary';
   const iconSelectedColor =
@@ -283,3 +285,37 @@ const NavItem = ({ item, level, parentId, isParents = false }: NavItemProps) => 
 };
 
 export default NavItem;
+
+function parseProductWorkspaceUrl(url: string) {
+  if (!url.startsWith('/products/')) return null;
+
+  const [rawPath = '', rawSearch = ''] = url.split('?');
+  const match = rawPath.match(/^\/products\/([^/]+)$/);
+  if (!match || match[1] === 'new') return null;
+
+  const params = new URLSearchParams(rawSearch);
+  return {
+    productId: match[1],
+    tab: params.get('tab') || 'overview',
+  };
+}
+
+function isMenuUrlActive(itemUrl: string, currentPath: string, currentPathWithSearch: string) {
+  if (!itemUrl || itemUrl === '#') return false;
+
+  const itemProduct = parseProductWorkspaceUrl(itemUrl);
+  const currentProduct = parseProductWorkspaceUrl(currentPathWithSearch);
+  if (itemProduct && currentProduct) {
+    return itemProduct.productId === currentProduct.productId && itemProduct.tab === currentProduct.tab;
+  }
+
+  if (itemUrl === currentPath || itemUrl === currentPathWithSearch) return true;
+  if (!itemUrl.includes('?')) return false;
+
+  const [itemPath = '', itemSearch = ''] = itemUrl.split('?');
+  if (itemPath !== currentPath) return false;
+
+  const itemParams = new URLSearchParams(itemSearch);
+  const currentParams = new URLSearchParams(document.location.search);
+  return Array.from(itemParams.entries()).every(([key, value]) => currentParams.get(key) === value);
+}

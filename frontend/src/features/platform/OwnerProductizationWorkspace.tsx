@@ -68,6 +68,7 @@ export default function OwnerProductizationWorkspace({
     servicesView,
     shareView,
     workspaceDetailOpen,
+    openProductHome,
     openWorkspaceArea,
     openWorkspaceDetail,
     openActionView,
@@ -361,6 +362,7 @@ export default function OwnerProductizationWorkspace({
     shareView,
     workspaceTab,
   });
+  const isProductHome = workspaceTab === 'overview' && !workspaceDetailOpen;
 
   return (
     <>
@@ -375,6 +377,7 @@ export default function OwnerProductizationWorkspace({
         totalChecks={scanToolOptions.length}
         onSeePlan={() => launchStatus.blockerCount ? openActionView('plan') : openServicesView('recommend')}
         onViewProof={() => openFindingsView('technical')}
+        showReadinessReveal={isProductHome}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 340px' }, gap: 2.5, minWidth: 0 }}>
@@ -386,6 +389,7 @@ export default function OwnerProductizationWorkspace({
             currentJourneyValue={currentJourneyValue}
             evidenceSummaryItems={evidenceSummaryItems}
             isExporting={createEvidenceExport.isPending}
+            isProductHome={isProductHome}
             launchStatus={launchStatus}
             product={selectedProduct}
             topOwnerRisks={topOwnerRisks}
@@ -394,6 +398,7 @@ export default function OwnerProductizationWorkspace({
             onAreaChange={openWorkspaceArea}
             onDetailChange={(value) => openWorkspaceDetail(workspaceTab, value)}
             onExportReport={() => createEvidenceExport.mutate()}
+            onProductHome={openProductHome}
             onPrimaryAction={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}
             onViewProof={() => openFindingsView('technical')}
           />

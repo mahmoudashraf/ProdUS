@@ -139,7 +139,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string)
         },
         {
           id: 'product-overview',
-          title: 'Overview',
+          title: 'Product Home',
           type: 'item',
           url: basePath,
           icon: IconListDetails,
