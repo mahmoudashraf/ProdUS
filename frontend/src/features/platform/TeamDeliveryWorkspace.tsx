@@ -1,13 +1,18 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { MenuItem, Stack, TextField } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
-import { TeamDeliveryFocusNav, TeamDeliveryView } from './TeamDeliveryFocusNav';
+import {
+  TeamDeliveryContextPanel,
+  TeamDeliveryFocusNav,
+  TeamDeliveryInternalHeader,
+  TeamDeliveryView,
+} from './TeamDeliveryFocusNav';
 import TeamDeliveryHeroPanel from './TeamDeliveryHeroPanel';
 import TeamDeliveryOpportunitiesPanel from './TeamDeliveryOpportunitiesPanel';
 import TeamDeliveryProofPanel from './TeamDeliveryProofPanel';
@@ -37,6 +42,7 @@ interface TeamMemberPayload {
 export default function TeamDeliveryWorkspace() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { hasRole, user } = useAuth();
   const canManageRoster = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
@@ -50,12 +56,20 @@ export default function TeamDeliveryWorkspace() {
   const [memberEmail, setMemberEmail] = useState('');
   const [memberRole, setMemberRole] = useState<TeamMember['role']>('SPECIALIST');
   const viewParam = searchParams?.get('view');
+  const hasActiveView = viewParam === 'opportunities' || viewParam === 'delivery' || viewParam === 'support' || viewParam === 'team';
   const activeView: TeamDeliveryView =
     viewParam === 'delivery' || viewParam === 'support' || viewParam === 'team' ? viewParam : 'opportunities';
   const setActiveView = (view: TeamDeliveryView) => {
     const params = new URLSearchParams(searchParams?.toString() || '');
     params.set('view', view);
-    router.replace(`/dashboard?${params.toString()}`, { scroll: false });
+    const nextQueryString = params.toString();
+    router.push(`${pathname || '/dashboard'}${nextQueryString ? `?${nextQueryString}` : ''}`, { scroll: false });
+  };
+  const openDeliveryHub = () => {
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.delete('view');
+    const nextQueryString = params.toString();
+    router.push(`${pathname || '/dashboard'}${nextQueryString ? `?${nextQueryString}` : ''}`, { scroll: false });
   };
 
   const visibleTeams = useMemo(() => {
@@ -180,24 +194,43 @@ export default function TeamDeliveryWorkspace() {
       <QueryState isLoading={loading} error={error} />
 
       <Stack spacing={2.5}>
-        <TeamDeliveryHeroPanel
-          selectedTeam={selectedTeam}
-          fallbackRole={user?.role}
-          score={score}
-          teamProposals={teamProposals}
-          activeWorkspaceCount={activeWorkspaces.length}
-          blockedWorkspaceCount={blockedWorkspaces}
-          teamSupport={teamSupport}
-          overdueSupportCount={overdueSupport}
-          averageRating={averageRating}
-        />
-        <TeamDeliveryFocusNav activeView={activeView} counts={viewCounts} onChange={setActiveView} />
+        {hasActiveView ? (
+          <>
+            <TeamDeliveryInternalHeader activeView={activeView} onOpenHub={openDeliveryHub} />
+            <TeamDeliveryContextPanel
+              activeView={activeView}
+              activeWorkspaceCount={activeWorkspaces.length}
+              averageRating={averageRating}
+              overdueSupportCount={overdueSupport}
+              proposalCount={teamProposals.length}
+              score={score}
+              selectedTeam={selectedTeam}
+              onOpenDelivery={() => setActiveView('delivery')}
+              onOpenOpportunities={() => setActiveView('opportunities')}
+            />
+          </>
+        ) : (
+          <>
+            <TeamDeliveryHeroPanel
+              selectedTeam={selectedTeam}
+              fallbackRole={user?.role}
+              score={score}
+              teamProposals={teamProposals}
+              activeWorkspaceCount={activeWorkspaces.length}
+              blockedWorkspaceCount={blockedWorkspaces}
+              teamSupport={teamSupport}
+              overdueSupportCount={overdueSupport}
+              averageRating={averageRating}
+            />
+            <TeamDeliveryFocusNav activeView={null} counts={viewCounts} onChange={setActiveView} />
+          </>
+        )}
 
-        {activeView === 'opportunities' && (
+        {hasActiveView && activeView === 'opportunities' && (
           <TeamDeliveryOpportunitiesPanel proposals={teamProposals} />
         )}
 
-        {activeView === 'delivery' && (
+        {hasActiveView && activeView === 'delivery' && (
           <TeamDeliveryProofPanel
             activeWorkspaces={activeWorkspaces}
             selectedWorkspace={selectedWorkspace}
@@ -212,7 +245,7 @@ export default function TeamDeliveryWorkspace() {
           />
         )}
 
-        {activeView === 'support' && (
+        {hasActiveView && activeView === 'support' && (
           <TeamDeliverySupportPanel
             supportRequests={teamSupport}
             overdueSupportCount={overdueSupport}
@@ -221,7 +254,7 @@ export default function TeamDeliveryWorkspace() {
           />
         )}
 
-        {activeView === 'team' && (
+        {hasActiveView && activeView === 'team' && (
           <TeamDeliveryTeamPanel
             selectedTeam={selectedTeam}
             score={score}

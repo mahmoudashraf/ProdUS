@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import type { TeamMatchView } from './ownerTeamMatchConfig';
 import {
@@ -20,15 +20,41 @@ const isTeamMatchView = (value: string | null | undefined): value is TeamMatchVi
 
 export function useTeamMatchUiState() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [selectedTeamStateId, setSelectedTeamStateId] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState('');
+  const queryString = searchParams?.toString() || '';
   const viewParam = searchParams?.get('view');
+  const teamParam = searchParams?.get('team') || '';
+  const hasActiveView = isTeamMatchView(viewParam);
   const activeView: TeamMatchView = isTeamMatchView(viewParam) ? viewParam : 'matches';
-  const setActiveView = (view: TeamMatchView) => {
-    const params = new URLSearchParams(searchParams?.toString() || '');
+  const routePath = pathname || '/teams';
+  const routeForParams = (params: URLSearchParams) => {
+    const nextQueryString = params.toString();
+    return nextQueryString ? `${routePath}?${nextQueryString}` : routePath;
+  };
+  const setActiveView = (view: TeamMatchView, options?: { teamId?: string }) => {
+    const params = new URLSearchParams(queryString);
     params.set('view', view);
-    router.replace(`/teams?${params.toString()}`, { scroll: false });
+    if (options?.teamId) {
+      params.set('team', options.teamId);
+    }
+    router.push(routeForParams(params), { scroll: false });
+  };
+  const openTeamMatchHub = () => {
+    const params = new URLSearchParams(queryString);
+    params.delete('view');
+    params.delete('team');
+    router.push(routeForParams(params), { scroll: false });
+  };
+  const setSelectedTeamId = (teamId: string) => {
+    setSelectedTeamStateId(teamId);
+    const params = new URLSearchParams(queryString);
+    if (isTeamMatchView(params.get('view'))) {
+      params.set('team', teamId);
+      router.replace(routeForParams(params), { scroll: false });
+    }
   };
 
   const teamForm = useAdvancedForm<TeamPayload>({
@@ -62,10 +88,12 @@ export function useTeamMatchUiState() {
   return {
     activeView,
     capabilityForm,
+    hasActiveView,
     memberForm,
+    openTeamMatchHub,
     reputationForm,
     selectedPackageId,
-    selectedTeamId,
+    selectedTeamId: teamParam || selectedTeamStateId,
     setActiveView,
     setSelectedPackageId,
     setSelectedTeamId,

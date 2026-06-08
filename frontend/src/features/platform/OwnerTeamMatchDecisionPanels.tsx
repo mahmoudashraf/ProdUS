@@ -11,8 +11,9 @@ import {
   Surface,
   appleColors,
 } from './PlatformComponents';
+import { WorkspaceBreadcrumbs } from './OwnerWorkspaceJourneyNav';
 import { TeamMatchView, teamMatchColor, teamMatchViews } from './ownerTeamMatchConfig';
-import { PackageInstance, TeamRecommendation } from './types';
+import { PackageInstance, Team, TeamRecommendation } from './types';
 
 export function TeamMatchDecisionPanel({
   selectedPackageId,
@@ -87,12 +88,115 @@ export function TeamMatchDecisionPanel({
   );
 }
 
+export function TeamMatchInternalHeader({
+  activeView,
+  onBack,
+}: {
+  activeView: TeamMatchView;
+  onBack: () => void;
+}) {
+  const view = teamMatchViews.find((item) => item.value === activeView) || teamMatchViews[0]!;
+
+  return (
+    <Stack spacing={1.25}>
+      <WorkspaceBreadcrumbs
+        items={[
+          { label: 'Team Match', onClick: onBack },
+          { label: view.title },
+        ]}
+        backLabel="Team Match hub"
+        onBack={onBack}
+      />
+      <Surface sx={{ p: { xs: 2, md: 2.5 }, background: '#fbfcff' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ md: 'center' }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+              {view.eyebrow}
+            </Typography>
+            <Typography variant="h3" sx={{ mt: 0.4 }}>
+              {view.title}
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.55, maxWidth: 780 }}>
+              {view.description}
+            </Typography>
+          </Box>
+        </Stack>
+      </Surface>
+    </Stack>
+  );
+}
+
+export function TeamMatchSelectedContextPanel({
+  activeView,
+  averageMatch,
+  selectedPackage,
+  selectedTeam,
+  shortlistCount,
+  topRecommendation,
+  onOpenMatches,
+  onOpenShortlist,
+}: {
+  activeView: TeamMatchView;
+  averageMatch: number;
+  selectedPackage?: PackageInstance | undefined;
+  selectedTeam?: Team | undefined;
+  shortlistCount: number;
+  topRecommendation?: TeamRecommendation | undefined;
+  onOpenMatches: () => void;
+  onOpenShortlist: () => void;
+}) {
+  const score = topRecommendation ? Math.round(topRecommendation.score * 100) : averageMatch;
+  const planName = selectedPackage?.productProfile?.name || selectedPackage?.name || 'No start plan selected';
+  const teamName = selectedTeam?.name || topRecommendation?.team.name || 'Top match pending';
+
+  return (
+    <Surface sx={{ p: { xs: 1.5, md: 2 } }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '86px minmax(0, 1fr) minmax(0, 1fr) auto' },
+          gap: 1.5,
+          alignItems: 'center',
+        }}
+      >
+        <ProgressRing value={score || 0} size={72} color={teamMatchColor(score || 0)} label="match" />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+            Selected start plan
+          </Typography>
+          <Typography sx={{ fontWeight: 950, overflowWrap: 'anywhere' }}>{planName}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Use the hub to change the plan before comparing teams.
+          </Typography>
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+            Current team context
+          </Typography>
+          <Typography sx={{ fontWeight: 950, overflowWrap: 'anywhere' }}>{teamName}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {shortlistCount ? `${shortlistCount} team${shortlistCount === 1 ? '' : 's'} saved for proposal review.` : 'No teams saved yet.'}
+          </Typography>
+        </Box>
+        <Stack direction={{ xs: 'column', sm: 'row', md: 'column' }} spacing={1} sx={{ minWidth: { md: 150 } }}>
+          <Button variant={activeView === 'matches' ? 'contained' : 'outlined'} size="small" onClick={onOpenMatches}>
+            Compare teams
+          </Button>
+          <Button variant={activeView === 'shortlist' ? 'contained' : 'outlined'} size="small" onClick={onOpenShortlist}>
+            Shortlist
+          </Button>
+        </Stack>
+      </Box>
+    </Surface>
+  );
+}
+
 export function TeamMatchFocusNav({
   activeView,
   counts,
   onChange,
 }: {
-  activeView: TeamMatchView;
+  activeView?: TeamMatchView | null;
   counts: Record<TeamMatchView, number>;
   onChange: (view: TeamMatchView) => void;
 }) {

@@ -9,7 +9,9 @@ import TeamProfilesPage from './TeamProfilesPage';
 import {
   TeamMatchDecisionPanel,
   TeamMatchFocusNav,
+  TeamMatchInternalHeader,
   TeamMatchMethodPanel,
+  TeamMatchSelectedContextPanel,
 } from './OwnerTeamMatchDecisionPanels';
 import { TeamRecommendationsPanel } from './OwnerTeamRecommendationsPanel';
 import { TeamProfileInspectorPanel } from './OwnerTeamProfileInspectorPanel';
@@ -56,7 +58,9 @@ function MatchedTeamsPage() {
   const {
     activeView,
     capabilityForm,
+    hasActiveView,
     memberForm,
+    openTeamMatchHub,
     reputationForm,
     selectedPackageId,
     selectedTeamId,
@@ -126,6 +130,7 @@ function MatchedTeamsPage() {
   const matchedTeams = selectedPackageId
     ? recommendations.data || []
     : teamList.map((team) => ({ team, score: teamVerificationScore(team) / 100, reasons: [team.capabilitiesSummary || team.description || 'Verified profile available'] }));
+  const selectedPackage = packageList.find((item) => item.id === selectedPackageId);
   const avgMatch = matchedTeams.length
     ? Math.round((matchedTeams.reduce((total, item) => total + item.score, 0) / matchedTeams.length) * 100)
     : 0;
@@ -143,16 +148,17 @@ function MatchedTeamsPage() {
   };
   const inspectTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
-    setActiveView('profile');
+    setActiveView('profile', { teamId });
   };
   const compareTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
     recordShortlist(teamId, 'COMPARED');
-    setActiveView('profile');
+    setActiveView('profile', { teamId });
   };
   const chooseTeam = (teamId: string) => {
+    setSelectedTeamId(teamId);
     recordShortlist(teamId, 'ACTIVE');
-    setActiveView('shortlist');
+    setActiveView('shortlist', { teamId });
   };
   const viewCounts: Record<TeamMatchView, number> = {
     matches: matchedTeams.length,
@@ -206,19 +212,36 @@ function MatchedTeamsPage() {
       />
 
       <Stack spacing={2.5}>
-        <TeamMatchDecisionPanel
-          selectedPackageId={selectedPackageId}
-          packages={packageList}
-          topRecommendation={matchedTeams[0]}
-          averageMatch={avgMatch}
-          shortlistCount={activeShortlists.length}
-          onPackageChange={setSelectedPackageId}
-          onOpenShortlist={() => setActiveView('shortlist')}
-        />
+        {hasActiveView ? (
+          <>
+            <TeamMatchInternalHeader activeView={activeView} onBack={openTeamMatchHub} />
+            <TeamMatchSelectedContextPanel
+              activeView={activeView}
+              averageMatch={avgMatch}
+              selectedPackage={selectedPackage}
+              selectedTeam={selectedTeam}
+              shortlistCount={activeShortlists.length}
+              topRecommendation={matchedTeams[0]}
+              onOpenMatches={() => setActiveView('matches')}
+              onOpenShortlist={() => setActiveView('shortlist')}
+            />
+          </>
+        ) : (
+          <>
+            <TeamMatchDecisionPanel
+              selectedPackageId={selectedPackageId}
+              packages={packageList}
+              topRecommendation={matchedTeams[0]}
+              averageMatch={avgMatch}
+              shortlistCount={activeShortlists.length}
+              onPackageChange={setSelectedPackageId}
+              onOpenShortlist={() => setActiveView('shortlist')}
+            />
+            <TeamMatchFocusNav activeView={null} counts={viewCounts} onChange={setActiveView} />
+          </>
+        )}
 
-        <TeamMatchFocusNav activeView={activeView} counts={viewCounts} onChange={setActiveView} />
-
-        {activeView === 'matches' && (
+        {hasActiveView && activeView === 'matches' && (
           <TeamRecommendationsPanel
             recommendations={matchedTeams}
             activeShortlists={activeShortlists}
@@ -231,7 +254,7 @@ function MatchedTeamsPage() {
           />
         )}
 
-        {activeView === 'profile' && (
+        {hasActiveView && activeView === 'profile' && (
           <Stack spacing={2.5}>
             <TeamProfileInspectorPanel
               team={selectedTeam}
@@ -253,7 +276,7 @@ function MatchedTeamsPage() {
           </Stack>
         )}
 
-        {activeView === 'shortlist' && (
+        {hasActiveView && activeView === 'shortlist' && (
           <TeamMatchShortlistPanel
             activeShortlists={activeShortlists}
             recommendations={matchedTeams}
@@ -261,7 +284,7 @@ function MatchedTeamsPage() {
           />
         )}
 
-        <TeamMatchMethodPanel />
+        {!hasActiveView && <TeamMatchMethodPanel />}
       </Stack>
     </>
   );

@@ -8,11 +8,13 @@ import {
   WarningAmberOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
-import { PastelChip, appleColors } from './PlatformComponents';
+import { PastelChip, ProgressRing, Surface, appleColors, formatLabel } from './PlatformComponents';
+import { WorkspaceBreadcrumbs } from './OwnerWorkspaceJourneyNav';
+import type { Team } from './types';
 
 export type TeamDeliveryView = 'opportunities' | 'delivery' | 'support' | 'team';
 
-const deliveryViews: Array<{
+export const deliveryViews: Array<{
   value: TeamDeliveryView;
   title: string;
   description: string;
@@ -54,7 +56,7 @@ export function TeamDeliveryFocusNav({
   counts,
   onChange,
 }: {
-  activeView: TeamDeliveryView;
+  activeView?: TeamDeliveryView | null;
   counts: Record<TeamDeliveryView, number>;
   onChange: (view: TeamDeliveryView) => void;
 }) {
@@ -105,5 +107,124 @@ export function TeamDeliveryFocusNav({
         );
       })}
     </Box>
+  );
+}
+
+export function TeamDeliveryInternalHeader({
+  activeView,
+  onOpenHub,
+}: {
+  activeView: TeamDeliveryView;
+  onOpenHub: () => void;
+}) {
+  const view = deliveryViews.find((item) => item.value === activeView) || deliveryViews[0]!;
+
+  return (
+    <Stack spacing={1.25}>
+      <WorkspaceBreadcrumbs
+        items={[
+          { label: 'Delivery Control', onClick: onOpenHub },
+          { label: view.title },
+        ]}
+        backLabel="Delivery hub"
+        onBack={onOpenHub}
+      />
+      <Surface sx={{ p: { xs: 2, md: 2.5 }, background: '#fbfcff' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              borderRadius: 1,
+              bgcolor: `${view.color}14`,
+              color: view.color,
+              display: 'grid',
+              placeItems: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {view.icon}
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+              Team delivery workspace
+            </Typography>
+            <Typography variant="h3" sx={{ mt: 0.35 }}>
+              {view.title}
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.65, lineHeight: 1.55, maxWidth: 760 }}>
+              {view.description}
+            </Typography>
+          </Box>
+        </Stack>
+      </Surface>
+    </Stack>
+  );
+}
+
+export function TeamDeliveryContextPanel({
+  activeView,
+  activeWorkspaceCount,
+  averageRating,
+  overdueSupportCount,
+  proposalCount,
+  score,
+  selectedTeam,
+  onOpenDelivery,
+  onOpenOpportunities,
+}: {
+  activeView: TeamDeliveryView;
+  activeWorkspaceCount: number;
+  averageRating: string;
+  overdueSupportCount: number;
+  proposalCount: number;
+  score: number;
+  selectedTeam?: Team | undefined;
+  onOpenDelivery: () => void;
+  onOpenOpportunities: () => void;
+}) {
+  return (
+    <Surface sx={{ p: { xs: 1.5, md: 2 } }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '86px minmax(0, 1.3fr) minmax(0, 1.2fr) auto' },
+          gap: 1.5,
+          alignItems: 'center',
+        }}
+      >
+        <ProgressRing value={score || 72} size={72} color={appleColors.cyan} label="profile" />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+            Selected team
+          </Typography>
+          <Typography sx={{ fontWeight: 950, overflowWrap: 'anywhere' }}>
+            {selectedTeam?.name || 'Team workspace'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {selectedTeam ? formatLabel(selectedTeam.verificationStatus) : 'Team context loads from assigned work.'}
+          </Typography>
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+            Current workload
+          </Typography>
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.45 }}>
+            <PastelChip label={`${proposalCount} proposals`} accent={appleColors.purple} />
+            <PastelChip label={`${activeWorkspaceCount} deliveries`} accent={appleColors.green} />
+            <PastelChip label={`${overdueSupportCount} support risks`} accent={overdueSupportCount ? appleColors.red : appleColors.amber} />
+            <PastelChip label={`${averageRating} rating`} accent={appleColors.cyan} />
+          </Stack>
+        </Box>
+        <Stack direction={{ xs: 'column', sm: 'row', md: 'column' }} spacing={1} sx={{ minWidth: { md: 150 } }}>
+          <Button variant={activeView === 'opportunities' ? 'contained' : 'outlined'} size="small" onClick={onOpenOpportunities}>
+            Opportunities
+          </Button>
+          <Button variant={activeView === 'delivery' ? 'contained' : 'outlined'} size="small" onClick={onOpenDelivery}>
+            Delivery proof
+          </Button>
+        </Stack>
+      </Box>
+    </Surface>
   );
 }
