@@ -4,10 +4,10 @@ Date: 2026-06-08
 
 Baseline:
 
-- Latest live-verified UI commit after the expert-network route split pass: `598b295`.
-- Latest live-verified Coolify frontend deployment after the expert-network route split pass: `sipo5xcp0a5d333zssqk0api`.
+- Latest live-verified UI commit after the expert-network route split pass: `403584e`.
+- Latest live-verified Coolify frontend deployment after the expert-network route split pass: `wd5wl305qu8rwnttvadlqnzi`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
-- Live verification script: `tmp/live-verification/2026-06-08/live-network-route-split.js`.
+- Live verification script: `tmp/live-verification/2026-06-08/live-network-export-hub.js`.
 - Current largest owner-facing active files after the completed splits:
   - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`: 632 lines.
   - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 362 lines.
@@ -15,7 +15,7 @@ Baseline:
   - `frontend/src/features/platform/OwnerWorkspaceTechnicalProofArea.tsx`: 296 lines.
   - `frontend/src/features/platform/ProjectStartPlanPage.tsx`: 280 lines.
   - `frontend/src/features/platform/OwnerOverviewDecisionPanel.tsx`: 278 lines.
-  - `frontend/src/features/expert-network/NetworkPages.tsx`: 421 lines after extracting dashboard, directory, formation, messages, channels, join requests, trials, shared cards, shared panels, and presentation helpers.
+  - `frontend/src/features/expert-network/NetworkPages.tsx`: 16 lines after extracting all network route pages into focused modules.
 
 ## Goal
 
@@ -65,7 +65,7 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - Coolify frontend Docker deploys now skip Next's duplicate build-time type validation while keeping `npm run type-check` as the explicit pre-deploy safety gate, avoiding the previous staging build timeout.
 - Latest live verification at commit `b61fe6b` confirmed the full journey, README evidence display, mobile hub/spoke flow, and all 10 scanners completed, including `OWASP ZAP Baseline`; all nonzero scanner findings remain normalized and mapped in latest coverage.
 - Expert Network dashboard and directory are now split out of the former 1,530-line `NetworkPages.tsx` route file and live-verified at commit `4ec6b4e`.
-- Expert Network formation, messages, channels, join requests, and trials are now split into focused route modules and live-verified at commit `598b295`.
+- Expert Network route pages are now split into focused modules with `NetworkPages.tsx` acting as a small export hub, live-verified at commit `403584e`.
 
 ## Completion Sequence
 
@@ -437,8 +437,10 @@ Solution:
 
 Status:
 
-- Implemented, committed, pushed, deployed, and live-verified at UI commit `598b295`, Coolify frontend deployment `sipo5xcp0a5d333zssqk0api`.
-- `NetworkPages.tsx` is now 421 lines, down from 933 lines at the start of this pass and 1,530 lines before the earlier dashboard/directory split.
+- Implemented, committed, pushed, deployed, and live-verified in two batches:
+  - Route split commit `598b295`, Coolify frontend deployment `sipo5xcp0a5d333zssqk0api`.
+  - Export-hub completion commit `403584e`, Coolify frontend deployment `wd5wl305qu8rwnttvadlqnzi`.
+- `NetworkPages.tsx` is now 16 lines, down from 933 lines at the start of this pass and 1,530 lines before the earlier dashboard/directory split.
 - Local checks passed:
   - `npm --prefix frontend run type-check`
   - `git diff --check`
@@ -450,7 +452,18 @@ Status:
   - `tmp/live-verification/2026-06-08/133-network-join-requests-live.png`
   - `tmp/live-verification/2026-06-08/134-network-trials-live.png`
   - `tmp/live-verification/2026-06-08/135-mobile-network-trials-live.png`
+- Export-hub live verification passed for Search, Notifications, Expert Profile, Settings, Team Profile Studio, Expert Detail, and Team Detail:
+  - `tmp/live-verification/2026-06-08/136-network-search-live.png`
+  - `tmp/live-verification/2026-06-08/137-network-notifications-live.png`
+  - `tmp/live-verification/2026-06-08/138-network-profile-live.png`
+  - `tmp/live-verification/2026-06-08/139-network-settings-live.png`
+  - `tmp/live-verification/2026-06-08/140-network-team-profile-live.png`
+  - `tmp/live-verification/2026-06-08/141-network-expert-detail-live.png`
+  - `tmp/live-verification/2026-06-08/142-network-team-detail-live.png`
+  - `tmp/live-verification/2026-06-08/143-mobile-settings-live.png`
+  - `tmp/live-verification/2026-06-08/143-mobile-teamDetail-live.png`
 - Live API caveat: `/expert-network/conversations` returns `500` for the specialist fixture. The Messages route still renders its shell and empty/error state; other extracted route endpoints returned `200`.
+- Design follow-up: team detail still uses a large default cover band when no real image exists. This pass intentionally kept route behavior unchanged; the next visual pass should compact that fallback.
 
 ### Current Pass: Team Profile Studio Completion
 
