@@ -110,11 +110,11 @@ export default function OwnerWorkspaceProductHero({
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
             {launchStatus.reason}
           </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 1.5 }}>
-            <Button variant="contained" startIcon={<RocketLaunchOutlined />} onClick={onPrimaryAction} sx={{ minHeight: 42 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
+            <Button variant="contained" startIcon={<RocketLaunchOutlined />} onClick={onPrimaryAction} sx={{ minHeight: 42, flex: { sm: '1 1 180px' }, whiteSpace: 'normal' }}>
               {topOwnerRisks.length ? 'Review launch blockers' : 'Plan next service'}
             </Button>
-            <Button variant="outlined" startIcon={<ShieldOutlined />} onClick={onViewProof} sx={{ minHeight: 42 }}>
+            <Button variant="outlined" startIcon={<ShieldOutlined />} onClick={onViewProof} sx={{ minHeight: 42, flex: { sm: '1 1 160px' }, whiteSpace: 'normal' }}>
               View scanner proof
             </Button>
             <Button
@@ -122,7 +122,7 @@ export default function OwnerWorkspaceProductHero({
               startIcon={<CloudUploadOutlined />}
               onClick={onExportReport}
               disabled={Boolean(isExporting)}
-              sx={{ minHeight: 42 }}
+              sx={{ minHeight: 42, flex: { sm: '1 1 140px' }, whiteSpace: 'normal' }}
             >
               Export report
             </Button>

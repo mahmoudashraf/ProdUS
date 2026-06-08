@@ -35,6 +35,7 @@ export default function OwnerWorkspaceNavigationPanel({
           position: { xl: 'sticky' },
           top: { xl: 76 },
           zIndex: 2,
+          overflow: 'hidden',
         }}
       >
         <Tabs
@@ -43,9 +44,20 @@ export default function OwnerWorkspaceNavigationPanel({
           variant="scrollable"
           scrollButtons="auto"
           sx={{
+            maxWidth: '100%',
             minHeight: 44,
+            '& .MuiTabs-scroller': {
+              overflowX: 'auto !important',
+            },
+            '& .MuiTabs-flexContainer': {
+              width: { xs: '100%', sm: 'auto' },
+            },
             '& .MuiTab-root': {
+              flex: { xs: '1 1 0', sm: '0 0 auto' },
+              fontSize: { xs: 12.5, sm: 14 },
+              minWidth: { xs: 0, sm: 90 },
               minHeight: 44,
+              px: { xs: 0.5, sm: 2 },
               textTransform: 'none',
               fontWeight: 850,
               letterSpacing: 0,

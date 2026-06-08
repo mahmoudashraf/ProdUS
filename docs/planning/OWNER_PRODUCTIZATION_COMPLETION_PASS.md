@@ -577,6 +577,35 @@ Status:
   - `tmp/live-verification/2026-06-07/108-mobile-team-profile-studio-live.png`
 - Full owner journey verification passed for commit `552c72f`; scanner coverage remained stored and mapped with all 10 scanners complete.
 
+### Current Pass: Owner Overview Decision Card Split
+
+Problem:
+
+- `OwnerOverviewDecisionPanel.tsx` still mixed the launch verdict, top risks, recommended owner actions, evidence checks, and service recommendation in one component.
+- The owner workspace mobile tab row could create a few pixels of horizontal overflow, and the product hero action buttons could collide on medium desktop widths.
+
+Solution:
+
+- Split the overview decision surface into focused files:
+  - `OwnerOverviewLaunchDecisionCard.tsx`
+  - `OwnerOverviewRiskActionCards.tsx`
+  - `OwnerOverviewProofServiceCards.tsx`
+  - `ownerOverviewDecisionTypes.ts`
+- Keep `OwnerOverviewDecisionPanel.tsx` as a 63-line layout composer.
+- Make the owner workspace top tabs equal-width on mobile so Overview / Action Plan / Findings / Services fit cleanly.
+- Let the product hero action buttons wrap into stable rows instead of compressing.
+
+Status:
+
+- Implemented locally and verified against staging API data. Deployment is deferred so it can be batched with the next small owner-workspace slice.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+- Focused local verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/148-owner-overview-card-split-local-overview-split.png`
+  - `tmp/live-verification/2026-06-08/149-mobile-owner-overview-card-split-local-overview-split.png`
+
 ### Current Pass: Public Profile Detail Completion
 
 Problem:
