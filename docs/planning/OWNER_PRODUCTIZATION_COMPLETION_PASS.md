@@ -1036,6 +1036,7 @@ Solution:
 - Removed `Products` and `Start Plan` from the product-owner global sidebar; those flows remain reachable from Home and direct URLs for compatibility.
 - Reframed the owner Home header around portfolio metrics, selected projects, draft start plan state, and active workspaces.
 - Replaced the workspace product dropdown with a fixed selected-product context bar and a `Switch product on Home` route.
+- Moved desktop product-area navigation to the left sidebar by hiding the duplicate top tab strip on desktop while keeping it on mobile.
 - Removed repeated Project Start Plan buttons from the product portfolio page so product selection does not compete with start-plan review.
 
 Status:

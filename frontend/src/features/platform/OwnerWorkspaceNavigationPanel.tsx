@@ -32,6 +32,7 @@ export default function OwnerWorkspaceNavigationPanel({
         sx={{
           p: { xs: 1, md: 1 },
           boxShadow: 'none',
+          display: { xs: 'block', lg: 'none' },
           position: { xl: 'sticky' },
           top: { xl: 76 },
           zIndex: 2,
