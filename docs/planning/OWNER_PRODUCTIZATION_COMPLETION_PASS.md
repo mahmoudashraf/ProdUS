@@ -489,7 +489,7 @@ Solution:
 
 Status:
 
-- Implemented locally and verified against staging API data. Deployment is intentionally deferred so this slice can be batched with the next small UI pass before triggering Coolify.
+- Implemented, committed, deployed, and live-verified at UI commit `126b2a0`, Coolify frontend deployment `mfit7nmzjqhh0bkqjf0x1vq0`.
 - `ProductProfilesPage.tsx` is now 70 lines, down from 220 lines.
 - Local checks passed:
   - `git diff --check`
@@ -500,7 +500,12 @@ Status:
   - `tmp/live-verification/2026-06-08/145-command-center-products-spoke-local.png`
   - `tmp/live-verification/2026-06-08/146-product-portfolio-desktop-local.png`
   - `tmp/live-verification/2026-06-08/147-mobile-product-portfolio-actions-first-local.png`
-- Start Plan label/link cleanup also passed existing focused local verifiers:
+- Live verification refreshed the command-center and product portfolio screenshots:
+  - `tmp/live-verification/2026-06-08/144-command-center-hub-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-08/145-command-center-products-spoke-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-08/146-product-portfolio-desktop-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-08/147-mobile-product-portfolio-actions-first-live-126b2a0.png`
+- Start Plan label/link cleanup also passed existing focused local and live verifiers:
   - `tmp/live-verification/2026-06-07/86-service-catalog-templates-local-startplan-copy.png`
   - `tmp/live-verification/2026-06-07/87-service-catalog-workstreams-local-startplan-copy.png`
   - `tmp/live-verification/2026-06-07/88-service-catalog-ai-contracts-local-startplan-copy.png`
@@ -514,6 +519,19 @@ Status:
   - `tmp/live-verification/2026-06-07/96-public-talent-services-local-startplan-copy.png`
   - `tmp/live-verification/2026-06-07/97-mobile-public-talent-teams-local-startplan-copy.png`
   - `tmp/live-verification/2026-06-07/98-solo-experts-default-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/86-service-catalog-templates-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/87-service-catalog-workstreams-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/88-service-catalog-ai-contracts-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/89-mobile-service-catalog-templates-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/90-team-match-choose-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/91-team-match-inspect-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/92-team-match-shortlist-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/93-mobile-team-match-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/94-public-talent-teams-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/95-public-talent-experts-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/96-public-talent-services-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/97-mobile-public-talent-teams-live-126b2a0.png`
+  - `tmp/live-verification/2026-06-07/98-solo-experts-default-live-126b2a0.png`
 
 ### Current Pass: Team Profile Studio Completion
 
