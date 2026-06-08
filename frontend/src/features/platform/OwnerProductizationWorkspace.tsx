@@ -1,41 +1,29 @@
 'use client';
 
-import { useState } from 'react';
-import { EventRepeatOutlined } from '@mui/icons-material';
-import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
-import { useAdvancedForm } from '@/hooks/enterprise';
+import { Box, Stack } from '@mui/material';
 import {
-  EmptyState,
-  PageHeader,
-  QueryState,
   appleColors,
 } from './PlatformComponents';
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
-import { type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import OwnerFindingReviewDrawerHost from './OwnerFindingReviewDrawerHost';
 import OwnerWorkspaceActionsPane from './OwnerWorkspaceActionsPane';
 import OwnerWorkspaceFindingsPane from './OwnerWorkspaceFindingsPane';
-import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import OwnerWorkspaceOverviewPane from './OwnerWorkspaceOverviewPane';
 import OwnerWorkspaceServicesPane from './OwnerWorkspaceServicesPane';
-import OwnerWorkspaceNavigationPanel from './OwnerWorkspaceNavigationPanel';
-import OwnerWorkspaceSideRailPane from './OwnerWorkspaceSideRailPane';
-import { OwnerReadinessVerdictReveal } from './OwnerJourneyCards';
+import OwnerWorkspaceSideRailHost from './OwnerWorkspaceSideRailHost';
+import {
+  OwnerProductizationWorkspaceHeader,
+  OwnerProductizationWorkspaceLead,
+} from './OwnerProductizationWorkspaceHeader';
 import { buildOwnerWorkspaceAssistantActions } from './ownerWorkspaceAssistantActions';
 import {
   buildOwnerWorkspaceJourneyItems,
 } from './ownerWorkspaceJourneyConfig';
 import {
-  workspaceTabs,
-} from './ownerWorkspaceModel';
-import {
-  DiagnosisPayload,
-  ProductProfilePayload,
-  RequirementPayload,
+  type ProductProfilePayload,
+  type RequirementPayload,
   defaultToolsForDepth,
   externalImportProviders,
-  productInitialValues,
-  requirementInitialValues,
   scanToolOptions,
   shortDateTime,
 } from './ownerProductizationWorkspaceConfig';
@@ -45,8 +33,9 @@ import { useOwnerWorkspaceScannerOperations } from './useOwnerWorkspaceScannerOp
 import { useOwnerWorkspaceProductActions } from './useOwnerWorkspaceProductActions';
 import { useOwnerWorkspaceInteractionHandlers } from './useOwnerWorkspaceInteractionHandlers';
 import { useOwnerWorkspaceFindingReviewState } from './useOwnerWorkspaceFindingReviewState';
+import { useOwnerProductizationWorkspaceUiState } from './useOwnerProductizationWorkspaceUiState';
+import { getOwnerWorkspaceCurrentJourney } from './ownerWorkspaceCurrentJourney';
 import { buildOwnerWorkspaceViewModel } from './ownerWorkspaceViewModel';
-import type { ScannerEvidenceFilter } from './scannerProofOperationsTypes';
 
 export default function OwnerProductizationWorkspace({
   productId,
@@ -55,11 +44,27 @@ export default function OwnerProductizationWorkspace({
   productId?: string;
   showProductCreation?: boolean;
 } = {}) {
-  const [selectedProductId, setSelectedProductId] = useState(productId || '');
-  const [selectedPackageId, setSelectedPackageId] = useState('');
-  const [pendingRequirementId, setPendingRequirementId] = useState('');
-  const [projectName, setProjectName] = useState('');
-  const [cartNotice, setCartNotice] = useState('');
+  const {
+    cartNotice,
+    diagnosisForm,
+    evidenceFilter,
+    pendingRequirementId,
+    productForm,
+    projectName,
+    requirementForm,
+    selectedFindingId,
+    selectedPackageId,
+    selectedProductId,
+    setCartNotice,
+    setEvidenceFilter,
+    setPendingRequirementId,
+    setProjectName,
+    setSelectedFindingId,
+    setSelectedPackageId,
+    setSelectedProductId,
+    setTimelineOpen,
+    timelineOpen,
+  } = useOwnerProductizationWorkspaceUiState(productId);
   const {
     workspaceTab,
     overviewView,
@@ -73,9 +78,6 @@ export default function OwnerProductizationWorkspace({
     openFindingsView,
     openServicesView,
   } = useOwnerWorkspaceNavigationState();
-  const [timelineOpen, setTimelineOpen] = useState(false);
-  const [selectedFindingId, setSelectedFindingId] = useState('');
-  const [evidenceFilter, setEvidenceFilter] = useState<ScannerEvidenceFilter>('ALL');
   const {
     categories,
     catalogModules,
@@ -161,27 +163,6 @@ export default function OwnerProductizationWorkspace({
     selectedProduct,
     selectedWorkspace,
     setCartNotice,
-  });
-
-  const productForm = useAdvancedForm<ProductProfilePayload>({
-    initialValues: productInitialValues,
-    validationRules: {
-      name: [{ type: 'required', message: 'Product name is required' }],
-    },
-  });
-  const requirementForm = useAdvancedForm<RequirementPayload>({
-    initialValues: requirementInitialValues,
-    validationRules: {
-      businessGoal: [{ type: 'required', message: 'Business goal is required' }],
-    },
-  });
-  const diagnosisForm = useAdvancedForm<DiagnosisPayload>({
-    initialValues: {
-      businessGoal: '',
-      currentProblems: '',
-      accessSignals: '',
-      summary: '',
-    },
   });
 
   const {
@@ -400,92 +381,59 @@ export default function OwnerProductizationWorkspace({
     hasSelectedPackage: !!selectedPackage,
     teamMatchCount: teamRecommendations.data?.length || 0,
   });
-  const currentJourneyItems: JourneyStepItem<string>[] =
-    workspaceTab === 'overview'
-      ? overviewJourneyItems
-      : workspaceTab === 'actions'
-        ? actionJourneyItems
-        : workspaceTab === 'findings'
-          ? findingsJourneyItems
-          : servicesJourneyItems;
-  const currentJourneyValue: string =
-    workspaceTab === 'overview'
-      ? overviewView
-      : workspaceTab === 'actions'
-        ? actionView
-        : workspaceTab === 'findings'
-          ? findingsView
-          : servicesView;
-  const currentAreaLabel = workspaceTabs.find((tab) => tab.value === workspaceTab)?.label || 'Workspace';
-  const currentDetailLabel = currentJourneyItems.find((item) => item.value === currentJourneyValue)?.label || currentAreaLabel;
+  const {
+    currentAreaLabel,
+    currentDetailLabel,
+    currentJourneyItems,
+    currentJourneyValue,
+  } = getOwnerWorkspaceCurrentJourney({
+    actionJourneyItems,
+    actionView,
+    findingsJourneyItems,
+    findingsView,
+    overviewJourneyItems,
+    overviewView,
+    servicesJourneyItems,
+    servicesView,
+    workspaceTab,
+  });
 
   return (
     <>
-      <PageHeader
-        title="Productization Workspace"
-        description="One product-centered command surface for lifecycle service selection, start plan decisions, team comparison, and delivery evidence."
-        action={
-          productList.length ? (
-            <TextField
-              select
-              size="small"
-              label="Product"
-              value={selectedProduct?.id || ''}
-              onChange={(event) => selectProduct(event.target.value)}
-              sx={{ minWidth: { xs: '100%', md: 300 } }}
-            >
-              {productList.map((product) => (
-                <MenuItem key={product.id} value={product.id}>
-                  {product.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          ) : null
-        }
+      <OwnerProductizationWorkspaceHeader
+        completedChecks={latestCompletedTools}
+        error={error}
+        hasLaunchEvidenceContext={hasLaunchEvidenceContext}
+        isLoading={loading}
+        launchStatus={launchStatus}
+        productList={productList}
+        risks={verdictRisks}
+        selectedProduct={selectedProduct}
+        totalChecks={scanToolOptions.length}
+        onSelectProduct={selectProduct}
+        onSeePlan={() => launchStatus.blockerCount ? openActionView('plan') : openServicesView('recommend')}
+        onViewProof={() => openFindingsView('technical')}
       />
-      <QueryState isLoading={loading} error={error} />
-
-      {selectedProduct && hasLaunchEvidenceContext && (
-        <Box sx={{ mb: 2.5 }}>
-          <OwnerReadinessVerdictReveal
-            productName={selectedProduct.name}
-            launchStatus={launchStatus}
-            risks={verdictRisks}
-            completedChecks={latestCompletedTools}
-            totalChecks={scanToolOptions.length}
-            onSeePlan={() => launchStatus.blockerCount ? openActionView('plan') : openServicesView('recommend')}
-            onViewProof={() => openFindingsView('technical')}
-          />
-        </Box>
-      )}
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 340px' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
-          {selectedProduct ? (
-            <OwnerWorkspaceProductHero
-              product={selectedProduct}
-              launchStatus={launchStatus}
-              topOwnerRisks={topOwnerRisks}
-              evidenceSummaryItems={evidenceSummaryItems}
-              onPrimaryAction={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}
-              onViewProof={() => openFindingsView('technical')}
-              onExportReport={() => createEvidenceExport.mutate()}
-              isExporting={createEvidenceExport.isPending}
-            />
-          ) : (
-            <EmptyState label="Create a product profile to start the owner productization workflow." />
-          )}
-
-          <OwnerWorkspaceNavigationPanel
+          <OwnerProductizationWorkspaceLead
             currentAreaLabel={currentAreaLabel}
             currentDetailLabel={currentDetailLabel}
             currentJourneyItems={currentJourneyItems}
             currentJourneyValue={currentJourneyValue}
-            productName={selectedProduct?.name}
+            evidenceSummaryItems={evidenceSummaryItems}
+            isExporting={createEvidenceExport.isPending}
+            launchStatus={launchStatus}
+            product={selectedProduct}
+            topOwnerRisks={topOwnerRisks}
             workspaceDetailOpen={workspaceDetailOpen}
             workspaceTab={workspaceTab}
             onAreaChange={openWorkspaceArea}
             onDetailChange={(value) => openWorkspaceDetail(workspaceTab, value)}
+            onExportReport={() => createEvidenceExport.mutate()}
+            onPrimaryAction={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}
+            onViewProof={() => openFindingsView('technical')}
           />
 
           {selectedProduct && workspaceTab === 'overview' && (
@@ -803,69 +751,56 @@ export default function OwnerProductizationWorkspace({
           )}
         </Stack>
 
-        <OwnerWorkspaceSideRailPane
-          control={selectedProduct ? {
-            status: launchStatus,
-            primaryAction: launchStatus.blockerCount ? 'Open action plan' : topRecommendedServiceName ? 'Review service path' : 'Open proof',
-            lastScanLabel: scannerSummary.data?.recentRuns[0]?.completedAt ? shortDateTime(scannerSummary.data.recentRuns[0].completedAt) : latestCompletedTools ? `${latestCompletedTools} checks completed` : 'No completed check yet',
-            evidenceLabel: `${latestCompletedTools}/${scanToolOptions.length} checks`,
-            onPrimaryAction: () => launchStatus.blockerCount ? openActionView('plan') : topRecommendedServiceName ? openServicesView('recommend') : openFindingsView('evidence'),
-            secondary: (
-              <Button variant="outlined" startIcon={<EventRepeatOutlined />} onClick={() => setTimelineOpen(true)} sx={{ minHeight: 38 }}>
-                View timeline
-              </Button>
-            ),
-          } : undefined}
-          projectStart={workspaceTab === 'services' && workspaceDetailOpen && (servicesView === 'plan' || servicesView === 'team') ? {
-            product: selectedProduct,
-            cart: cart.data,
-            notice: cartNotice,
-            canStartWorkspace: canStartProjectWorkspace,
-            blockers: cartBlockers,
-            blockingGaps: cartBlockingGaps,
-            blockingRecommendationNames: cartBlockingRecommendations.map((item) => item.recommendedModule.name),
-            projectName,
-            hasWorkspace: !!(selectedWorkspace || cart.data?.convertedWorkspace),
-            isAddingService: addServiceToCart.isPending,
-            isRemovingService: removeServiceFromCart.isPending,
-            isRemovingTalent: removeTalentFromCart.isPending,
-            isConverting: convertCart.isPending,
-            onNoticeClose: () => setCartNotice(''),
-            onProjectNameChange: setProjectName,
-            onAddGapService: (serviceModule, notes) => addServiceToCart.mutate({ serviceModuleId: serviceModule.id, notes }),
-            onRemoveService: (itemId) => removeServiceFromCart.mutate(itemId),
-            onRemoveTalent: (itemId) => removeTalentFromCart.mutate(itemId),
-            onConvert: () => convertCart.mutate(),
-          } : undefined}
-          aiBrief={workspaceDetailOpen && (workspaceTab === 'overview' || workspaceTab === 'actions') ? {
-            fallbackReason: assistantSuggestions.data?.fallbackReason,
-            isDisabled: !selectedProduct?.id,
-            isFetching: assistantSuggestions.isFetching,
-            mode: assistantSuggestions.data?.mode,
-            recommendationRationale: recommendations.data?.[0]?.rationale,
-            suggestions: assistantSuggestions.data?.suggestions || [],
-            onSuggest: () => assistantSuggestions.refetch(),
-          } : undefined}
-          deliveryWorkspace={workspaceTab === 'services' && workspaceDetailOpen && servicesView === 'team' ? {
-            assistantActions: assistantActionProps,
-            assistantContext: assistantContext('milestone-evidence-readiness', { milestoneId: selectedMilestone?.id }),
-            blockedMilestoneCount: blockedMilestones,
-            milestones: milestones.data || [],
-            selectedMilestone,
-            workspace: selectedWorkspace,
-          } : undefined}
-          supportRisk={workspaceTab === 'services' && workspaceDetailOpen && servicesView === 'team' ? {
-            supportRequests: productSupport,
-          } : undefined}
-          nextDecision={{
-            blockedMilestoneCount: blockedMilestones,
-            buildTargetRequirementId: buildTargetRequirementId || undefined,
-            hasServicePlan: !!selectedPackage,
-            hasWorkspace: !!selectedWorkspace,
-            isBuilding: buildPackage.isPending,
-            proposals: productProposals,
-            onBuildPlan: (requirementId) => buildPackage.mutate(requirementId),
-          }}
+        <OwnerWorkspaceSideRailHost
+          activeSuggestions={assistantSuggestions.data?.suggestions || []}
+          assistantActions={assistantActionProps}
+          assistantContext={assistantContext}
+          blockedMilestoneCount={blockedMilestones}
+          blockingGaps={cartBlockingGaps}
+          blockingRecommendationNames={cartBlockingRecommendations.map((item) => item.recommendedModule.name)}
+          blockers={cartBlockers}
+          buildTargetRequirementId={buildTargetRequirementId}
+          canStartWorkspace={canStartProjectWorkspace}
+          cart={cart.data}
+          deliveryMilestones={milestones.data || []}
+          fallbackReason={assistantSuggestions.data?.fallbackReason}
+          hasServicePlan={!!selectedPackage}
+          hasStartWorkspace={!!(selectedWorkspace || cart.data?.convertedWorkspace)}
+          hasWorkspace={!!selectedWorkspace}
+          isAddingService={addServiceToCart.isPending}
+          isBuildingPlan={buildPackage.isPending}
+          isConverting={convertCart.isPending}
+          isFetchingSuggestions={assistantSuggestions.isFetching}
+          isRemovingService={removeServiceFromCart.isPending}
+          isRemovingTalent={removeTalentFromCart.isPending}
+          launchStatus={launchStatus}
+          latestCompletedTools={latestCompletedTools}
+          mode={assistantSuggestions.data?.mode}
+          notice={cartNotice}
+          product={selectedProduct}
+          productSupport={productSupport}
+          projectName={projectName}
+          proposals={productProposals}
+          recommendationRationale={recommendations.data?.[0]?.rationale}
+          scannerSummary={scannerSummary.data}
+          selectedMilestone={selectedMilestone}
+          servicesView={servicesView}
+          topRecommendedServiceName={topRecommendedServiceName}
+          workspace={selectedWorkspace}
+          workspaceDetailOpen={workspaceDetailOpen}
+          workspaceTab={workspaceTab}
+          onAddGapService={(serviceModule, notes) => addServiceToCart.mutate({ serviceModuleId: serviceModule.id, notes })}
+          onBuildPlan={(requirementId) => buildPackage.mutate(requirementId)}
+          onCloseNotice={() => setCartNotice('')}
+          onConvert={() => convertCart.mutate()}
+          onOpenActionPlan={() => openActionView('plan')}
+          onOpenFindingsEvidence={() => openFindingsView('evidence')}
+          onOpenServicesRecommend={() => openServicesView('recommend')}
+          onOpenTimeline={() => setTimelineOpen(true)}
+          onProjectNameChange={setProjectName}
+          onRefreshSuggestions={() => assistantSuggestions.refetch()}
+          onRemoveService={(itemId) => removeServiceFromCart.mutate(itemId)}
+          onRemoveTalent={(itemId) => removeTalentFromCart.mutate(itemId)}
         />
       </Box>
       <OwnerFindingReviewDrawerHost
