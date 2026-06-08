@@ -1,13 +1,10 @@
 'use client';
 
 import { Box, Stack } from '@mui/material';
-import {
-  appleColors,
-} from './PlatformComponents';
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
 import OwnerFindingReviewDrawerHost from './OwnerFindingReviewDrawerHost';
 import OwnerWorkspaceActionsArea from './OwnerWorkspaceActionsArea';
-import OwnerWorkspaceFindingsPane from './OwnerWorkspaceFindingsPane';
+import OwnerWorkspaceFindingsArea from './OwnerWorkspaceFindingsArea';
 import OwnerWorkspaceOverviewArea from './OwnerWorkspaceOverviewArea';
 import OwnerWorkspaceServicesArea from './OwnerWorkspaceServicesArea';
 import OwnerWorkspaceSideRailHost from './OwnerWorkspaceSideRailHost';
@@ -22,10 +19,7 @@ import {
 import {
   type ProductProfilePayload,
   type RequirementPayload,
-  defaultToolsForDepth,
-  externalImportProviders,
   scanToolOptions,
-  shortDateTime,
 } from './ownerProductizationWorkspaceConfig';
 import { useOwnerWorkspaceNavigationState } from './useOwnerWorkspaceNavigationState';
 import { useOwnerProductizationWorkspaceData } from './useOwnerProductizationWorkspaceData';
@@ -111,51 +105,7 @@ export default function OwnerProductizationWorkspace({
     selectedPackageId,
     selectedFindingId,
   });
-  const {
-    activeProviderInstallations,
-    activeScanRun,
-    ciTemplate,
-    ciTemplateType,
-    createEvidenceExport,
-    createProviderSource,
-    createScanSource,
-    createScannerSchedule,
-    deleteArtifactsOnDisconnect,
-    disconnectScanSource,
-    externalImportForm,
-    fetchCiTemplate,
-    filteredScannerEvidence,
-    fullHostedScanBlockedReason,
-    hostedScanBlockedReason,
-    hostedScanForm,
-    importExternalEvidence,
-    openEvidenceArtifact,
-    openSignedEvidence,
-    providerSourceForm,
-    requestConnectorInstall,
-    rescanRun,
-    scheduleBlockedReason,
-    scheduleForm,
-    scannerOperationBusy,
-    scannerOperationError,
-    scannerUploadForm,
-    scanSourceForm,
-    selectedConnectorPermission,
-    setCiTemplateType,
-    setDeleteArtifactsOnDisconnect,
-    setExternalImportForm,
-    setHostedScanForm,
-    setProviderSourceForm,
-    setScheduleForm,
-    setScannerUploadForm,
-    setScanSourceForm,
-    startFullHostedScan,
-    startHostedScan,
-    updateFindingStatus,
-    updateScannerSchedule,
-    uploadScannerEvidence,
-    cancelScannerRun,
-  } = useOwnerWorkspaceScannerOperations({
+  const scannerOperations = useOwnerWorkspaceScannerOperations({
     connectorPermissions: connectorPermissions.data || [],
     evidenceFilter,
     scannerConnectors: scannerConnectors.data || [],
@@ -164,25 +114,19 @@ export default function OwnerProductizationWorkspace({
     selectedWorkspace,
     setCartNotice,
   });
-
   const {
-    acceptProposal,
-    addServiceToCart,
-    addTalentToCart,
-    buildPackage,
-    convertCart,
-    createDiagnosis,
-    createProduct,
-    createRequirement,
-    createScannerReadinessDiagnosis,
-    generateLaunchReadinessReport,
-    productActionError,
-    refreshRepoSignals,
-    removeServiceFromCart,
-    removeTalentFromCart,
-    updateCart,
-    upsertShortlist,
-  } = useOwnerWorkspaceProductActions({
+    createEvidenceExport,
+    filteredScannerEvidence,
+    hostedScanBlockedReason,
+    hostedScanForm,
+    openEvidenceArtifact,
+    openSignedEvidence,
+    scannerOperationError,
+    startHostedScan,
+    updateFindingStatus,
+  } = scannerOperations;
+
+  const productActions = useOwnerWorkspaceProductActions({
     cartBusinessGoal: cart.data?.businessGoal,
     diagnosisForm,
     productForm,
@@ -197,6 +141,22 @@ export default function OwnerProductizationWorkspace({
     setSelectedPackageId,
     setSelectedProductId,
   });
+  const {
+    acceptProposal,
+    addServiceToCart,
+    addTalentToCart,
+    buildPackage,
+    convertCart,
+    createDiagnosis,
+    createProduct,
+    createRequirement,
+    generateLaunchReadinessReport,
+    productActionError,
+    removeServiceFromCart,
+    removeTalentFromCart,
+    updateCart,
+    upsertShortlist,
+  } = productActions;
   const {
     canStartProjectWorkspace,
     cartBlockers,
@@ -483,179 +443,51 @@ export default function OwnerProductizationWorkspace({
             workspaceTab={workspaceTab}
           />
 
-          {selectedProduct && workspaceTab === 'findings' && (
-            <OwnerWorkspaceFindingsPane
-              view={findingsView}
-              detailOpen={workspaceDetailOpen}
-              risks={{
-                groups: groupedFindings,
-                totalFindingCount: scannerSummary.data?.findings.length || 0,
-                openGroups: openFindingGroups,
-                onGroupToggle: setFindingGroupOpen,
-                onReviewFinding: openFindingReview,
-                onOpenTechnicalProof: () => openFindingsView('technical'),
-              }}
-              evidence={{
-                summaryItems: evidenceSummaryItems,
-                sources: scannerSummary.data?.sources || [],
-                evidence: filteredScannerEvidence,
-                evidenceFilter,
-                isExporting: createEvidenceExport.isPending,
-                isOpeningEvidence: openSignedEvidence.isPending,
-                onEvidenceFilterChange: setEvidenceFilter,
-                onExport: () => createEvidenceExport.mutate(),
-                onOpenEvidence: openEvidenceArtifact,
-                formatDateTime: shortDateTime,
-              }}
-              repoReadout={{
-                summary: repoSignals.data,
-                scannerSummary: scannerSummary.data,
-                isFetching: repoSignals.isFetching,
-                isRefreshing: refreshRepoSignals.isPending,
-                onRefresh: () => refreshRepoSignals.mutate(),
-              }}
-              technical={{
-                runway: {
-                  scannerReadiness,
-                  criticalCount: scannerCounts?.critical || 0,
-                  highCount: scannerCounts?.high || 0,
-                  openFindingCount: scannerCounts?.open || 0,
-                  sourceCount: scannerSummary.data?.sources.length || 0,
-                  evidenceCount: filteredScannerEvidence.length,
-                  latestCoveredTools,
-                  totalTools: scanToolOptions.length,
-                  normalizedFindingCount: scannerCounts?.total || 0,
-                  activeScanRun: Boolean(activeScanRun),
-                  fullSuiteBlockedReason: fullHostedScanBlockedReason,
-                  isStartingFullSuite: startFullHostedScan.isPending,
-                  isExporting: createEvidenceExport.isPending,
-                  onRunFullSuite: () => startFullHostedScan.mutate(),
-                  onReviewBlockers: () => openFindingsView('risks'),
-                  onExportProof: () => createEvidenceExport.mutate(),
-                },
-                coverage: {
-                  tools: scannerToolCoverage,
-                  latestCoveredTools,
-                  totalTools: scanToolOptions.length,
-                  latestMappedToolFindings,
-                  unavailableScannerTools,
-                },
-                fixPath: {
-                  diagnosis: latestScannerDiagnosis,
-                  mappedFindings: scannerMappedFindings,
-                  mappedServiceNames: scannerMappedServices,
-                  serviceModules: catalogModules.data || [],
-                  cartServiceIds,
-                  hasCompletedScannerRun,
-                  isRefreshing: createScannerReadinessDiagnosis.isPending,
-                  isAddingService: addServiceToCart.isPending,
-                  onRefreshMap: () =>
-                    createScannerReadinessDiagnosis.mutate({
-                      ...(selectedWorkspace?.id ? { workspaceId: selectedWorkspace.id } : {}),
-                      createServiceRecommendations: true,
-                      includeAcceptedRisk: false,
-                      summary: `Scanner-backed readiness map for ${selectedProduct.name}.`,
-                    }),
-                  onAddService: addLifecycleService,
-                },
-                assistant: {
-                  title: 'AI Fix Path Summary',
-                  description: 'Summarize scanner findings, explain the highest-risk fixes, and turn proof into practical productization actions.',
-                  prompt: `Do not call write actions for this answer. Summarize scanner ship-readiness for ${selectedProduct.name}. Current scanner score is ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings. Top visible findings: ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none'}. ${scannerReadinessPromptFacts} Prioritize critical and high findings, explain the business risk in plain language, identify missing proof, and recommend lifecycle services or milestone actions. Use the provided context and visible facts directly. Avoid raw artifact details.`,
-                  conversationId: `studio-scanner-${selectedProduct.id}-${selectedFinding?.id || 'summary'}`,
-                  context: assistantContext('scanner-readiness', { findingId: selectedFinding?.id }),
-                  ...assistantActionProps,
-                  accent: scannerOpenFindings.length ? appleColors.amber : appleColors.green,
-                  cta: 'Summarize Fixes',
-                },
-                operations: {
-                  selectedProduct,
-                  selectedWorkspace,
-                  milestones: milestones.data || [],
-                  scannerSources: scannerSummary.data?.sources || [],
-                  scanToolOptions,
-                  externalImportProviders,
-                  selectedConnectorPermission,
-                  activeProviderInstallations,
-                  activeScanRun,
-                  hostedScanBlockedReason,
-                  fullHostedScanBlockedReason,
-                  scheduleBlockedReason,
-                  scanSourceForm,
-                  setScanSourceForm,
-                  providerSourceForm,
-                  setProviderSourceForm,
-                  hostedScanForm,
-                  setHostedScanForm,
-                  scheduleForm,
-                  setScheduleForm,
-                  scannerUploadForm,
-                  setScannerUploadForm,
-                  externalImportForm,
-                  setExternalImportForm,
-                  ciTemplateType,
-                  setCiTemplateType,
-                  ciTemplate,
-                  isCreatingSource: createScanSource.isPending,
-                  isRequestingConnectorInstall: requestConnectorInstall.isPending,
-                  isCreatingProviderSource: createProviderSource.isPending,
-                  isStartingHostedScan: startHostedScan.isPending,
-                  isStartingFullHostedScan: startFullHostedScan.isPending,
-                  isCancelingScan: cancelScannerRun.isPending,
-                  isCreatingSchedule: createScannerSchedule.isPending,
-                  isUploadingEvidence: uploadScannerEvidence.isPending,
-                  isImportingExternalEvidence: importExternalEvidence.isPending,
-                  isFetchingCiTemplate: fetchCiTemplate.isPending,
-                  onCreateScanSource: () => createScanSource.mutate(),
-                  onRequestConnectorInstall: (provider) => requestConnectorInstall.mutate(provider),
-                  onCreateProviderSource: () => createProviderSource.mutate(),
-                  onStartHostedScan: () => startHostedScan.mutate(),
-                  onStartFullHostedScan: () => startFullHostedScan.mutate(),
-                  onCancelScan: (runId) => cancelScannerRun.mutate(runId),
-                  onCreateSchedule: () => createScannerSchedule.mutate(),
-                  onUploadScannerEvidence: () => uploadScannerEvidence.mutate(),
-                  onImportExternalEvidence: () => importExternalEvidence.mutate(),
-                  onFetchCiTemplate: () => fetchCiTemplate.mutate(),
-                  defaultToolsForDepth,
-                },
-                companion: {
-                  scannerSummary: scannerSummary.data,
-                  filteredScannerEvidence,
-                  evidenceFilter,
-                  selectedFinding,
-                  cartServiceIds,
-                  findingReasonById,
-                  findingReviewDueById,
-                  deleteArtifactsOnDisconnect,
-                  activeScanRun,
-                  hasProduct: !!selectedProduct,
-                  isBusy: scannerSummary.isFetching || createScannerReadinessDiagnosis.isPending || scannerOperationBusy,
-                  isDisconnectingSource: disconnectScanSource.isPending,
-                  isUpdatingSchedule: updateScannerSchedule.isPending,
-                  isOpeningEvidence: openSignedEvidence.isPending,
-                  isExportingEvidence: createEvidenceExport.isPending,
-                  isUpdatingFindingStatus: updateFindingStatus.isPending,
-                  isAddingService: addServiceToCart.isPending,
-                  isCancelingScan: cancelScannerRun.isPending,
-                  isRescanning: rescanRun.isPending,
-                  onDeleteArtifactsChange: setDeleteArtifactsOnDisconnect,
-                  onDisconnectSource: (sourceId) => disconnectScanSource.mutate(sourceId),
-                  onToggleSchedule: (scheduleId, active) => updateScannerSchedule.mutate({ scheduleId, active }),
-                  onEvidenceFilterChange: setEvidenceFilter,
-                  onExportEvidence: () => createEvidenceExport.mutate(),
-                  onOpenEvidence: openEvidenceArtifact,
-                  onSelectFinding: openFindingReview,
-                  onFindingReasonChange: setFindingReason,
-                  onFindingReviewDueChange: setFindingReviewDue,
-                  onAddService: addLifecycleService,
-                  onRecordFindingDecision: recordFindingDecision,
-                  onCancelRun: (runId) => cancelScannerRun.mutate(runId),
-                  onRescanRun: (runId) => rescanRun.mutate(runId),
-                  formatDateTime: shortDateTime,
-                },
-              }}
-            />
-          )}
+          <OwnerWorkspaceFindingsArea
+            assistantActionProps={assistantActionProps}
+            assistantContext={assistantContext}
+            cartServiceIds={cartServiceIds}
+            catalogModules={catalogModules.data || []}
+            detailOpen={workspaceDetailOpen}
+            evidenceFilter={evidenceFilter}
+            evidenceSummaryItems={evidenceSummaryItems}
+            findingReasonById={findingReasonById}
+            findingReviewDueById={findingReviewDueById}
+            groupedFindings={groupedFindings}
+            hasCompletedScannerRun={hasCompletedScannerRun}
+            latestCoveredTools={latestCoveredTools}
+            latestMappedToolFindings={latestMappedToolFindings}
+            latestScannerDiagnosis={latestScannerDiagnosis}
+            milestones={milestones.data || []}
+            onAddService={addLifecycleService}
+            onEvidenceFilterChange={setEvidenceFilter}
+            onFindingReasonChange={setFindingReason}
+            onFindingReviewDueChange={setFindingReviewDue}
+            onOpenFindingsView={openFindingsView}
+            onRecordFindingDecision={recordFindingDecision}
+            onReviewFinding={openFindingReview}
+            onToggleFindingGroup={setFindingGroupOpen}
+            openFindingGroups={openFindingGroups}
+            productActions={productActions}
+            repoSignalsData={repoSignals.data}
+            repoSignalsFetching={repoSignals.isFetching}
+            scannerCounts={scannerCounts}
+            scannerMappedFindings={scannerMappedFindings}
+            scannerMappedServices={scannerMappedServices}
+            scannerOpenFindings={scannerOpenFindings}
+            scannerOperations={scannerOperations}
+            scannerReadiness={scannerReadiness}
+            scannerReadinessPromptFacts={scannerReadinessPromptFacts}
+            scannerSummaryData={scannerSummary.data}
+            scannerSummaryFetching={scannerSummary.isFetching}
+            scannerToolCoverage={scannerToolCoverage}
+            selectedFinding={selectedFinding}
+            selectedProduct={selectedProduct}
+            selectedWorkspace={selectedWorkspace}
+            unavailableScannerTools={unavailableScannerTools}
+            view={findingsView}
+            workspaceTab={workspaceTab}
+          />
 
           <OwnerWorkspaceServicesArea
             activeShortlists={activeShortlists}
