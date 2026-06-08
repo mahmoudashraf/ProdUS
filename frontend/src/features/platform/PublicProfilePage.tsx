@@ -25,11 +25,19 @@ export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
   const canUseProjectCart = user?.role === UserRole.PRODUCT_OWNER;
   const params = useParams<{ id: string }>();
   const id = params?.id || '';
-  const activeView = profileViewFromParam(searchParams?.get('view') || null);
+  const requestedView = searchParams?.get('view') || null;
+  const hasActiveView = requestedView === 'overview' || requestedView === 'proof' || requestedView === 'signals';
+  const activeView = profileViewFromParam(requestedView);
   const setActiveView = (view: PublicProfileView) => {
     const nextParams = new URLSearchParams(searchParams?.toString() || '');
     nextParams.set('view', view);
-    router.replace(`${kind === 'team' ? '/teams' : '/solo-experts'}/${id}?${nextParams.toString()}`, { scroll: false });
+    router.push(`${kind === 'team' ? '/teams' : '/solo-experts'}/${id}?${nextParams.toString()}`, { scroll: false });
+  };
+  const openProfileHub = () => {
+    const nextParams = new URLSearchParams(searchParams?.toString() || '');
+    nextParams.delete('view');
+    const nextQueryString = nextParams.toString();
+    router.push(`${kind === 'team' ? '/teams' : '/solo-experts'}/${id}${nextQueryString ? `?${nextQueryString}` : ''}`, { scroll: false });
   };
 
   const team = useQuery({
@@ -80,11 +88,13 @@ export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
           team={team.data}
           capabilities={capabilities.data || []}
           activeView={activeView}
+          hasActiveView={hasActiveView}
           isLoggedIn={isLoggedIn}
           canUseProjectCart={canUseProjectCart}
           inPlan={cartTeamIds.has(team.data.id)}
           isAdding={addTeamToCart.isPending}
           onChangeView={setActiveView}
+          onOpenHub={openProfileHub}
           onAddTeam={() => addTeamToCart.mutate({ teamId: team.data.id, notes: 'Owner saved team from public profile.' })}
         />
       )}
@@ -92,18 +102,20 @@ export default function PublicProfilePage({ kind }: { kind: ProfileKind }) {
         <PublicExpertProfilePanel
           expert={expert.data}
           activeView={activeView}
+          hasActiveView={hasActiveView}
           isLoggedIn={isLoggedIn}
           canUseProjectCart={canUseProjectCart}
           inPlan={cartExpertIds.has(expert.data.id)}
           isAdding={addExpertToCart.isPending}
           onChangeView={setActiveView}
+          onOpenHub={openProfileHub}
           onAddExpert={() => addExpertToCart.mutate({ expertProfileId: expert.data.id, notes: 'Owner saved solo expert from public profile.' })}
         />
       )}
       {!isLoading && !team.data && !expert.data && !error && (
         <EmptyState label="This public profile is not available." />
       )}
-      <PublicProfileConversionPanel canUseProjectCart={canUseProjectCart} isLoggedIn={isLoggedIn} />
+      {!hasActiveView && <PublicProfileConversionPanel canUseProjectCart={canUseProjectCart} isLoggedIn={isLoggedIn} />}
     </>
   );
 }

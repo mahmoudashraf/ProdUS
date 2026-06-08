@@ -4,7 +4,12 @@ import NextLink from 'next/link';
 import { AddCircleOutlineOutlined, LanguageOutlined, LaunchOutlined, RocketLaunchOutlined } from '@mui/icons-material';
 import { Button, Stack, Typography } from '@mui/material';
 import PublicProfileHeroPanel from './PublicProfileHeroPanel';
-import { PublicProfileFocusNav, PublicProfileView } from './PublicProfileFocusNav';
+import {
+  PublicProfileContextPanel,
+  PublicProfileFocusNav,
+  PublicProfileInternalHeader,
+  PublicProfileView,
+} from './PublicProfileFocusNav';
 import {
   DotLabel,
   PageHeader,
@@ -22,20 +27,24 @@ import type { ExpertProfile } from './types';
 export default function PublicExpertProfilePanel({
   expert,
   activeView,
+  hasActiveView,
   isLoggedIn,
   canUseProjectCart,
   inPlan,
   isAdding,
   onChangeView,
+  onOpenHub,
   onAddExpert,
 }: {
   expert: ExpertProfile;
   activeView: PublicProfileView;
+  hasActiveView: boolean;
   isLoggedIn: boolean;
   canUseProjectCart: boolean;
   inPlan: boolean;
   isAdding: boolean;
   onChangeView: (view: PublicProfileView) => void;
+  onOpenHub: () => void;
   onAddExpert: () => void;
 }) {
   const skills = splitProfileTags(expert.skills);
@@ -44,6 +53,28 @@ export default function PublicExpertProfilePanel({
     proof: Math.max(skills.length, 1),
     signals: [expert.availability, expert.location, expert.preferredProjectSize, expert.websiteUrl, expert.portfolioUrl].filter(Boolean).length,
   };
+  const actionButtons = (
+    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+      <Button
+        component={NextLink}
+        href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
+        variant="contained"
+        startIcon={<AddCircleOutlineOutlined />}
+        disabled={canUseProjectCart && (isAdding || inPlan)}
+        onClick={(event) => {
+          if (!canUseProjectCart || inPlan) return;
+          event.preventDefault();
+          onAddExpert();
+        }}
+        sx={{ minHeight: 44, minWidth: 180 }}
+      >
+        {!isLoggedIn ? 'Sign in to attach expert' : canUseProjectCart ? (inPlan ? 'In Start Plan' : 'Attach expert to plan') : 'Open dashboard'}
+      </Button>
+      <Button component={NextLink} href="/solo-experts" variant="outlined" sx={{ minHeight: 44, minWidth: 150 }}>
+        Browse experts
+      </Button>
+    </Stack>
+  );
 
   return (
     <Stack spacing={2.5}>
@@ -51,39 +82,38 @@ export default function PublicExpertProfilePanel({
         title="Solo Expert Profile"
         description="Evaluate whether this specialist belongs in the project start plan."
       />
-      <PublicProfileHeroPanel
-        name={expert.displayName}
-        title={expert.headline}
-        body={expert.bio}
-        photoUrl={expert.profilePhotoUrl}
-        coverUrl={expert.coverPhotoUrl}
-        badge={<StatusChip label={expert.availability} />}
-      >
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          <Button
-            component={NextLink}
-            href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
-            variant="contained"
-            startIcon={<AddCircleOutlineOutlined />}
-            disabled={canUseProjectCart && (isAdding || inPlan)}
-            onClick={(event) => {
-              if (!canUseProjectCart || inPlan) return;
-              event.preventDefault();
-              onAddExpert();
-            }}
-            sx={{ minHeight: 44, minWidth: 180 }}
+
+      {!hasActiveView ? (
+        <>
+          <PublicProfileHeroPanel
+            name={expert.displayName}
+            title={expert.headline}
+            body={expert.bio}
+            photoUrl={expert.profilePhotoUrl}
+            coverUrl={expert.coverPhotoUrl}
+            badge={<StatusChip label={expert.availability} />}
           >
-            {!isLoggedIn ? 'Sign in to attach expert' : canUseProjectCart ? (inPlan ? 'In Start Plan' : 'Attach expert to plan') : 'Open dashboard'}
-          </Button>
-          <Button component={NextLink} href="/solo-experts" variant="outlined" sx={{ minHeight: 44, minWidth: 150 }}>
-            Browse experts
-          </Button>
-        </Stack>
-      </PublicProfileHeroPanel>
+            {actionButtons}
+          </PublicProfileHeroPanel>
+          <PublicProfileFocusNav activeView={null} counts={counts} onChange={onChangeView} />
+        </>
+      ) : (
+        <>
+          <PublicProfileInternalHeader activeView={activeView} profileLabel="Solo Expert Profile" onOpenHub={onOpenHub} />
+          <PublicProfileContextPanel
+            activeView={activeView}
+            actions={actionButtons}
+            badge={<StatusChip label={expert.availability} />}
+            counts={counts}
+            name={expert.displayName}
+            summary={expert.headline || expert.bio}
+            onOpenProof={() => onChangeView('proof')}
+            onOpenSignals={() => onChangeView('signals')}
+          />
+        </>
+      )}
 
-      <PublicProfileFocusNav activeView={activeView} counts={counts} onChange={onChangeView} />
-
-      {activeView === 'overview' && (
+      {hasActiveView && activeView === 'overview' && (
         <Surface>
           <SectionTitle title="Expert Bio" />
           <Typography color="text.secondary" sx={{ lineHeight: 1.75 }}>
@@ -92,7 +122,7 @@ export default function PublicExpertProfilePanel({
         </Surface>
       )}
 
-      {activeView === 'proof' && (
+      {hasActiveView && activeView === 'proof' && (
         <Surface>
           <SectionTitle title="Skills And Services" />
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -105,7 +135,7 @@ export default function PublicExpertProfilePanel({
         </Surface>
       )}
 
-      {activeView === 'signals' && (
+      {hasActiveView && activeView === 'signals' && (
         <Surface>
           <SectionTitle title="Availability And Links" />
           <Stack spacing={1.5}>

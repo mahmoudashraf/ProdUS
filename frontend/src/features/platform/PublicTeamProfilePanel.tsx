@@ -4,7 +4,12 @@ import NextLink from 'next/link';
 import { AddCircleOutlineOutlined, LanguageOutlined } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import PublicProfileHeroPanel from './PublicProfileHeroPanel';
-import { PublicProfileFocusNav, PublicProfileView } from './PublicProfileFocusNav';
+import {
+  PublicProfileContextPanel,
+  PublicProfileFocusNav,
+  PublicProfileInternalHeader,
+  PublicProfileView,
+} from './PublicProfileFocusNav';
 import {
   DotLabel,
   PageHeader,
@@ -25,21 +30,25 @@ export default function PublicTeamProfilePanel({
   team,
   capabilities,
   activeView,
+  hasActiveView,
   isLoggedIn,
   canUseProjectCart,
   inPlan,
   isAdding,
   onChangeView,
+  onOpenHub,
   onAddTeam,
 }: {
   team: Team;
   capabilities: TeamCapability[];
   activeView: PublicProfileView;
+  hasActiveView: boolean;
   isLoggedIn: boolean;
   canUseProjectCart: boolean;
   inPlan: boolean;
   isAdding: boolean;
   onChangeView: (view: PublicProfileView) => void;
+  onOpenHub: () => void;
   onAddTeam: () => void;
 }) {
   const tags = splitProfileTags(team.capabilitiesSummary || team.description);
@@ -48,6 +57,28 @@ export default function PublicTeamProfilePanel({
     proof: capabilities.length,
     signals: [team.timezone, team.typicalProjectSize, team.verificationStatus, team.websiteUrl].filter(Boolean).length,
   };
+  const actionButtons = (
+    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+      <Button
+        component={NextLink}
+        href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
+        variant="contained"
+        startIcon={<AddCircleOutlineOutlined />}
+        disabled={canUseProjectCart && (isAdding || inPlan)}
+        onClick={(event) => {
+          if (!canUseProjectCart || inPlan) return;
+          event.preventDefault();
+          onAddTeam();
+        }}
+        sx={{ minHeight: 44, minWidth: 180 }}
+      >
+        {!isLoggedIn ? 'Sign in to attach team' : canUseProjectCart ? (inPlan ? 'In Start Plan' : 'Attach team to plan') : 'Open dashboard'}
+      </Button>
+      <Button component={NextLink} href={canUseProjectCart ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
+        {canUseProjectCart ? 'Project Start Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
+      </Button>
+    </Stack>
+  );
 
   return (
     <Stack spacing={2.5}>
@@ -55,39 +86,38 @@ export default function PublicTeamProfilePanel({
         title="Team Profile"
         description="Evaluate whether this delivery team belongs in the project start plan."
       />
-      <PublicProfileHeroPanel
-        name={team.name}
-        title={team.headline || team.description}
-        body={team.bio}
-        photoUrl={team.profilePhotoUrl}
-        coverUrl={team.coverPhotoUrl}
-        badge={<StatusChip label={team.verificationStatus} />}
-      >
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          <Button
-            component={NextLink}
-            href={!isLoggedIn ? '/login' : canUseProjectCart ? '#' : '/dashboard'}
-            variant="contained"
-            startIcon={<AddCircleOutlineOutlined />}
-            disabled={canUseProjectCart && (isAdding || inPlan)}
-            onClick={(event) => {
-              if (!canUseProjectCart || inPlan) return;
-              event.preventDefault();
-              onAddTeam();
-            }}
-            sx={{ minHeight: 44, minWidth: 180 }}
+
+      {!hasActiveView ? (
+        <>
+          <PublicProfileHeroPanel
+            name={team.name}
+            title={team.headline || team.description}
+            body={team.bio}
+            photoUrl={team.profilePhotoUrl}
+            coverUrl={team.coverPhotoUrl}
+            badge={<StatusChip label={team.verificationStatus} />}
           >
-            {!isLoggedIn ? 'Sign in to attach team' : canUseProjectCart ? (inPlan ? 'In Start Plan' : 'Attach team to plan') : 'Open dashboard'}
-          </Button>
-          <Button component={NextLink} href={canUseProjectCart ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
-            {canUseProjectCart ? 'Project Start Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
-          </Button>
-        </Stack>
-      </PublicProfileHeroPanel>
+            {actionButtons}
+          </PublicProfileHeroPanel>
+          <PublicProfileFocusNav activeView={null} counts={counts} onChange={onChangeView} />
+        </>
+      ) : (
+        <>
+          <PublicProfileInternalHeader activeView={activeView} profileLabel="Team Profile" onOpenHub={onOpenHub} />
+          <PublicProfileContextPanel
+            activeView={activeView}
+            actions={actionButtons}
+            badge={<StatusChip label={team.verificationStatus} />}
+            counts={counts}
+            name={team.name}
+            summary={team.headline || team.description || team.bio}
+            onOpenProof={() => onChangeView('proof')}
+            onOpenSignals={() => onChangeView('signals')}
+          />
+        </>
+      )}
 
-      <PublicProfileFocusNav activeView={activeView} counts={counts} onChange={onChangeView} />
-
-      {activeView === 'overview' && (
+      {hasActiveView && activeView === 'overview' && (
         <Surface>
           <SectionTitle title="Delivery Focus" />
           <Typography color="text.secondary" sx={{ lineHeight: 1.7, mb: 2 }}>
@@ -103,7 +133,7 @@ export default function PublicTeamProfilePanel({
         </Surface>
       )}
 
-      {activeView === 'proof' && (
+      {hasActiveView && activeView === 'proof' && (
         <Surface>
           <SectionTitle title="Verified Service Capabilities" />
           {capabilities.length ? (
@@ -144,7 +174,7 @@ export default function PublicTeamProfilePanel({
         </Surface>
       )}
 
-      {activeView === 'signals' && (
+      {hasActiveView && activeView === 'signals' && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.8fr 1.2fr' }, gap: 2.5 }}>
           <Surface>
             <Stack spacing={2} alignItems="center" textAlign="center">

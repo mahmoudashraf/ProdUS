@@ -11,11 +11,12 @@ import {
   appleColors,
   categoryPalette,
 } from './PlatformComponents';
+import { WorkspaceBreadcrumbs } from './OwnerWorkspaceJourneyNav';
 import { ServiceCategory, ServiceModule } from './types';
 
 export type PublicTalentView = 'teams' | 'experts' | 'services';
 
-const viewCopy: Array<{
+export const publicTalentViews: Array<{
   value: PublicTalentView;
   title: string;
   description: string;
@@ -50,7 +51,7 @@ export function PublicTalentFocusNav({
   counts,
   onChange,
 }: {
-  activeView: PublicTalentView;
+  activeView?: PublicTalentView | null;
   counts: Record<PublicTalentView, number>;
   onChange: (view: PublicTalentView) => void;
 }) {
@@ -62,7 +63,7 @@ export function PublicTalentFocusNav({
         gap: 1.25,
       }}
     >
-      {viewCopy.map((item) => {
+      {publicTalentViews.map((item) => {
         const selected = activeView === item.value;
         return (
           <Button
@@ -96,6 +97,143 @@ export function PublicTalentFocusNav({
         );
       })}
     </Box>
+  );
+}
+
+export function PublicTalentInternalHeader({
+  activeView,
+  onOpenHub,
+}: {
+  activeView: PublicTalentView;
+  onOpenHub: () => void;
+}) {
+  const view = publicTalentViews.find((item) => item.value === activeView) || publicTalentViews[0]!;
+
+  return (
+    <Stack spacing={1.25}>
+      <WorkspaceBreadcrumbs
+        items={[
+          { label: 'Talent Network', onClick: onOpenHub },
+          { label: view.title },
+        ]}
+        backLabel="Talent hub"
+        onBack={onOpenHub}
+      />
+      <Surface sx={{ p: { xs: 2, md: 2.5 }, background: '#fbfcff' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              borderRadius: 1,
+              bgcolor: `${view.color}14`,
+              color: view.color,
+              display: 'grid',
+              placeItems: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {view.icon}
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+              Productization talent
+            </Typography>
+            <Typography variant="h3" sx={{ mt: 0.35 }}>
+              {view.title}
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.65, lineHeight: 1.55, maxWidth: 760 }}>
+              {view.description}
+            </Typography>
+          </Box>
+        </Stack>
+      </Surface>
+    </Stack>
+  );
+}
+
+export function PublicTalentContextPanel({
+  activeView,
+  cartActionLabel,
+  cartHref,
+  counts,
+  onOpenServices,
+  onOpenTeams,
+}: {
+  activeView: PublicTalentView;
+  cartActionLabel: string;
+  cartHref: string;
+  counts: Record<PublicTalentView, number>;
+  onOpenServices: () => void;
+  onOpenTeams: () => void;
+}) {
+  const activeCount = counts[activeView] || 0;
+
+  return (
+    <Surface sx={{ p: { xs: 1.5, md: 2 } }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '86px minmax(0, 1.35fr) minmax(0, 1.15fr) auto' },
+          gap: 1.5,
+          alignItems: 'center',
+        }}
+      >
+        <Box
+          sx={{
+            width: 72,
+            minHeight: 72,
+            borderRadius: 1,
+            bgcolor: '#f8f7ff',
+            border: `1px solid ${appleColors.line}`,
+            color: appleColors.purple,
+            display: 'grid',
+            placeItems: 'center',
+            textAlign: 'center',
+            fontWeight: 950,
+          }}
+        >
+          <Box>
+            <Typography sx={{ fontSize: 24, lineHeight: 1, fontWeight: 950 }}>{activeCount}</Typography>
+            <Typography variant="caption" sx={{ color: appleColors.muted, fontWeight: 900 }}>
+              visible
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+            Current discovery path
+          </Typography>
+          <Typography sx={{ fontWeight: 950 }}>
+            {activeCount} {publicTalentViews.find((item) => item.value === activeView)?.title.toLowerCase() || 'options'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Compare fit, then move useful talent into a governed product start plan.
+          </Typography>
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+            Network coverage
+          </Typography>
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.45 }}>
+            <PastelChip label={`${counts.teams} teams`} accent={appleColors.purple} />
+            <PastelChip label={`${counts.experts} experts`} accent={appleColors.cyan} />
+            <PastelChip label={`${counts.services} services`} accent={appleColors.green} />
+          </Stack>
+        </Box>
+        <Stack direction={{ xs: 'column', sm: 'row', md: 'column' }} spacing={1} sx={{ minWidth: { md: 160 } }}>
+          <Button variant={activeView === 'teams' ? 'contained' : 'outlined'} size="small" onClick={onOpenTeams}>
+            Teams
+          </Button>
+          <Button variant={activeView === 'services' ? 'contained' : 'outlined'} size="small" onClick={onOpenServices}>
+            Services
+          </Button>
+          <Button component={NextLink} href={cartHref} variant="outlined" size="small">
+            {cartActionLabel}
+          </Button>
+        </Stack>
+      </Box>
+    </Surface>
   );
 }
 

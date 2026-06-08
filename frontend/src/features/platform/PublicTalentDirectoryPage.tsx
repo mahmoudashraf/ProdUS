@@ -11,6 +11,8 @@ import { ExpertCard, PublicTeamCard } from './PublicTalentCards';
 import {
   PublicTalentCta,
   PublicTalentFocusNav,
+  PublicTalentContextPanel,
+  PublicTalentInternalHeader,
   PublicTalentServicesPanel,
   PublicTalentView,
 } from './PublicTalentPanels';
@@ -57,11 +59,22 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
 
   const routeDefaultView: PublicTalentView = view === 'experts' ? 'experts' : 'teams';
   const requestedView = searchParams?.get('view') || null;
+  const hasActiveView = isPublicTalentView(requestedView) || view === 'experts';
   const activeView: PublicTalentView = isPublicTalentView(requestedView) ? requestedView : routeDefaultView;
   const setActiveView = (nextView: PublicTalentView) => {
     const params = new URLSearchParams(searchParams?.toString() || '');
     params.set('view', nextView);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+  const openTalentHub = () => {
+    if (view === 'experts') {
+      router.push('/teams', { scroll: false });
+      return;
+    }
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.delete('view');
+    const nextQueryString = params.toString();
+    router.push(`${pathname || '/teams'}${nextQueryString ? `?${nextQueryString}` : ''}`, { scroll: false });
   };
 
   const teamList = teams.data || [];
@@ -75,12 +88,22 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
     experts: soloExperts.length,
     services: categoryList.length,
   };
+  const pageTitle = hasActiveView
+    ? activeView === 'experts'
+      ? 'Solo Expert Network'
+      : activeView === 'services'
+        ? 'Service Workstreams'
+        : 'Verified Team Network'
+    : 'Delivery Talent Network';
+  const pageDescription = hasActiveView
+    ? 'Move through one discovery path at a time, then save the right delivery help into a product start plan.'
+    : 'Find the delivery help that belongs in a startup-owner launch plan: verified teams, focused experts, and the service workstreams they can execute.';
 
   return (
     <Stack spacing={3}>
       <PageHeader
-        title={view === 'experts' ? 'Solo Expert Network' : 'Delivery Talent Network'}
-        description="Find the delivery help that belongs in a startup-owner launch plan: verified teams, focused experts, and the service workstreams they can execute."
+        title={pageTitle}
+        description={pageDescription}
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button onClick={() => setActiveView('services')} variant="outlined" sx={{ minHeight: 42, minWidth: 130 }}>
@@ -103,9 +126,23 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
         error={teams.error || experts.error || categories.error || modules.error}
       />
 
-      <PublicTalentFocusNav activeView={activeView} counts={viewCounts} onChange={setActiveView} />
+      {hasActiveView ? (
+        <>
+          <PublicTalentInternalHeader activeView={activeView} onOpenHub={openTalentHub} />
+          <PublicTalentContextPanel
+            activeView={activeView}
+            cartActionLabel={cartActionLabel}
+            cartHref={cartHref}
+            counts={viewCounts}
+            onOpenServices={() => setActiveView('services')}
+            onOpenTeams={() => setActiveView('teams')}
+          />
+        </>
+      ) : (
+        <PublicTalentFocusNav activeView={null} counts={viewCounts} onChange={setActiveView} />
+      )}
 
-      {activeView === 'teams' && (
+      {hasActiveView && activeView === 'teams' && (
         <Box>
           <SectionTitle
             title="Verified Teams"
@@ -141,7 +178,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
         </Box>
       )}
 
-      {activeView === 'experts' && (
+      {hasActiveView && activeView === 'experts' && (
         <Box>
           <SectionTitle
             title="Available Solo Experts"
@@ -179,7 +216,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
         </Box>
       )}
 
-      {activeView === 'services' && (
+      {hasActiveView && activeView === 'services' && (
         categoryList.length > 0 ? (
           <PublicTalentServicesPanel categories={categoryList} modules={moduleList} />
         ) : (
@@ -187,7 +224,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
         )
       )}
 
-      <PublicTalentCta isLoggedIn={isLoggedIn} />
+      {!hasActiveView && <PublicTalentCta isLoggedIn={isLoggedIn} />}
     </Stack>
   );
 }

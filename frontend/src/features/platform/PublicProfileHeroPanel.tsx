@@ -25,7 +25,7 @@ export default function PublicProfileHeroPanel({
     <Surface sx={{ p: 0, overflow: 'hidden' }}>
       <Box
         sx={{
-          minHeight: coverUrl ? { xs: 150, md: 210 } : { xs: 96, md: 132 },
+          minHeight: coverUrl ? { xs: 150, md: 210 } : { xs: 48, md: 56 },
           background: coverUrl
             ? `linear-gradient(90deg, rgba(15,23,42,0.52), rgba(98,92,255,0.20)), url(${coverUrl}) center/cover`
             : 'linear-gradient(135deg, #eef2ff, #ecfeff)',

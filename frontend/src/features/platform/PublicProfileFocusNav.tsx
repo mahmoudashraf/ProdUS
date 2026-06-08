@@ -3,11 +3,12 @@
 import type { ReactNode } from 'react';
 import { BadgeOutlined, InsightsOutlined, VerifiedOutlined } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
-import { PastelChip, appleColors } from './PlatformComponents';
+import { PastelChip, Surface, appleColors } from './PlatformComponents';
+import { WorkspaceBreadcrumbs } from './OwnerWorkspaceJourneyNav';
 
 export type PublicProfileView = 'overview' | 'proof' | 'signals';
 
-const profileViews: Array<{
+export const profileViews: Array<{
   value: PublicProfileView;
   title: string;
   description: string;
@@ -42,7 +43,7 @@ export function PublicProfileFocusNav({
   counts,
   onChange,
 }: {
-  activeView: PublicProfileView;
+  activeView?: PublicProfileView | null;
   counts: Record<PublicProfileView, number>;
   onChange: (view: PublicProfileView) => void;
 }) {
@@ -99,5 +100,144 @@ export function PublicProfileFocusNav({
         );
       })}
     </Box>
+  );
+}
+
+export function PublicProfileInternalHeader({
+  activeView,
+  profileLabel,
+  onOpenHub,
+}: {
+  activeView: PublicProfileView;
+  profileLabel: string;
+  onOpenHub: () => void;
+}) {
+  const view = profileViews.find((item) => item.value === activeView) || profileViews[0]!;
+
+  return (
+    <Stack spacing={1.25}>
+      <WorkspaceBreadcrumbs
+        items={[
+          { label: profileLabel, onClick: onOpenHub },
+          { label: view.title },
+        ]}
+        backLabel="Profile hub"
+        onBack={onOpenHub}
+      />
+      <Surface sx={{ p: { xs: 2, md: 2.5 }, background: '#fbfcff' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              borderRadius: 1,
+              bgcolor: `${view.color}14`,
+              color: view.color,
+              display: 'grid',
+              placeItems: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {view.icon}
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+              Public profile detail
+            </Typography>
+            <Typography variant="h3" sx={{ mt: 0.35 }}>
+              {view.title}
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.65, lineHeight: 1.55, maxWidth: 760 }}>
+              {view.description}
+            </Typography>
+          </Box>
+        </Stack>
+      </Surface>
+    </Stack>
+  );
+}
+
+export function PublicProfileContextPanel({
+  activeView,
+  actions,
+  badge,
+  counts,
+  name,
+  onOpenProof,
+  onOpenSignals,
+  summary,
+}: {
+  activeView: PublicProfileView;
+  actions: ReactNode;
+  badge: ReactNode;
+  counts: Record<PublicProfileView, number>;
+  name: string;
+  onOpenProof: () => void;
+  onOpenSignals: () => void;
+  summary?: string | undefined;
+}) {
+  const activeCount = counts[activeView] || 0;
+
+  return (
+    <Surface sx={{ p: { xs: 1.5, md: 2 } }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '86px minmax(0, 1.35fr) minmax(0, 1fr) auto' },
+          gap: 1.5,
+          alignItems: 'center',
+        }}
+      >
+        <Box
+          sx={{
+            width: 72,
+            minHeight: 72,
+            borderRadius: 1,
+            bgcolor: '#f8f7ff',
+            border: `1px solid ${appleColors.line}`,
+            color: appleColors.purple,
+            display: 'grid',
+            placeItems: 'center',
+            textAlign: 'center',
+            fontWeight: 950,
+          }}
+        >
+          <Box>
+            <Typography sx={{ fontSize: 24, lineHeight: 1, fontWeight: 950 }}>{activeCount}</Typography>
+            <Typography variant="caption" sx={{ color: appleColors.muted, fontWeight: 900 }}>
+              {activeCount === 1 ? 'item' : 'items'}
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography sx={{ fontWeight: 950, overflowWrap: 'anywhere' }}>{name}</Typography>
+            {badge}
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>
+            {summary || 'Review profile fit before adding this option to a governed product start plan.'}
+          </Typography>
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
+            Profile sections
+          </Typography>
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.45 }}>
+            <PastelChip label={`${counts.overview} overview`} accent={appleColors.purple} />
+            <PastelChip label={`${counts.proof} proof`} accent={appleColors.green} />
+            <PastelChip label={`${counts.signals} signals`} accent={appleColors.cyan} />
+          </Stack>
+        </Box>
+        <Stack spacing={1} sx={{ minWidth: { md: 170 } }}>
+          <Button variant={activeView === 'proof' ? 'contained' : 'outlined'} size="small" onClick={onOpenProof}>
+            Proof
+          </Button>
+          <Button variant={activeView === 'signals' ? 'contained' : 'outlined'} size="small" onClick={onOpenSignals}>
+            Signals
+          </Button>
+          {actions}
+        </Stack>
+      </Box>
+    </Surface>
   );
 }
