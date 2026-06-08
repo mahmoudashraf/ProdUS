@@ -309,6 +309,11 @@ function isMenuUrlActive(itemUrl: string, currentPath: string, currentPathWithSe
     return itemProduct.productId === currentProduct.productId && itemProduct.tab === currentProduct.tab;
   }
 
+  if (itemUrl === '/dashboard?focus=products' && currentPath === '/dashboard') {
+    const currentParams = new URLSearchParams(document.location.search);
+    return !currentParams.get('focus') || currentParams.get('focus') === 'products';
+  }
+
   if (itemUrl === currentPath || itemUrl === currentPathWithSearch) return true;
   if (!itemUrl.includes('?')) return false;
 

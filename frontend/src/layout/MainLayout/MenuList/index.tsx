@@ -1,6 +1,7 @@
 // material-ui
 import { Box, Divider, List, Typography, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { useQuery } from '@tanstack/react-query';
 import {
   IconAlertTriangle,
   IconChecklist,
@@ -10,7 +11,7 @@ import {
   IconShare,
 } from '@tabler/icons-react';
 import { usePathname } from 'next/navigation';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 
 // project imports
 import { HORIZONTAL_MAX_ITEM } from 'config';
@@ -20,6 +21,8 @@ import menuItem from 'menu-items';
 import { useMenuState } from 'contexts/MenuContext';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
+import { getJson } from '@/features/platform/api';
+import type { ProductizationCart } from '@/features/platform/types';
 
 // types
 import { NavItemType } from 'types';
@@ -35,6 +38,13 @@ const MenuList = () => {
   const { drawerOpen } = useMenuState();
   const { user } = useAuth();
   const pathname = usePathname() || '';
+  const isProductOwner = user?.role === UserRole.PRODUCT_OWNER;
+  const globalProductContext = useQuery({
+    queryKey: ['productization-cart'],
+    enabled: isProductOwner,
+    queryFn: () => getJson<ProductizationCart>('/productization-cart/current'),
+    staleTime: 30_000,
+  });
 
   const matchDownMd = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -42,22 +52,31 @@ const MenuList = () => {
   const lastItem =
     layout === LAYOUT_CONST.HORIZONTAL_LAYOUT && !matchDownMd ? HORIZONTAL_MAX_ITEM : undefined;
 
-  const roleVisibleMenuItems = menuItem.items
-    .map((item) => {
-      if (!item.children) return item;
-      return {
-        ...item,
-        children: item.children.filter((child) => !child.roles || (user?.role ? child.roles.includes(user.role) : true)),
-      };
-    })
-    .filter((item) => !item.roles || (user?.role ? item.roles.includes(user.role) : true));
+  const roleVisibleMenuItems = useMemo(
+    () => menuItem.items
+      .map((item) => {
+        if (!item.children) return item;
+        return {
+          ...item,
+          children: item.children.filter((child) => !child.roles || (user?.role ? child.roles.includes(user.role) : true)),
+        };
+      })
+      .filter((item) => !item.roles || (user?.role ? item.roles.includes(user.role) : true)),
+    [user?.role]
+  );
   const productWorkspaceMatch = pathname.match(/^\/products\/([^/]+)$/);
-  const selectedProductId = productWorkspaceMatch?.[1] && productWorkspaceMatch[1] !== 'new'
+  const routeProductId = productWorkspaceMatch?.[1] && productWorkspaceMatch[1] !== 'new'
     ? productWorkspaceMatch[1]
     : '';
-  const visibleMenuItems = user?.role === UserRole.PRODUCT_OWNER && selectedProductId
-    ? buildOwnerProductWorkspaceMenu(roleVisibleMenuItems, selectedProductId)
-    : roleVisibleMenuItems;
+  const globalProductId = globalProductContext.data?.productProfile?.id || '';
+  const globalProductName = globalProductContext.data?.productProfile?.name || '';
+  const selectedProductId = globalProductId || routeProductId;
+  const visibleMenuItems = useMemo(
+    () => isProductOwner && selectedProductId
+      ? buildOwnerProductWorkspaceMenu(roleVisibleMenuItems, selectedProductId, globalProductName)
+      : roleVisibleMenuItems,
+    [globalProductName, isProductOwner, roleVisibleMenuItems, selectedProductId]
+  );
 
   let lastItemIndex = visibleMenuItems.length - 1;
   let remItems: NavItemType[] = [];
@@ -120,7 +139,7 @@ const MenuList = () => {
 
 export default memo(MenuList);
 
-function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string): NavItemType[] {
+function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string, productName?: string): NavItemType[] {
   const platform = items.find((item) => item.id === 'platform') || items[0];
   if (!platform) return items;
   const basePath = `/products/${productId}`;
@@ -128,6 +147,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string)
     {
       ...platform,
       title: 'Selected Product',
+      caption: productName || 'Product-specific actions',
       children: [
         {
           id: 'product-switch-home',

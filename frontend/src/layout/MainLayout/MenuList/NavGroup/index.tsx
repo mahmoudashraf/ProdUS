@@ -14,7 +14,7 @@ import {
 import { styled, useTheme } from '@mui/material/styles';
 import { IconChevronDown, IconChevronRight, IconMinusVertical } from '@tabler/icons-react';
 import { usePathname } from 'next/navigation';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 
 // material-ui
 
@@ -81,23 +81,20 @@ const NavGroup = ({ item, lastItem, remItems, lastItemId }: NavGroupProps) => {
   const [anchorEl, setAnchorEl] = useState<
     VirtualElement | (() => VirtualElement) | null | undefined
   >(null);
-  const [currentItem, setCurrentItem] = useState(item);
 
   const openMini = Boolean(anchorEl);
 
-  useEffect(() => {
+  const currentItem = useMemo<NavItemType>(() => {
     if (lastItem) {
       if (item.id === lastItemId) {
         const localItem: any = { ...item };
         const elements = remItems.map((ele: NavItemType) => ele.elements);
         localItem.children = elements.flat(1);
-        setCurrentItem(localItem);
-      } else {
-        setCurrentItem(item);
+        return localItem;
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item, lastItem, layout, matchDownMd]);
+    return item;
+  }, [item, lastItem, lastItemId, remItems]);
 
   const checkOpenForParent = (child: NavItemType[], id: string) => {
     child.forEach((ele: NavItemType) => {

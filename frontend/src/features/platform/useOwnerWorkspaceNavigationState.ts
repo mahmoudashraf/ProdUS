@@ -73,8 +73,10 @@ export function useOwnerWorkspaceNavigationState() {
   };
 
   const pushProductHome = () => {
-    const next = new URLSearchParams(searchParamString);
-    const routePath = pathname || '/products';
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : pathname;
+    const currentSearch = typeof window !== 'undefined' ? window.location.search : searchParamString;
+    const next = new URLSearchParams(currentSearch);
+    const routePath = currentPath || pathname || '/products';
     next.delete('tab');
     next.delete('view');
     const suffix = next.toString();
