@@ -597,7 +597,8 @@ Solution:
 
 Status:
 
-- Implemented locally and verified against staging API data. Deployment is deferred so it can be batched with the next small owner-workspace slice.
+- Implemented, committed, deployed, and live-verified at UI commit `bc765ac`, Coolify frontend deployment `y8ohsgy0ndb068fwjuru6tn3`.
+- This deployment batch includes the overview split commit `8e14aa4` and the finding-review drawer split commit `bc765ac`.
 - Local checks passed:
   - `git diff --check`
   - `npm --prefix frontend run type-check`
@@ -605,6 +606,9 @@ Status:
 - Focused local verification passed with screenshots:
   - `tmp/live-verification/2026-06-08/148-owner-overview-card-split-local-overview-split.png`
   - `tmp/live-verification/2026-06-08/149-mobile-owner-overview-card-split-local-overview-split.png`
+- Focused live verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/148-owner-overview-card-split-live-bc765ac-scroll.png`
+  - `tmp/live-verification/2026-06-08/149-mobile-owner-overview-card-split-live-bc765ac-scroll.png`
 
 ### Current Pass: Finding Review Drawer Split
 
@@ -631,7 +635,7 @@ Solution:
 
 Status:
 
-- Implemented locally and verified against staging API data. Deployment is deferred so it can be batched with the owner overview split.
+- Implemented, committed, deployed, and live-verified at UI commit `bc765ac`, Coolify frontend deployment `y8ohsgy0ndb068fwjuru6tn3`.
 - `OwnerFindingReviewDrawer.tsx` is now 141 lines, with summary and decision/evidence sections split into focused files.
 - Local checks passed:
   - `git diff --check`
@@ -640,6 +644,40 @@ Status:
 - Focused local verification passed with screenshots:
   - `tmp/live-verification/2026-06-08/150-finding-review-drawer-local.png`
   - `tmp/live-verification/2026-06-08/151-mobile-finding-review-drawer-local.png`
+- Focused live verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/150-finding-review-drawer-live-bc765ac.png`
+  - `tmp/live-verification/2026-06-08/151-mobile-finding-review-drawer-live-bc765ac.png`
+- Live scanner coverage sanity check still reports 10/10 tools completed, including `OWASP ZAP Baseline`, with latest mapped counts preserved in the summary.
+
+### Current Pass: Owner Project Start Side-Rail Split
+
+Problem:
+
+- `OwnerProjectStartPanel.tsx` still stacked the Start Plan summary, every selected service, every blocking gap, talent, workspace naming, approval controls, and follow-up link in one side-rail component.
+- On the ProdUS repo/readme fixture, the side rail had 28 selected services, which pushed the approval controls too far down and made the mobile path feel like a long inventory page again.
+- Some side-rail copy still used older `Add` / `Start Project Workspace` wording instead of the approval-plan language used by the main Start Plan route.
+
+Solution:
+
+- Split the side rail into focused sections:
+  - `OwnerProjectStartSummaryCard.tsx`
+  - `OwnerProjectStartServicesPanel.tsx`
+  - `OwnerProjectStartTalentPanel.tsx`
+  - `OwnerProjectStartApprovalControls.tsx`
+- Keep the side rail as a preview and decision surface by showing the first four services, the total service count, and an `Open full Start Plan` handoff for the complete scope.
+- Change the primary CTA to `Approve Plan And Start Workspace` and keep service-gap actions on `Choose` language.
+
+Status:
+
+- Implemented locally and verified against staging API data. Deployment is deferred so this can be batched with the next small owner-workspace slice.
+- `OwnerProjectStartPanel.tsx` is now 122 lines, down from 256 lines.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+- Focused local verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/152-owner-project-start-panel-local.png`
+  - `tmp/live-verification/2026-06-08/153-mobile-owner-project-start-panel-local.png`
 
 ### Current Pass: Public Profile Detail Completion
 
