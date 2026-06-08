@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { Stack } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
@@ -13,6 +11,8 @@ import TeamAccessPanel from './TeamAccessPanel';
 import { TeamProfileStudioFocusNav, TeamProfileStudioView } from './TeamProfileStudioNavigation';
 import TeamProfileIdentityPanel from './TeamProfileIdentityPanel';
 import TeamProfilePeoplePanel from './TeamProfilePeoplePanel';
+import { useTeamProfileStudioNavigation } from './useTeamProfileStudioNavigation';
+import { useTeamProfileStudioState } from './useTeamProfileStudioState';
 import {
   PageHeader,
   QueryState,
@@ -20,93 +20,11 @@ import {
 import { ExpertProfile, Team, TeamInvitation, TeamJoinRequest, TeamMember } from './types';
 import type { ExpertProfilePayload, TeamInvitationPayload, TeamProfilePayload } from './teamProfileStudioTypes';
 
-const emptyTeamForm: TeamProfilePayload = {
-  name: '',
-  description: '',
-  headline: '',
-  bio: '',
-  profilePhotoUrl: '',
-  coverPhotoUrl: '',
-  websiteUrl: '',
-  timezone: '',
-  capabilitiesSummary: '',
-  typicalProjectSize: '',
-  verificationStatus: 'APPLIED',
-  active: true,
-};
-
-const emptyExpertForm: ExpertProfilePayload = {
-  displayName: '',
-  headline: '',
-  bio: '',
-  profilePhotoUrl: '',
-  coverPhotoUrl: '',
-  location: '',
-  timezone: '',
-  websiteUrl: '',
-  portfolioUrl: '',
-  skills: '',
-  preferredProjectSize: '',
-  availability: 'AVAILABLE',
-  soloMode: true,
-  active: true,
-};
-
-const teamToForm = (team?: Team): TeamProfilePayload => ({
-  ...emptyTeamForm,
-  name: team?.name || '',
-  description: team?.description || '',
-  headline: team?.headline || '',
-  bio: team?.bio || '',
-  profilePhotoUrl: team?.profilePhotoUrl || '',
-  coverPhotoUrl: team?.coverPhotoUrl || '',
-  websiteUrl: team?.websiteUrl || '',
-  timezone: team?.timezone || '',
-  capabilitiesSummary: team?.capabilitiesSummary || '',
-  typicalProjectSize: team?.typicalProjectSize || '',
-  verificationStatus: team?.verificationStatus || 'APPLIED',
-  active: team?.active ?? true,
-});
-
-const expertToForm = (profile?: ExpertProfile): ExpertProfilePayload => ({
-  ...emptyExpertForm,
-  displayName: profile?.displayName || '',
-  headline: profile?.headline || '',
-  bio: profile?.bio || '',
-  profilePhotoUrl: profile?.profilePhotoUrl || '',
-  coverPhotoUrl: profile?.coverPhotoUrl || '',
-  location: profile?.location || '',
-  timezone: profile?.timezone || '',
-  websiteUrl: profile?.websiteUrl || '',
-  portfolioUrl: profile?.portfolioUrl || '',
-  skills: profile?.skills || '',
-  preferredProjectSize: profile?.preferredProjectSize || '',
-  availability: profile?.availability || 'AVAILABLE',
-  soloMode: profile?.soloMode ?? true,
-  active: profile?.active ?? true,
-});
-
 export default function TeamProfilesPage() {
   const queryClient = useQueryClient();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, hasRole } = useAuth();
   const canLeadTeams = hasRole([UserRole.TEAM_MANAGER, UserRole.SPECIALIST, UserRole.ADMIN]);
-  const [selectedTeamId, setSelectedTeamId] = useState('');
-  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
-  const [teamForm, setTeamForm] = useState<TeamProfilePayload>(emptyTeamForm);
-  const [expertForm, setExpertForm] = useState<ExpertProfilePayload>(emptyExpertForm);
-  const [inviteForm, setInviteForm] = useState({ email: '', role: 'SPECIALIST' as TeamMember['role'], message: '' });
-  const [inviteNotice, setInviteNotice] = useState<{ severity: 'success' | 'error'; message: string } | null>(null);
-  const [joinMessage, setJoinMessage] = useState('I can help with backend, security, and launch evidence for this team.');
-  const viewParam = searchParams?.get('view');
-  const activeView: TeamProfileStudioView =
-    viewParam === 'team' || viewParam === 'expert' || viewParam === 'requests' ? viewParam : 'profile';
-  const setActiveView = (view: TeamProfileStudioView) => {
-    const params = new URLSearchParams(searchParams?.toString() || '');
-    params.set('view', view);
-    router.replace(`/teams?${params.toString()}`, { scroll: false });
-  };
+  const { activeView, setActiveView } = useTeamProfileStudioNavigation();
 
   const allTeams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
   const myTeams = useQuery({ queryKey: ['teams', 'mine'], queryFn: () => getJson<Team[]>('/teams/mine') });
@@ -116,10 +34,27 @@ export default function TeamProfilesPage() {
 
   const managedTeams = myTeams.data || [];
   const directoryTeams = allTeams.data || [];
-  const selectedTeam = useMemo(
-    () => isCreatingTeam ? undefined : managedTeams.find((team) => team.id === selectedTeamId) || managedTeams[0],
-    [isCreatingTeam, managedTeams, selectedTeamId]
-  );
+  const {
+    expertForm,
+    inviteForm,
+    inviteNotice,
+    isCreatingTeam,
+    joinMessage,
+    selectedTeam,
+    selectTeam,
+    setExpertValue,
+    setInviteForm,
+    setInviteNotice,
+    setIsCreatingTeam,
+    setJoinMessage,
+    setSelectedTeamId,
+    setTeamValue,
+    startNewTeam,
+    teamForm,
+  } = useTeamProfileStudioState({
+    expertProfile: expertProfile.data,
+    managedTeams,
+  });
   const canManageSelectedTeam = !!selectedTeam && (hasRole(UserRole.ADMIN) || selectedTeam.manager?.id === user?.id);
   const canSaveTeam = canLeadTeams && (!selectedTeam || canManageSelectedTeam);
   const joinableTeams = directoryTeams.filter((team) => !managedTeams.some((mine) => mine.id === team.id));
@@ -139,22 +74,6 @@ export default function TeamProfilesPage() {
     enabled: !!selectedTeam?.id && canManageSelectedTeam,
     queryFn: () => getJson<TeamJoinRequest[]>(`/teams/${selectedTeam?.id}/join-requests`),
   });
-
-  useEffect(() => {
-    if (!selectedTeamId && managedTeams[0] && !isCreatingTeam) {
-      setSelectedTeamId(managedTeams[0].id);
-    }
-  }, [isCreatingTeam, managedTeams, selectedTeamId]);
-
-  useEffect(() => {
-    setTeamForm(teamToForm(selectedTeam));
-  }, [isCreatingTeam, selectedTeam?.id]);
-
-  useEffect(() => {
-    if (expertProfile.data) {
-      setExpertForm(expertToForm(expertProfile.data));
-    }
-  }, [expertProfile.data]);
 
   const createTeam = useMutation({
     mutationFn: () => postJson<Team, TeamProfilePayload>('/teams', teamForm),
@@ -245,12 +164,6 @@ export default function TeamProfilesPage() {
     }
   };
 
-  const setTeamValue = <K extends keyof TeamProfilePayload>(key: K, value: TeamProfilePayload[K]) => {
-    setTeamForm((current) => ({ ...current, [key]: value }));
-  };
-  const setExpertValue = <K extends keyof ExpertProfilePayload>(key: K, value: ExpertProfilePayload[K]) => {
-    setExpertForm((current) => ({ ...current, [key]: value }));
-  };
   const submitInvitation = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedTeam || !canManageSelectedTeam || inviteMember.isPending) return;
@@ -298,15 +211,8 @@ export default function TeamProfilesPage() {
             canManageSelectedTeam={canManageSelectedTeam}
             createTeamPending={createTeam.isPending}
             updateTeamPending={updateTeam.isPending}
-            onSelectTeam={(teamId) => {
-              setIsCreatingTeam(false);
-              setSelectedTeamId(teamId);
-            }}
-            onStartNewTeam={() => {
-              setIsCreatingTeam(true);
-              setSelectedTeamId('');
-              setTeamForm(emptyTeamForm);
-            }}
+            onSelectTeam={selectTeam}
+            onStartNewTeam={startNewTeam}
             onTeamValueChange={setTeamValue}
             onSaveTeamProfile={saveTeamProfile}
           />

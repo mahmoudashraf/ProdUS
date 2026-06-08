@@ -1,11 +1,7 @@
 'use client';
 
 import NextLink from 'next/link';
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { ManageAccountsOutlined } from '@mui/icons-material';
-import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
-import { useAdvancedForm } from '@/hooks/enterprise';
+import { Button, Stack } from '@mui/material';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import PublicTalentDirectoryPage from './PublicTalentDirectoryPage';
@@ -23,34 +19,21 @@ import {
   teamVerificationScore,
 } from './ownerTeamMatchConfig';
 import {
-  type CapabilityPayload,
-  type ReputationPayload,
-  type TeamMemberPayload,
-  type TeamPayload,
-  initialCapabilityValues,
-  initialMemberValues,
-  initialReputationValues,
-  initialTeamValues,
-  memberRoles,
-  teamVerificationStatuses,
-} from './teamMatchForms';
+  CapabilityManagementPanel,
+  MemberManagementPanel,
+  ReputationManagementPanel,
+  TeamCreatePanel,
+} from './TeamMatchManagementPanels';
 import {
   PageHeader,
   QueryState,
-  SaveButton,
-  SectionTitle,
-  Surface,
-  TextInput,
-  appleColors,
-  formatLabel,
 } from './PlatformComponents';
 import {
-  Team,
-  TeamMember,
   TeamShortlist,
 } from './types';
 import { useTeamMatchData } from './useTeamMatchData';
 import { useTeamMatchActions } from './useTeamMatchActions';
+import { useTeamMatchUiState } from './useTeamMatchUiState';
 
 export default function TeamsPage() {
   const { hasRole, isLoggedIn } = useAuth();
@@ -66,13 +49,21 @@ export default function TeamsPage() {
 
 function MatchedTeamsPage() {
   const { hasRole } = useAuth();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const canManageTeams = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
   const canManageTeamRoster = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
   const canCreateReputation = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER]);
-  const [selectedTeamId, setSelectedTeamId] = useState('');
-  const [selectedPackageId, setSelectedPackageId] = useState('');
+  const {
+    activeView,
+    capabilityForm,
+    memberForm,
+    reputationForm,
+    selectedPackageId,
+    selectedTeamId,
+    setActiveView,
+    setSelectedPackageId,
+    setSelectedTeamId,
+    teamForm,
+  } = useTeamMatchUiState();
   const {
     capabilities,
     categories,
@@ -93,41 +84,6 @@ function MatchedTeamsPage() {
     selectedTeamId,
     setSelectedPackageId,
     setSelectedTeamId,
-  });
-  const viewParam = searchParams?.get('view');
-  const activeView: TeamMatchView = viewParam === 'profile' || viewParam === 'shortlist' ? viewParam : 'matches';
-  const setActiveView = (view: TeamMatchView) => {
-    const params = new URLSearchParams(searchParams?.toString() || '');
-    params.set('view', view);
-    router.replace(`/teams?${params.toString()}`, { scroll: false });
-  };
-
-  const teamForm = useAdvancedForm<TeamPayload>({
-    initialValues: initialTeamValues,
-    validationRules: {
-      name: [{ type: 'required', message: 'Team name is required' }],
-    },
-  });
-  const capabilityForm = useAdvancedForm<CapabilityPayload>({
-    initialValues: initialCapabilityValues,
-    validationRules: {
-      serviceCategoryId: [{ type: 'required', message: 'Service category is required' }],
-    },
-  });
-  const memberForm = useAdvancedForm<TeamMemberPayload>({
-    initialValues: initialMemberValues,
-    validationRules: {
-      email: [
-        { type: 'required', message: 'Member email is required' },
-        { type: 'email', message: 'Use a valid email address' },
-      ],
-    },
-  });
-  const reputationForm = useAdvancedForm<ReputationPayload>({
-    initialValues: initialReputationValues,
-    validationRules: {
-      workspaceId: [{ type: 'required', message: 'Workspace is required' }],
-    },
   });
 
   const {
@@ -203,69 +159,28 @@ function MatchedTeamsPage() {
     shortlist: activeShortlists.length || Math.min(matchedTeams.length, 3),
   };
   const capabilityManagementPanel = canManageTeams ? (
-    <Box component="form" onSubmit={submitCapability}>
-      <SectionTitle title="Maintain Capability Evidence" />
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr auto' }, gap: 1 }}>
-        <TextField
-          select
-          size="small"
-          label="Category"
-          value={capabilityForm.values.serviceCategoryId}
-          onChange={(event) => {
-            capabilityForm.setValue('serviceCategoryId', event.target.value);
-            capabilityForm.setValue('serviceModuleId', null);
-          }}
-        >
-          {(categories.data || []).map((category) => (
-            <MenuItem key={category.id} value={category.id}>{category.name}</MenuItem>
-          ))}
-        </TextField>
-        <TextField select size="small" label="Module" value={capabilityForm.values.serviceModuleId || ''} onChange={(event) => capabilityForm.setValue('serviceModuleId', event.target.value || null)}>
-          <MenuItem value="">Category level</MenuItem>
-          {(modules.data || [])
-            .filter((module) => !capabilityForm.values.serviceCategoryId || module.category?.id === capabilityForm.values.serviceCategoryId)
-            .map((module) => (
-              <MenuItem key={module.id} value={module.id}>{module.name}</MenuItem>
-            ))}
-        </TextField>
-        <Button type="submit" variant="outlined" disabled={!capabilityForm.values.serviceCategoryId || createCapability.isPending}>
-          Save capability
-        </Button>
-      </Box>
-    </Box>
+    <CapabilityManagementPanel
+      categories={categories.data || []}
+      form={capabilityForm}
+      isSaving={createCapability.isPending}
+      modules={modules.data || []}
+      onSubmit={submitCapability}
+    />
   ) : null;
   const memberManagementPanel = canManageTeamRoster ? (
-    <Box component="form" onSubmit={submitMember}>
-      <SectionTitle title="Maintain Delivery Roster" />
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 190px auto' }, gap: 1 }}>
-        <TextField size="small" label="Email" value={memberForm.values.email} onChange={(event) => memberForm.setValue('email', event.target.value)} />
-        <TextField select size="small" label="Role" value={memberForm.values.role} onChange={(event) => memberForm.setValue('role', event.target.value as TeamMember['role'])}>
-          {memberRoles.map((role) => (
-            <MenuItem key={role} value={role}>{formatLabel(role)}</MenuItem>
-          ))}
-        </TextField>
-        <Button type="submit" variant="outlined" disabled={!memberForm.values.email || addMember.isPending}>
-          Save member
-        </Button>
-      </Box>
-    </Box>
+    <MemberManagementPanel
+      form={memberForm}
+      isSaving={addMember.isPending}
+      onSubmit={submitMember}
+    />
   ) : null;
   const reputationManagementPanel = canCreateReputation ? (
-    <Box component="form" onSubmit={submitReputation}>
-      <SectionTitle title="Capture Workspace Review" />
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 110px 1fr auto' }, gap: 1 }}>
-        <TextField select size="small" label="Workspace" value={reputationForm.values.workspaceId} onChange={(event) => reputationForm.setValue('workspaceId', event.target.value)}>
-          {(workspaces.data || []).map((workspace) => (
-            <MenuItem key={workspace.id} value={workspace.id}>{workspace.name}</MenuItem>
-          ))}
-        </TextField>
-        <TextField size="small" type="number" label="Rating" value={reputationForm.values.rating} onChange={(event) => reputationForm.setValue('rating', Number(event.target.value))} inputProps={{ min: 1, max: 5 }} />
-        <TextField size="small" label="Notes" value={reputationForm.values.notes} onChange={(event) => reputationForm.setValue('notes', event.target.value)} />
-        <Button type="submit" variant="outlined" disabled={!reputationForm.values.workspaceId || addReputation.isPending}>
-          Save review
-        </Button>
-      </Box>
-    </Box>
+    <ReputationManagementPanel
+      form={reputationForm}
+      isSaving={addReputation.isPending}
+      workspaces={workspaces.data || []}
+      onSubmit={submitReputation}
+    />
   ) : null;
 
   return (
@@ -328,24 +243,11 @@ function MatchedTeamsPage() {
               reputationForm={reputationManagementPanel}
             />
             {canManageTeams && (
-              <Surface>
-                <SectionTitle title="Create Team" action={<ManageAccountsOutlined sx={{ color: appleColors.purple }} />} />
-                <Box component="form" onSubmit={submit}>
-                  <Stack spacing={1.5}>
-                    <TextInput label="Team name" value={teamForm.values.name} onChange={(name) => teamForm.setValue('name', name)} />
-                    <TextInput label="Description" value={teamForm.values.description} onChange={(description) => teamForm.setValue('description', description)} multiline />
-                    <TextInput label="Location / timezone" value={teamForm.values.timezone} onChange={(timezone) => teamForm.setValue('timezone', timezone)} />
-                    <TextInput label="Capabilities" value={teamForm.values.capabilitiesSummary} onChange={(capabilitiesSummary) => teamForm.setValue('capabilitiesSummary', capabilitiesSummary)} multiline />
-                    <TextInput label="Typical project size" value={teamForm.values.typicalProjectSize} onChange={(typicalProjectSize) => teamForm.setValue('typicalProjectSize', typicalProjectSize)} />
-                    <TextField select fullWidth label="Verification" value={teamForm.values.verificationStatus} onChange={(event) => teamForm.setValue('verificationStatus', event.target.value as Team['verificationStatus'])}>
-                      {teamVerificationStatuses.map((status) => (
-                        <MenuItem key={status} value={status}>{formatLabel(status)}</MenuItem>
-                      ))}
-                    </TextField>
-                    <SaveButton disabled={!teamForm.values.name || createTeam.isPending} label="Create team" />
-                  </Stack>
-                </Box>
-              </Surface>
+              <TeamCreatePanel
+                form={teamForm}
+                isSaving={createTeam.isPending}
+                onSubmit={submit}
+              />
             )}
           </Stack>
         )}
