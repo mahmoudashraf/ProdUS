@@ -4,6 +4,7 @@ import NextLink from 'next/link';
 import { AutoAwesomeOutlined, VerifiedOutlined } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { Surface, appleColors } from './PlatformComponents';
+import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 
 export default function PublicProfileConversionPanel({
   canUseProjectCart,
@@ -24,12 +25,12 @@ export default function PublicProfileConversionPanel({
         </Stack>
         <Button
           component={NextLink}
-          href={canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login'}
+          href={canUseProjectCart ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login'}
           variant="contained"
           startIcon={<VerifiedOutlined />}
           sx={{ minHeight: 44, minWidth: 160 }}
         >
-          {canUseProjectCart ? 'Review start plan' : isLoggedIn ? 'Dashboard' : 'Sign in'}
+          {canUseProjectCart ? 'Project Start Plan' : isLoggedIn ? 'Dashboard' : 'Sign in'}
         </Button>
       </Stack>
     </Surface>

@@ -14,6 +14,7 @@ import {
   PageHeader,
   QueryState,
 } from './PlatformComponents';
+import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 import {
   LaunchpadActiveWorkspacesPanel,
   LaunchpadAiNextActionPanel,
@@ -86,8 +87,8 @@ export default function ProductizationLaunchpad() {
             <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44, minWidth: 150 }}>
               New product
             </Button>
-            <Button component={NextLink} href="/owner/project-cart" variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 44, minWidth: 168 }}>
-              Review start plan
+            <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 44, minWidth: 168 }}>
+              Project Start Plan
             </Button>
           </Stack>
         }
@@ -139,7 +140,7 @@ export default function ProductizationLaunchpad() {
                 activeWorkspaceCount={activeWorkspaces.length}
                 onSelect={(value) => {
                   if (value === 'plan') {
-                    router.push('/owner/project-cart');
+                    router.push(PROJECT_START_PLAN_HREF);
                     return;
                   }
                   openDetail(value);

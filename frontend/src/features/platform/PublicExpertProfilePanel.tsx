@@ -15,6 +15,7 @@ import {
   appleColors,
   formatLabel,
 } from './PlatformComponents';
+import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 import { splitProfileTags } from './publicProfileUtils';
 import type { ExpertProfile } from './types';
 
@@ -121,8 +122,8 @@ export default function PublicExpertProfilePanel({
                 Portfolio
               </Button>
             )}
-            <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<RocketLaunchOutlined />} sx={{ minHeight: 42 }}>
-              {canUseProjectCart ? 'Review start plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
+            <Button component={NextLink} href={canUseProjectCart ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<RocketLaunchOutlined />} sx={{ minHeight: 42 }}>
+              {canUseProjectCart ? 'Project Start Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
             </Button>
           </Stack>
         </Surface>

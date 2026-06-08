@@ -20,6 +20,7 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import { launchpadStatusAccent } from './productizationLaunchpadModel';
+import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 import type { ProductProfile } from './types';
 
 export function LaunchpadHeroPanel({
@@ -75,7 +76,7 @@ export function LaunchpadHeroPanel({
               <PastelChip label={`${draftTalent} teams / experts`} accent={appleColors.cyan} bg="#e4f9fd" />
               <PastelChip label={formatLabel(cartStatus || 'DRAFT')} accent={launchpadStatusAccent(cartStatus)} />
             </Stack>
-            <Button component={NextLink} href="/owner/project-cart" variant="outlined" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 42 }}>
+            <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 42 }}>
               Review and start workspace
             </Button>
           </Stack>

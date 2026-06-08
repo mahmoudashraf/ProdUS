@@ -11,6 +11,7 @@ import {
   appleColors,
 } from './PlatformComponents';
 import type { LaunchpadJourneyValue } from './productizationLaunchpadModel';
+import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 
 export function LaunchpadFocusPanel({
   draftServices,
@@ -90,7 +91,7 @@ export function LaunchpadAiNextActionPanel({
   draftServices: number;
   hasProducts: boolean;
 }) {
-  const href = draftServices ? '/owner/project-cart' : hasProducts ? '/services' : '/products/new';
+  const href = draftServices ? PROJECT_START_PLAN_HREF : hasProducts ? '/services' : '/products/new';
   return (
     <Surface>
       <SectionTitle title="AI Next Best Action" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />

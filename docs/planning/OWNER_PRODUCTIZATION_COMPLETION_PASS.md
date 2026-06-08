@@ -66,6 +66,8 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - Latest live verification at commit `b61fe6b` confirmed the full journey, README evidence display, mobile hub/spoke flow, and all 10 scanners completed, including `OWASP ZAP Baseline`; all nonzero scanner findings remain normalized and mapped in latest coverage.
 - Expert Network dashboard and directory are now split out of the former 1,530-line `NetworkPages.tsx` route file and live-verified at commit `4ec6b4e`.
 - Expert Network route pages are now split into focused modules with `NetworkPages.tsx` acting as a small export hub, with empty and cover fallback polish live-verified at commit `1da019a`.
+- The live Expert Network Messages backend caveat is fixed: backend deployment `nmg3fupz2hwmtxq3kx7hdo20` is running commit `35a0c1a128a3c98d31bc6a6dfdfb1f501ededee0`, and `/expert-network/conversations` now returns `200` for the specialist fixture.
+- Product portfolio is split into route orchestration plus focused action, summary, metrics, and list panels. Mobile now shows the next owner action before the product list.
 
 ## Completion Sequence
 
@@ -463,8 +465,55 @@ Status:
   - `tmp/live-verification/2026-06-08/142-network-team-detail-live.png`
   - `tmp/live-verification/2026-06-08/143-mobile-settings-live.png`
   - `tmp/live-verification/2026-06-08/143-mobile-teamDetail-live.png`
-- Live API caveat: `/expert-network/conversations` returns `500` for the specialist fixture. The Messages route still renders its shell and empty/error state; other extracted route endpoints returned `200`.
+- Backend follow-up complete: `/expert-network/conversations` previously returned `500` for the specialist fixture because the Postgres query used `select distinct` with an ordered expression. Backend commit `35a0c1a` removed the unnecessary `distinct`, added regression coverage for the visible-thread query, deployed through Coolify backend deployment `nmg3fupz2hwmtxq3kx7hdo20`, and live verification now returns `200` for Conversations.
 - Design polish: Channels now shows explicit empty states when no channels/posts are seeded, and expert/team detail pages use a more compact fallback cover band when no real image exists.
+
+### Current Pass: Command Center And Product Portfolio Completion
+
+Problem:
+
+- The command-center and product portfolio surfaces still exposed the compatibility `/owner/project-cart` route in several implementation paths.
+- `/products` kept the next owner action behind the portfolio list on mobile, forcing a founder to scan records before creating a product or opening the Project Start Plan.
+- `ProductProfilesPage.tsx` mixed query orchestration, scoring helpers, metrics, product rows, next-action copy, and summary UI in one route file.
+
+Solution:
+
+- Centralize the Project Start Plan compatibility URL behind `PROJECT_START_PLAN_HREF`, while keeping visible copy focused on `Project Start Plan`.
+- Apply the same shared Start Plan navigation to service catalog, team match, public talent, and public profile conversion CTAs.
+- Split product portfolio rendering into:
+  - `ProductProfilesPanels.tsx`
+  - `productProfilesModel.ts`
+  - `projectStartPlanLinks.ts`
+- Reorder `/products` so mobile shows `Next Product Action` and portfolio summary before the product list.
+- Keep desktop balanced as metrics/list plus right-side action and summary panels, and prevent product rows from compressing into unreadable columns before the `xl` breakpoint.
+
+Status:
+
+- Implemented locally and verified against staging API data. Deployment is intentionally deferred so this slice can be batched with the next small UI pass before triggering Coolify.
+- `ProductProfilesPage.tsx` is now 70 lines, down from 220 lines.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+- Focused local verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/144-command-center-hub-local.png`
+  - `tmp/live-verification/2026-06-08/145-command-center-products-spoke-local.png`
+  - `tmp/live-verification/2026-06-08/146-product-portfolio-desktop-local.png`
+  - `tmp/live-verification/2026-06-08/147-mobile-product-portfolio-actions-first-local.png`
+- Start Plan label/link cleanup also passed existing focused local verifiers:
+  - `tmp/live-verification/2026-06-07/86-service-catalog-templates-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/87-service-catalog-workstreams-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/88-service-catalog-ai-contracts-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/89-mobile-service-catalog-templates-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/90-team-match-choose-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/91-team-match-inspect-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/92-team-match-shortlist-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/93-mobile-team-match-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/94-public-talent-teams-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/95-public-talent-experts-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/96-public-talent-services-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/97-mobile-public-talent-teams-local-startplan-copy.png`
+  - `tmp/live-verification/2026-06-07/98-solo-experts-default-local-startplan-copy.png`
 
 ### Current Pass: Team Profile Studio Completion
 

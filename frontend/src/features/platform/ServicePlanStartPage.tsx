@@ -23,6 +23,7 @@ import {
   Surface,
   appleColors,
 } from './PlatformComponents';
+import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 import { PackageInstance, ProductizationCart, RequirementIntake } from './types';
 
 export default function ServicePlanStartPage() {
@@ -72,8 +73,8 @@ export default function ServicePlanStartPage() {
               <PastelChip label={`${draftServices} services`} accent={appleColors.cyan} bg="#e4f9fd" />
               <PastelChip label={`${draftTalent} teams / experts`} accent={appleColors.green} bg="#e7f8ee" />
             </Stack>
-            <Button component={NextLink} href="/owner/project-cart" variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 44 }}>
-              Review start plan
+            <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 44 }}>
+              Open Project Start Plan
             </Button>
           </Stack>
         </Surface>

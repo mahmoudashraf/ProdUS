@@ -20,6 +20,7 @@ import {
   QueryState,
   SectionTitle,
 } from './PlatformComponents';
+import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 import { ExpertProfile, ProductizationCart, ServiceCategory, ServiceModule, Team } from './types';
 
 type DirectoryRouteView = 'directory' | 'experts';
@@ -34,8 +35,8 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
   const searchParams = useSearchParams();
   const { isLoggedIn, user } = useAuth();
   const canUseProjectCart = user?.role === UserRole.PRODUCT_OWNER;
-  const cartHref = canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login';
-  const cartActionLabel = canUseProjectCart ? 'Review start plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
+  const cartHref = canUseProjectCart ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login';
+  const cartActionLabel = canUseProjectCart ? 'Project Start Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
   const teams = useQuery({ queryKey: ['public-teams'], queryFn: () => getJson<Team[]>('/teams') });
   const experts = useQuery({ queryKey: ['public-expert-profiles'], queryFn: () => getJson<ExpertProfile[]>('/expert-profiles') });
   const categories = useQuery({ queryKey: ['public-catalog-categories'], queryFn: () => getJson<ServiceCategory[]>('/catalog/categories') });

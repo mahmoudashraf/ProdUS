@@ -16,6 +16,7 @@ import {
 } from './ServiceCatalogPanels';
 import PackageTemplatesPanel from './ServiceCatalogTemplatePanel';
 import ServiceWorkstreamsPanel from './ServiceCatalogWorkstreamsPanel';
+import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 import type { AICapabilityConfig, PackageTemplate, ProductizationCart, ServiceCategory, ServiceModule } from './types';
 
 export default function CatalogPage() {
@@ -28,8 +29,8 @@ export default function CatalogPage() {
   const queryClient = useQueryClient();
   const { isLoggedIn, user } = useAuth();
   const canUseStartPlan = user?.role === UserRole.PRODUCT_OWNER;
-  const startPlanHref = canUseStartPlan ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login';
-  const startPlanActionLabel = canUseStartPlan ? 'Review start plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
+  const startPlanHref = canUseStartPlan ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login';
+  const startPlanActionLabel = canUseStartPlan ? 'Project Start Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
 
   const categories = useQuery({
     queryKey: ['catalog-categories'],

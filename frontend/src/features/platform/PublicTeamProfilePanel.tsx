@@ -17,6 +17,7 @@ import {
   categoryPalette,
   formatLabel,
 } from './PlatformComponents';
+import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 import { splitProfileTags, teamReadinessScore } from './publicProfileUtils';
 import type { Team, TeamCapability } from './types';
 
@@ -78,8 +79,8 @@ export default function PublicTeamProfilePanel({
           >
             {!isLoggedIn ? 'Sign in to attach team' : canUseProjectCart ? (inPlan ? 'In Start Plan' : 'Attach team to plan') : 'Open dashboard'}
           </Button>
-          <Button component={NextLink} href={canUseProjectCart ? '/owner/project-cart' : isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
-            {canUseProjectCart ? 'Review start plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
+          <Button component={NextLink} href={canUseProjectCart ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
+            {canUseProjectCart ? 'Project Start Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
           </Button>
         </Stack>
       </PublicProfileHeroPanel>
