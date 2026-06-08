@@ -4,14 +4,15 @@ Date: 2026-06-07
 
 Baseline:
 
-- Latest live-verified UI commit in the Copy/Mobile/Documentation close pass: `8b90310`.
-- Latest live-verified Coolify frontend trigger in the Copy/Mobile/Documentation close pass: `coolify-force-2026-06-07T20-31Z`.
+- Latest live-verified UI commit after the repo-evidence/deploy close pass: `b61fe6b`.
+- Latest live-verified Coolify frontend deployment after the repo-evidence/deploy close pass: `y16yg8dqnx5p16tyzxkt1l0q`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
 - Live verification script: `tmp/live-verification/2026-06-07/live-owner-hub-spoke-navigation.js`.
 - Current largest owner-facing active files after the completed splits:
-  - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`: 2129 lines.
-  - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 805 lines.
+  - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`: 632 lines.
+  - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 362 lines.
   - `frontend/src/features/platform/ProductizationLaunchpad.tsx`: 332 lines.
+  - `frontend/src/features/platform/OwnerWorkspaceTechnicalProofArea.tsx`: 296 lines.
   - `frontend/src/features/platform/ProjectStartPlanPage.tsx`: 280 lines.
   - `frontend/src/features/platform/OwnerOverviewDecisionPanel.tsx`: 278 lines.
 
@@ -58,7 +59,10 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - Workspace Command now has Team/Risk and Handoff substeps, with route orchestration split into focused hooks and panels.
 - Technical Proof now opens as a four-step proof journey instead of one long scanner workspace.
 - Start Plan mobile now opens with choose-service/team/expert actions and a compact service/team/status summary.
-- Latest live verification at commit `8b90310` confirmed the full journey and all 10 scanners completed, including `zap-baseline`; all nonzero scanner findings were normalized and mapped in latest coverage.
+- Repo/README evidence now auto-refreshes into the owner workspace when the product has scanner context but no repo readout yet, so the stored proof surface does not headline missing documentation after an authorized source exists.
+- Evidence summary language now shows `README or documentation evidence found` when documentation proof is present, instead of falling back to `No README evidence shown`.
+- Coolify frontend Docker deploys now skip Next's duplicate build-time type validation while keeping `npm run type-check` as the explicit pre-deploy safety gate, avoiding the previous staging build timeout.
+- Latest live verification at commit `b61fe6b` confirmed the full journey, README evidence display, mobile hub/spoke flow, and all 10 scanners completed, including `OWASP ZAP Baseline`; all nonzero scanner findings remain normalized and mapped in latest coverage.
 
 ## Completion Sequence
 
@@ -541,6 +545,46 @@ Status:
   - `tmp/live-verification/2026-06-07/118-team-delivery-team-live.png`
   - `tmp/live-verification/2026-06-07/119-mobile-team-delivery-live.png`
 - Full owner journey verification passed for commit `56a0ac2`; scanner coverage remained stored and mapped with all 10 scanners complete.
+
+### Completed: Repo Evidence And Deploy Reliability Close
+
+Problem:
+
+- The live owner evidence card could still show missing README/documentation proof even after the repository source was authorized.
+- A Coolify frontend rebuild for `1e38fcf` failed after the Next compile because the duplicate build-time type validation pushed the Docker build beyond the staging host window.
+- The Technical Proof journey was functionally correct, but one status chip truncated `10/10 checks` in the live screenshot.
+
+Solution:
+
+- Auto-refresh product repo signals once per selected product when the owner workspace sees `NOT_REFRESHED` repo signals and the product has scanner/repo context.
+- Prefer the live documentation evidence label in the evidence summary; if the backend returns generic documentation proof, show `README or documentation evidence found`.
+- Keep type safety as an explicit `npm run type-check` gate, but set `NEXT_SKIP_BUILD_TYPECHECK=true` inside the frontend Docker build to skip Next's duplicate type pass on Coolify.
+- Prevent owner journey pastel chips from shrinking into ellipsized text.
+
+Status:
+
+- Implemented and pushed through:
+  - `1e38fcf` - auto-refresh owner repo readout.
+  - `b9b1c8d` - clarify owner documentation evidence.
+  - `b635260` - keep frontend Docker deploy within build window.
+  - `b61fe6b` - prevent owner journey chip truncation.
+- Local verification passed:
+  - `mvn -q -Dtest=RepoSignalServiceTest test`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+  - `git diff --check`
+- Coolify deployment `qokzywg27xgxg5vfxikkncb0` live-verified commit `b635260`.
+- Coolify deployment `y16yg8dqnx5p16tyzxkt1l0q` live-verified commit `b61fe6b`.
+- Live owner verifier refreshed the full screenshot set, including:
+  - `tmp/live-verification/2026-06-07/33a-findings-evidence-live.png`
+  - `tmp/live-verification/2026-06-07/36-technical-proof-live.png`
+  - `tmp/live-verification/2026-06-07/40-mobile-hub-spoke-live.png`
+  - `tmp/live-verification/2026-06-07/40a-mobile-start-plan-live.png`
+- Live API verification for the ProdUS repo/readme product confirmed:
+  - Repo signals: `AUTHORIZED_SOURCE`, 38 signals, documentation evidence present.
+  - Scanner coverage: 10/10 tools `COMPLETED`.
+  - Latest mapped counts: 73 open findings, 14 high, 28 medium, 1 low, 30 info.
+  - Stored evidence: 20 evidence items across 4 authorized sources.
 
 ## Implementation Loop
 
