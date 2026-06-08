@@ -68,6 +68,7 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - Expert Network route pages are now split into focused modules with `NetworkPages.tsx` acting as a small export hub, with empty and cover fallback polish live-verified at commit `1da019a`.
 - The live Expert Network Messages backend caveat is fixed: backend deployment `nmg3fupz2hwmtxq3kx7hdo20` is running commit `35a0c1a128a3c98d31bc6a6dfdfb1f501ededee0`, and `/expert-network/conversations` now returns `200` for the specialist fixture.
 - Product portfolio is split into route orchestration plus focused action, summary, metrics, and list panels. Mobile now shows the next owner action before the product list.
+- Owner service-plan and team-match spokes now stay preview/decision-first: pre-plan products bridge to the Project Start Plan, team fallback rows are mobile-safe, and the workspace shell no longer overflows horizontally on phone viewports.
 
 ## Completion Sequence
 
@@ -713,6 +714,51 @@ Status:
   - `tmp/live-verification/2026-06-08/154-scanner-finding-decision-list-live-aad694c.png`
   - `tmp/live-verification/2026-06-08/155-mobile-scanner-finding-decision-list-live-aad694c.png`
 - Live scanner coverage sanity check still reports 10/10 tools completed, including `OWASP ZAP Baseline`, with latest mapped counts preserved in the summary.
+
+### Current Pass: Owner Service Plan And Team Match Spokes
+
+Problem:
+
+- The Service Plan spoke still behaved like a dead end when the current product had selected Start Plan services but no generated package instance.
+- The generated package detail view could expose the whole delivery sequence inline, recreating the long-page pattern.
+- The Team Match spoke had too many equal-weight controls per team row when recommendations exist, while the no-match fallback picker could overflow on mobile.
+- The product workspace mobile shell could still inherit horizontal overflow from shrink-unsafe grid/card children.
+
+Solution:
+
+- Split service-plan detail into focused pieces:
+  - `OwnerServicePlanSummaryCard.tsx`
+  - `OwnerServicePlanSequencePreview.tsx`
+  - `OwnerServicePlanEmptyBridge.tsx`
+- Keep generated package depth as a four-service delivery preview with a full Start Plan handoff.
+- Replace the old generic no-plan empty state with an owner next step: approve the Project Start Plan first, then generate or attach a detailed package when delivery needs team handoff.
+- Split team matching into:
+  - `OwnerTeamRecommendationCard.tsx`
+  - `OwnerTeamFallbackPicker.tsx`
+- Keep recommendation cards decision-first: primary attach/approve action, secondary shortlist/compare actions.
+- Make fallback team/expert rows shrink-safe on mobile and add accessible icon labels.
+- Add shrink-safe sizing to the owner workspace grid and shared `Surface` card component.
+
+Status:
+
+- Implemented, committed, deployed, and live-verified at UI commit `a38bcb0`, Coolify frontend deployment `ca0muuqwavd7js1e9axwoql7`.
+- `OwnerServicePlanDetailPanel.tsx` is now 74 lines, with service-plan summary, sequence preview, and empty bridge split into focused files.
+- `OwnerTeamMatchPanel.tsx` is now 129 lines, with recommendation cards and fallback picker split out.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+- Focused local verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/156-service-plan-preview-local.png`
+  - `tmp/live-verification/2026-06-08/157-mobile-service-plan-preview-local.png`
+  - `tmp/live-verification/2026-06-08/158-team-match-decision-local.png`
+  - `tmp/live-verification/2026-06-08/159-mobile-team-match-decision-local.png`
+- Focused live verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/156-service-plan-preview-live-a38bcb0.png`
+  - `tmp/live-verification/2026-06-08/157-mobile-service-plan-preview-live-a38bcb0.png`
+  - `tmp/live-verification/2026-06-08/158-team-match-decision-live-a38bcb0.png`
+  - `tmp/live-verification/2026-06-08/159-mobile-team-match-decision-live-a38bcb0.png`
+- Live scanner coverage sanity check reports 10/10 latest tools, 10/10 completed tools, `zap-baseline` completed, and 73 mapped scanner findings preserved in latest coverage.
 
 ### Current Pass: Public Profile Detail Completion
 
