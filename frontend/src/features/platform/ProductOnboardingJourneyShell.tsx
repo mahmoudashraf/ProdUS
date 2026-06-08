@@ -4,6 +4,7 @@ import NextLink from 'next/link';
 import {
   AutoAwesomeOutlined,
   BuildCircleOutlined,
+  DeleteOutlineOutlined,
   Inventory2Outlined,
   KeyboardBackspaceOutlined,
   PlaylistAddCheckOutlined,
@@ -20,14 +21,15 @@ import {
 import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 import type { ProductizationCart } from './types';
 
-export type ProductCreationStep = 'setup' | 'manual' | 'ai-review';
+export type ProductCreationStep = 'setup' | 'manual' | 'review' | 'ai-review';
 
 export const isProductCreationStep = (value: string | null): value is ProductCreationStep =>
-  value === 'setup' || value === 'manual' || value === 'ai-review';
+  value === 'setup' || value === 'manual' || value === 'review' || value === 'ai-review';
 
 const stepLabel: Record<ProductCreationStep, string> = {
   setup: 'Product setup',
   manual: 'Manual profile',
+  review: 'Creation review',
   'ai-review': 'AI understanding review',
 };
 
@@ -184,8 +186,14 @@ export function ProductCreationStepActions({
 
 export function ProductCreationCartSnapshot({
   cart,
+  isRemovingService,
+  onChangeServices,
+  onRemoveService,
 }: {
   cart?: ProductizationCart | undefined;
+  isRemovingService?: boolean;
+  onChangeServices?: () => void;
+  onRemoveService?: (itemId: string) => void;
 }) {
   const services = cart?.serviceItems || [];
 
@@ -193,19 +201,44 @@ export function ProductCreationCartSnapshot({
 
   return (
     <Surface sx={{ background: '#fff' }}>
-      <SectionTitle title="Selected Service Context" action={<PastelChip label={`${services.length}`} accent={appleColors.purple} />} />
+      <SectionTitle
+        title="Selected Service Context"
+        action={<PastelChip label={`${services.length}`} accent={appleColors.purple} />}
+      />
       <Stack spacing={1}>
         {services.slice(0, 4).map((item) => (
           <Box key={item.id} sx={{ p: 1.25, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
-            <Typography sx={{ fontWeight: 900 }}>{item.serviceModule.name}</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.5 }}>
-              {item.notes || item.serviceModule.ownerOutcome || item.serviceModule.description || 'Selected for the Project Start Plan.'}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              {formatLabel(item.serviceModule.category?.name || 'service')}
-            </Typography>
+            <Stack spacing={1}>
+              <Box>
+                <Typography sx={{ fontWeight: 900 }}>{item.serviceModule.name}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.5 }}>
+                  {item.notes || item.serviceModule.ownerOutcome || item.serviceModule.description || 'Selected for the Project Start Plan.'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {formatLabel(item.serviceModule.category?.name || 'service')}
+                </Typography>
+              </Box>
+              {onRemoveService && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  size="small"
+                  startIcon={<DeleteOutlineOutlined />}
+                  disabled={!!isRemovingService}
+                  onClick={() => onRemoveService(item.id)}
+                  sx={{ minHeight: 34, alignSelf: 'flex-start' }}
+                >
+                  Remove
+                </Button>
+              )}
+            </Stack>
           </Box>
         ))}
+        {onChangeServices && (
+          <Button variant="outlined" startIcon={<PlaylistAddCheckOutlined />} onClick={onChangeServices} sx={{ minHeight: 38 }}>
+            Choose different services
+          </Button>
+        )}
       </Stack>
     </Surface>
   );

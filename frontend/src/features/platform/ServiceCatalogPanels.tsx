@@ -50,8 +50,8 @@ const catalogViewItems = ({
   },
   {
     value: 'ai',
-    label: 'AI Contracts',
-    detail: 'Review what the assistant can explain and recommend.',
+    label: 'AI Integration Options',
+    detail: 'Review where AI can help the product journey.',
     accent: appleColors.cyan,
     meta: <PastelChip label={`${aiCapabilityCount}`} accent={appleColors.cyan} bg="#e4f9fd" />,
   },
@@ -83,7 +83,7 @@ export function ServiceCatalogLandingPanel({
             Choose the path before the details
           </Typography>
           <Typography color="text.secondary" sx={{ maxWidth: 760, lineHeight: 1.7 }}>
-            Start from a template, one focused workstream, or the AI contract behind recommendations. Each choice opens a focused catalog view with a clear way back, so the owner sees the important path first and goes deeper only when ready.
+            Start from a template, one focused workstream, or an AI integration option behind recommendations. Each choice opens a focused catalog view with a clear way back, so the owner sees the important path first and goes deeper only when ready.
           </Typography>
         </Box>
         <OwnerWorkspaceJourneyNav
@@ -109,12 +109,12 @@ export function ServiceCatalogInternalHeader({
   const titleByView: Record<ServiceCatalogView, string> = {
     templates: 'Launch Templates',
     services: 'Service Workstreams',
-    ai: 'AI Contracts',
+    ai: 'AI Integration Options',
   };
   const detailByView: Record<ServiceCatalogView, string> = {
     templates: 'Choose a bundled path, then continue into product setup or the active product plan.',
     services: 'Choose one workstream at a time, with the selected product context preserved when present.',
-    ai: 'Review the assistant contracts that make service recommendations explainable and human-confirmed.',
+    ai: 'Review the AI support points that make service recommendations explainable and human-confirmed.',
   };
 
   return (
@@ -219,9 +219,9 @@ export function AiCatalogContractsPanel({
 }) {
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f5fdff)' }}>
-      <SectionTitle title="AI-Ready Catalog Contracts" />
+      <SectionTitle title="AI Integration Options" />
       <Typography color="text.secondary" sx={{ lineHeight: 1.7, mb: 1.5 }}>
-        The catalog exposes structured inputs, outputs, evidence requirements, testing gates, team capability signals, and human-review flags for the Studio assistant. AI can recommend and explain services, but product actions stay human-confirmed in ProdUS.
+        ProdUS can use structured product context, evidence requirements, testing gates, team capability signals, and human-review rules to explain where AI should help. AI can recommend and explain services, but product actions stay human-confirmed in ProdUS.
       </Typography>
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
         {aiCapabilities.slice(0, 8).map((capability) => (

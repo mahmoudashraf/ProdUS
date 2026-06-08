@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2900
+      author: produs
+      changes:
+        - addColumn:
+            tableName: product_share_links
+            columns:
+              - column: { name: viewer_action_label, type: VARCHAR(120) }
+              - column: { name: viewer_action_url, type: VARCHAR(512) }

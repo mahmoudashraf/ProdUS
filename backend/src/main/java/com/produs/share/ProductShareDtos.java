@@ -14,6 +14,8 @@ public final class ProductShareDtos {
             ProductShareLink.ShareAudience audience,
             List<String> visibleSections,
             String ownerNote,
+            String viewerActionLabel,
+            String viewerActionUrl,
             LocalDateTime expiresAt
     ) {}
 
@@ -25,6 +27,8 @@ public final class ProductShareDtos {
             ProductShareLink.ShareAudience audience,
             List<String> visibleSections,
             String ownerNote,
+            String viewerActionLabel,
+            String viewerActionUrl,
             LocalDateTime expiresAt,
             LocalDateTime revokedAt,
             LocalDateTime createdAt,
@@ -43,7 +47,11 @@ public final class ProductShareDtos {
             List<String> visibleSections,
             PublicLaunchStatus launchStatus,
             List<PublicSelectedService> selectedServices,
+            PublicShareSummary findingsSummary,
+            PublicShareSummary evidenceSummary,
+            PublicShareSummary teamSummary,
             List<LockedShareSection> lockedSections,
+            PublicViewerAction viewerAction,
             LocalDateTime expiresAt
     ) {}
 
@@ -58,6 +66,18 @@ public final class ProductShareDtos {
             String name,
             String outcome,
             String category
+    ) {}
+
+    public record PublicShareSummary(
+            String title,
+            String summary,
+            List<String> items,
+            int count
+    ) {}
+
+    public record PublicViewerAction(
+            String label,
+            String url
     ) {}
 
     public record LockedShareSection(

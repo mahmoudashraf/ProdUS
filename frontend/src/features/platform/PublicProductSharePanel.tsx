@@ -1,7 +1,7 @@
 'use client';
 
 import NextLink from 'next/link';
-import { LockOutlined, PlaylistAddCheckOutlined, PublicOutlined, ShieldOutlined } from '@mui/icons-material';
+import { ArrowForwardOutlined, LockOutlined, PlaylistAddCheckOutlined, PublicOutlined, ShieldOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getJson } from './api';
@@ -17,6 +17,7 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import PublicPlatformShell from './PublicPlatformShell';
+import PublicShareSummaryCard from './PublicShareSummaryCard';
 import type { PublicProductShare } from './types';
 
 export default function PublicProductSharePanel({ token }: { token: string }) {
@@ -48,6 +49,7 @@ export default function PublicProductSharePanel({ token }: { token: string }) {
                   <PastelChip label={formatLabel(data.businessStage)} accent={appleColors.purple} bg="#f1efff" />
                   <PastelChip label={formatLabel(data.audience)} accent={appleColors.cyan} bg="#e4f9fd" />
                   <PastelChip label={`${data.visibleSections.length} public sections`} accent={appleColors.green} bg="#e7f8ee" />
+                  {data.expiresAt && <PastelChip label="Time-limited link" accent={appleColors.amber} bg="#fff4dc" />}
                 </Stack>
               </Stack>
 
@@ -135,6 +137,16 @@ export default function PublicProductSharePanel({ token }: { token: string }) {
                   </Typography>
                 </Surface>
               )}
+
+              {data.findingsSummary && (
+                <PublicShareSummaryCard summary={data.findingsSummary} accent={appleColors.amber} />
+              )}
+              {data.evidenceSummary && (
+                <PublicShareSummaryCard summary={data.evidenceSummary} accent={appleColors.cyan} />
+              )}
+              {data.teamSummary && (
+                <PublicShareSummaryCard summary={data.teamSummary} accent={appleColors.purple} />
+              )}
             </Stack>
 
             <Stack spacing={2.5}>
@@ -153,13 +165,21 @@ export default function PublicProductSharePanel({ token }: { token: string }) {
               </Surface>
 
               <Surface sx={{ background: '#fff' }}>
-                <Typography variant="h4">Need deeper access?</Typography>
+                <Typography variant="h4">{data.viewerAction ? 'Next step' : 'Need deeper access?'}</Typography>
                 <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
-                  Ask the owner for a registered or invited link before expecting private findings, evidence artifacts, or delivery details.
+                  {data.viewerAction
+                    ? 'The owner provided a preferred action for viewers who want to continue the conversation.'
+                    : 'Ask the owner for a registered or invited link before expecting private findings, evidence artifacts, or delivery details.'}
                 </Typography>
-                <Button component={NextLink} href="/login" variant="outlined" sx={{ minHeight: 42, mt: 1.5 }}>
-                  Sign in
-                </Button>
+                {data.viewerAction ? (
+                  <Button component="a" href={data.viewerAction.url} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 42, mt: 1.5 }}>
+                    {data.viewerAction.label}
+                  </Button>
+                ) : (
+                  <Button component={NextLink} href="/login" variant="outlined" sx={{ minHeight: 42, mt: 1.5 }}>
+                    Sign in
+                  </Button>
+                )}
               </Surface>
             </Stack>
           </Box>

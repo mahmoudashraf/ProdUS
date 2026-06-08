@@ -372,6 +372,8 @@ export interface ProductShareLink extends BaseRecord {
   audience: ProductShareAudience;
   visibleSections: ProductShareSection[];
   ownerNote?: string;
+  viewerActionLabel?: string;
+  viewerActionUrl?: string;
   expiresAt?: string;
   revokedAt?: string;
   lastAccessedAt?: string;
@@ -384,7 +386,16 @@ export interface ProductShareLinkRequest {
   audience?: ProductShareAudience;
   visibleSections?: ProductShareSection[];
   ownerNote?: string;
+  viewerActionLabel?: string;
+  viewerActionUrl?: string;
   expiresAt?: string;
+}
+
+export interface PublicShareSummary {
+  title: string;
+  summary: string;
+  items: string[];
+  count: number;
 }
 
 export interface PublicProductShare {
@@ -406,10 +417,17 @@ export interface PublicProductShare {
     outcome?: string;
     category?: string;
   }>;
+  findingsSummary?: PublicShareSummary | null;
+  evidenceSummary?: PublicShareSummary | null;
+  teamSummary?: PublicShareSummary | null;
   lockedSections: Array<{
     section: string;
     reason: string;
   }>;
+  viewerAction?: {
+    label: string;
+    url: string;
+  } | null;
   expiresAt?: string;
 }
 

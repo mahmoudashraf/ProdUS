@@ -3,8 +3,9 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Box, Button, Stack } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import { getJson } from './api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { deleteJson, getJson } from './api';
+import ProductCreationReviewPanel from './ProductCreationReviewPanel';
 import { ProductAnalysisProgress } from './ProductAnalysisProgress';
 import { ProductIntakeFrontDoor } from './ProductIntakeFrontDoor';
 import {
@@ -31,6 +32,7 @@ import {
 } from './useProductOnboardingWizardState';
 
 export default function ProductOnboardingWizard() {
+  const queryClient = useQueryClient();
   const routeRouter = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -59,13 +61,18 @@ export default function ProductOnboardingWizard() {
     selectedServiceCodes,
     setAiBrief,
     setAnalysisMode,
-    submit,
     toggleServiceRecommendation,
     updateAiDocumentShare,
   } = useProductOnboardingWizardState();
   const currentCart = useQuery({
     queryKey: ['productization-cart'],
     queryFn: () => getJson<ProductizationCart>('/productization-cart/current'),
+  });
+  const removeSelectedService = useMutation({
+    mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
   });
   const currentStep: ProductCreationStep = isProductCreationStep(stepParam)
     ? stepParam
@@ -80,6 +87,11 @@ export default function ProductOnboardingWizard() {
     routeRouter.push(`${pathname || '/products/new'}?${next.toString()}`, { scroll: false });
   };
   const openSetup = () => openStep('setup');
+  const openServicesCatalog = () => {
+    routeRouter.push('/services?view=templates');
+  };
+  const reviewManualProfile = form.handleSubmit(() => openStep('review'));
+  const createFromReview = form.handleSubmit(() => createProduct.mutate());
 
   useEffect(() => {
     if (!aiAnalysis || currentStep === 'ai-review') return;
@@ -105,7 +117,7 @@ export default function ProductOnboardingWizard() {
       />
       <QueryState
         isLoading={createProduct.isPending || aiBusy || currentCart.isLoading}
-        error={createProduct.error || analyzeProductWithAI.error || currentCart.error}
+        error={createProduct.error || analyzeProductWithAI.error || currentCart.error || removeSelectedService.error}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 340px' }, gap: 2.5 }}>
@@ -205,14 +217,32 @@ export default function ProductOnboardingWizard() {
                 values={form.values}
                 isCreating={createProduct.isPending}
                 onValueChange={form.setValue}
-                onSubmit={submit}
+                onSubmit={reviewManualProfile}
               />
             </>
+          )}
+
+          {currentStep === 'review' && (
+            <ProductCreationReviewPanel
+              cart={currentCart.data}
+              isCreating={createProduct.isPending}
+              isRemovingService={removeSelectedService.isPending}
+              values={form.values}
+              onBackToProfile={() => openStep('manual')}
+              onChangeServices={openServicesCatalog}
+              onCreate={() => createFromReview()}
+              onRemoveService={(itemId) => removeSelectedService.mutate(itemId)}
+            />
           )}
         </Stack>
 
         <Stack spacing={2.5}>
-          <ProductCreationCartSnapshot cart={currentCart.data} />
+          <ProductCreationCartSnapshot
+            cart={currentCart.data}
+            isRemovingService={removeSelectedService.isPending}
+            onChangeServices={openServicesCatalog}
+            onRemoveService={(itemId) => removeSelectedService.mutate(itemId)}
+          />
           <ProductOnboardingSideGuidePanel />
         </Stack>
       </Box>

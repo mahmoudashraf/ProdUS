@@ -16,6 +16,7 @@ import {
   Checkbox,
   FormControlLabel,
   FormGroup,
+  MenuItem,
   Stack,
   TextField,
   Typography,
@@ -40,47 +41,13 @@ import type {
   ProductShareSection,
 } from './types';
 import type { ShareJourneyView } from './ownerWorkspaceJourneyConfig';
+import {
+  shareAudienceOptions,
+  shareExpiryOptions,
+  shareSectionOptions,
+  type ShareExpiryMode,
+} from './ownerWorkspaceShareOptions';
 import type { WorkspaceTab } from './ownerWorkspaceModel';
-
-const shareSectionOptions: Array<{
-  value: ProductShareSection;
-  label: string;
-  detail: string;
-  sensitive?: boolean;
-}> = [
-  {
-    value: 'PRODUCT_SUMMARY',
-    label: 'Product summary',
-    detail: 'Name, stage, and public owner summary.',
-  },
-  {
-    value: 'LAUNCH_STATUS',
-    label: 'Launch status',
-    detail: 'Latest shared readiness label and summary when available.',
-  },
-  {
-    value: 'SELECTED_SERVICES',
-    label: 'Selected services',
-    detail: 'Public service path selected for productization work.',
-  },
-  {
-    value: 'TEAM_STATUS',
-    label: 'Team status',
-    detail: 'High-level delivery/team status only.',
-  },
-  {
-    value: 'FINDINGS_SUMMARY',
-    label: 'Findings summary',
-    detail: 'Summary only; detailed findings stay private.',
-    sensitive: true,
-  },
-  {
-    value: 'EVIDENCE_SUMMARY',
-    label: 'Evidence summary',
-    detail: 'Summary only; artifacts stay private.',
-    sensitive: true,
-  },
-];
 
 export default function OwnerWorkspaceShareArea({
   detailOpen,
@@ -95,7 +62,12 @@ export default function OwnerWorkspaceShareArea({
 }) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
+  const [audience, setAudience] = useState<ProductShareAudience>('PUBLIC_SUMMARY');
   const [ownerNote, setOwnerNote] = useState('');
+  const [viewerActionLabel, setViewerActionLabel] = useState('');
+  const [viewerActionUrl, setViewerActionUrl] = useState('');
+  const [expiryMode, setExpiryMode] = useState<ShareExpiryMode>('none');
+  const [customExpiryDate, setCustomExpiryDate] = useState('');
   const [visibleSections, setVisibleSections] = useState<ProductShareSection[]>(['PRODUCT_SUMMARY']);
   const [copiedToken, setCopiedToken] = useState('');
   const productId = selectedProduct?.id || '';
@@ -110,7 +82,12 @@ export default function OwnerWorkspaceShareArea({
       postJson<ProductShareLink, ProductShareLinkRequest>(`/products/${productId}/share-links`, payload),
     onSuccess: async () => {
       setTitle('');
+      setAudience('PUBLIC_SUMMARY');
       setOwnerNote('');
+      setViewerActionLabel('');
+      setViewerActionUrl('');
+      setExpiryMode('none');
+      setCustomExpiryDate('');
       setVisibleSections(['PRODUCT_SUMMARY']);
       await queryClient.invalidateQueries({ queryKey: ['product-share-links', productId] });
     },
@@ -124,7 +101,8 @@ export default function OwnerWorkspaceShareArea({
 
   const activeLinks = (links.data || []).filter((link) => link.active);
   const shareBaseUrl = typeof window === 'undefined' ? '' : window.location.origin;
-  const publicPreviewHref = activeLinks[0] ? `/share/product/${activeLinks[0].token}` : '';
+  const latestPublicLink = activeLinks.find((link) => link.audience !== 'INTERNAL_ONLY');
+  const publicPreviewHref = latestPublicLink ? `/share/product/${latestPublicLink.token}` : '';
   const selectedSectionSet = useMemo(() => new Set(visibleSections), [visibleSections]);
 
   const toggleSection = (section: ProductShareSection, checked: boolean) => {
@@ -136,6 +114,17 @@ export default function OwnerWorkspaceShareArea({
       next.add('PRODUCT_SUMMARY');
       return Array.from(next);
     });
+  };
+
+  const buildExpiresAt = () => {
+    if (expiryMode === 'none') return undefined;
+    if (expiryMode === 'custom') {
+      if (!customExpiryDate) return undefined;
+      return `${customExpiryDate}T23:59:59`;
+    }
+    const date = new Date();
+    date.setDate(date.getDate() + Number(expiryMode));
+    return toBackendDateTime(date);
   };
 
   if (workspaceTab !== 'share') return null;
@@ -185,6 +174,43 @@ export default function OwnerWorkspaceShareArea({
                 fullWidth
               />
               <TextField
+                select
+                label="Who should this link be for?"
+                value={audience}
+                onChange={(event) => setAudience(event.target.value as ProductShareAudience)}
+                fullWidth
+              >
+                {shareAudienceOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1.25 }}>
+                <TextField
+                  select
+                  label="Expiry"
+                  value={expiryMode}
+                  onChange={(event) => setExpiryMode(event.target.value as ShareExpiryMode)}
+                  fullWidth
+                >
+                  {shareExpiryOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  label="Custom expiry date"
+                  type="date"
+                  value={customExpiryDate}
+                  disabled={expiryMode !== 'custom'}
+                  onChange={(event) => setCustomExpiryDate(event.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                />
+              </Box>
+              <TextField
                 label="Owner note"
                 value={ownerNote}
                 onChange={(event) => setOwnerNote(event.target.value)}
@@ -193,6 +219,30 @@ export default function OwnerWorkspaceShareArea({
                 minRows={3}
                 fullWidth
               />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '0.75fr 1.25fr' }, gap: 1.25 }}>
+                <TextField
+                  label="Viewer action label"
+                  value={viewerActionLabel}
+                  onChange={(event) => setViewerActionLabel(event.target.value)}
+                  placeholder="Request access"
+                  fullWidth
+                />
+                <TextField
+                  label="Viewer action URL"
+                  value={viewerActionUrl}
+                  onChange={(event) => setViewerActionUrl(event.target.value)}
+                  placeholder="https://calendly.com/... or mailto:owner@example.com"
+                  fullWidth
+                />
+              </Box>
+              <Box sx={{ p: 1.25, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
+                <Typography sx={{ fontWeight: 950 }}>
+                  {shareAudienceOptions.find((option) => option.value === audience)?.label}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.5 }}>
+                  {shareAudienceOptions.find((option) => option.value === audience)?.detail}
+                </Typography>
+              </Box>
               <FormGroup>
                 {shareSectionOptions.map((section) => (
                   <Box key={section.value} sx={{ borderTop: '1px solid', borderColor: appleColors.line, py: 1 }}>
@@ -220,21 +270,34 @@ export default function OwnerWorkspaceShareArea({
                 ))}
               </FormGroup>
               <Alert severity="info" icon={<LockOutlined />} sx={{ borderRadius: 1 }}>
-                Anonymous links never expose detailed findings or evidence artifacts. This first version shares safe summaries only.
+                Share links never expose detailed findings or evidence artifacts. This first version shares safe summaries only.
               </Alert>
               <Button
                 variant="contained"
                 startIcon={<PublicOutlined />}
                 disabled={createLink.isPending}
-                onClick={() => createLink.mutate({
-                  title: title || `${selectedProduct.name} product summary`,
-                  audience: 'PUBLIC_SUMMARY' as ProductShareAudience,
-                  visibleSections,
-                  ownerNote,
-                })}
+                onClick={() => {
+                  const expiresAt = buildExpiresAt();
+                  const payload: ProductShareLinkRequest = {
+                    title: title || `${selectedProduct.name} product summary`,
+                    audience,
+                    visibleSections,
+                    ownerNote,
+                    viewerActionLabel,
+                    viewerActionUrl,
+                  };
+                  if (expiresAt) {
+                    payload.expiresAt = expiresAt;
+                  }
+                  createLink.mutate(payload);
+                }}
                 sx={{ minHeight: 44 }}
               >
-                {createLink.isPending ? 'Creating...' : 'Create public summary link'}
+                {createLink.isPending
+                  ? 'Creating...'
+                  : audience === 'INTERNAL_ONLY'
+                    ? 'Create internal link'
+                    : 'Create share link'}
               </Button>
             </Stack>
           </Surface>
@@ -246,6 +309,7 @@ export default function OwnerWorkspaceShareArea({
                 {links.data.map((link) => {
                   const href = `/share/product/${link.token}`;
                   const absoluteHref = shareBaseUrl ? `${shareBaseUrl}${href}` : href;
+                  const canPreview = link.active && link.audience !== 'INTERNAL_ONLY';
                   return (
                     <Box key={link.id} sx={{ p: 1.35, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: link.active ? '#fff' : '#f8fafc' }}>
                       <Stack spacing={1}>
@@ -259,15 +323,23 @@ export default function OwnerWorkspaceShareArea({
                           <StatusChip label={link.active ? 'ACTIVE' : 'REVOKED'} />
                         </Stack>
                         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                          <PastelChip label={formatLabel(link.audience)} accent={link.audience === 'INTERNAL_ONLY' ? appleColors.amber : appleColors.purple} />
                           {link.visibleSections.map((section) => (
                             <PastelChip key={section} label={formatLabel(section)} accent={appleColors.cyan} bg="#e4f9fd" />
                           ))}
                           <PastelChip label={`${link.accessCount} views`} accent={appleColors.purple} />
+                          {link.expiresAt && <PastelChip label="Expires" accent={appleColors.amber} bg="#fff4dc" />}
                         </Stack>
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                          <Button component={NextLink} href={href} variant="outlined" startIcon={<VisibilityOutlined />} sx={{ minHeight: 38 }}>
-                            Preview
-                          </Button>
+                          {canPreview ? (
+                            <Button component={NextLink} href={href} variant="outlined" startIcon={<VisibilityOutlined />} sx={{ minHeight: 38 }}>
+                              Preview
+                            </Button>
+                          ) : (
+                            <Button variant="outlined" disabled startIcon={<LockOutlined />} sx={{ minHeight: 38 }}>
+                              Private link
+                            </Button>
+                          )}
                           <Button
                             variant="outlined"
                             startIcon={<ContentCopyOutlined />}
@@ -331,4 +403,21 @@ export default function OwnerWorkspaceShareArea({
       )}
     </Stack>
   );
+}
+
+function toBackendDateTime(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return [
+    date.getFullYear(),
+    '-',
+    pad(date.getMonth() + 1),
+    '-',
+    pad(date.getDate()),
+    'T',
+    pad(date.getHours()),
+    ':',
+    pad(date.getMinutes()),
+    ':',
+    pad(date.getSeconds()),
+  ].join('');
 }

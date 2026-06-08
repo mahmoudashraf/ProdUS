@@ -48,6 +48,12 @@ public class ProductShareLink extends BaseEntity {
     @Column(name = "owner_note", columnDefinition = "TEXT")
     private String ownerNote;
 
+    @Column(name = "viewer_action_label")
+    private String viewerActionLabel;
+
+    @Column(name = "viewer_action_url")
+    private String viewerActionUrl;
+
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 

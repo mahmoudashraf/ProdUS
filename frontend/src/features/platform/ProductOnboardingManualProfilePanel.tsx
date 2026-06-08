@@ -18,25 +18,16 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import { ProductProfile } from './types';
-
-interface ProductProfileFormValues {
-  name: string;
-  summary: string;
-  businessStage: ProductProfile['businessStage'];
-  techStack: string;
-  productUrl: string;
-  repositoryUrl: string;
-  riskProfile: string;
-}
+import type { ProductOnboardingProfileValues } from './productOnboardingAiPayloads';
 
 interface ProductOnboardingManualProfilePanelProps {
-  values: ProductProfileFormValues;
+  values: ProductOnboardingProfileValues;
   isCreating: boolean;
-  onValueChange: <TKey extends keyof ProductProfileFormValues>(
+  onValueChange: <TKey extends keyof ProductOnboardingProfileValues>(
     key: TKey,
-    value: ProductProfileFormValues[TKey]
+    value: ProductOnboardingProfileValues[TKey]
   ) => void;
-  onSubmit: (event?: React.FormEvent) => void;
+  onSubmit: (event?: React.FormEvent) => void | Promise<void>;
 }
 
 const stages: ProductProfile['businessStage'][] = [
@@ -212,7 +203,7 @@ export default function ProductOnboardingManualProfilePanel({
             />
             <SaveButton
               disabled={!values.name || !values.summary || isCreating}
-              label={isCreating ? 'Creating product...' : 'Create product'}
+              label={isCreating ? 'Preparing review...' : 'Review before creation'}
               endIcon={<ArrowForwardOutlined />}
             />
           </Stack>
