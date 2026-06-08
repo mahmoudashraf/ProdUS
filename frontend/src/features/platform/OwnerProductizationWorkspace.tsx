@@ -3,15 +3,12 @@
 import { useEffect, useState } from 'react';
 import { EventRepeatOutlined } from '@mui/icons-material';
 import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
-import { deleteJson, postJson, putJson } from './api';
 import {
   EmptyState,
   PageHeader,
   QueryState,
   appleColors,
-  formatLabel,
 } from './PlatformComponents';
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
 import { type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
@@ -27,64 +24,38 @@ import OwnerWorkspaceSideRailPane from './OwnerWorkspaceSideRailPane';
 import { findingStatusAccent } from './ownerFindingPresentation';
 import { OwnerReadinessVerdictReveal } from './OwnerJourneyCards';
 import { buildOwnerWorkspaceAssistantActions } from './ownerWorkspaceAssistantActions';
-import { buildOwnerWorkspaceStartPlanState } from './ownerWorkspaceStartPlanState';
 import {
   buildOwnerWorkspaceJourneyItems,
 } from './ownerWorkspaceJourneyConfig';
 import {
-  buildOwnerLaunchStatus,
   ownerCategoryFromSignal,
   workspaceTabs,
 } from './ownerWorkspaceModel';
 import {
-  buildEvidenceSummary,
-  buildGroupedFindings,
-  buildOwnerActionGroups,
-  buildScannerCoverageGroups,
-  buildServiceRiskItems,
-  buildTopOwnerRisks,
-  buildVerdictRisks,
-  buildWorkspaceTimeline,
-} from './ownerWorkspaceDerivedState';
-import {
-  CartConvertPayload,
-  CartServicePayload,
-  CartTalentPayload,
-  CartUpdatePayload,
   DiagnosisPayload,
   FindingStatusPayload,
   ProductProfilePayload,
   RequirementPayload,
-  ScannerReadinessDiagnosisPayload,
-  ShortlistPayload,
   defaultToolsForDepth,
   externalImportProviders,
-  productHealth,
   productInitialValues,
   requirementInitialValues,
   scanToolOptions,
   shortDateTime,
 } from './ownerProductizationWorkspaceConfig';
 import {
-  PackageInstance,
-  ProductDiagnosis,
-  ProductProfile,
-  ProductizationCart,
-  ProductizationCartConvertResponse,
-  QuoteProposal,
-  RequirementIntake,
-  RepoSignalSummary,
   ServiceModule,
   ExpertProfile,
   Team,
   TeamRecommendation,
   TeamShortlist,
   NormalizedFinding,
-  LaunchReadinessReport,
 } from './types';
 import { useOwnerWorkspaceNavigationState } from './useOwnerWorkspaceNavigationState';
 import { useOwnerProductizationWorkspaceData } from './useOwnerProductizationWorkspaceData';
 import { useOwnerWorkspaceScannerOperations, type ScannerEvidenceFilter } from './useOwnerWorkspaceScannerOperations';
+import { useOwnerWorkspaceProductActions } from './useOwnerWorkspaceProductActions';
+import { buildOwnerWorkspaceViewModel } from './ownerWorkspaceViewModel';
 
 export default function OwnerProductizationWorkspace({
   productId,
@@ -93,8 +64,6 @@ export default function OwnerProductizationWorkspace({
   productId?: string;
   showProductCreation?: boolean;
 } = {}) {
-  const queryClient = useQueryClient();
-
   const [selectedProductId, setSelectedProductId] = useState(productId || '');
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [pendingRequirementId, setPendingRequirementId] = useState('');
@@ -240,164 +209,38 @@ export default function OwnerProductizationWorkspace({
     }
   }, [selectedPackage, selectedPackageId]);
 
-  const createProduct = useMutation({
-    mutationFn: () => postJson<ProductProfile, ProductProfilePayload>('/products', productForm.values),
-    onSuccess: async (product) => {
-      productForm.resetForm();
-      setSelectedProductId(product.id);
-      await queryClient.invalidateQueries({ queryKey: ['products'] });
-    },
+  const {
+    acceptProposal,
+    addServiceToCart,
+    addTalentToCart,
+    buildPackage,
+    convertCart,
+    createDiagnosis,
+    createProduct,
+    createRequirement,
+    createScannerReadinessDiagnosis,
+    generateLaunchReadinessReport,
+    productActionError,
+    refreshRepoSignals,
+    removeServiceFromCart,
+    removeTalentFromCart,
+    updateCart,
+    upsertShortlist,
+  } = useOwnerWorkspaceProductActions({
+    cartBusinessGoal: cart.data?.businessGoal,
+    diagnosisForm,
+    productForm,
+    projectName,
+    requirementForm,
+    selectedPackage,
+    selectedProduct,
+    selectedWorkspace,
+    setCartNotice,
+    setPendingRequirementId,
+    setProjectName,
+    setSelectedPackageId,
+    setSelectedProductId,
   });
-  const createRequirement = useMutation({
-    mutationFn: () =>
-      postJson<RequirementIntake, RequirementPayload>('/requirements', {
-        ...requirementForm.values,
-        productProfileId: selectedProduct?.id || '',
-        businessGoal:
-          requirementForm.values.businessGoal ||
-          `Productize ${selectedProduct?.name || 'this product'} with verified services, evidence, and launch-ready milestones.`,
-      }),
-    onSuccess: async (requirement) => {
-      requirementForm.resetForm();
-      await queryClient.invalidateQueries({ queryKey: ['requirements'] });
-      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
-      if (!selectedPackage && requirement.id) {
-        setPendingRequirementId(requirement.id);
-      }
-    },
-  });
-  const buildPackage = useMutation({
-    mutationFn: (requirementId: string) => postJson<PackageInstance, Record<string, never>>(`/packages/from-requirement/${requirementId}`, {}),
-    onSuccess: async (packageInstance) => {
-      setSelectedPackageId(packageInstance.id);
-      setPendingRequirementId('');
-      await queryClient.invalidateQueries({ queryKey: ['packages'] });
-      await queryClient.invalidateQueries({ queryKey: ['requirements'] });
-      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
-    },
-  });
-  const acceptProposal = useMutation({
-    mutationFn: (proposalId: string) =>
-      putJson<QuoteProposal, { status: QuoteProposal['status'] }>(`/commerce/proposals/${proposalId}/status`, { status: 'OWNER_ACCEPTED' }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['commerce-proposals'] });
-    },
-  });
-  const upsertShortlist = useMutation({
-    mutationFn: (payload: ShortlistPayload) => postJson<TeamShortlist, ShortlistPayload>('/shortlists', payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['shortlists', selectedPackage?.id] });
-    },
-  });
-  const updateCart = useMutation({
-    mutationFn: (payload: CartUpdatePayload) => putJson<ProductizationCart, CartUpdatePayload>('/productization-cart/current', payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-    },
-  });
-  const addServiceToCart = useMutation({
-    mutationFn: (payload: CartServicePayload) => postJson<ProductizationCart, CartServicePayload>('/productization-cart/services', payload),
-    onSuccess: async () => {
-      setCartNotice('Service added to the start plan.');
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-    },
-  });
-  const removeServiceFromCart = useMutation({
-    mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
-    onSuccess: async () => {
-      setCartNotice('Service removed from the start plan.');
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-    },
-  });
-  const addTalentToCart = useMutation({
-    mutationFn: (payload: CartTalentPayload) => postJson<ProductizationCart, CartTalentPayload>('/productization-cart/talent', payload),
-    onSuccess: async () => {
-      setCartNotice('Delivery talent added to the start plan.');
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-    },
-  });
-  const removeTalentFromCart = useMutation({
-    mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/talent/${itemId}`),
-    onSuccess: async () => {
-      setCartNotice('Delivery talent removed from the start plan.');
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-    },
-  });
-  const convertCart = useMutation({
-    mutationFn: () =>
-      postJson<ProductizationCartConvertResponse, CartConvertPayload>('/productization-cart/convert', {
-        projectName: projectName || `${selectedProduct?.name || 'Product'} productization workspace`,
-      }),
-    onSuccess: async (result) => {
-      setCartNotice('Project workspace created. Open the workspace to manage milestones, evidence, and participants.');
-      setSelectedPackageId(result.packageInstance.id);
-      setProjectName('');
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-      await queryClient.invalidateQueries({ queryKey: ['packages'] });
-      await queryClient.invalidateQueries({ queryKey: ['requirements'] });
-      await queryClient.invalidateQueries({ queryKey: ['workspaces'] });
-      await queryClient.invalidateQueries({ queryKey: ['workspaces', result.workspace.id, 'milestones'] });
-      await queryClient.invalidateQueries({ queryKey: ['shortlists', result.packageInstance.id] });
-      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
-    },
-  });
-  const createDiagnosis = useMutation({
-    mutationFn: () =>
-      postJson<ProductDiagnosis, DiagnosisPayload>(`/productization-engine/products/${selectedProduct?.id}/diagnoses`, {
-        businessGoal: diagnosisForm.values.businessGoal || requirementForm.values.businessGoal || cart.data?.businessGoal || '',
-        currentProblems: diagnosisForm.values.currentProblems || selectedProduct?.riskProfile || '',
-        accessSignals: diagnosisForm.values.accessSignals,
-        summary: diagnosisForm.values.summary,
-      }),
-    onSuccess: async () => {
-      diagnosisForm.resetForm();
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
-    },
-  });
-  const createScannerReadinessDiagnosis = useMutation({
-    mutationFn: (payload: ScannerReadinessDiagnosisPayload) =>
-      postJson<ProductDiagnosis, ScannerReadinessDiagnosisPayload>(
-        `/productization-engine/products/${selectedProduct?.id}/scanner-diagnosis`,
-        payload
-      ),
-    onSuccess: async () => {
-      setCartNotice('Scanner findings were mapped to readiness services. Review the diagnosis, then add the right services to the plan.');
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'diagnoses'] });
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'ship-confidence'] });
-      await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
-      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
-    },
-  });
-  const generateLaunchReadinessReport = useMutation({
-    mutationFn: () => {
-      const payload: { workspaceId?: string; focus: string } = {
-        focus: 'Give the owner a practical launch, pilot, or paid-beta decision from the current diagnosis, services, scanner proof, and workspace context.',
-      };
-      if (selectedWorkspace?.id) payload.workspaceId = selectedWorkspace.id;
-      return postJson<LaunchReadinessReport, typeof payload>(`/productization-engine/products/${selectedProduct?.id}/launch-readiness-report`, payload);
-    },
-    onSuccess: async () => {
-      setCartNotice('Launch readiness report generated from the latest diagnosis, scanner proof, and service plan.');
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', selectedProduct?.id, 'launch-readiness-report'] });
-    },
-  });
-  const refreshRepoSignals = useMutation({
-    mutationFn: () => {
-      if (!selectedProduct?.id) {
-        throw new Error('Select a product before refreshing repo signals.');
-      }
-      return postJson<RepoSignalSummary, Record<string, never>>(`/products/${selectedProduct.id}/repo-signals/refresh`, {});
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['repo-signals', selectedProduct?.id] });
-    },
-  });
-  const productProposals = (proposals.data || []).filter((proposal) => proposal.packageInstance?.productProfile?.id === selectedProduct?.id);
-  const activeShortlists = (shortlists.data || []).filter((shortlist) => shortlist.status !== 'ARCHIVED');
-  const productSupport = (supportRequests.data || []).filter(
-    (request) => request.workspace?.packageInstance?.productProfile?.id === selectedProduct?.id
-  );
   const {
     canStartProjectWorkspace,
     cartBlockers,
@@ -406,25 +249,66 @@ export default function OwnerProductizationWorkspace({
     cartServiceIds,
     cartServiceItems,
     cartStartContext,
-    cartStartGaps,
     cartStartPromptFacts,
     cartTalentItems,
     recommendedServices,
-  } = buildOwnerWorkspaceStartPlanState({
+    activeShortlists,
+    blockedMilestones,
+    buildTargetRequirementId,
+    diagnosisPromptFacts,
+    evidenceSummaryItems,
+    groupedFindings,
+    hasCompletedScannerRun,
+    hasLaunchEvidenceContext,
+    latestCompletedTools,
+    latestCoveredTools,
+    latestDiagnosis,
+    latestMappedToolFindings,
+    latestScannerDiagnosis,
+    launchStatus,
+    ownerActionGroups,
+    productProposals,
+    productSupport,
+    scannerCounts,
+    scannerCoverageGroups,
+    scannerMappedFindings,
+    scannerMappedServices,
+    scannerOpenFindings,
+    scannerReadiness,
+    scannerReadinessPromptFacts,
+    scannerToolCoverage,
+    selectedMilestone,
+    serviceRiskItems,
+    suggestedExperts,
+    suggestedTeams,
+    topOwnerRisks,
+    topRecommendedServiceName,
+    unavailableScannerTools,
+    verdictRisks,
+    workspaceTimeline,
+  } = buildOwnerWorkspaceViewModel({
     cart: cart.data,
+    diagnoses: diagnoses.data || [],
+    experts: experts.data || [],
+    filteredScannerEvidence,
+    hostedRuntimeTarget: hostedScanForm.runtimeTargetUrl,
+    launchReadinessReport: launchReadinessReport.data,
+    milestones: milestones.data || [],
     packageModules: packageModules.data,
+    pendingRequirementId,
+    proposals: proposals.data || [],
+    repoSignals: repoSignals.data,
+    scannerSummary: scannerSummary.data,
     selectedProduct,
+    selectedPackage,
     selectedProductRequirements,
+    selectedWorkspace,
+    shipConfidenceLatest: shipConfidence.data?.latest,
+    shipConfidenceTrendSummary: shipConfidence.data?.trendSummary,
+    shortlists: shortlists.data || [],
+    supportRequests: supportRequests.data || [],
+    teams: teams.data || [],
   });
-  const suggestedTeams = (teams.data || []).slice(0, 3);
-  const suggestedExperts = (experts.data || []).filter((expert) => expert.active).slice(0, 3);
-  const health = productHealth(selectedProduct, selectedPackage, packageModules.data);
-  const latestDiagnosis = diagnoses.data?.[0];
-  const latestScannerDiagnosis = (diagnoses.data || []).find((diagnosis) => diagnosis.diagnosisSource === 'SCANNER_READINESS');
-  const scannerCounts = scannerSummary.data?.counts;
-  const scannerReadiness = scannerSummary.data?.readinessScore ?? (scannerCounts?.total ? 72 : 100);
-  const scannerOpenFindings = (scannerSummary.data?.findings || []).filter((finding) => ['NEW', 'OPEN', 'REGRESSED'].includes(finding.status));
-  const hasCompletedScannerRun = !!scannerSummary.data?.recentRuns.some((run) => run.status === 'COMPLETED');
   const selectedFinding = (scannerSummary.data?.findings || []).find((finding) => finding.id === selectedFindingId) || scannerOpenFindings[0] || scannerSummary.data?.findings?.[0];
   const selectedFindingOwnerCategory = selectedFinding
     ? ownerCategoryFromSignal(selectedFinding.sourceTool, selectedFinding.readinessArea, selectedFinding.title)
@@ -435,89 +319,6 @@ export default function OwnerProductizationWorkspace({
   const selectedFindingCanResolve = !!selectedFindingReason.trim();
   const selectedFindingCanAcceptRisk = !!selectedFindingReason.trim() && !!selectedFindingReviewDue;
   const selectedFindingRecommendedInCart = !!selectedFinding?.recommendedModule && cartServiceIds.has(selectedFinding.recommendedModule.id);
-  const scannerMappedFindings = latestScannerDiagnosis?.findings || [];
-  const scannerMappedServices = Array.from(
-    new Set(scannerMappedFindings.map((finding) => finding.recommendedModuleName).filter((name): name is string => Boolean(name)))
-  );
-  const scannerReadinessPromptFacts = latestScannerDiagnosis
-    ? `Scanner ship-readiness map: score ${latestScannerDiagnosis.readinessScore}/100, priority fixes ${latestScannerDiagnosis.topBlockerCount || 0}, proof items ${latestScannerDiagnosis.evidenceCount || 0}, unmapped findings ${latestScannerDiagnosis.unmappedFindingCount || 0}. Mapped services: ${scannerMappedServices.join(', ') || 'none'}. Top mapped findings: ${scannerMappedFindings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.readinessArea || 'unclassified'}, service ${finding.recommendedModuleName || 'unmapped'}): risk ${finding.businessRisk || finding.description}; proof ${finding.evidenceRequired || 'not recorded'}`).join('; ') || 'none'}.`
-    : 'No scanner readiness diagnosis has been generated yet.';
-  const diagnosisPromptFacts = latestDiagnosis
-    ? `Visible diagnosis facts: readiness score ${latestDiagnosis.readinessScore}/100, status ${formatLabel(latestDiagnosis.status)}, source ${formatLabel(latestDiagnosis.diagnosisSource || 'MANUAL_DETERMINISTIC')}, AI state ${latestDiagnosis.aiExecuted ? 'AI executed' : 'AI context ready'}, finding count ${latestDiagnosis.findings.length}. Diagnosis summary: "${latestDiagnosis.summary || 'not recorded'}". Access signals: "${latestDiagnosis.accessSignals || 'not recorded'}". Top findings: ${latestDiagnosis.findings.slice(0, 6).map((finding) => `${finding.title} (${finding.severity}, ${finding.status}, area ${finding.readinessArea || 'not classified'}, recommended service ${finding.recommendedModuleName || 'not mapped'}): ${finding.businessRisk || finding.description}`).join('; ') || 'none recorded'}. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings; scanner top findings ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none open'}. Ship-confidence history: ${shipConfidence.data?.trendSummary || 'not available yet'} Latest checkpoint: ${shipConfidence.data?.latest ? `${shipConfidence.data.latest.shipConfidenceScore}/100, ${shipConfidence.data.latest.statusLabel}, next step ${shipConfidence.data.latest.suggestedNextStep}` : 'none'}. ${scannerReadinessPromptFacts}`
-    : `No deterministic productization diagnosis exists yet for ${selectedProduct?.name || 'this product'}. Ask the owner to run diagnosis before making readiness claims. Scanner facts: scanner score ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings.`;
-  const scannerToolCoverage = scannerSummary.data?.toolCoverage || [];
-  const latestCoveredTools = scannerToolCoverage.filter((tool) => !!tool.latestStatus).length;
-  const latestCompletedTools = scannerToolCoverage.filter((tool) => tool.latestStatus === 'COMPLETED').length;
-  const latestMappedToolFindings = scannerToolCoverage.reduce((total, tool) => total + (tool.mappedFindingCount || 0), 0);
-  const unavailableScannerTools = scannerToolCoverage.filter((tool) => tool.enabled && !tool.executableAvailable).length;
-  const blockedMilestones = (milestones.data || []).filter((milestone) => milestone.status === 'BLOCKED').length;
-  const submittedRequirement = selectedProductRequirements.find((requirement) => requirement.status === 'SUBMITTED' || requirement.status === 'PACKAGE_RECOMMENDED');
-  const buildTargetRequirementId = pendingRequirementId || submittedRequirement?.id || '';
-  const topOwnerRisks = buildTopOwnerRisks({ scannerMappedFindings, scannerOpenFindings });
-  const launchBlockerCount = latestScannerDiagnosis?.topBlockerCount
-    ?? scannerOpenFindings.filter((finding) => finding.severity === 'CRITICAL' || finding.severity === 'HIGH').length;
-  const launchImprovementCount = Math.max(
-    0,
-    (scannerOpenFindings.length || latestMappedToolFindings || scannerCounts?.open || 0) - launchBlockerCount
-  );
-  const hasLaunchEvidenceContext = !!scannerSummary.data || !!latestDiagnosis || !!launchReadinessReport.data || hasCompletedScannerRun || latestMappedToolFindings > 0;
-  const launchStatus = buildOwnerLaunchStatus({
-    hasProduct: !!selectedProduct,
-    hasEvidenceContext: hasLaunchEvidenceContext,
-    productHealthScore: health,
-    scannerReadinessScore: scannerReadiness,
-    blockerCount: launchBlockerCount,
-    improvementCount: launchImprovementCount,
-    criticalCount: scannerCounts?.critical || 0,
-    openFindingCount: scannerOpenFindings.length,
-    mappedFindingCount: latestMappedToolFindings,
-    completedTools: latestCompletedTools,
-    totalTools: scanToolOptions.length,
-  });
-  const verdictRisks = buildVerdictRisks(topOwnerRisks);
-  const scannerCoverageGroups = buildScannerCoverageGroups({ scannerToolCoverage, scanToolOptions });
-  const {
-    evidenceReadme,
-    primarySource,
-    evidenceSummaryItems,
-  } = buildEvidenceSummary({
-    repoSignals: repoSignals.data,
-    scannerSummary: scannerSummary.data,
-    selectedProduct,
-    hostedRuntimeTarget: hostedScanForm.runtimeTargetUrl,
-    latestCompletedTools,
-    totalTools: scanToolOptions.length,
-  });
-  const topRecommendedServiceName = scannerMappedServices[0] || selectedPackage?.name || cartServiceItems[0]?.serviceModule.name || '';
-  const serviceRiskItems = buildServiceRiskItems({ topOwnerRisks, topRecommendedServiceName });
-  const ownerActionGroups = buildOwnerActionGroups({
-    topOwnerRisks,
-    weekItems: scannerMappedServices.length ? scannerMappedServices : cartStartGaps.map((gap) => gap.title),
-    topRecommendedServiceName,
-    latestCompletedTools,
-    totalTools: scanToolOptions.length,
-    evidenceCount: filteredScannerEvidence.length,
-  });
-  const groupedFindings = buildGroupedFindings({
-    scannerFindings: scannerSummary.data?.findings || [],
-    topOwnerRisks,
-    launchStatus,
-  });
-  const workspaceTimeline = buildWorkspaceTimeline({
-    selectedProduct,
-    primarySource,
-    evidenceReadme,
-    latestCompletedTools,
-    totalTools: scanToolOptions.length,
-    scannerCounts,
-    latestMappedToolFindings,
-    selectedPackage,
-    selectedWorkspace,
-    formatDateTime: shortDateTime,
-  });
-  const selectedMilestone = (milestones.data || []).find((milestone) => milestone.status === 'BLOCKED')
-    || (milestones.data || []).find((milestone) => milestone.status === 'SUBMITTED' || milestone.status === 'IN_PROGRESS')
-    || (milestones.data || [])[0];
   const { assistantActionProps, assistantContext } = buildOwnerWorkspaceAssistantActions({
     buildTargetRequirementId,
     cartBlockers,
@@ -561,21 +362,7 @@ export default function OwnerProductizationWorkspace({
 
   const loading = queriesLoading;
   const error = queryError
-    || createProduct.error
-    || createRequirement.error
-    || buildPackage.error
-    || acceptProposal.error
-    || upsertShortlist.error
-    || updateCart.error
-    || addServiceToCart.error
-    || removeServiceFromCart.error
-    || addTalentToCart.error
-    || removeTalentFromCart.error
-    || convertCart.error
-    || createDiagnosis.error
-    || createScannerReadinessDiagnosis.error
-    || generateLaunchReadinessReport.error
-    || refreshRepoSignals.error
+    || productActionError
     || scannerOperationError;
 
   const recordShortlist = (teamId: string, status: TeamShortlist['status']) => {

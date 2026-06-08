@@ -1,16 +1,13 @@
 'use client';
 
 import NextLink from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ManageAccountsOutlined } from '@mui/icons-material';
 import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
-import { getJson, postJson } from './api';
-import { sortPackagesForOwner } from './displayOrder';
 import PublicTalentDirectoryPage from './PublicTalentDirectoryPage';
 import TeamProfilesPage from './TeamProfilesPage';
 import {
@@ -26,6 +23,18 @@ import {
   teamVerificationScore,
 } from './ownerTeamMatchConfig';
 import {
+  type CapabilityPayload,
+  type ReputationPayload,
+  type TeamMemberPayload,
+  type TeamPayload,
+  initialCapabilityValues,
+  initialMemberValues,
+  initialReputationValues,
+  initialTeamValues,
+  memberRoles,
+  teamVerificationStatuses,
+} from './teamMatchForms';
+import {
   PageHeader,
   QueryState,
   SaveButton,
@@ -36,87 +45,12 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import {
-  PackageInstance,
-  ProjectWorkspace,
-  ServiceCategory,
-  ServiceModule,
   Team,
-  TeamCapability,
   TeamMember,
-  TeamRecommendation,
-  TeamReputationEvent,
   TeamShortlist,
 } from './types';
-
-const statuses: Team['verificationStatus'][] = ['APPLIED', 'VERIFIED', 'CERTIFIED', 'SPECIALIST', 'OPERATIONS_READY'];
-const memberRoles: TeamMember['role'][] = ['LEAD', 'DELIVERY_MANAGER', 'SPECIALIST', 'ADVISOR', 'QUALITY_REVIEWER'];
-
-interface TeamPayload {
-  name: string;
-  description: string;
-  timezone: string;
-  capabilitiesSummary: string;
-  typicalProjectSize: string;
-  verificationStatus: Team['verificationStatus'];
-  active: boolean;
-}
-
-interface CapabilityPayload {
-  serviceCategoryId: string;
-  serviceModuleId: string | null;
-  evidenceUrl: string;
-  notes: string;
-}
-
-interface TeamMemberPayload {
-  email: string;
-  role: TeamMember['role'];
-  active: boolean;
-}
-
-interface ReputationPayload {
-  workspaceId: string;
-  eventType: TeamReputationEvent['eventType'];
-  rating: number;
-  notes: string;
-}
-
-interface ShortlistPayload {
-  packageInstanceId: string;
-  teamId: string;
-  status: TeamShortlist['status'];
-  notes: string;
-}
-
-const initialTeamValues: TeamPayload = {
-  name: '',
-  description: '',
-  timezone: '',
-  capabilitiesSummary: '',
-  typicalProjectSize: '',
-  verificationStatus: 'APPLIED',
-  active: true,
-};
-
-const initialCapabilityValues: CapabilityPayload = {
-  serviceCategoryId: '',
-  serviceModuleId: null,
-  evidenceUrl: '',
-  notes: '',
-};
-
-const initialMemberValues: TeamMemberPayload = {
-  email: '',
-  role: 'SPECIALIST',
-  active: true,
-};
-
-const initialReputationValues: ReputationPayload = {
-  workspaceId: '',
-  eventType: 'WORKSPACE_REVIEW',
-  rating: 5,
-  notes: '',
-};
+import { useTeamMatchData } from './useTeamMatchData';
+import { useTeamMatchActions } from './useTeamMatchActions';
 
 export default function TeamsPage() {
   const { hasRole, isLoggedIn } = useAuth();
@@ -131,20 +65,35 @@ export default function TeamsPage() {
 }
 
 function MatchedTeamsPage() {
-  const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const canManageTeams = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
   const canManageTeamRoster = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
   const canCreateReputation = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER]);
-  const teams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
-  const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
-  const categories = useQuery({ queryKey: ['catalog-categories'], queryFn: () => getJson<ServiceCategory[]>('/catalog/categories') });
-  const modules = useQuery({ queryKey: ['catalog-modules'], queryFn: () => getJson<ServiceModule[]>('/catalog/modules') });
-  const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState('');
+  const {
+    capabilities,
+    categories,
+    members,
+    modules,
+    packageList,
+    queriesLoading,
+    queryError,
+    recommendations,
+    reputation,
+    selectedTeam,
+    shortlists,
+    teamList,
+    workspaces,
+  } = useTeamMatchData({
+    canManageTeamRoster,
+    selectedPackageId,
+    selectedTeamId,
+    setSelectedPackageId,
+    setSelectedTeamId,
+  });
   const viewParam = searchParams?.get('view');
   const activeView: TeamMatchView = viewParam === 'profile' || viewParam === 'shortlist' ? viewParam : 'matches';
   const setActiveView = (view: TeamMatchView) => {
@@ -181,88 +130,21 @@ function MatchedTeamsPage() {
     },
   });
 
-  const packageList = sortPackagesForOwner(packages.data || []);
-  useEffect(() => {
-    if (!selectedPackageId && packageList[0]) {
-      setSelectedPackageId(packageList[0].id);
-    }
-  }, [packageList, selectedPackageId]);
-
-  const createTeam = useMutation({
-    mutationFn: () => postJson<Team, TeamPayload>('/teams', teamForm.values),
-    onSuccess: async (team) => {
-      teamForm.resetForm();
-      setSelectedTeamId(team.id);
-      await queryClient.invalidateQueries({ queryKey: ['teams'] });
-    },
-  });
-
-  const teamList = teams.data || [];
-  const selectedTeam = useMemo(
-    () => teamList.find((team) => team.id === selectedTeamId) || teamList[0],
-    [teamList, selectedTeamId]
-  );
-
-  useEffect(() => {
-    if (!selectedTeamId && teamList[0]) {
-      setSelectedTeamId(teamList[0].id);
-    }
-  }, [selectedTeamId, teamList]);
-
-  const recommendations = useQuery({
-    queryKey: ['packages', selectedPackageId, 'team-recommendations'],
-    enabled: !!selectedPackageId,
-    queryFn: () => getJson<TeamRecommendation[]>(`/packages/${selectedPackageId}/team-recommendations`),
-  });
-  const capabilities = useQuery({
-    queryKey: ['teams', selectedTeam?.id, 'capabilities'],
-    enabled: !!selectedTeam?.id,
-    queryFn: () => getJson<TeamCapability[]>(`/teams/${selectedTeam?.id}/capabilities`),
-  });
-  const members = useQuery({
-    queryKey: ['teams', selectedTeam?.id, 'members'],
-    enabled: canManageTeamRoster && !!selectedTeam?.id,
-    queryFn: () => getJson<TeamMember[]>(`/teams/${selectedTeam?.id}/members`),
-  });
-  const reputation = useQuery({
-    queryKey: ['teams', selectedTeam?.id, 'reputation'],
-    enabled: !!selectedTeam?.id,
-    queryFn: () => getJson<TeamReputationEvent[]>(`/commerce/teams/${selectedTeam?.id}/reputation`),
-  });
-  const shortlists = useQuery({
-    queryKey: ['shortlists', selectedPackageId],
-    enabled: !!selectedPackageId,
-    queryFn: () => getJson<TeamShortlist[]>(`/shortlists?packageId=${selectedPackageId}`),
-    retry: false,
-  });
-
-  const createCapability = useMutation({
-    mutationFn: () => postJson<TeamCapability, CapabilityPayload>(`/teams/${selectedTeam?.id}/capabilities`, capabilityForm.values),
-    onSuccess: async () => {
-      capabilityForm.resetForm();
-      await queryClient.invalidateQueries({ queryKey: ['teams', selectedTeam?.id, 'capabilities'] });
-      await queryClient.invalidateQueries({ queryKey: ['packages'] });
-    },
-  });
-  const addMember = useMutation({
-    mutationFn: () => postJson<TeamMember, TeamMemberPayload>(`/teams/${selectedTeam?.id}/members`, memberForm.values),
-    onSuccess: async () => {
-      memberForm.resetForm();
-      await queryClient.invalidateQueries({ queryKey: ['teams', selectedTeam?.id, 'members'] });
-    },
-  });
-  const addReputation = useMutation({
-    mutationFn: () => postJson<TeamReputationEvent, ReputationPayload>(`/commerce/teams/${selectedTeam?.id}/reputation`, reputationForm.values),
-    onSuccess: async () => {
-      reputationForm.resetForm();
-      await queryClient.invalidateQueries({ queryKey: ['teams', selectedTeam?.id, 'reputation'] });
-    },
-  });
-  const upsertShortlist = useMutation({
-    mutationFn: (payload: ShortlistPayload) => postJson<TeamShortlist, ShortlistPayload>('/shortlists', payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['shortlists', selectedPackageId] });
-    },
+  const {
+    actionError,
+    addMember,
+    addReputation,
+    createCapability,
+    createTeam,
+    upsertShortlist,
+  } = useTeamMatchActions({
+    capabilityForm,
+    memberForm,
+    reputationForm,
+    selectedPackageId,
+    selectedTeamId: selectedTeam?.id,
+    setSelectedTeamId,
+    teamForm,
   });
 
   const submit = teamForm.handleSubmit(() => {
@@ -403,8 +285,8 @@ function MatchedTeamsPage() {
         }
       />
       <QueryState
-        isLoading={teams.isLoading || packages.isLoading || categories.isLoading || modules.isLoading || workspaces.isLoading}
-        error={teams.error || packages.error || categories.error || modules.error || workspaces.error || recommendations.error || capabilities.error || reputation.error || shortlists.error || (canManageTeamRoster ? members.error : null) || (canManageTeams ? createTeam.error || createCapability.error : null) || (canManageTeamRoster ? addMember.error : null) || addReputation.error || upsertShortlist.error}
+        isLoading={queriesLoading}
+        error={queryError || actionError}
       />
 
       <Stack spacing={2.5}>
@@ -456,7 +338,7 @@ function MatchedTeamsPage() {
                     <TextInput label="Capabilities" value={teamForm.values.capabilitiesSummary} onChange={(capabilitiesSummary) => teamForm.setValue('capabilitiesSummary', capabilitiesSummary)} multiline />
                     <TextInput label="Typical project size" value={teamForm.values.typicalProjectSize} onChange={(typicalProjectSize) => teamForm.setValue('typicalProjectSize', typicalProjectSize)} />
                     <TextField select fullWidth label="Verification" value={teamForm.values.verificationStatus} onChange={(event) => teamForm.setValue('verificationStatus', event.target.value as Team['verificationStatus'])}>
-                      {statuses.map((status) => (
+                      {teamVerificationStatuses.map((status) => (
                         <MenuItem key={status} value={status}>{formatLabel(status)}</MenuItem>
                       ))}
                     </TextField>
