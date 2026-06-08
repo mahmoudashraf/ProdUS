@@ -679,6 +679,33 @@ Status:
   - `tmp/live-verification/2026-06-08/152-owner-project-start-panel-local.png`
   - `tmp/live-verification/2026-06-08/153-mobile-owner-project-start-panel-local.png`
 
+### Current Pass: Scanner Finding Decision List Split
+
+Problem:
+
+- `ScannerProofFindingDecisionList.tsx` showed full decision-note, risk-review, service recommendation, and resolution controls on every visible finding card.
+- This made the Fix Path step feel like another long scanner/operator page even though the owner journey only needs one finding decision at a time.
+- The old implementation also kept a lingering owner-facing fallback sentence that said `Add this service...` instead of `Choose this service...`.
+
+Solution:
+
+- Split each finding into `ScannerProofFindingCard.tsx`, leaving `ScannerProofFindingDecisionList.tsx` as a compact list composer.
+- Expand only the active finding with decision controls and service action; keep the rest as scannable review cards.
+- Show a short summary when additional normalized findings remain beyond the visible set.
+- Keep wording aligned with Project Start Plan language by using `Choose this service for tracked remediation...`.
+
+Status:
+
+- Implemented locally and verified against staging API data. Deployment is deferred so this can be batched with the Start Plan side-rail split.
+- `ScannerProofFindingDecisionList.tsx` is now 81 lines, down from 227 lines.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+- Focused local verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/154-scanner-finding-decision-list-local.png`
+  - `tmp/live-verification/2026-06-08/155-mobile-scanner-finding-decision-list-local.png`
+
 ### Current Pass: Public Profile Detail Completion
 
 Problem:
