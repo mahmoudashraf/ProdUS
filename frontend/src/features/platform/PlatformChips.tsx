@@ -91,7 +91,14 @@ export const PastelChip = ({
       color: accent,
       fontWeight: 700,
       border: `1px solid ${accent}1f`,
-      '& .MuiChip-label': { px: 1 },
+      flexShrink: 0,
+      maxWidth: '100%',
+      '& .MuiChip-label': {
+        px: 1,
+        overflow: 'visible',
+        textOverflow: 'clip',
+        whiteSpace: 'nowrap',
+      },
     }}
   />
 );
