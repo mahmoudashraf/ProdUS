@@ -49,7 +49,7 @@ const produs: NavItemType = {
     },
     {
       id: 'owner-productization',
-      title: 'Productization',
+      title: 'Home',
       type: 'item',
       url: '/dashboard',
       icon: icons.IconBriefcase,
@@ -80,16 +80,7 @@ const produs: NavItemType = {
       type: 'item',
       url: '/products',
       icon: icons.IconBriefcase,
-      roles: [UserRole.ADMIN, UserRole.PRODUCT_OWNER],
-      breadcrumbs: true
-    },
-    {
-      id: 'draft-cart',
-      title: 'Start Plan',
-      type: 'item',
-      url: '/owner/project-cart',
-      icon: icons.IconPackage,
-      roles: [UserRole.PRODUCT_OWNER],
+      roles: [UserRole.ADMIN],
       breadcrumbs: true
     },
     {

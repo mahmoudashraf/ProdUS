@@ -1,6 +1,15 @@
 // material-ui
 import { Box, Divider, List, Typography, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import {
+  IconAlertTriangle,
+  IconChecklist,
+  IconHome,
+  IconListDetails,
+  IconPackage,
+  IconShare,
+} from '@tabler/icons-react';
+import { usePathname } from 'next/navigation';
 import { memo } from 'react';
 
 // project imports
@@ -10,6 +19,7 @@ import useConfig from 'hooks/useConfig';
 import menuItem from 'menu-items';
 import { useMenuState } from 'contexts/MenuContext';
 import useAuth from '@/hooks/useAuth';
+import { UserRole } from '@/types/auth';
 
 // types
 import { NavItemType } from 'types';
@@ -24,6 +34,7 @@ const MenuList = () => {
   const { layout } = useConfig();
   const { drawerOpen } = useMenuState();
   const { user } = useAuth();
+  const pathname = usePathname() || '';
 
   const matchDownMd = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -31,7 +42,7 @@ const MenuList = () => {
   const lastItem =
     layout === LAYOUT_CONST.HORIZONTAL_LAYOUT && !matchDownMd ? HORIZONTAL_MAX_ITEM : undefined;
 
-  const visibleMenuItems = menuItem.items
+  const roleVisibleMenuItems = menuItem.items
     .map((item) => {
       if (!item.children) return item;
       return {
@@ -40,6 +51,13 @@ const MenuList = () => {
       };
     })
     .filter((item) => !item.roles || (user?.role ? item.roles.includes(user.role) : true));
+  const productWorkspaceMatch = pathname.match(/^\/products\/([^/]+)$/);
+  const selectedProductId = productWorkspaceMatch?.[1] && productWorkspaceMatch[1] !== 'new'
+    ? productWorkspaceMatch[1]
+    : '';
+  const visibleMenuItems = user?.role === UserRole.PRODUCT_OWNER && selectedProductId
+    ? buildOwnerProductWorkspaceMenu(roleVisibleMenuItems, selectedProductId)
+    : roleVisibleMenuItems;
 
   let lastItemIndex = visibleMenuItems.length - 1;
   let remItems: NavItemType[] = [];
@@ -101,3 +119,65 @@ const MenuList = () => {
 };
 
 export default memo(MenuList);
+
+function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string): NavItemType[] {
+  const platform = items.find((item) => item.id === 'platform') || items[0];
+  if (!platform) return items;
+  const basePath = `/products/${productId}`;
+  return [
+    {
+      ...platform,
+      title: 'Selected Product',
+      children: [
+        {
+          id: 'product-switch-home',
+          title: 'Home / switch product',
+          type: 'item',
+          url: '/dashboard?focus=products',
+          icon: IconHome,
+          breadcrumbs: true,
+        },
+        {
+          id: 'product-overview',
+          title: 'Overview',
+          type: 'item',
+          url: basePath,
+          icon: IconListDetails,
+          breadcrumbs: true,
+        },
+        {
+          id: 'product-action-plan',
+          title: 'Action Plan',
+          type: 'item',
+          url: `${basePath}?tab=actions`,
+          icon: IconChecklist,
+          breadcrumbs: true,
+        },
+        {
+          id: 'product-findings',
+          title: 'Findings',
+          type: 'item',
+          url: `${basePath}?tab=findings`,
+          icon: IconAlertTriangle,
+          breadcrumbs: true,
+        },
+        {
+          id: 'product-services',
+          title: 'Services',
+          type: 'item',
+          url: `${basePath}?tab=services`,
+          icon: IconPackage,
+          breadcrumbs: true,
+        },
+        {
+          id: 'product-share',
+          title: 'Share',
+          type: 'item',
+          url: `${basePath}?tab=share`,
+          icon: IconShare,
+          breadcrumbs: true,
+        },
+      ],
+    },
+  ];
+}

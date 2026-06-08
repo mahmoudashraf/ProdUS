@@ -4,7 +4,7 @@ import NextLink from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   AddOutlined,
-  PlaylistAddCheckOutlined,
+  BuildCircleOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Stack } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
@@ -80,15 +80,15 @@ export default function ProductizationLaunchpad() {
   return (
     <>
       <PageHeader
-        title="Productization Command Center"
-        description="Start with one product, collect lifecycle services and verified talent in a start plan, then approve that plan into a governed workspace."
+        title="Home"
+        description="Your owner command center: portfolio metrics, selected projects, draft start plan, and active workspaces in one place."
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44, minWidth: 150 }}>
               New product
             </Button>
-            <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 44, minWidth: 168 }}>
-              Project Start Plan
+            <Button component={NextLink} href="/services" variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 44, minWidth: 168 }}>
+              Start from service
             </Button>
           </Stack>
         }

@@ -1,7 +1,7 @@
 'use client';
 
 import type { ComponentProps } from 'react';
-import { Box, MenuItem, TextField } from '@mui/material';
+import { Box } from '@mui/material';
 import {
   EmptyState,
   PageHeader,
@@ -9,6 +9,7 @@ import {
 } from './PlatformComponents';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
 import OwnerWorkspaceNavigationPanel from './OwnerWorkspaceNavigationPanel';
+import OwnerWorkspaceSelectedProductBar from './OwnerWorkspaceSelectedProductBar';
 import { OwnerReadinessVerdictReveal } from './OwnerJourneyCards';
 import type { JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import type { WorkspaceTab } from './ownerWorkspaceModel';
@@ -23,10 +24,8 @@ export function OwnerProductizationWorkspaceHeader({
   hasLaunchEvidenceContext,
   isLoading,
   launchStatus,
-  onSelectProduct,
   onSeePlan,
   onViewProof,
-  productList,
   risks,
   selectedProduct,
   totalChecks,
@@ -36,10 +35,8 @@ export function OwnerProductizationWorkspaceHeader({
   hasLaunchEvidenceContext: boolean;
   isLoading: boolean;
   launchStatus: ReadinessRevealProps['launchStatus'];
-  onSelectProduct: (productId: string) => void;
   onSeePlan: () => void;
   onViewProof: () => void;
-  productList: ProductProfile[];
   risks: ReadinessRevealProps['risks'];
   selectedProduct?: ProductProfile | undefined;
   totalChecks: number;
@@ -47,28 +44,12 @@ export function OwnerProductizationWorkspaceHeader({
   return (
     <>
       <PageHeader
-        title="Productization Workspace"
-        description="One product-centered command surface for lifecycle service selection, start plan decisions, team comparison, and delivery evidence."
-        action={
-          productList.length ? (
-            <TextField
-              select
-              size="small"
-              label="Product"
-              value={selectedProduct?.id || ''}
-              onChange={(event) => onSelectProduct(event.target.value)}
-              sx={{ minWidth: { xs: '100%', md: 300 } }}
-            >
-              {productList.map((product) => (
-                <MenuItem key={product.id} value={product.id}>
-                  {product.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          ) : null
-        }
+        title="Product Workspace"
+        description="Selected-product actions only: launch decision, action plan, findings, services, and controlled sharing."
       />
       <QueryState isLoading={isLoading} error={error} />
+
+      {selectedProduct && <OwnerWorkspaceSelectedProductBar product={selectedProduct} />}
 
       {selectedProduct && hasLaunchEvidenceContext && (
         <Box sx={{ mb: 2.5 }}>

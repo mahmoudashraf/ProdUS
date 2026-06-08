@@ -1022,6 +1022,37 @@ Status:
   - Public safe sections include findings, evidence, and team summaries, not private detailed artifacts.
   - Internal-only share links return `404` through `/share/product/{token}`.
 
+### Current Pass: Owner Navigation Deduplication
+
+Problem:
+
+- Owner global navigation exposed `Productization`, `Products`, and `Start Plan` as separate top-level destinations even though they overlap in the owner's mental model.
+- Product workspaces allowed switching products from the workspace header, which made the selected product feel editable in-place.
+- The owner needed a clearer split between Home as the portfolio/project switchboard and product workspaces as selected-product action surfaces.
+
+Solution:
+
+- Renamed the owner global `Productization` entry to `Home`.
+- Removed `Products` and `Start Plan` from the product-owner global sidebar; those flows remain reachable from Home and direct URLs for compatibility.
+- Reframed the owner Home header around portfolio metrics, selected projects, draft start plan state, and active workspaces.
+- Replaced the workspace product dropdown with a fixed selected-product context bar and a `Switch product on Home` route.
+- Removed repeated Project Start Plan buttons from the product portfolio page so product selection does not compete with start-plan review.
+
+Status:
+
+- Implemented and locally verified in this pass.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+- Focused local verification passed:
+  - `tmp/live-verification/2026-06-08/local-owner-navigation-dedup.js`
+- Local screenshots:
+  - `tmp/live-verification/2026-06-08/215-owner-home-navigation-dedup-local.png`
+  - `tmp/live-verification/2026-06-08/216-selected-product-context-fixed-local.png`
+  - `tmp/live-verification/2026-06-08/217-selected-product-context-mobile-local.png`
+- Deployment/live verification is still pending for this navigation slice.
+
 ## Implementation Loop
 
 For each slice:

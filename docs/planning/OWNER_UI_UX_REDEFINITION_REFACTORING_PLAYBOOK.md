@@ -55,6 +55,10 @@ Use these rules consistently:
 - Tie the top action to the top service. The recommended service should feel like the way to resolve the blocker, not a separate sales card.
 - Use hub/spoke navigation instead of long all-in-one pages.
 - Meaningful choices should open a focused internal view with its own title, purpose, primary action, and back path. A button row that only swaps content below it is acceptable for small filters or display modes, but not for product journey steps.
+- Home is the owner switchboard. It should show portfolio metrics, products/projects, drafted Project Start Plan state, active workspaces, and the next owner action.
+- Product switching belongs on Home or product portfolio views. Once a product workspace is open, the selected product should be shown as fixed context near the top, not as an editable dropdown.
+- The global left menu should contain general entry points. Product-specific actions belong inside the selected product workspace navigation.
+- Avoid separate global entries that do the same job with different names. `Productization`, `Products`, and `Start Plan` should not all compete as top-level owner destinations.
 - Make the first mobile viewport useful. A founder should see the decision or next action without scrolling through dense setup.
 - Keep advanced technical proof available, but behind focused steps such as `Run Proof`, `Review Result`, `Fix Path`, and `Stored Proof`.
 - Prefer `Project Start Plan`, `Choose services`, `Choose teams`, `Approve Plan`, and `Start Workspace` language over cart or shopping language.

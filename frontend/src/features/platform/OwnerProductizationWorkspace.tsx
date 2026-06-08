@@ -295,7 +295,6 @@ export default function OwnerProductizationWorkspace({
     addTeamToCart,
     recordFindingDecision,
     recordShortlist,
-    selectProduct,
     submitProduct,
     submitRequirement,
   } = useOwnerWorkspaceInteractionHandlers({
@@ -371,11 +370,9 @@ export default function OwnerProductizationWorkspace({
         hasLaunchEvidenceContext={hasLaunchEvidenceContext}
         isLoading={loading}
         launchStatus={launchStatus}
-        productList={productList}
         risks={verdictRisks}
         selectedProduct={selectedProduct}
         totalChecks={scanToolOptions.length}
-        onSelectProduct={selectProduct}
         onSeePlan={() => launchStatus.blockerCount ? openActionView('plan') : openServicesView('recommend')}
         onViewProof={() => openFindingsView('technical')}
       />

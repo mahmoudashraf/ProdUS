@@ -8,7 +8,6 @@ import {
   FavoriteBorderOutlined,
   Inventory2Outlined,
   LocalShippingOutlined,
-  PlaylistAddCheckOutlined,
   WarningAmberOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
@@ -26,7 +25,6 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import { productReadinessTone, productScore } from './productProfilesModel';
-import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 import type { PackageInstance, ProductProfile } from './types';
 
 export function ProductPortfolioHeaderActions() {
@@ -37,9 +35,6 @@ export function ProductPortfolioHeaderActions() {
       </Button>
       <Button component={NextLink} href="/services" variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 42, minWidth: 164 }}>
         Start from service
-      </Button>
-      <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 42, minWidth: 164 }}>
-        Project Start Plan
       </Button>
     </Stack>
   );
@@ -168,9 +163,6 @@ export function ProductPortfolioNextActionPanel() {
         </Button>
         <Button component={NextLink} href="/services" variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 42 }}>
           Start from service
-        </Button>
-        <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 42 }}>
-          Open Project Start Plan
         </Button>
       </Stack>
     </Surface>
