@@ -606,6 +606,41 @@ Status:
   - `tmp/live-verification/2026-06-08/148-owner-overview-card-split-local-overview-split.png`
   - `tmp/live-verification/2026-06-08/149-mobile-owner-overview-card-split-local-overview-split.png`
 
+### Current Pass: Finding Review Drawer Split
+
+Problem:
+
+- `OwnerFindingReviewDrawer.tsx` still mixed the scanner finding summary, proof facts, recommended service, owner decision controls, AI review helper, and linked evidence in one drawer component.
+- The drawer is a high-trust moment for startup owners because it explains one blocker, its proof, and the decision path. Keeping the internals dense made it harder to refine without reintroducing scanner-dashboard behavior.
+- Long raw scanner context strings could appear as chip-like content and risk clipping on phone screenshots.
+
+Solution:
+
+- Keep the drawer as the route-level shell and split the actual decision content into:
+  - `OwnerFindingReviewSummaryPanels.tsx`
+  - `OwnerFindingReviewDecisionPanels.tsx`
+- Preserve the owner sequence inside the drawer:
+  - Plain-language finding summary.
+  - Affected area, source rule, linked proof, proof needed, and mapping reason.
+  - Recommended service tied to the blocker.
+  - Owner decision controls.
+  - Optional AI review.
+  - Linked evidence.
+- Render only compact values as chips and move long scanner context into wrapped proof text.
+- Tighten the local verifier so it opens the exact row-level `Review` action and waits for the drawer transition to settle before screenshots.
+
+Status:
+
+- Implemented locally and verified against staging API data. Deployment is deferred so it can be batched with the owner overview split.
+- `OwnerFindingReviewDrawer.tsx` is now 141 lines, with summary and decision/evidence sections split into focused files.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+- Focused local verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/150-finding-review-drawer-local.png`
+  - `tmp/live-verification/2026-06-08/151-mobile-finding-review-drawer-local.png`
+
 ### Current Pass: Public Profile Detail Completion
 
 Problem:
