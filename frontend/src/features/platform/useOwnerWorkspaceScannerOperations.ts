@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getJson, patchJson, postJson } from './api';
 import {
@@ -13,18 +12,10 @@ import {
   ScanSourcePayload,
   ScannerSchedulePayload,
   ScannerUploadPayload,
-  defaultToolsForDepth,
-  fullHostedScanBlockReason,
-  hostedScanBlockReason,
 } from './ownerProductizationWorkspaceConfig';
-import type {
-  ExternalImportForm,
-  HostedScanForm,
-  ProviderSourceForm,
-  ScannerScheduleForm,
-  ScannerUploadForm,
-  ScanSourceForm,
-} from './scannerProofOperationsTypes';
+import { buildOwnerWorkspaceScannerDerivedState } from './ownerWorkspaceScannerDerivedState';
+import { useOwnerWorkspaceScannerForms } from './useOwnerWorkspaceScannerForms';
+import type { ScannerEvidenceFilter } from './scannerProofOperationsTypes';
 import type {
   CiTemplateResponse,
   ConnectorInstallUrlResponse,
@@ -41,8 +32,6 @@ import type {
   ScanSource,
   SignedArtifactResponse,
 } from './types';
-
-export type ScannerEvidenceFilter = 'ALL' | 'FINDINGS' | 'MILESTONES' | 'REDACTED';
 
 interface OwnerWorkspaceScannerOperationsInput {
   connectorPermissions: ConnectorPermission[];
@@ -64,85 +53,45 @@ export function useOwnerWorkspaceScannerOperations({
   setCartNotice,
 }: OwnerWorkspaceScannerOperationsInput) {
   const queryClient = useQueryClient();
-  const [scanSourceForm, setScanSourceForm] = useState<ScanSourceForm>({
-    providerType: 'GITHUB',
-    displayName: 'GitHub Security Pipeline',
-    externalReference: '',
-    authorizationConfirmed: false,
-    scopeNote: 'CI and security evidence imported for production readiness review.',
+  const {
+    ciTemplate,
+    ciTemplateType,
+    deleteArtifactsOnDisconnect,
+    externalImportForm,
+    hostedScanForm,
+    providerSourceForm,
+    scheduleForm,
+    scannerUploadForm,
+    scanSourceForm,
+    setCiTemplate,
+    setCiTemplateType,
+    setDeleteArtifactsOnDisconnect,
+    setExternalImportForm,
+    setHostedScanForm,
+    setProviderSourceForm,
+    setScheduleForm,
+    setScannerUploadForm,
+    setScanSourceForm,
+  } = useOwnerWorkspaceScannerForms(scannerSummary);
+  const {
+    activeProviderInstallations,
+    activeScanRun,
+    filteredScannerEvidence,
+    fullHostedScanBlockedReason,
+    hostedScanBlockedReason,
+    scheduleBlockedReason,
+    selectedConnectorPermission,
+    selectedScanSource,
+  } = buildOwnerWorkspaceScannerDerivedState({
+    connectorPermissions,
+    evidenceFilter,
+    hostedScanForm,
+    scanSourceForm,
+    scannerConnectors,
+    scannerSummary,
+    scheduleForm,
+    selectedProduct,
   });
-  const [providerSourceForm, setProviderSourceForm] = useState<ProviderSourceForm>({
-    installationId: '',
-    repositoryFullName: '',
-    cloneUrl: '',
-    defaultBranch: 'main',
-  });
-  const [hostedScanForm, setHostedScanForm] = useState<HostedScanForm>({
-    sourceId: '',
-    depth: 'SAFE_STATIC',
-    toolKeys: defaultToolsForDepth('SAFE_STATIC'),
-    branchRef: 'main',
-    runtimeTargetUrl: '',
-    containerImageRef: '',
-    authorizationConfirmed: false,
-    runtimeAuthorizationConfirmed: false,
-    reason: 'Owner authorized scanner execution for productization readiness.',
-  });
-  const [scannerUploadForm, setScannerUploadForm] = useState<ScannerUploadForm>({
-    sourceId: '',
-    toolName: 'CodeQL',
-    toolVersion: '',
-    format: 'SARIF' as ScannerUploadPayload['format'],
-    artifactFileName: 'scanner-results.sarif',
-    artifactPayload: '',
-    milestoneId: '',
-  });
-  const [externalImportForm, setExternalImportForm] = useState<ExternalImportForm>({
-    sourceId: '',
-    provider: 'GITHUB_CODE_SCANNING',
-    importMethod: 'MANUAL_API_IMPORT',
-    toolName: 'GitHub Code Scanning',
-    toolVersion: '',
-    format: 'JSON',
-    artifactFileName: 'github-code-scanning-alerts.json',
-    artifactPayload: '',
-    externalReference: '',
-    milestoneId: '',
-    scopeNote: 'Customer-owned scanner evidence imported without source code upload.',
-  });
-  const [ciTemplateType, setCiTemplateType] = useState<CiTemplateResponse['type']>('GITHUB_ACTIONS');
-  const [ciTemplate, setCiTemplate] = useState<CiTemplateResponse | null>(null);
-  const [deleteArtifactsOnDisconnect, setDeleteArtifactsOnDisconnect] = useState(false);
-  const [scheduleForm, setScheduleForm] = useState<ScannerScheduleForm>({
-    intervalDays: '7',
-    nextRunAt: '',
-    reason: 'Scheduled evidence refresh for productization readiness.',
-  });
-
-  const filteredScannerEvidence = (scannerSummary?.evidence || []).filter((item) => {
-    if (evidenceFilter === 'FINDINGS') return !!item.findingId;
-    if (evidenceFilter === 'MILESTONES') return !!item.milestoneId;
-    if (evidenceFilter === 'REDACTED') return item.redactionStatus !== 'NONE';
-    return true;
-  });
-  const activeScanRun = scannerSummary?.recentRuns.find((run) => run.status === 'QUEUED' || run.status === 'RUNNING');
-  const selectedScanSource = (scannerSummary?.sources || []).find((source) => source.id === hostedScanForm.sourceId);
-  const hostedScanBlockedReason = hostedScanBlockReason(selectedProduct, selectedScanSource, hostedScanForm);
-  const fullHostedScanBlockedReason = fullHostedScanBlockReason(selectedProduct, selectedScanSource, hostedScanForm);
-  const selectedConnectorPermission = connectorPermissions.find((permission) => permission.providerType === scanSourceForm.providerType);
-  const activeProviderInstallations = scannerConnectors.filter(
-    (connector) => connector.providerType === scanSourceForm.providerType && connector.status === 'ACTIVE'
-  );
-  const scheduleInterval = Number.parseInt(scheduleForm.intervalDays, 10);
-  const scheduleBlockedReason = !selectedProduct
-    ? 'Select a product first.'
-    : !hostedScanForm.sourceId || !selectedScanSource
-      ? 'Choose an authorized evidence source before scheduling scans.'
-      : selectedScanSource.authorizationStatus !== 'AUTHORIZED'
-        ? 'Only authorized evidence sources can be scheduled.'
-        : !Number.isFinite(scheduleInterval) || scheduleInterval < 1 || scheduleInterval > 90
-          ? 'Use a schedule interval between 1 and 90 days.'
-          : '';
 
   const createScanSource = useMutation({
     mutationFn: () => {
@@ -378,18 +327,6 @@ export function useOwnerWorkspaceScannerOperations({
       await queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProduct?.id] });
     },
   });
-
-  useEffect(() => {
-    if (!scannerUploadForm.sourceId && scannerSummary?.sources[0]?.id) {
-      setScannerUploadForm((current) => ({ ...current, sourceId: scannerSummary?.sources[0]?.id || '' }));
-    }
-    if (!hostedScanForm.sourceId && scannerSummary?.sources[0]?.id) {
-      setHostedScanForm((current) => ({ ...current, sourceId: scannerSummary?.sources[0]?.id || '' }));
-    }
-    if (!externalImportForm.sourceId && scannerSummary?.sources[0]?.id) {
-      setExternalImportForm((current) => ({ ...current, sourceId: scannerSummary?.sources[0]?.id || '' }));
-    }
-  }, [scannerSummary?.sources, scannerUploadForm.sourceId, hostedScanForm.sourceId, externalImportForm.sourceId]);
 
   const openEvidenceArtifact = (evidence: ScannerEvidenceItem) => {
     if (evidence.storageKey) {

@@ -53,9 +53,10 @@ import {
 } from './types';
 import { useOwnerWorkspaceNavigationState } from './useOwnerWorkspaceNavigationState';
 import { useOwnerProductizationWorkspaceData } from './useOwnerProductizationWorkspaceData';
-import { useOwnerWorkspaceScannerOperations, type ScannerEvidenceFilter } from './useOwnerWorkspaceScannerOperations';
+import { useOwnerWorkspaceScannerOperations } from './useOwnerWorkspaceScannerOperations';
 import { useOwnerWorkspaceProductActions } from './useOwnerWorkspaceProductActions';
 import { buildOwnerWorkspaceViewModel } from './ownerWorkspaceViewModel';
+import type { ScannerEvidenceFilter } from './scannerProofOperationsTypes';
 
 export default function OwnerProductizationWorkspace({
   productId,

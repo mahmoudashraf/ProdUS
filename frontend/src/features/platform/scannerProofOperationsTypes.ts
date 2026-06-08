@@ -12,6 +12,7 @@ import {
 } from './types';
 
 export type ScannerArtifactFormat = 'SARIF' | 'JSON' | 'JUNIT' | 'LOG';
+export type ScannerEvidenceFilter = 'ALL' | 'FINDINGS' | 'MILESTONES' | 'REDACTED';
 export type ExternalImportMethod = 'MANUAL_API_IMPORT' | 'CI_TEMPLATE' | 'WEBHOOK' | 'CONNECTOR_SYNC';
 
 export interface ScanToolOption {
