@@ -1,0 +1,55 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2800
+      author: produs
+      changes:
+        - createTable:
+            tableName: product_share_links
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP }
+              - column: { name: product_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: owner_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: share_token, type: VARCHAR(96), constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: audience, type: VARCHAR(40), defaultValue: PUBLIC_SUMMARY, constraints: { nullable: false } }
+              - column: { name: visible_sections_json, type: TEXT, constraints: { nullable: false } }
+              - column: { name: owner_note, type: TEXT }
+              - column: { name: expires_at, type: TIMESTAMP }
+              - column: { name: revoked_at, type: TIMESTAMP }
+              - column: { name: last_accessed_at, type: TIMESTAMP }
+              - column: { name: access_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            baseTableName: product_share_links
+            baseColumnNames: product_profile_id
+            constraintName: fk_product_share_links_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: product_share_links
+            baseColumnNames: owner_id
+            constraintName: fk_product_share_links_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: product_share_links
+            indexName: idx_product_share_links_product
+            columns:
+              - column: { name: product_profile_id }
+        - createIndex:
+            tableName: product_share_links
+            indexName: idx_product_share_links_owner
+            columns:
+              - column: { name: owner_id }
+        - createIndex:
+            tableName: product_share_links
+            indexName: idx_product_share_links_token
+            unique: true
+            columns:
+              - column: { name: share_token }

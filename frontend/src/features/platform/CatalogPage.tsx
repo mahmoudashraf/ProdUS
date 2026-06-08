@@ -6,18 +6,25 @@ import { Alert, Button, Stack } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
-import { getJson, postJson } from './api';
+import { getJson, postJson, putJson } from './api';
 import { PageHeader, QueryState } from './PlatformComponents';
 import {
   AiCatalogContractsPanel,
-  ServiceCatalogFocusPanel,
+  ServiceCatalogInternalHeader,
+  ServiceCatalogLandingPanel,
+  ServiceCatalogProductContextPanel,
   type ServiceCatalogView,
   isServiceCatalogView,
 } from './ServiceCatalogPanels';
 import PackageTemplatesPanel from './ServiceCatalogTemplatePanel';
 import ServiceWorkstreamsPanel from './ServiceCatalogWorkstreamsPanel';
 import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
-import type { AICapabilityConfig, PackageTemplate, ProductizationCart, ServiceCategory, ServiceModule } from './types';
+import type { AICapabilityConfig, PackageTemplate, ProductProfile, ProductizationCart, ServiceCategory, ServiceModule } from './types';
+
+type CatalogSelectionResult = {
+  cart: ProductizationCart;
+  nextHref: string;
+};
 
 export default function CatalogPage() {
   const router = useRouter();
@@ -25,7 +32,9 @@ export default function CatalogPage() {
   const searchParams = useSearchParams();
   const searchParamString = searchParams?.toString() || '';
   const viewParam = searchParams?.get('view') || null;
-  const catalogView: ServiceCatalogView = isServiceCatalogView(viewParam) ? viewParam : 'templates';
+  const hasCatalogView = isServiceCatalogView(viewParam);
+  const catalogView: ServiceCatalogView = hasCatalogView ? viewParam : 'templates';
+  const selectedProductId = searchParams?.get('productId') || '';
   const queryClient = useQueryClient();
   const { isLoggedIn, user } = useAuth();
   const canUseStartPlan = user?.role === UserRole.PRODUCT_OWNER;
@@ -48,21 +57,73 @@ export default function CatalogPage() {
     queryKey: ['catalog-ai-capabilities'],
     queryFn: () => getJson<AICapabilityConfig[]>('/catalog/ai-capabilities'),
   });
+  const selectedProduct = useQuery({
+    queryKey: ['products', selectedProductId],
+    enabled: canUseStartPlan && !!selectedProductId,
+    queryFn: () => getJson<ProductProfile>(`/products/${selectedProductId}`),
+  });
   const startPlan = useQuery({
     queryKey: ['productization-cart'],
     enabled: canUseStartPlan,
     queryFn: () => getJson<ProductizationCart>('/productization-cart/current'),
   });
   const chooseService = useMutation({
-    mutationFn: (payload: { serviceModuleId: string; notes: string }) => postJson<ProductizationCart, { serviceModuleId: string; notes: string }>('/productization-cart/services', payload),
-    onSuccess: async () => {
+    mutationFn: async (payload: { serviceModuleId: string; notes: string; moduleName: string }) => {
+      const cart = await postJson<ProductizationCart, { serviceModuleId: string; notes: string }>('/productization-cart/services', {
+        serviceModuleId: payload.serviceModuleId,
+        notes: payload.notes,
+      });
+      if (selectedProductId) {
+        const productName = selectedProduct.data?.name || cart.productProfile?.name || 'Product';
+        const updatedCart = await putJson<ProductizationCart, { productProfileId: string; title: string; businessGoal: string }>(
+          '/productization-cart/current',
+          {
+            productProfileId: selectedProductId,
+            title: `${productName} productization start plan`,
+            businessGoal: selectedProduct.data?.summary || `Plan ${payload.moduleName} for ${productName}.`,
+          }
+        );
+        return {
+          cart: updatedCart,
+          nextHref: `/products/${selectedProductId}?tab=services&view=plan`,
+        };
+      }
+      return {
+        cart,
+        nextHref: `/products/new?step=setup&from=service-catalog&serviceId=${payload.serviceModuleId}`,
+      };
+    },
+    onSuccess: async ({ nextHref }: CatalogSelectionResult) => {
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+      router.push(nextHref);
     },
   });
   const useTemplate = useMutation({
-    mutationFn: (templateId: string) => postJson<ProductizationCart, Record<string, never>>(`/productization-cart/templates/${templateId}/apply`, {}),
-    onSuccess: async () => {
+    mutationFn: async (payload: { templateId: string; templateName: string }) => {
+      const cart = await postJson<ProductizationCart, Record<string, never>>(`/productization-cart/templates/${payload.templateId}/apply`, {});
+      if (selectedProductId) {
+        const productName = selectedProduct.data?.name || cart.productProfile?.name || 'Product';
+        const updatedCart = await putJson<ProductizationCart, { productProfileId: string; title: string; businessGoal: string }>(
+          '/productization-cart/current',
+          {
+            productProfileId: selectedProductId,
+            title: `${productName} ${payload.templateName} plan`,
+            businessGoal: selectedProduct.data?.summary || `Use ${payload.templateName} to move ${productName} toward launch readiness.`,
+          }
+        );
+        return {
+          cart: updatedCart,
+          nextHref: `/products/${selectedProductId}?tab=services&view=plan`,
+        };
+      }
+      return {
+        cart,
+        nextHref: `/products/new?step=setup&from=service-catalog&templateId=${payload.templateId}`,
+      };
+    },
+    onSuccess: async ({ nextHref }: CatalogSelectionResult) => {
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+      router.push(nextHref);
     },
   });
 
@@ -75,18 +136,25 @@ export default function CatalogPage() {
     (category) => category.slug.trim().length > 2 && category.name.trim().length > 2
   );
   const cartServiceIds = new Set((startPlan.data?.serviceItems || []).map((item) => item.serviceModule.id));
+  const productWorkspaceHref = selectedProductId ? `/products/${selectedProductId}?tab=services` : undefined;
 
   const openCatalogView = (view: ServiceCatalogView) => {
     const next = new URLSearchParams(searchParamString);
     next.set('view', view);
     router.push(`${pathname || '/services'}?${next.toString()}`, { scroll: false });
   };
+  const openCatalogLanding = () => {
+    const next = new URLSearchParams(searchParamString);
+    next.delete('view');
+    const query = next.toString();
+    router.push(query ? `${pathname || '/services'}?${query}` : (pathname || '/services'), { scroll: false });
+  };
 
   return (
     <Stack spacing={2.5}>
       <PageHeader
         title="Service Catalog"
-        description="Choose the productization work that belongs in the Start Plan: a launch template, an individual workstream, or the AI contract behind a recommendation."
+        description="Choose a productization path first, then go deeper into the focused catalog view that belongs to that decision."
         action={
           <Button
             component={NextLink}
@@ -99,29 +167,44 @@ export default function CatalogPage() {
         }
       />
       <QueryState
-        isLoading={categories.isLoading || modules.isLoading || packageTemplates.isLoading}
-        error={categories.error || modules.error || packageTemplates.error || aiCapabilities.error || chooseService.error || useTemplate.error}
+        isLoading={categories.isLoading || modules.isLoading || packageTemplates.isLoading || selectedProduct.isLoading}
+        error={categories.error || modules.error || packageTemplates.error || aiCapabilities.error || selectedProduct.error || chooseService.error || useTemplate.error}
       />
       {chooseService.isSuccess && (
         <Alert severity="success" sx={{ borderRadius: 1 }}>
-          Service chosen for the start plan. Open the plan when you are ready to select a product, compare teams, or start a workspace.
+          Service chosen. Opening the next internal view for product setup or the active product plan.
         </Alert>
       )}
       {useTemplate.isSuccess && (
         <Alert severity="success" sx={{ borderRadius: 1 }}>
-          Template added to the start plan. Open the plan to resolve dependencies, select product context, and start a workspace.
+          Template chosen. Opening the next internal view for product setup or the active product plan.
         </Alert>
       )}
 
-      <ServiceCatalogFocusPanel
-        value={catalogView}
-        templateCount={packageTemplates.data?.length || 0}
-        categoryCount={catalogCategories.length}
-        aiCapabilityCount={aiCapabilities.data?.length || 0}
-        onChange={openCatalogView}
+      <ServiceCatalogProductContextPanel
+        productName={selectedProduct.data?.name}
+        productHref={productWorkspaceHref}
       />
 
-      {catalogView === 'templates' && (
+      {!hasCatalogView && (
+        <ServiceCatalogLandingPanel
+          templateCount={packageTemplates.data?.length || 0}
+          categoryCount={catalogCategories.length}
+          aiCapabilityCount={aiCapabilities.data?.length || 0}
+          productName={selectedProduct.data?.name}
+          onOpenView={openCatalogView}
+        />
+      )}
+
+      {hasCatalogView && (
+        <ServiceCatalogInternalHeader
+          view={catalogView}
+          productName={selectedProduct.data?.name}
+          onBack={openCatalogLanding}
+        />
+      )}
+
+      {hasCatalogView && catalogView === 'templates' && (
         <PackageTemplatesPanel
           packageTemplates={packageTemplates.data || []}
           cartServiceIds={cartServiceIds}
@@ -129,11 +212,13 @@ export default function CatalogPage() {
           isLoggedIn={isLoggedIn}
           cartHref={startPlanHref}
           isApplyingTemplate={useTemplate.isPending}
-          onApplyTemplate={(templateId) => useTemplate.mutate(templateId)}
+          selectionMode={selectedProductId ? 'product' : 'discovery'}
+          productName={selectedProduct.data?.name}
+          onApplyTemplate={(templateId, templateName) => useTemplate.mutate({ templateId, templateName })}
         />
       )}
 
-      {catalogView === 'services' && (
+      {hasCatalogView && catalogView === 'services' && (
         <ServiceWorkstreamsPanel
           catalogCategories={catalogCategories}
           modulesByCategory={modulesByCategory}
@@ -141,11 +226,13 @@ export default function CatalogPage() {
           canUseProjectCart={canUseStartPlan}
           isLoggedIn={isLoggedIn}
           isChoosingService={chooseService.isPending}
-          onChooseService={(serviceModuleId, notes) => chooseService.mutate({ serviceModuleId, notes })}
+          selectionMode={selectedProductId ? 'product' : 'discovery'}
+          productName={selectedProduct.data?.name}
+          onChooseService={(serviceModuleId, moduleName, notes) => chooseService.mutate({ serviceModuleId, moduleName, notes })}
         />
       )}
 
-      {catalogView === 'ai' && (
+      {hasCatalogView && catalogView === 'ai' && (
         <AiCatalogContractsPanel aiCapabilities={aiCapabilities.data || []} />
       )}
     </Stack>

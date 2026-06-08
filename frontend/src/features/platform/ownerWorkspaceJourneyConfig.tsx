@@ -8,12 +8,14 @@ export type OverviewJourneyView = 'decision' | 'progress';
 export type ActionJourneyView = 'plan' | 'diagnosis';
 export type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
 export type ServicesJourneyView = 'recommend' | 'plan' | 'team';
+export type ShareJourneyView = 'links' | 'preview';
 
 export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
   overview: ['decision', 'progress'],
   actions: ['plan', 'diagnosis'],
   findings: ['risks', 'evidence', 'technical'],
   services: ['recommend', 'plan', 'team'],
+  share: ['links', 'preview'],
 };
 
 interface OwnerWorkspaceJourneyConfigInput {
@@ -31,6 +33,7 @@ interface OwnerWorkspaceJourneyConfigInput {
   serviceFamilyCount: number;
   hasSelectedPackage: boolean;
   teamMatchCount: number;
+  shareLinkCount?: number | undefined;
 }
 
 export interface OwnerWorkspaceJourneyGroups {
@@ -38,6 +41,7 @@ export interface OwnerWorkspaceJourneyGroups {
   actionJourneyItems: JourneyStepItem<ActionJourneyView>[];
   findingsJourneyItems: JourneyStepItem<FindingsJourneyView>[];
   servicesJourneyItems: JourneyStepItem<ServicesJourneyView>[];
+  shareJourneyItems: JourneyStepItem<ShareJourneyView>[];
 }
 
 export const buildOwnerWorkspaceJourneyItems = ({
@@ -51,6 +55,7 @@ export const buildOwnerWorkspaceJourneyItems = ({
   serviceFamilyCount,
   hasSelectedPackage,
   teamMatchCount,
+  shareLinkCount = 0,
 }: OwnerWorkspaceJourneyConfigInput): OwnerWorkspaceJourneyGroups => ({
   overviewJourneyItems: [
     {
@@ -128,6 +133,22 @@ export const buildOwnerWorkspaceJourneyItems = ({
       detail: 'Compare teams, experts, workspace handoff, and risk.',
       accent: appleColors.cyan,
       meta: <PastelChip label={`${teamMatchCount} matches`} accent={appleColors.cyan} bg="#e4f9fd" />,
+    },
+  ],
+  shareJourneyItems: [
+    {
+      value: 'links',
+      label: 'Share links',
+      detail: 'Create, review, and revoke controlled product share links.',
+      accent: appleColors.purple,
+      meta: <PastelChip label={`${shareLinkCount} links`} accent={shareLinkCount ? appleColors.green : appleColors.purple} bg={shareLinkCount ? '#e7f8ee' : '#f1efff'} />,
+    },
+    {
+      value: 'preview',
+      label: 'Public preview',
+      detail: 'See what anonymous viewers can understand before private proof stays locked.',
+      accent: appleColors.cyan,
+      meta: <PastelChip label="Safe defaults" accent={appleColors.cyan} bg="#e4f9fd" />,
     },
   ],
 });

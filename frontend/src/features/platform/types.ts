@@ -355,6 +355,64 @@ export interface ProductCreationActionResponse {
   createdScanSourceId?: string;
 }
 
+export type ProductShareAudience = 'PUBLIC_SUMMARY' | 'REGISTERED_VIEWERS' | 'INVITED_VIEWERS' | 'INTERNAL_ONLY';
+
+export type ProductShareSection =
+  | 'PRODUCT_SUMMARY'
+  | 'LAUNCH_STATUS'
+  | 'SELECTED_SERVICES'
+  | 'TEAM_STATUS'
+  | 'FINDINGS_SUMMARY'
+  | 'EVIDENCE_SUMMARY';
+
+export interface ProductShareLink extends BaseRecord {
+  productId: string;
+  token: string;
+  title: string;
+  audience: ProductShareAudience;
+  visibleSections: ProductShareSection[];
+  ownerNote?: string;
+  expiresAt?: string;
+  revokedAt?: string;
+  lastAccessedAt?: string;
+  accessCount: number;
+  active: boolean;
+}
+
+export interface ProductShareLinkRequest {
+  title?: string;
+  audience?: ProductShareAudience;
+  visibleSections?: ProductShareSection[];
+  ownerNote?: string;
+  expiresAt?: string;
+}
+
+export interface PublicProductShare {
+  productId: string;
+  productName: string;
+  summary?: string;
+  businessStage: string;
+  ownerNote?: string;
+  audience: ProductShareAudience;
+  visibleSections: ProductShareSection[];
+  launchStatus?: {
+    statusLabel: string;
+    score?: number | null;
+    summary: string;
+    reportAvailable: boolean;
+  };
+  selectedServices: Array<{
+    name: string;
+    outcome?: string;
+    category?: string;
+  }>;
+  lockedSections: Array<{
+    section: string;
+    reason: string;
+  }>;
+  expiresAt?: string;
+}
+
 export interface ScanSource extends BaseRecord {
   productProfileId: string;
   workspaceId?: string;

@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface PackageInstanceRepository extends JpaRepository<PackageInstance, UUID> {
     List<PackageInstance> findByOwnerIdOrderByCreatedAtDesc(UUID ownerId);
+    List<PackageInstance> findByProductProfileIdOrderByCreatedAtDesc(UUID productProfileId);
 }

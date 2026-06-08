@@ -53,3 +53,5 @@ databaseChangeLog:
       file: db/changelog/V026__repo_signals.yaml
   - include:
       file: db/changelog/V027__launch_readiness_reports.yaml
+  - include:
+      file: db/changelog/V028__product_share_links.yaml

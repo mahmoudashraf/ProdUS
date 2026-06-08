@@ -19,6 +19,8 @@ export default function PackageTemplatesPanel({
   isLoggedIn,
   cartHref,
   isApplyingTemplate,
+  selectionMode,
+  productName,
   onApplyTemplate,
 }: {
   packageTemplates: PackageTemplate[];
@@ -27,11 +29,29 @@ export default function PackageTemplatesPanel({
   isLoggedIn: boolean;
   cartHref: string;
   isApplyingTemplate: boolean;
-  onApplyTemplate: (templateId: string) => void;
+  selectionMode: 'discovery' | 'product';
+  productName?: string | undefined;
+  onApplyTemplate: (templateId: string, templateName: string) => void;
 }) {
+  const actionLabel = (templateApplied: boolean) => {
+    if (!isLoggedIn) return 'Sign in to use template';
+    if (!canUseProjectCart) return 'Open dashboard';
+    if (templateApplied) return 'Template in plan';
+    if (selectionMode === 'product') return productName ? `Choose for ${productName}` : 'Choose for product';
+    return 'Start product setup';
+  };
+
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8f7ff 100%)' }}>
-      <SectionTitle title="Launch Templates" action={<FactCheckOutlined sx={{ color: appleColors.purple }} />} />
+      <SectionTitle
+        title="Launch Templates"
+        action={<FactCheckOutlined sx={{ color: appleColors.purple }} />}
+      />
+      <Typography color="text.secondary" sx={{ lineHeight: 1.65, mb: 2 }}>
+        {selectionMode === 'product'
+          ? 'Choose a bundled plan for the active product. ProdUS will take you back to the product plan after selection.'
+          : 'Choose a bundled plan first. ProdUS will carry it into product setup so the owner can add context before creating the product.'}
+      </Typography>
       {packageTemplates.length ? (
         <Box
           sx={{
@@ -71,17 +91,11 @@ export default function PackageTemplatesPanel({
                     onClick={(event) => {
                       if (!canUseProjectCart) return;
                       event.preventDefault();
-                      onApplyTemplate(template.id);
+                      onApplyTemplate(template.id, template.name);
                     }}
                     sx={{ minHeight: 40, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
                   >
-                    {!isLoggedIn
-                      ? 'Sign in to use template'
-                      : canUseProjectCart
-                        ? templateApplied
-                          ? 'Template in plan'
-                          : 'Use template'
-                        : 'Open dashboard'}
+                    {actionLabel(templateApplied)}
                   </Button>
                 </Stack>
               </Surface>

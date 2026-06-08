@@ -7,6 +7,7 @@ import OwnerWorkspaceActionsArea from './OwnerWorkspaceActionsArea';
 import OwnerWorkspaceFindingsArea from './OwnerWorkspaceFindingsArea';
 import OwnerWorkspaceOverviewArea from './OwnerWorkspaceOverviewArea';
 import OwnerWorkspaceServicesArea from './OwnerWorkspaceServicesArea';
+import OwnerWorkspaceShareArea from './OwnerWorkspaceShareArea';
 import OwnerWorkspaceSideRailHost from './OwnerWorkspaceSideRailHost';
 import {
   OwnerProductizationWorkspaceHeader,
@@ -65,6 +66,7 @@ export default function OwnerProductizationWorkspace({
     actionView,
     findingsView,
     servicesView,
+    shareView,
     workspaceDetailOpen,
     openWorkspaceArea,
     openWorkspaceDetail,
@@ -329,6 +331,7 @@ export default function OwnerProductizationWorkspace({
     actionJourneyItems,
     findingsJourneyItems,
     servicesJourneyItems,
+    shareJourneyItems,
   } = buildOwnerWorkspaceJourneyItems({
     launchStatus,
     hasLaunchReadinessReport: !!launchReadinessReport.data,
@@ -355,6 +358,8 @@ export default function OwnerProductizationWorkspace({
     overviewView,
     servicesJourneyItems,
     servicesView,
+    shareJourneyItems,
+    shareView,
     workspaceTab,
   });
 
@@ -543,6 +548,13 @@ export default function OwnerProductizationWorkspace({
             suggestedExperts={suggestedExperts}
             suggestedTeams={suggestedTeams}
             view={servicesView}
+            workspaceTab={workspaceTab}
+          />
+
+          <OwnerWorkspaceShareArea
+            detailOpen={workspaceDetailOpen}
+            selectedProduct={selectedProduct}
+            view={shareView}
             workspaceTab={workspaceTab}
           />
         </Stack>

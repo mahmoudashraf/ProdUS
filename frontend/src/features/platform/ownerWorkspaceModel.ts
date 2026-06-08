@@ -1,12 +1,13 @@
 import { appleColors } from './PlatformComponents';
 
-export type WorkspaceTab = 'overview' | 'actions' | 'findings' | 'services';
+export type WorkspaceTab = 'overview' | 'actions' | 'findings' | 'services' | 'share';
 
 export const workspaceTabs: { value: WorkspaceTab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
   { value: 'actions', label: 'Action Plan' },
   { value: 'findings', label: 'Findings' },
   { value: 'services', label: 'Services' },
+  { value: 'share', label: 'Share' },
 ];
 
 export const scannerEvidenceCategories = [

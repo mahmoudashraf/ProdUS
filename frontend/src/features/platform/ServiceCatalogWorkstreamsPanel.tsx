@@ -18,6 +18,7 @@ import {
   DotLabel,
   EmptyState,
   PastelChip,
+  SectionTitle,
   Surface,
   appleColors,
   categoryPalette,
@@ -63,6 +64,8 @@ export default function ServiceWorkstreamsPanel({
   canUseProjectCart,
   isLoggedIn,
   isChoosingService,
+  selectionMode,
+  productName,
   onChooseService,
 }: {
   catalogCategories: ServiceCategory[];
@@ -71,20 +74,40 @@ export default function ServiceWorkstreamsPanel({
   canUseProjectCart: boolean;
   isLoggedIn: boolean;
   isChoosingService: boolean;
-  onChooseService: (serviceModuleId: string, notes: string) => void;
+  selectionMode: 'discovery' | 'product';
+  productName?: string | undefined;
+  onChooseService: (serviceModuleId: string, moduleName: string, notes: string) => void;
 }) {
+  const moduleActionLabel = (moduleName: string, inPlan: boolean) => {
+    const shortName = shortModuleName(moduleName);
+    if (!isLoggedIn) return `Sign in to choose ${shortName}`;
+    if (!canUseProjectCart) return `Open dashboard for ${shortName}`;
+    if (inPlan) return `${shortName} in plan`;
+    if (selectionMode === 'product') return productName ? `Choose for ${productName}` : `Choose for product`;
+    return `Start with ${shortName}`;
+  };
+
   return catalogCategories.length ? (
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: {
-          xs: '1fr',
-          sm: 'repeat(2, minmax(0, 1fr))',
-          xl: 'repeat(4, minmax(0, 1fr))',
-        },
-        gap: 2.5,
-      }}
-    >
+    <Stack spacing={2}>
+      <Surface sx={{ boxShadow: 'none', background: '#fff' }}>
+        <SectionTitle title="Workstream Choices" />
+        <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
+          {selectionMode === 'product'
+            ? 'Choose the workstream that belongs in this product plan. ProdUS will open the focused product services view after the choice is saved.'
+            : 'Choose one workstream to start product setup with service context already selected. The owner can edit the scope before creating the product.'}
+        </Typography>
+      </Surface>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, minmax(0, 1fr))',
+            xl: 'repeat(4, minmax(0, 1fr))',
+          },
+          gap: 2.5,
+        }}
+      >
       {catalogCategories.map((category, index) => {
         const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
         const Icon = iconBySlug[category.slug as keyof typeof iconBySlug] || TaskAltOutlined;
@@ -137,7 +160,7 @@ export default function ServiceWorkstreamsPanel({
                       onClick={(event) => {
                         if (!canUseProjectCart) return;
                         event.preventDefault();
-                        onChooseService(module.id, `Saved from ${category.name} service catalog.`);
+                        onChooseService(module.id, module.name, `Selected from ${category.name} service catalog as the owner starting path.`);
                       }}
                       sx={{
                         justifyContent: 'flex-start',
@@ -152,13 +175,7 @@ export default function ServiceWorkstreamsPanel({
                         },
                       }}
                     >
-                      {!isLoggedIn
-                        ? `Sign in to choose ${shortModuleName(module.name)}`
-                        : canUseProjectCart
-                          ? inPlan
-                            ? `${shortModuleName(module.name)} in plan`
-                            : `Choose ${shortModuleName(module.name)}`
-                          : `Open dashboard for ${shortModuleName(module.name)}`}
+                      {moduleActionLabel(module.name, inPlan)}
                     </Button>
                   );
                 })}
@@ -183,7 +200,8 @@ export default function ServiceWorkstreamsPanel({
           </Surface>
         );
       })}
-    </Box>
+      </Box>
+    </Stack>
   ) : (
     <EmptyState label="No service categories are available. In local dev, call /api/mock/feed/platform-demo or restart the dev backend to seed the catalog." />
   );

@@ -6,6 +6,7 @@ import type {
   ActionJourneyView,
   FindingsJourneyView,
   OverviewJourneyView,
+  ShareJourneyView,
   ServicesJourneyView,
 } from './ownerWorkspaceJourneyConfig';
 import { workspaceViewValues } from './ownerWorkspaceJourneyConfig';
@@ -27,6 +28,7 @@ export function useOwnerWorkspaceNavigationState() {
   const [actionView, setActionView] = useState<ActionJourneyView>('plan');
   const [findingsView, setFindingsView] = useState<FindingsJourneyView>('risks');
   const [servicesView, setServicesView] = useState<ServicesJourneyView>('recommend');
+  const [shareView, setShareView] = useState<ShareJourneyView>('links');
   const [workspaceDetailOpen, setWorkspaceDetailOpen] = useState(false);
   const searchParamString = searchParams?.toString() || '';
 
@@ -43,6 +45,7 @@ export function useOwnerWorkspaceNavigationState() {
       if (nextTab === 'actions') setActionView(viewParam as ActionJourneyView);
       if (nextTab === 'findings') setFindingsView(viewParam as FindingsJourneyView);
       if (nextTab === 'services') setServicesView(viewParam as ServicesJourneyView);
+      if (nextTab === 'share') setShareView(viewParam as ShareJourneyView);
     } else {
       setWorkspaceDetailOpen(false);
     }
@@ -73,6 +76,7 @@ export function useOwnerWorkspaceNavigationState() {
     if (tab === 'actions') setActionView(view as ActionJourneyView);
     if (tab === 'findings') setFindingsView(view as FindingsJourneyView);
     if (tab === 'services') setServicesView(view as ServicesJourneyView);
+    if (tab === 'share') setShareView(view as ShareJourneyView);
     pushWorkspaceLocation(tab, view);
   };
 
@@ -82,11 +86,13 @@ export function useOwnerWorkspaceNavigationState() {
     actionView,
     findingsView,
     servicesView,
+    shareView,
     workspaceDetailOpen,
     openWorkspaceArea,
     openWorkspaceDetail,
     openActionView: (view: ActionJourneyView) => openWorkspaceDetail('actions', view),
     openFindingsView: (view: FindingsJourneyView) => openWorkspaceDetail('findings', view),
     openServicesView: (view: ServicesJourneyView) => openWorkspaceDetail('services', view),
+    openShareView: (view: ShareJourneyView) => openWorkspaceDetail('share', view),
   };
 }

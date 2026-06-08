@@ -3,6 +3,7 @@ import type {
   ActionJourneyView,
   FindingsJourneyView,
   OverviewJourneyView,
+  ShareJourneyView,
   ServicesJourneyView,
 } from './ownerWorkspaceJourneyConfig';
 import type { WorkspaceTab } from './ownerWorkspaceModel';
@@ -17,6 +18,8 @@ interface OwnerWorkspaceCurrentJourneyInput {
   overviewView: OverviewJourneyView;
   servicesJourneyItems: JourneyStepItem<ServicesJourneyView>[];
   servicesView: ServicesJourneyView;
+  shareJourneyItems: JourneyStepItem<ShareJourneyView>[];
+  shareView: ShareJourneyView;
   workspaceTab: WorkspaceTab;
 }
 
@@ -29,6 +32,8 @@ export const getOwnerWorkspaceCurrentJourney = ({
   overviewView,
   servicesJourneyItems,
   servicesView,
+  shareJourneyItems,
+  shareView,
   workspaceTab,
 }: OwnerWorkspaceCurrentJourneyInput) => {
   const currentJourneyItems: JourneyStepItem<string>[] =
@@ -38,7 +43,9 @@ export const getOwnerWorkspaceCurrentJourney = ({
         ? actionJourneyItems
         : workspaceTab === 'findings'
           ? findingsJourneyItems
-          : servicesJourneyItems;
+          : workspaceTab === 'services'
+            ? servicesJourneyItems
+            : shareJourneyItems;
   const currentJourneyValue: string =
     workspaceTab === 'overview'
       ? overviewView
@@ -46,7 +53,9 @@ export const getOwnerWorkspaceCurrentJourney = ({
         ? actionView
         : workspaceTab === 'findings'
           ? findingsView
-          : servicesView;
+          : workspaceTab === 'services'
+            ? servicesView
+            : shareView;
   const currentAreaLabel = workspaceTabs.find((tab) => tab.value === workspaceTab)?.label || 'Workspace';
   const currentDetailLabel = currentJourneyItems.find((item) => item.value === currentJourneyValue)?.label || currentAreaLabel;
 

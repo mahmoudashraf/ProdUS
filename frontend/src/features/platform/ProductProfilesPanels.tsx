@@ -4,6 +4,7 @@ import NextLink from 'next/link';
 import {
   AddOutlined,
   ArrowForwardOutlined,
+  BuildCircleOutlined,
   FavoriteBorderOutlined,
   Inventory2Outlined,
   LocalShippingOutlined,
@@ -33,6 +34,9 @@ export function ProductPortfolioHeaderActions() {
     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
       <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 42, minWidth: 140 }}>
         New product
+      </Button>
+      <Button component={NextLink} href="/services" variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 42, minWidth: 164 }}>
+        Start from service
       </Button>
       <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 42, minWidth: 164 }}>
         Project Start Plan
@@ -87,7 +91,7 @@ export function ProductPortfolioListPanel({
                 key={profile.id}
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', xl: '1.6fr 120px 130px 1.3fr 1fr auto' },
+                  gridTemplateColumns: { xs: '1fr', xl: '1.6fr 120px 130px 1.3fr 1fr minmax(150px, auto)' },
                   gap: 2,
                   alignItems: 'center',
                   py: 2,
@@ -132,9 +136,14 @@ export function ProductPortfolioListPanel({
                     {packageInstance ? formatLabel(packageInstance.status) : 'Choose services when ready'}
                   </Typography>
                 </Box>
-                <Button component={NextLink} href={`/products/${profile.id}`} variant="outlined" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 38 }}>
-                  Review
-                </Button>
+                <Stack spacing={0.75} alignItems={{ xs: 'stretch', xl: 'flex-end' }}>
+                  <Button component={NextLink} href={`/products/${profile.id}`} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 38 }}>
+                    Open workspace
+                  </Button>
+                  <Button component={NextLink} href={`/services?productId=${profile.id}`} variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 36 }}>
+                    Choose services
+                  </Button>
+                </Stack>
               </Box>
             );
           })}
@@ -151,11 +160,14 @@ export function ProductPortfolioNextActionPanel() {
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
       <SectionTitle title="Next Product Action" action={<AddOutlined sx={{ color: appleColors.purple }} />} />
       <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-        Create or update the product first, then approve the services and talent that belong in its Project Start Plan.
+        Create a product first, or start from a service when the owner already knows the help they need. Either way, ProdUS brings the choice back into one product workspace.
       </Typography>
       <Stack spacing={1.25} sx={{ mt: 2 }}>
         <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44 }}>
           Create product
+        </Button>
+        <Button component={NextLink} href="/services" variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 42 }}>
+          Start from service
         </Button>
         <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 42 }}>
           Open Project Start Plan
