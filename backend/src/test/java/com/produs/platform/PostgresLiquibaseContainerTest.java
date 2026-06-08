@@ -1,5 +1,11 @@
 package com.produs.platform;
 
+import com.produs.entity.User;
+import com.produs.network.ConversationParticipant;
+import com.produs.network.ConversationParticipantRepository;
+import com.produs.network.ConversationThread;
+import com.produs.network.ConversationThreadRepository;
+import com.produs.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,6 +15,10 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,6 +51,15 @@ class PostgresLiquibaseContainerTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private ConversationThreadRepository conversationThreadRepository;
+
+    @Autowired
+    private ConversationParticipantRepository conversationParticipantRepository;
 
     @Test
     void liquibaseCreatesPlatformSchemaAndSeedsCatalog() {
@@ -95,6 +114,36 @@ class PostgresLiquibaseContainerTest {
 
         assertThat(serviceCategoryCount).isNotNull().isGreaterThan(0);
         assertThat(serviceModuleCount).isNotNull().isGreaterThan(0);
+    }
+
+    @Test
+    void conversationVisibleThreadsQueryWorksOnPostgres() {
+        User user = userRepository.save(User.builder()
+                .email("network-query-" + UUID.randomUUID() + "@produs.test")
+                .firstName("Network")
+                .lastName("Query")
+                .role(User.UserRole.SPECIALIST)
+                .supabaseId("network-query-" + UUID.randomUUID())
+                .build());
+
+        ConversationThread thread = new ConversationThread();
+        thread.setCreatedBy(user);
+        thread.setScopeType(ConversationThread.ScopeType.DIRECT);
+        thread.setScopeId(UUID.randomUUID());
+        thread.setTitle("Postgres visible thread");
+        thread.setStatus(ConversationThread.ThreadStatus.OPEN);
+        thread.setLastMessageAt(LocalDateTime.now());
+        thread = conversationThreadRepository.save(thread);
+
+        ConversationParticipant participant = new ConversationParticipant();
+        participant.setThread(thread);
+        participant.setUser(user);
+        participant.setParticipantRole("initiator");
+        conversationParticipantRepository.save(participant);
+
+        List<ConversationThread> visibleThreads = conversationThreadRepository.findVisibleThreads(user.getId());
+
+        assertThat(visibleThreads).extracting(ConversationThread::getId).contains(thread.getId());
     }
 
     private void assertTableExists(String tableName) {

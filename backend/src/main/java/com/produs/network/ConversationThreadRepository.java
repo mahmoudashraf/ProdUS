@@ -16,7 +16,7 @@ public interface ConversationThreadRepository extends JpaRepository<Conversation
     );
 
     @Query("""
-            select distinct thread
+            select thread
             from ConversationThread thread
             join ConversationParticipant participant on participant.thread.id = thread.id
             where participant.user.id = :userId
