@@ -1,22 +1,51 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
-import { Box, Divider, Stack, Typography } from '@mui/material';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
+import { Box, Stack } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getJson, postJson } from './api';
-import { EmptyState, PageHeader, PastelChip, QueryState, SaveButton, SectionTitle, StatusChip, Surface, TextInput, appleColors } from './PlatformComponents';
-import { AICapabilityConfig, AuditEvent, CatalogRule, CatalogTemplateDefinition, PackageTemplate, ServiceCategory, ServiceModule } from './types';
+import {
+  AdminCatalogAiPanel,
+  AdminCatalogAuditPanel,
+  AdminCatalogBreadcrumb,
+  AdminCatalogCategoriesPanel,
+  AdminCatalogCreateCategoryPanel,
+  AdminCatalogHubPanel,
+  AdminCatalogRulesPanel,
+  AdminCatalogTemplatesPanel,
+  type AdminCatalogView,
+  type CategoryPayload,
+  isAdminCatalogView,
+} from './AdminCatalogPanels';
+import { PageHeader, QueryState } from './PlatformComponents';
+import type {
+  AICapabilityConfig,
+  AuditEvent,
+  CatalogRule,
+  CatalogTemplateDefinition,
+  PackageTemplate,
+  ServiceCategory,
+  ServiceModule,
+} from './types';
 
-interface CategoryPayload {
-  name: string;
-  slug: string;
-  description: string;
-  sortOrder: number;
-  active: boolean;
-}
+const initialCategoryValues: CategoryPayload = {
+  name: '',
+  slug: '',
+  description: '',
+  sortOrder: 0,
+  active: true,
+};
 
 export default function AdminCatalogPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamString = searchParams?.toString() || '';
+  const viewParam = searchParams?.get('view') || null;
+  const activeView = isAdminCatalogView(viewParam) ? viewParam : null;
   const categories = useQuery({
     queryKey: ['catalog-categories'],
     queryFn: () => getJson<ServiceCategory[]>('/catalog/categories'),
@@ -45,165 +74,97 @@ export default function AdminCatalogPage() {
     queryKey: ['admin-audit-events'],
     queryFn: () => getJson<AuditEvent[]>('/admin/audit-events'),
   });
-  const [form, setForm] = useState<CategoryPayload>({
-    name: '',
-    slug: '',
-    description: '',
-    sortOrder: 0,
-    active: true,
-  });
+  const [form, setForm] = useState<CategoryPayload>(initialCategoryValues);
   const createCategory = useMutation({
     mutationFn: () => postJson<ServiceCategory, CategoryPayload>('/admin/catalog/categories', form),
     onSuccess: async () => {
-      setForm({ name: '', slug: '', description: '', sortOrder: 0, active: true });
+      setForm(initialCategoryValues);
       await queryClient.invalidateQueries({ queryKey: ['catalog-categories'] });
     },
   });
+
+  const openView = (view: AdminCatalogView) => {
+    const next = new URLSearchParams(searchParamString);
+    next.set('view', view);
+    router.push(`${pathname || '/admin/catalog'}?${next.toString()}`, { scroll: false });
+  };
+
+  const openHub = () => {
+    const next = new URLSearchParams(searchParamString);
+    next.delete('view');
+    const query = next.toString();
+    router.push(query ? `${pathname || '/admin/catalog'}?${query}` : (pathname || '/admin/catalog'), { scroll: false });
+  };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     createCategory.mutate();
   };
 
+  const categoryList = categories.data || [];
+  const moduleList = modules.data || [];
+  const templateList = packageTemplates.data || [];
+  const ruleList = rules.data || [];
+  const definitionList = definitions.data || [];
+  const aiCapabilityList = aiCapabilities.data || [];
+  const auditEventList = auditEvents.data || [];
+
   return (
     <>
-      <PageHeader title="Admin Catalog" description="Govern service taxonomy, package templates, dependency rules, evidence templates, and AI-ready contracts." />
+      <PageHeader
+        title="Admin Catalog"
+        description="Govern service taxonomy, package templates, dependency rules, evidence templates, and AI setup one area at a time."
+      />
       <QueryState
         isLoading={categories.isLoading || modules.isLoading || packageTemplates.isLoading || rules.isLoading || definitions.isLoading || aiCapabilities.isLoading || auditEvents.isLoading}
         error={categories.error || modules.error || packageTemplates.error || rules.error || definitions.error || aiCapabilities.error || auditEvents.error || createCategory.error}
       />
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '360px 1fr' }, gap: 2 }}>
-        <Surface>
-          <Box component="form" onSubmit={submit}>
-            <Stack spacing={2}>
-              <TextInput label="Category name" value={form.name} onChange={(name) => setForm({ ...form, name })} />
-              <TextInput label="Slug" value={form.slug} onChange={(slug) => setForm({ ...form, slug })} />
-              <TextInput label="Description" value={form.description} onChange={(description) => setForm({ ...form, description })} multiline />
-              <SaveButton disabled={!form.name || !form.slug || createCategory.isPending} label="Create category" />
-            </Stack>
-          </Box>
-        </Surface>
-        <Stack spacing={1.5}>
-          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
-            <SectionTitle title="Catalog Coverage" />
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(5, 1fr)' }, gap: 1 }}>
-              <PastelChip label={`${categories.data?.length || 0} layers`} accent={appleColors.purple} />
-              <PastelChip label={`${modules.data?.length || 0} services`} accent={appleColors.cyan} bg="#e4f9fd" />
-              <PastelChip label={`${packageTemplates.data?.length || 0} templates`} accent={appleColors.green} bg="#e7f8ee" />
-              <PastelChip label={`${rules.data?.length || 0} rules`} accent={appleColors.amber} bg="#fff4dc" />
-              <PastelChip label={`${aiCapabilities.data?.length || 0} AI contracts`} accent={appleColors.blue} bg="#eaf3ff" />
+
+      {!activeView && (
+        <AdminCatalogHubPanel
+          categoryCount={categoryList.length}
+          serviceCount={moduleList.length}
+          templateCount={templateList.length}
+          ruleCount={ruleList.length}
+          aiContractCount={aiCapabilityList.length}
+          auditCount={auditEventList.length}
+          onOpenView={openView}
+        />
+      )}
+
+      {activeView && (
+        <Stack spacing={2}>
+          <AdminCatalogBreadcrumb view={activeView} onOpenHub={openHub} />
+
+          {activeView === 'categories' && (
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 360px' }, gap: 2, alignItems: 'start' }}>
+              <AdminCatalogCategoriesPanel categories={categoryList} modules={moduleList} />
+              <AdminCatalogCreateCategoryPanel
+                form={form}
+                isCreating={createCategory.isPending}
+                onChange={setForm}
+                onSubmit={submit}
+              />
             </Box>
-          </Surface>
-          {categories.data?.length ? (
-            categories.data.map((category) => (
-              <Surface key={category.id}>
-                <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-                  <Box>
-                    <Typography variant="h4">{category.name}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {category.description || category.slug}
-                    </Typography>
-                  </Box>
-                  <PastelChip label={`${(modules.data || []).filter((module) => module.category?.id === category.id).length} services`} accent={appleColors.purple} />
-                </Stack>
-                <Divider sx={{ my: 1.5 }} />
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {(modules.data || [])
-                    .filter((module) => module.category?.id === category.id)
-                    .slice(0, 10)
-                    .map((module) => (
-                      <PastelChip key={module.id} label={module.stableCode || module.slug} accent={appleColors.cyan} bg="#e4f9fd" />
-                    ))}
-                </Stack>
-              </Surface>
-            ))
-          ) : (
-            <EmptyState label="No catalog categories available." />
           )}
 
-          <Surface>
-            <SectionTitle title="Package Templates" />
-            <Stack spacing={1.25}>
-              {(packageTemplates.data || []).map((template) => (
-                <Box key={template.id} sx={{ p: 1.25, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                  <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-                    <Box>
-                      <Typography sx={{ fontWeight: 900 }}>{template.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">{template.description}</Typography>
-                    </Box>
-                    <StatusChip label={template.targetProductStage || 'Managed'} />
-                  </Stack>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                    <PastelChip label={template.timelineRange || 'Scoped'} accent={appleColors.cyan} bg="#e4f9fd" />
-                    <PastelChip label={template.budgetRange || 'Priced'} accent={appleColors.green} bg="#e7f8ee" />
-                    <PastelChip label={`${template.modules.length} services`} accent={appleColors.amber} bg="#fff4dc" />
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
-          </Surface>
+          {activeView === 'templates' && (
+            <AdminCatalogTemplatesPanel packageTemplates={templateList} />
+          )}
 
-          <Surface>
-            <SectionTitle title="Governance Rules" />
-            <Stack spacing={1}>
-              {(rules.data || []).map((rule) => (
-                <Box key={rule.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr auto' }, gap: 1, alignItems: 'center' }}>
-                  <Box>
-                    <Typography sx={{ fontWeight: 900 }}>{rule.recommendedModule.name}</Typography>
-                    <Typography variant="body2" color="text.secondary">{rule.message}</Typography>
-                  </Box>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <StatusChip label={rule.ruleType} />
-                    <StatusChip label={rule.severity} color={rule.severity === 'BLOCKER' ? 'error' : 'warning'} />
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
-          </Surface>
+          {activeView === 'rules' && (
+            <AdminCatalogRulesPanel rules={ruleList} />
+          )}
 
-          <Surface>
-            <SectionTitle title="AI-Ready Contracts" />
-            <Stack spacing={1}>
-              {(aiCapabilities.data || []).map((capability) => (
-                <Box key={capability.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr auto' }, gap: 1, alignItems: 'center' }}>
-                  <Box>
-                    <Typography sx={{ fontWeight: 900 }}>{capability.name}</Typography>
-                    <Typography variant="body2" color="text.secondary">{capability.description}</Typography>
-                  </Box>
-                  <StatusChip label={capability.enabled ? 'Enabled' : 'Prepared only'} color={capability.enabled ? 'success' : 'default'} />
-                </Box>
-              ))}
-            </Stack>
-          </Surface>
+          {activeView === 'ai' && (
+            <AdminCatalogAiPanel aiCapabilities={aiCapabilityList} definitions={definitionList} />
+          )}
 
-          <Surface>
-            <SectionTitle title="Template Definitions" />
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {(definitions.data || []).map((definition) => (
-                <PastelChip key={definition.id} label={`${definition.templateType}: ${definition.name}`} accent={appleColors.blue} bg="#eaf3ff" />
-              ))}
-            </Stack>
-          </Surface>
-
-          <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8fbff)' }}>
-            <SectionTitle title="Governance Audit" action={<PastelChip label={`${auditEvents.data?.length || 0} events`} accent={appleColors.blue} bg="#eaf3ff" />} />
-            <Stack spacing={1}>
-              {(auditEvents.data || []).slice(0, 12).map((event) => (
-                <Box key={event.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr auto' }, gap: 1, alignItems: 'center', borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 900 }}>{event.action}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {event.actorEmail || 'System'} · {event.entityType}{event.details ? ` · ${event.details}` : ''}
-                    </Typography>
-                  </Box>
-                  <StatusChip label={event.riskLevel} color={event.riskLevel === 'HIGH' || event.riskLevel === 'CRITICAL' ? 'error' : event.riskLevel === 'MEDIUM' ? 'warning' : 'default'} />
-                </Box>
-              ))}
-              {!(auditEvents.data || []).length && <EmptyState label="No governance audit events have been recorded yet." />}
-            </Stack>
-          </Surface>
+          {activeView === 'audit' && (
+            <AdminCatalogAuditPanel auditEvents={auditEventList} />
+          )}
         </Stack>
-      </Box>
+      )}
     </>
   );
 }
