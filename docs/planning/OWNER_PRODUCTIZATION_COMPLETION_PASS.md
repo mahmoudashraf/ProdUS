@@ -669,7 +669,8 @@ Solution:
 
 Status:
 
-- Implemented locally and verified against staging API data. Deployment is deferred so this can be batched with the next small owner-workspace slice.
+- Implemented, committed, deployed, and live-verified at UI commit `aad694c`, Coolify frontend deployment `kt3od6kl5qdbyldxb381pkmt`.
+- This deployment batch includes the Start Plan side-rail split commit `60fcd79` and scanner finding decision-list split commit `aad694c`.
 - `OwnerProjectStartPanel.tsx` is now 122 lines, down from 256 lines.
 - Local checks passed:
   - `git diff --check`
@@ -678,6 +679,9 @@ Status:
 - Focused local verification passed with screenshots:
   - `tmp/live-verification/2026-06-08/152-owner-project-start-panel-local.png`
   - `tmp/live-verification/2026-06-08/153-mobile-owner-project-start-panel-local.png`
+- Focused live verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/152-owner-project-start-panel-live-aad694c-v2.png`
+  - `tmp/live-verification/2026-06-08/153-mobile-owner-project-start-panel-live-aad694c-v2.png`
 
 ### Current Pass: Scanner Finding Decision List Split
 
@@ -696,7 +700,7 @@ Solution:
 
 Status:
 
-- Implemented locally and verified against staging API data. Deployment is deferred so this can be batched with the Start Plan side-rail split.
+- Implemented, committed, deployed, and live-verified at UI commit `aad694c`, Coolify frontend deployment `kt3od6kl5qdbyldxb381pkmt`.
 - `ScannerProofFindingDecisionList.tsx` is now 81 lines, down from 227 lines.
 - Local checks passed:
   - `git diff --check`
@@ -705,6 +709,10 @@ Status:
 - Focused local verification passed with screenshots:
   - `tmp/live-verification/2026-06-08/154-scanner-finding-decision-list-local.png`
   - `tmp/live-verification/2026-06-08/155-mobile-scanner-finding-decision-list-local.png`
+- Focused live verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/154-scanner-finding-decision-list-live-aad694c.png`
+  - `tmp/live-verification/2026-06-08/155-mobile-scanner-finding-decision-list-live-aad694c.png`
+- Live scanner coverage sanity check still reports 10/10 tools completed, including `OWASP ZAP Baseline`, with latest mapped counts preserved in the summary.
 
 ### Current Pass: Public Profile Detail Completion
 
