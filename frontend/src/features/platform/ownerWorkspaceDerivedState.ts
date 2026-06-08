@@ -61,6 +61,16 @@ const proofLineForRisk = (risk: OwnerWorkspaceRisk, category: string) => ownerPr
   ...(risk.sourceRuleId ? { sourceRuleId: risk.sourceRuleId } : {}),
 });
 
+const documentationEvidenceLabel = (evidence: EvidenceReadme) => {
+  if (!evidence) return 'No README evidence shown';
+  if ('signalValue' in evidence) {
+    return evidence.signalValue === 'Documentation evidence'
+      ? 'README or documentation evidence found'
+      : evidence.signalValue;
+  }
+  return evidence.title || 'README or documentation evidence found';
+};
+
 export const buildTopOwnerRisks = ({
   scannerMappedFindings,
   scannerOpenFindings,
@@ -173,7 +183,7 @@ export const buildEvidenceSummary = ({
   const runtimeTarget = hostedRuntimeTarget || selectedProduct?.productUrl || scannerSummary?.sources.find((source) => source.providerType === 'RUNTIME_URL')?.externalReference || '';
   const evidenceSummaryItems = [
     { label: 'Repository', value: selectedProduct?.repositoryUrl || primarySource?.externalReference || 'Not connected', accent: selectedProduct?.repositoryUrl || primarySource ? appleColors.green : appleColors.amber },
-    { label: 'Document', value: evidenceReadme ? 'README or documentation evidence found' : 'No README evidence shown', accent: evidenceReadme ? appleColors.green : appleColors.amber },
+    { label: 'Document', value: documentationEvidenceLabel(evidenceReadme), accent: evidenceReadme ? appleColors.green : appleColors.amber },
     { label: 'Runtime', value: runtimeTarget || 'Runtime URL missing', accent: runtimeTarget ? appleColors.green : appleColors.amber },
     { label: 'Scanner suite', value: `${latestCompletedTools}/${totalTools} checks completed`, accent: latestCompletedTools === totalTools ? appleColors.green : latestCompletedTools ? appleColors.amber : appleColors.muted },
   ];

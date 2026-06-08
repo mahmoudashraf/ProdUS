@@ -71,6 +71,7 @@ class RepoSignalServiceTest {
         source.setExternalReference("https://github.com/mahmoudashraf/ProdUS");
         source.setDefaultBranch("main");
         source.setAuthorizationStatus(ScanSource.AuthorizationStatus.AUTHORIZED);
+        source.setScopeNote("Repository README and docs are authorized for product proof.");
 
         ScanRun run = new ScanRun();
         run.setProductProfile(product);
@@ -81,6 +82,7 @@ class RepoSignalServiceTest {
         run.setCompletedAt(LocalDateTime.now());
         run.setBranchRef("main");
         run.setRuntimeTargetUrl("https://produs.example.com");
+        run.setScanPlan("Safe static scan of repository README and Docker deployment evidence.");
 
         NormalizedFinding finding = new NormalizedFinding();
         finding.setProductProfile(product);
@@ -110,10 +112,15 @@ class RepoSignalServiceTest {
                         RepoSignal.SignalType.SOURCE_AUTHORIZATION,
                         RepoSignal.SignalType.FRAMEWORK,
                         RepoSignal.SignalType.DATABASE,
+                        RepoSignal.SignalType.DOCUMENTATION,
                         RepoSignal.SignalType.SCANNER_STATUS,
                         RepoSignal.SignalType.SECURITY,
                         RepoSignal.SignalType.SCANNER_FINDING
                 );
+        assertThat(response.signals())
+                .filteredOn(signal -> signal.signalType() == RepoSignal.SignalType.DOCUMENTATION)
+                .extracting(RepoSignalService.RepoSignalResponse::signalValue)
+                .contains("Documentation evidence");
         assertThat(response.detectedStack()).extracting(RepoSignalService.RepoSignalResponse::signalValue)
                 .contains("Spring Boot", "Next.js", "PostgreSQL", "Supabase");
         assertThat(response.unknowns()).extracting(RepoSignalService.RepoSignalResponse::signalValue)
