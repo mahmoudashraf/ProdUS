@@ -54,6 +54,7 @@ Use these rules consistently:
 - Put proof near the claim. Each risk or recommendation should show its source line close by.
 - Tie the top action to the top service. The recommended service should feel like the way to resolve the blocker, not a separate sales card.
 - Use hub/spoke navigation instead of long all-in-one pages.
+- Meaningful choices should open a focused internal view with its own title, purpose, primary action, and back path. A button row that only swaps content below it is acceptable for small filters or display modes, but not for product journey steps.
 - Make the first mobile viewport useful. A founder should see the decision or next action without scrolling through dense setup.
 - Keep advanced technical proof available, but behind focused steps such as `Run Proof`, `Review Result`, `Fix Path`, and `Stored Proof`.
 - Prefer `Project Start Plan`, `Choose services`, `Choose teams`, `Approve Plan`, and `Start Workspace` language over cart or shopping language.
@@ -166,6 +167,7 @@ Before calling a slice done, inspect screenshots for:
 
 - Is the owner decision visible in the first viewport?
 - Is the primary action obvious?
+- When the owner chooses to go deeper, does it feel like a new internal view with a clear way back, rather than a button merely changing the lower half of the same screen?
 - Is mobile readable without side-scrolling?
 - Are headings sized for their container?
 - Are long IDs, URLs, scanner rule IDs, or proof lines wrapping safely?
@@ -177,6 +179,7 @@ Before calling a slice done, inspect screenshots for:
 ## Common Pitfalls
 
 - Fuzzy Playwright role names can match both `Choose service` and `Choose services`. Use `exact: true` when needed.
+- Segmented controls and button rows can accidentally flatten the journey. Use them for peer filters; use internal views with back paths for deeper actions such as service details, finding proof, team selection, sharing setup, or product creation steps.
 - Grid children often need `minWidth: 0` and sometimes `gridTemplateColumns: minmax(0, 1fr)` to prevent mobile overflow.
 - Shared card surfaces should be `boxSizing: border-box`, `minWidth: 0`, and `maxWidth: 100%`.
 - Long chip labels cause clipping. Convert long context to wrapped text.

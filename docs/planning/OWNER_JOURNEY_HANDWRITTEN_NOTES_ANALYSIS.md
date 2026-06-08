@@ -438,6 +438,7 @@ Recommended defaults:
 - Product creation should show a final review before create.
 - Public share pages should use calmer, narrower information than the owner workspace.
 - Findings and evidence should never be casually public.
+- Meaningful choices should navigate into focused internal views with a visible back path, not merely switch content below a button row.
 - Mobile must be designed first, especially home, product creation, service selection, and share pages.
 - Proof should stay near claims, not only in a separate evidence area.
 
