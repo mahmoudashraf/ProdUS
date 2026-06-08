@@ -323,13 +323,15 @@ Implementation direction:
 - Service/team visibility should be explicit.
 - Registered viewer actions should be permission-gated.
 
-## Phased Implementation Plan
+## Phased Implementation Result
 
 ### Phase 1: Product Context And Home Path
 
 Goal:
 
 - Make product selection and product context feel intentional.
+
+MVP status: complete and live verified.
 
 Scope:
 
@@ -345,11 +347,18 @@ Acceptance criteria:
 - Product workspace spokes preserve the active product ID.
 - Mobile first viewport shows product name, launch status, and next action.
 
+Verification:
+
+- Product home and product workspace were covered in the earlier live redefinition screenshots.
+- The final pass verified product-scoped creation and sharing against product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
+
 ### Phase 2: Service-First Entry
 
 Goal:
 
 - Let an owner start from a service or template before creating a product.
+
+MVP status: complete and live verified.
 
 Scope:
 
@@ -364,11 +373,18 @@ Acceptance criteria:
 - The user can remove or change the selection before product creation.
 - No cart language appears in the journey.
 
+Verification:
+
+- `tmp/live-verification/2026-06-08/209-product-creation-review-live-343833b.png`
+- The verifier navigated from `/services` into `/products/new` with selected service context preserved.
+
 ### Phase 3: Guided Product Creation
 
 Goal:
 
 - Make `/products/new` support product-first, service-first, template-first, and AI-assisted creation.
+
+MVP status: complete and live verified for product-first, service-first, template context, AI review surface, and final owner review.
 
 Scope:
 
@@ -384,27 +400,48 @@ Acceptance criteria:
 - AI can recommend services, but the owner can edit before creating.
 - The final action opens the product workspace or Project Start Plan with context intact.
 
+Verification:
+
+- `tmp/live-verification/2026-06-08/209-product-creation-review-live-343833b.png`
+- `tmp/live-verification/2026-06-08/214-product-create-mobile-internal-view-live-343833b.png`
+- The manual profile no longer creates immediately; it opens `Review before ProdUS creates the workspace` first.
+
 ### Phase 4: Permissioned Share Page
 
 Goal:
 
 - Let owners share product status safely with external people.
 
+MVP status: complete and live verified for safe public summaries, link expiry, revocation metadata, viewer actions, and internal-only public blocking.
+
 Scope:
 
 - Share-link management.
 - Public viewer page.
 - Audience and section permissions.
-- Authenticated private sections.
+- Safe summary sections for findings, evidence, and team status.
 - Revocation and expiry.
 
 Acceptance criteria:
 
 - Anonymous links never reveal findings or evidence by default.
 - Owners can explicitly choose visible sections per link.
-- Findings require explicit share scope and authenticated access unless a future product decision says otherwise.
+- Public findings and evidence are summary-only even when explicitly selected.
 - Links can be revoked.
 - The public page is not visually identical to the owner workspace.
+
+Verification:
+
+- `tmp/live-verification/2026-06-08/211-share-link-config-live-343833b.png`
+- `tmp/live-verification/2026-06-08/212-public-share-safe-summaries-live-343833b.png`
+- `tmp/live-verification/2026-06-08/213-public-share-safe-summaries-mobile-live-343833b.png`
+- API verification created a public link with selected safe sections and confirmed an `INTERNAL_ONLY` link returns `404` on `/public/product-shares/{token}`.
+
+Deferred beyond this MVP:
+
+- Authenticated private viewer sections for detailed findings and detailed evidence.
+- Invited-user enforcement beyond the current audience metadata.
+- Service-provider actions from the public share page.
 
 ## Technical Design Notes
 
@@ -447,7 +484,7 @@ The draft should be editable before product creation.
 
 ### Share Link Model
 
-A share link should store:
+The implemented MVP share link stores:
 
 - Product ID.
 - Token or slug.
@@ -457,10 +494,10 @@ A share link should store:
 - Created at.
 - Expires at.
 - Revoked at.
-- Optional invited users.
-- Optional viewer action permissions.
+- Optional viewer action label.
+- Optional viewer action URL.
 
-Possible visible sections:
+Implemented public visible sections:
 
 - Product summary.
 - Launch verdict.
@@ -468,22 +505,27 @@ Possible visible sections:
 - Team or delivery status.
 - Findings summary.
 - Evidence summary.
-- Detailed findings.
-- Detailed evidence.
 
 Default:
 
 - Product summary only.
+
+Deferred share scopes:
+
+- Optional invited users.
+- Authenticated detailed findings.
+- Authenticated detailed evidence.
+- Role-gated service-provider actions.
 
 ### Permission Rules
 
 Recommended defaults:
 
 - Anonymous viewers can see only explicitly public summary sections.
-- Registered viewers can see expanded private sections only when allowed by the link.
-- Detailed findings require explicit opt-in.
-- Detailed evidence requires explicit opt-in.
-- Service-provider actions require role or invitation checks.
+- Registered/private expanded sections are deferred until authenticated share scopes are implemented.
+- Detailed findings stay private.
+- Detailed evidence stays private.
+- Service-provider actions are not exposed from public links yet.
 - Every share link should be revocable.
 
 ## UX Rules For Implementation
@@ -507,13 +549,21 @@ Recommended defaults:
 - Service-first creation can become another long page if product inputs, templates, services, AI, and permissions appear together. Use progressive steps.
 - The workspace should remain focused. Do not move every feature into one product workspace page; keep hub/spoke navigation.
 
-## Recommendation Summary
+## Completion Summary
 
-Implement the notes, but in this order:
+The notes are now implemented for the MVP owner journey in this order:
 
 1. Strengthen product-context navigation and product home.
 2. Add service-first entry into product creation.
 3. Redefine product creation around inputs, templates, services, and editable AI suggestions.
-4. Design and implement public sharing only after permission rules are explicit.
+4. Add final owner review before workspace creation.
+5. Design and implement public sharing after permission rules are explicit.
+
+What remains intentionally deferred:
+
+- Authenticated private share rooms for detailed findings and evidence.
+- Full invited-viewer enforcement.
+- Public-share service-provider join/request workflows.
+- Deeper AI-created service bundles that can draft, explain, and update a plan before owner approval.
 
 This direction fits the current ProdUS redefinition. It makes the journey more natural for startup and MVP owners because they can begin from either a product or a service need, then land in a focused product workspace rather than a long platform dashboard.
