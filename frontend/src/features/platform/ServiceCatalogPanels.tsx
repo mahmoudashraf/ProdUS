@@ -155,10 +155,10 @@ export function ServiceCatalogInternalHeader({
 
 export function ServiceCatalogProductContextPanel({
   productName,
-  productHref,
+  startPlanHref,
 }: {
   productName?: string | undefined;
-  productHref?: string | undefined;
+  startPlanHref?: string | undefined;
 }) {
   if (!productName) return null;
 
@@ -174,9 +174,9 @@ export function ServiceCatalogProductContextPanel({
             </Typography>
           </Box>
         </Stack>
-        {productHref && (
-          <Button component={NextLink} href={productHref} variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 40 }}>
-            Back to product workspace
+        {startPlanHref && (
+          <Button component={NextLink} href={startPlanHref} variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 40 }}>
+            Open Start Plan
           </Button>
         )}
       </Stack>

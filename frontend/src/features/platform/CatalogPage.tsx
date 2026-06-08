@@ -39,6 +39,8 @@ export default function CatalogPage() {
   const { isLoggedIn, user } = useAuth();
   const canUseStartPlan = user?.role === UserRole.PRODUCT_OWNER;
   const startPlanHref = canUseStartPlan ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login';
+  const startPlanServicesHref = canUseStartPlan ? `${PROJECT_START_PLAN_HREF}?step=services` : startPlanHref;
+  const startPlanReadinessHref = canUseStartPlan ? `${PROJECT_START_PLAN_HREF}?step=readiness` : startPlanHref;
   const startPlanActionLabel = canUseStartPlan ? 'Project Start Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
 
   const categories = useQuery({
@@ -85,7 +87,7 @@ export default function CatalogPage() {
         );
         return {
           cart: updatedCart,
-          nextHref: `/products/${selectedProductId}?tab=services&view=plan`,
+          nextHref: startPlanServicesHref,
         };
       }
       return {
@@ -113,7 +115,7 @@ export default function CatalogPage() {
         );
         return {
           cart: updatedCart,
-          nextHref: `/products/${selectedProductId}?tab=services&view=plan`,
+          nextHref: startPlanReadinessHref,
         };
       }
       return {
@@ -136,7 +138,6 @@ export default function CatalogPage() {
     (category) => category.slug.trim().length > 2 && category.name.trim().length > 2
   );
   const cartServiceIds = new Set((startPlan.data?.serviceItems || []).map((item) => item.serviceModule.id));
-  const productWorkspaceHref = selectedProductId ? `/products/${selectedProductId}?tab=services` : undefined;
 
   const openCatalogView = (view: ServiceCatalogView) => {
     const next = new URLSearchParams(searchParamString);
@@ -183,7 +184,7 @@ export default function CatalogPage() {
 
       <ServiceCatalogProductContextPanel
         productName={selectedProduct.data?.name}
-        productHref={productWorkspaceHref}
+        startPlanHref={startPlanServicesHref}
       />
 
       {!hasCatalogView && (

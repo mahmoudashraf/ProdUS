@@ -6,6 +6,7 @@ import { ProjectStartJourneyNavigation } from './ProjectStartJourneyNavigation';
 import ProjectStartApprovalPanel from './ProjectStartApprovalPanel';
 import ProjectStartLifecycleServicesPanel from './ProjectStartLifecycleServicesPanel';
 import ProjectStartPackageTemplatesPanel from './ProjectStartPackageTemplatesPanel';
+import ProjectStartPlanContextPanel from './ProjectStartPlanContextPanel';
 import ProjectStartPlanOverview from './ProjectStartPlanOverview';
 import ProjectStartReadinessPanel from './ProjectStartReadinessPanel';
 import ProjectStartTalentPanel from './ProjectStartTalentPanel';
@@ -44,8 +45,29 @@ export default function ProjectStartPlanBoard({
   return (
     <Box sx={{ minWidth: 0, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: detailOpen && view === 'handoff' ? 'minmax(0, 1fr) 360px' : 'minmax(0, 1fr)' }, gap: 2.5 }}>
       <Stack spacing={2.5} sx={{ minWidth: 0 }}>
-        <ProjectStartPlanOverview {...overview} />
-        <ProjectStartJourneyNavigation {...navigation} />
+        {detailOpen ? (
+          <>
+            <ProjectStartJourneyNavigation {...navigation} />
+            <ProjectStartPlanContextPanel
+              title={overview.title}
+              product={overview.product}
+              hasPlaceholderProduct={overview.hasPlaceholderProduct}
+              score={overview.score}
+              canStartWorkspace={overview.canStartWorkspace}
+              blockers={overview.blockers}
+              serviceCount={overview.serviceCount}
+              talentCount={overview.talentCount}
+              currentView={view}
+              currentDetailLabel={navigation.currentDetailLabel}
+              onOpenDetail={navigation.onOpenDetail}
+            />
+          </>
+        ) : (
+          <>
+            <ProjectStartPlanOverview {...overview} />
+            <ProjectStartJourneyNavigation {...navigation} />
+          </>
+        )}
 
         {detailOpen && view === 'readiness' && (
           <ProjectStartPackageTemplatesPanel {...templates} />
