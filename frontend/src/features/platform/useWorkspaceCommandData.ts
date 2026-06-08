@@ -22,9 +22,10 @@ import type {
 
 interface WorkspaceCommandDataInput {
   canAttachEvidence: boolean;
+  selectedWorkspaceId?: string | null;
 }
 
-export function useWorkspaceCommandData({ canAttachEvidence }: WorkspaceCommandDataInput) {
+export function useWorkspaceCommandData({ canAttachEvidence, selectedWorkspaceId }: WorkspaceCommandDataInput) {
   const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const teams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
@@ -34,7 +35,7 @@ export function useWorkspaceCommandData({ canAttachEvidence }: WorkspaceCommandD
     selectedWorkspaceProductId,
     setSelectedWorkspaceId,
     workspaceList,
-  } = useWorkspaceCommandSelection(workspaces.data || []);
+  } = useWorkspaceCommandSelection(workspaces.data || [], selectedWorkspaceId);
 
   const milestones = useQuery({
     queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'],

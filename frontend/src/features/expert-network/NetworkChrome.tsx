@@ -6,6 +6,7 @@ import { ReactNode, useMemo, useState } from 'react';
 import {
   AutoAwesomeOutlined,
   ChatBubbleOutline,
+  CloseOutlined,
   Diversity3Outlined,
   ExploreOutlined,
   ForumOutlined,
@@ -14,6 +15,7 @@ import {
   Inventory2Outlined,
   LogoutOutlined,
   ManageAccountsOutlined,
+  MenuOutlined,
   NotificationsNoneOutlined,
   PersonOutline,
   SearchOutlined,
@@ -26,6 +28,7 @@ import {
   Box,
   Button,
   Divider,
+  Drawer,
   IconButton,
   InputAdornment,
   Stack,
@@ -131,6 +134,7 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user, signOut, hasRole } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const notificationSummary = useQuery({
     queryKey: ['network', 'notification-summary'],
     queryFn: networkApi.notificationSummary,
@@ -158,9 +162,64 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
   const runSearch = () => {
     const trimmed = searchQuery.trim();
     if (trimmed) {
+      setMobileNavOpen(false);
       router.push(`/expert-network/search?q=${encodeURIComponent(trimmed)}`);
     }
   };
+
+  const isNavActive = (href: string) => pathname === href || (href !== '/expert-network' && pathname.startsWith(href));
+  const navBadge = (label: string, fallback?: number) => {
+    if (label === 'Messages') return messageCount;
+    if (label === 'Join Requests') return joinRequestCount;
+    if (label === 'Notifications') return unreadNotifications;
+    return fallback;
+  };
+
+  const navGroups = (
+    <Stack spacing={2}>
+      {groupedNav.map(({ section, items }) => (
+        <Box key={section}>
+          <Typography
+            variant="caption"
+            sx={{ px: 1, mb: 0.75, display: 'block', color: '#94a3b8', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.8 }}
+          >
+            {section}
+          </Typography>
+          <Stack spacing={0.5}>
+            {items.map((item) => {
+              const Icon = item.icon;
+              const isActive = isNavActive(item.href);
+              const badge = navBadge(item.label, item.badge);
+              return (
+                <Button
+                  key={item.href}
+                  component={NextLink}
+                  href={item.href}
+                  fullWidth
+                  startIcon={<Icon fontSize="small" />}
+                  endIcon={badge ? <Box sx={{ px: 0.8, py: 0.25, borderRadius: 999, bgcolor: appleColors.purple, color: '#fff', fontSize: 11, fontWeight: 900 }}>{badge}</Box> : undefined}
+                  onClick={() => setMobileNavOpen(false)}
+                  sx={{
+                    justifyContent: 'flex-start',
+                    minHeight: 42,
+                    px: 1.25,
+                    borderRadius: 1.5,
+                    color: isActive ? appleColors.purple : '#334155',
+                    bgcolor: isActive ? '#eef2ff' : 'transparent',
+                    borderLeft: isActive ? `2px solid ${appleColors.purple}` : '2px solid transparent',
+                    fontWeight: 850,
+                    '& .MuiButton-endIcon': { ml: 'auto' },
+                  }}
+                >
+                  {item.label}
+                </Button>
+              );
+            })}
+          </Stack>
+        </Box>
+      ))}
+    </Stack>
+  );
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f8fafc', color: appleColors.ink, overflowX: 'hidden' }}>
@@ -183,6 +242,15 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
           sx={{ minHeight: 72, px: { xs: 2, md: 3 } }}
         >
           <Stack direction="row" spacing={{ xs: 1.5, md: 3 }} alignItems="center" sx={{ minWidth: { xs: 0, md: 260 }, flexShrink: 1 }}>
+            <Tooltip title="Network navigation">
+              <IconButton
+                aria-label="Open Network navigation"
+                onClick={() => setMobileNavOpen(true)}
+                sx={{ display: { xs: 'inline-flex', md: 'none' } }}
+              >
+                <MenuOutlined />
+              </IconButton>
+            </Tooltip>
             <NextLink href="/" aria-label="ProdUS home" style={{ color: 'inherit', textDecoration: 'none' }}>
               <Logo />
             </NextLink>
@@ -267,6 +335,100 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
         </Stack>
       </Box>
 
+      <Drawer
+        anchor="left"
+        open={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        PaperProps={{
+          sx: {
+            width: 320,
+            maxWidth: '86vw',
+            bgcolor: '#f8fafc',
+            p: 2,
+          },
+        }}
+      >
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              <Box
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: '#eef2ff',
+                  color: appleColors.purple,
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+              >
+                <AutoAwesomeOutlined fontSize="small" />
+              </Box>
+              <Box>
+                <Typography sx={{ fontWeight: 900 }}>ProdUS Network</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Team formation and expert trust
+                </Typography>
+              </Box>
+            </Stack>
+            <IconButton aria-label="Close Network navigation" onClick={() => setMobileNavOpen(false)}>
+              <CloseOutlined />
+            </IconButton>
+          </Stack>
+
+          <Box
+            component="form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              runSearch();
+            }}
+          >
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search experts, teams..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchOutlined fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Box>
+
+          {navGroups}
+
+          <Divider />
+          <Button
+            component={NextLink}
+            href="/dashboard"
+            startIcon={<ManageAccountsOutlined />}
+            onClick={() => setMobileNavOpen(false)}
+            sx={{ justifyContent: 'flex-start', color: '#334155', fontWeight: 800 }}
+          >
+            Dashboard
+          </Button>
+          <Button
+            component={NextLink}
+            href="/expert-network/settings"
+            startIcon={<SettingsOutlined />}
+            onClick={() => setMobileNavOpen(false)}
+            sx={{
+              justifyContent: 'flex-start',
+              color: settingsActive ? appleColors.purple : '#334155',
+              bgcolor: settingsActive ? '#eef2ff' : 'transparent',
+              fontWeight: 800,
+              borderLeft: settingsActive ? `2px solid ${appleColors.purple}` : '2px solid transparent',
+            }}
+          >
+            Account Settings
+          </Button>
+        </Stack>
+      </Drawer>
+
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '260px minmax(0, 1fr)' } }}>
         <Box
           component="aside"
@@ -311,52 +473,7 @@ export default function NetworkChrome({ children }: { children: ReactNode }) {
               </Stack>
             </Box>
 
-            {groupedNav.map(({ section, items }) => (
-              <Box key={section}>
-                <Typography
-                  variant="caption"
-                  sx={{ px: 1, mb: 0.75, display: 'block', color: '#94a3b8', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.8 }}
-                >
-                  {section}
-                </Typography>
-                <Stack spacing={0.5}>
-                  {items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = pathname === item.href || (item.href !== '/expert-network' && pathname.startsWith(item.href));
-                    const badge = item.label === 'Messages'
-                      ? messageCount
-                      : item.label === 'Join Requests'
-                        ? joinRequestCount
-                        : item.label === 'Notifications'
-                          ? unreadNotifications
-                          : item.badge;
-                    return (
-                      <Button
-                        key={item.href}
-                        component={NextLink}
-                        href={item.href}
-                        fullWidth
-                        startIcon={<Icon fontSize="small" />}
-                        endIcon={badge ? <Box sx={{ px: 0.8, py: 0.25, borderRadius: 999, bgcolor: appleColors.purple, color: '#fff', fontSize: 11, fontWeight: 900 }}>{badge}</Box> : undefined}
-                        sx={{
-                          justifyContent: 'flex-start',
-                          minHeight: 42,
-                          px: 1.25,
-                          borderRadius: 1.5,
-                          color: isActive ? appleColors.purple : '#334155',
-                          bgcolor: isActive ? '#eef2ff' : 'transparent',
-                          borderLeft: isActive ? `2px solid ${appleColors.purple}` : '2px solid transparent',
-                          fontWeight: 850,
-                          '& .MuiButton-endIcon': { ml: 'auto' },
-                        }}
-                      >
-                        {item.label}
-                      </Button>
-                    );
-                  })}
-                </Stack>
-              </Box>
-            ))}
+            {navGroups}
             <Divider />
             <Button
               component={NextLink}

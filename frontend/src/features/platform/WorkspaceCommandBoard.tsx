@@ -30,6 +30,7 @@ export default function WorkspaceCommandBoard({
   handoffPanels,
 }: WorkspaceCommandBoardProps) {
   const showDetailRail = Boolean(selectedWorkspacePane && (workspaceView === 'team' || workspaceView === 'handoff'));
+  const isDetailView = workspaceView !== 'overview';
   const detailRailRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -52,9 +53,11 @@ export default function WorkspaceCommandBoard({
         alignItems: 'start',
       }}
     >
-      <WorkspaceCommandSidebar {...sidebar} />
+      <Box sx={{ order: { xs: isDetailView ? 3 : 1, lg: 1 }, minWidth: 0 }}>
+        <WorkspaceCommandSidebar {...sidebar} />
+      </Box>
 
-      <Stack spacing={2}>
+      <Stack spacing={2} sx={{ order: { xs: 1, lg: 2 }, minWidth: 0 }}>
         {selectedWorkspacePane ? (
           <WorkspaceCommandSelectedWorkspacePane {...selectedWorkspacePane} />
         ) : (
@@ -70,6 +73,8 @@ export default function WorkspaceCommandBoard({
         sx={{
           display: showDetailRail ? 'flex' : 'none',
           gridColumn: { lg: '2 / -1' },
+          order: { xs: 2, lg: 3 },
+          minWidth: 0,
         }}
       >
         {workspaceView === 'team' && teamPanels && (

@@ -8,7 +8,7 @@ import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
 import ExpertProfileStudioPanel from './ExpertProfileStudioPanel';
 import TeamAccessPanel from './TeamAccessPanel';
-import { TeamProfileStudioFocusNav, TeamProfileStudioView } from './TeamProfileStudioNavigation';
+import { TeamProfileStudioFocusNav, TeamProfileStudioInternalHeader, TeamProfileStudioView } from './TeamProfileStudioNavigation';
 import TeamProfileIdentityPanel from './TeamProfileIdentityPanel';
 import TeamProfilePeoplePanel from './TeamProfilePeoplePanel';
 import { useTeamProfileStudioNavigation } from './useTeamProfileStudioNavigation';
@@ -24,7 +24,7 @@ export default function TeamProfilesPage() {
   const queryClient = useQueryClient();
   const { user, hasRole } = useAuth();
   const canLeadTeams = hasRole([UserRole.TEAM_MANAGER, UserRole.SPECIALIST, UserRole.ADMIN]);
-  const { activeView, setActiveView } = useTeamProfileStudioNavigation();
+  const { activeView, hasActiveView, openHub, setActiveView } = useTeamProfileStudioNavigation();
 
   const allTeams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
   const myTeams = useQuery({ queryKey: ['teams', 'mine'], queryFn: () => getJson<Team[]>('/teams/mine') });
@@ -197,10 +197,12 @@ export default function TeamProfilesPage() {
         isLoading={allTeams.isLoading || myTeams.isLoading || expertProfile.isLoading || myJoinRequests.isLoading || myInvitations.isLoading}
         error={allTeams.error || myTeams.error || expertProfile.error || myJoinRequests.error || myInvitations.error || members.error || (canManageSelectedTeam ? invitations.error : null) || (canManageSelectedTeam ? joinRequests.error : null) || createTeam.error || updateTeam.error || saveExpert.error || inviteMember.error || respondInvitation.error || requestJoin.error || reviewJoin.error}
       />
-      <TeamProfileStudioFocusNav activeView={activeView} counts={viewCounts} onChange={setActiveView} />
+      {!hasActiveView && <TeamProfileStudioFocusNav activeView={activeView} counts={viewCounts} onChange={setActiveView} />}
+
+      {hasActiveView && <TeamProfileStudioInternalHeader activeView={activeView} onOpenHub={openHub} />}
 
       <Stack spacing={2.5}>
-        {activeView === 'profile' && (
+        {hasActiveView && activeView === 'profile' && (
           <TeamProfileIdentityPanel
             selectedTeam={selectedTeam}
             managedTeams={managedTeams}
@@ -218,7 +220,7 @@ export default function TeamProfilesPage() {
           />
         )}
 
-        {activeView === 'team' && (
+        {hasActiveView && activeView === 'team' && (
           <TeamProfilePeoplePanel
             selectedTeam={selectedTeam}
             canManageSelectedTeam={canManageSelectedTeam}
@@ -237,7 +239,7 @@ export default function TeamProfilesPage() {
           />
         )}
 
-        {activeView === 'expert' && (
+        {hasActiveView && activeView === 'expert' && (
           <ExpertProfileStudioPanel
             expertForm={expertForm}
             userEmail={user?.email}
@@ -247,7 +249,7 @@ export default function TeamProfilesPage() {
           />
         )}
 
-        {activeView === 'requests' && (
+        {hasActiveView && activeView === 'requests' && (
           <TeamAccessPanel
             invitations={myInvitations.data || []}
             joinableTeams={joinableTeams}

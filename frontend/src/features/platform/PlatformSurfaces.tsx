@@ -143,11 +143,17 @@ export const SectionTitle = ({ title, action }: { title: string; action?: ReactN
     alignItems="center"
     justifyContent="space-between"
     spacing={2}
-    sx={{ mb: 2 }}
+    flexWrap="wrap"
+    useFlexGap
+    sx={{ mb: 2, minWidth: 0 }}
   >
-    <Typography variant="h4" sx={{ color: appleColors.ink }}>
+    <Typography variant="h4" sx={{ color: appleColors.ink, minWidth: 0, overflowWrap: 'anywhere' }}>
       {title}
     </Typography>
-    {action}
+    {action && (
+      <Box sx={{ minWidth: 0, maxWidth: '100%', display: 'flex', flexWrap: 'wrap' }}>
+        {action}
+      </Box>
+    )}
   </Stack>
 );

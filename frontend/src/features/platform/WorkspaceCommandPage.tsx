@@ -1,9 +1,11 @@
 'use client';
 
 import { Alert } from '@mui/material';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import WorkspaceCommandBoard from './WorkspaceCommandBoard';
+import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import WorkspaceCommandMetricsPanel from './WorkspaceCommandMetricsPanel';
 import { useWorkspaceCommandActions } from './useWorkspaceCommandActions';
 import { useWorkspaceCommandData } from './useWorkspaceCommandData';
@@ -18,7 +20,17 @@ import {
   workspaceAccent,
 } from './workspaceCommandTeamTypes';
 
+const isWorkspaceCommandView = (value: string | null): value is WorkspaceCommandView =>
+  value === 'overview' || value === 'proof' || value === 'team' || value === 'handoff';
+
 export default function WorkspaceCommandPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamString = searchParams?.toString() || '';
+  const workspaceParam = searchParams?.get('workspace') || null;
+  const viewParam = searchParams?.get('view') || null;
+  const workspaceView = isWorkspaceCommandView(viewParam) ? viewParam : 'overview';
   const { hasRole } = useAuth();
   const canCoordinate = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
   const canAttachEvidence = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER, UserRole.SPECIALIST]);
@@ -40,12 +52,10 @@ export default function WorkspaceCommandPage() {
     setScannerUploadForm,
     setSupportResolutionById,
     setSupportStatusById,
-    setWorkspaceView,
     supportForm,
     supportResolutionById,
     supportStatusById,
     workspaceForm,
-    workspaceView,
   } = useWorkspaceCommandUiState();
   const {
     attachmentOpenError,
@@ -80,7 +90,19 @@ export default function WorkspaceCommandPage() {
     uploadAttachment,
     workspaceList,
     workspaceScannerReadiness,
-  } = useWorkspaceCommandData({ canAttachEvidence });
+  } = useWorkspaceCommandData({ canAttachEvidence, selectedWorkspaceId: workspaceParam });
+
+  const openWorkspaceRoute = (view: WorkspaceCommandView, workspaceId = selectedWorkspace?.id) => {
+    const next = new URLSearchParams(searchParamString);
+    if (workspaceId) next.set('workspace', workspaceId);
+    if (view === 'overview') {
+      next.delete('view');
+    } else {
+      next.set('view', view);
+    }
+    const suffix = next.toString();
+    router.push(suffix ? `${pathname || '/workspaces'}?${suffix}` : pathname || '/workspaces', { scroll: false });
+  };
 
   const {
     activeWorkspaceCount,
@@ -176,14 +198,16 @@ export default function WorkspaceCommandPage() {
           {attachmentOpenError}
         </Alert>
       )}
-      <WorkspaceCommandMetricsPanel
-        activeWorkspaceCount={activeWorkspaceCount}
-        blockedItems={blockedItems}
-        completedMilestones={completedMilestones}
-        scheduledMilestoneCount={milestoneList.filter((milestone) => milestone.dueDate).length}
-        totalMilestoneCount={milestoneList.length}
-        totalWorkspaceCount={workspaceList.length}
-      />
+      {workspaceView === 'overview' && (
+        <WorkspaceCommandMetricsPanel
+          activeWorkspaceCount={activeWorkspaceCount}
+          blockedItems={blockedItems}
+          completedMilestones={completedMilestones}
+          scheduledMilestoneCount={milestoneList.filter((milestone) => milestone.dueDate).length}
+          totalMilestoneCount={milestoneList.length}
+          totalWorkspaceCount={workspaceList.length}
+        />
+      )}
 
       <WorkspaceCommandBoard
         workspaceView={workspaceView}
@@ -196,12 +220,14 @@ export default function WorkspaceCommandPage() {
           onSelectWorkspace: (workspaceId) => {
             setSelectedWorkspaceId(workspaceId);
             clearSelectedMilestone();
+            openWorkspaceRoute(workspaceView, workspaceId);
           },
           onCreateWorkspace: () => createWorkspace.mutate(),
         }}
         selectedWorkspacePane={selectedWorkspace ? {
           view: workspaceView,
-          onViewChange: setWorkspaceView,
+          onViewChange: (view) => openWorkspaceRoute(view),
+          onOpenHub: () => openWorkspaceRoute('overview'),
           isFetchingWorkspaceDetail: milestones.isFetching || deliverables.isFetching || supportRequests.isFetching || disputes.isFetching || attachments.isFetching,
           hero: {
             workspace: selectedWorkspace,
@@ -234,8 +260,8 @@ export default function WorkspaceCommandPage() {
             selectedMilestone,
             selectedMilestoneCriteria,
             workspace: selectedWorkspace,
-            onPrepareHandoff: () => setWorkspaceView(roughEdgeCount ? 'team' : 'handoff'),
-            onReviewProof: () => setWorkspaceView('proof'),
+            onPrepareHandoff: () => openWorkspaceRoute(roughEdgeCount ? 'team' : 'handoff'),
+            onReviewProof: () => openWorkspaceRoute('proof'),
           },
           proof: {
             workspace: selectedWorkspace,

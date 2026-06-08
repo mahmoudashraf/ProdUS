@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { BadgeOutlined, GroupsOutlined, HowToRegOutlined, RocketLaunchOutlined } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
+import { WorkspaceBreadcrumbs } from './OwnerWorkspaceJourneyNav';
 import { PastelChip, appleColors } from './PlatformComponents';
 
 export type TeamProfileStudioView = 'profile' | 'team' | 'expert' | 'requests';
@@ -43,6 +44,13 @@ const studioViews: Array<{
     color: appleColors.amber,
   },
 ];
+
+const studioTitleByView: Record<TeamProfileStudioView, string> = {
+  profile: 'Team Identity',
+  team: 'People',
+  expert: 'Expert Profile',
+  requests: 'Access Requests',
+};
 
 export function TeamProfileStudioFocusNav({
   activeView,
@@ -111,6 +119,27 @@ export function TeamProfileStudioFocusNav({
           </Button>
         );
       })}
+    </Box>
+  );
+}
+
+export function TeamProfileStudioInternalHeader({
+  activeView,
+  onOpenHub,
+}: {
+  activeView: TeamProfileStudioView;
+  onOpenHub: () => void;
+}) {
+  return (
+    <Box sx={{ mb: 2 }}>
+      <WorkspaceBreadcrumbs
+        items={[
+          { label: 'Profile studio', onClick: onOpenHub },
+          { label: studioTitleByView[activeView] },
+        ]}
+        backLabel="Studio hub"
+        onBack={onOpenHub}
+      />
     </Box>
   );
 }

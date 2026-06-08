@@ -4,18 +4,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { sortWorkspacesForOwner } from './displayOrder';
 import type { Milestone, ProjectWorkspace } from './types';
 
-export function useWorkspaceCommandSelection(workspaces: ProjectWorkspace[]) {
+export function useWorkspaceCommandSelection(workspaces: ProjectWorkspace[], requestedWorkspaceId?: string | null) {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
 
   const workspaceList = useMemo(() => sortWorkspacesForOwner(workspaces), [workspaces]);
+  const routeWorkspace = useMemo(
+    () => workspaceList.find((workspace) => workspace.id === requestedWorkspaceId),
+    [workspaceList, requestedWorkspaceId]
+  );
   const selectedWorkspace = useMemo(
-    () => workspaceList.find((workspace) => workspace.id === selectedWorkspaceId) || workspaceList[0],
-    [workspaceList, selectedWorkspaceId]
+    () => routeWorkspace || workspaceList.find((workspace) => workspace.id === selectedWorkspaceId) || workspaceList[0],
+    [routeWorkspace, workspaceList, selectedWorkspaceId]
   );
 
   useEffect(() => {
-    if (!selectedWorkspaceId && workspaceList[0]) setSelectedWorkspaceId(workspaceList[0].id);
-  }, [selectedWorkspaceId, workspaceList]);
+    if (!selectedWorkspaceId && selectedWorkspace?.id) setSelectedWorkspaceId(selectedWorkspace.id);
+  }, [selectedWorkspace?.id, selectedWorkspaceId]);
 
   return {
     selectedWorkspace,

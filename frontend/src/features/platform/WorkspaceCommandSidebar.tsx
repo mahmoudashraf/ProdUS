@@ -36,18 +36,19 @@ export default function WorkspaceCommandSidebar({
   onCreateWorkspace,
 }: WorkspaceCommandSidebarProps) {
   return (
-    <Stack spacing={2}>
-      <Surface sx={{ maxHeight: { lg: 'calc(100vh - 260px)' }, overflow: { lg: 'auto' } }}>
+    <Stack spacing={2} sx={{ minWidth: 0 }}>
+      <Surface sx={{ maxHeight: { lg: 'calc(100vh - 260px)' }, overflow: { lg: 'auto' }, minWidth: 0 }}>
         <SectionTitle title="Workspaces" action={<PastelChip label={`${workspaceList.length}`} accent={appleColors.cyan} bg="#e4f9fd" />} />
         {workspaceList.length ? (
           <Stack spacing={1}>
             {workspaceList.map((workspace) => (
               <Button
                 key={workspace.id}
+                fullWidth
                 variant={selectedWorkspace?.id === workspace.id ? 'contained' : 'outlined'}
                 color={selectedWorkspace?.id === workspace.id ? 'primary' : 'inherit'}
                 onClick={() => onSelectWorkspace(workspace.id)}
-                sx={{ justifyContent: 'space-between', minHeight: 56, textAlign: 'left', borderRadius: 1, gap: 1.5 }}
+                sx={{ justifyContent: 'space-between', minHeight: 56, textAlign: 'left', borderRadius: 1, gap: 1.5, minWidth: 0 }}
               >
                 <Box sx={{ minWidth: 0 }}>
                   <Typography sx={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workspace.name}</Typography>
@@ -64,7 +65,7 @@ export default function WorkspaceCommandSidebar({
         )}
       </Surface>
 
-      <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
+      <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)', minWidth: 0 }}>
         <SectionTitle title="Create Workspace" action={<AddOutlined sx={{ color: appleColors.purple }} />} />
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.6 }}>
           Use this when a service plan exists and delivery needs its own workspace.
