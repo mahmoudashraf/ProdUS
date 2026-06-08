@@ -21,7 +21,7 @@ export function OwnerWorkspaceJourneyNav<T extends string>({
   onChange,
 }: {
   label: string;
-  value: T;
+  value?: T | null;
   items: JourneyStepItem<T>[];
   maxColumns?: number;
   onChange: (value: T) => void;
