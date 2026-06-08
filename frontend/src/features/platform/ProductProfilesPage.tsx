@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Stack } from '@mui/material';
+import { Box } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getJson } from './api';
 import { sortProductsForOwner } from './displayOrder';
@@ -45,16 +45,31 @@ export default function ProductProfilesPage() {
           alignItems: 'start',
         }}
       >
-        <Stack spacing={2.5} sx={{ gridArea: 'portfolio', minWidth: 0 }}>
-          <ProductPortfolioMetricsPanel
-            productCount={productList.length}
-            healthyCount={stats.healthyCount}
-            attentionCount={stats.attentionCount}
-            inDeliveryCount={stats.inDeliveryCount}
-            healthPercent={stats.healthPercent}
-          />
-          <ProductPortfolioListPanel productList={productList} packageList={packageList} />
-        </Stack>
+        <Box
+          sx={{
+            gridArea: 'portfolio',
+            minWidth: 0,
+            display: 'grid',
+            gap: 2.5,
+            gridTemplateAreas: {
+              xs: '"list" "metrics"',
+              md: '"metrics" "list"',
+            },
+          }}
+        >
+          <Box sx={{ gridArea: 'metrics', minWidth: 0 }}>
+            <ProductPortfolioMetricsPanel
+              productCount={productList.length}
+              healthyCount={stats.healthyCount}
+              attentionCount={stats.attentionCount}
+              inDeliveryCount={stats.inDeliveryCount}
+              healthPercent={stats.healthPercent}
+            />
+          </Box>
+          <Box sx={{ gridArea: 'list', minWidth: 0 }}>
+            <ProductPortfolioListPanel productList={productList} packageList={packageList} />
+          </Box>
+        </Box>
 
         <Box sx={{ gridArea: 'decision', minWidth: 0 }}>
           <ProductPortfolioNextActionPanel productList={productList} packageList={packageList} />
