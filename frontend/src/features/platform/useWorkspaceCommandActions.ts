@@ -3,6 +3,13 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postJson, putJson } from './api';
+import {
+  buildWorkspaceHandoffPayload,
+  buildWorkspaceHealthPayload,
+  buildWorkspaceLaunchReportPayload,
+  buildWorkspaceScannerReadinessPayload,
+  buildWorkspaceScannerUploadPayload,
+} from './workspaceCommandActionPayloads';
 import type {
   CheckPayload,
   EvidenceStatusPayload,
@@ -190,14 +197,10 @@ export function useWorkspaceCommandActions({
   });
   const upsertHandoff = useMutation({
     mutationFn: () =>
-      postJson<HandoffDocument, HandoffPayload>(`/productization-engine/workspaces/${selectedWorkspace?.id}/handoff`, {
-        title: `${selectedWorkspace?.name || 'Workspace'} owner handoff`,
-        runbook: 'Operating runbook, release notes, rollback path, monitoring ownership, and escalation contacts are ready for owner review.',
-        accessChecklist: 'Repository, deployment, database, monitoring, support, and billing access boundaries reviewed.',
-        knownIssues: 'Open risks are tracked in the workspace risk section before handoff acceptance.',
-        supportScope: 'Post-launch support covers monitoring, incident response, minor fixes, and owner health reporting.',
-        status: 'READY_FOR_OWNER',
-      }),
+      postJson<HandoffDocument, HandoffPayload>(
+        `/productization-engine/workspaces/${selectedWorkspace?.id}/handoff`,
+        buildWorkspaceHandoffPayload(selectedWorkspace?.name)
+      ),
     onSuccess: async () => {
       setGovernanceNotice('Handoff document prepared for owner review.');
       await refreshGovernance();
@@ -205,13 +208,14 @@ export function useWorkspaceCommandActions({
   });
   const createHealthReview = useMutation({
     mutationFn: () =>
-      postJson<ProductHealthReview, HealthPayload>(`/productization-engine/workspaces/${selectedWorkspace?.id}/health-reviews`, {
-        healthScore: Math.max(55, workspaceProgress || 70),
-        summary: 'Workspace health review generated from milestone acceptance, open support, risk, and evidence status.',
-        risks: disputeList.length ? `${disputeList.length} open workspace risk records need review.` : 'No open workspace disputes are recorded.',
-        actions: supportList.length ? 'Review support requests and close overdue items before owner handoff.' : 'Keep evidence current and prepare handoff acceptance.',
-        status: 'PUBLISHED',
-      }),
+      postJson<ProductHealthReview, HealthPayload>(
+        `/productization-engine/workspaces/${selectedWorkspace?.id}/health-reviews`,
+        buildWorkspaceHealthPayload({
+          disputeCount: disputeList.length,
+          supportCount: supportList.length,
+          workspaceProgress,
+        })
+      ),
     onSuccess: async () => {
       setGovernanceNotice('Health review published.');
       await refreshGovernance();
@@ -235,12 +239,10 @@ export function useWorkspaceCommandActions({
   });
   const enrichScannerReadiness = useMutation({
     mutationFn: () =>
-      postJson<WorkspaceScannerReadiness, WorkspaceScannerReadinessPayload>(`/productization-engine/workspaces/${selectedWorkspace?.id}/scanner-readiness/enrich`, {
-        createCriteria: true,
-        createServiceRecommendations: true,
-        includeAcceptedRisk: false,
-        summary: 'Owner requested workspace scanner readiness refresh from the workspace board.',
-      }),
+      postJson<WorkspaceScannerReadiness, WorkspaceScannerReadinessPayload>(
+        `/productization-engine/workspaces/${selectedWorkspace?.id}/scanner-readiness/enrich`,
+        buildWorkspaceScannerReadinessPayload()
+      ),
     onSuccess: async () => {
       setGovernanceNotice('Workspace scanner readiness refreshed and linked to milestone evidence.');
       await refreshGovernance();
@@ -249,29 +251,23 @@ export function useWorkspaceCommandActions({
   });
   const generateLaunchReadinessReport = useMutation({
     mutationFn: () =>
-      postJson<LaunchReadinessReport, { focus: string }>(`/productization-engine/workspaces/${selectedWorkspace?.id}/launch-readiness-report`, {
-        focus: 'Summarize launch readiness for a prototype-to-product owner decision using current workspace proof, scanner findings, and selected services.',
-      }),
+      postJson<LaunchReadinessReport, { focus: string }>(
+        `/productization-engine/workspaces/${selectedWorkspace?.id}/launch-readiness-report`,
+        buildWorkspaceLaunchReportPayload()
+      ),
     onSuccess: async () => {
       setGovernanceNotice('Launch readiness report generated from this workspace evidence.');
       await refreshGovernance();
     },
   });
   const uploadScannerEvidence = useMutation({
-    mutationFn: () => {
-      const payload: WorkspaceScannerUploadPayload = {
-        productId: selectedWorkspaceProductId,
-        workspaceId: selectedWorkspace?.id || '',
-        toolName: scannerUploadForm.toolName,
-        toolVersion: scannerUploadForm.toolVersion,
-        format: scannerUploadForm.format,
-        artifactFileName: scannerUploadForm.artifactFileName,
-        artifactPayload: scannerUploadForm.artifactPayload,
-      };
-      const milestoneId = scannerUploadForm.milestoneId || selectedMilestone?.id;
-      if (milestoneId) payload.milestoneId = milestoneId;
-      return postJson<ScanRun, WorkspaceScannerUploadPayload>('/scanner/runs/ci-upload', payload);
-    },
+    mutationFn: () =>
+      postJson<ScanRun, WorkspaceScannerUploadPayload>('/scanner/runs/ci-upload', buildWorkspaceScannerUploadPayload({
+        scannerUploadForm,
+        selectedMilestoneId: selectedMilestone?.id,
+        selectedWorkspaceId: selectedWorkspace?.id || '',
+        selectedWorkspaceProductId,
+      })),
     onSuccess: async () => {
       setScannerUploadForm((current) => ({ ...current, artifactPayload: '' }));
       setGovernanceNotice('Scanner evidence normalized and attached to this workspace.');

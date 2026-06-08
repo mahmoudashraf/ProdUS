@@ -1,56 +1,52 @@
 'use client';
 
-import { useState } from 'react';
 import { Alert } from '@mui/material';
-import { useAdvancedForm } from '@/hooks/enterprise';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import WorkspaceCommandBoard from './WorkspaceCommandBoard';
-import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import WorkspaceCommandMetricsPanel from './WorkspaceCommandMetricsPanel';
 import { useWorkspaceCommandActions } from './useWorkspaceCommandActions';
 import { useWorkspaceCommandData } from './useWorkspaceCommandData';
 import { useWorkspaceCommandSummary } from './useWorkspaceCommandSummary';
+import { useWorkspaceCommandUiState } from './useWorkspaceCommandUiState';
 import {
   PageHeader,
   QueryState,
   formatLabel,
 } from './PlatformComponents';
 import {
-  type DeliverableFormValues as DeliverablePayload,
-  type DisputeFormValues as DisputePayload,
-  type MilestoneFormValues as MilestonePayload,
-  type ParticipantFormValues as ParticipantPayload,
-  type SupportRequestFormValues as SupportRequestPayload,
-  type WorkspaceFormValues as WorkspacePayload,
-  initialActiveWorkspaceValues,
-  initialDeliverableValues,
-  initialDisputeValues,
-  initialMilestoneValues,
-  initialParticipantValues,
-  initialSupportRequestValues,
-  initialWorkspaceScannerUploadValues,
   workspaceAccent,
 } from './workspaceCommandTeamTypes';
-import {
-  DisputeCase,
-  IntegrationConnection,
-  SupportRequest,
-} from './types';
 
 export default function WorkspaceCommandPage() {
   const { hasRole } = useAuth();
   const canCoordinate = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
   const canAttachEvidence = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER, UserRole.SPECIALIST]);
 
-  const [supportStatusById, setSupportStatusById] = useState<Record<string, SupportRequest['status']>>({});
-  const [supportResolutionById, setSupportResolutionById] = useState<Record<string, string>>({});
-  const [disputeStatusById, setDisputeStatusById] = useState<Record<string, DisputeCase['status']>>({});
-  const [disputeResolutionById, setDisputeResolutionById] = useState<Record<string, string>>({});
-  const [governanceNotice, setGovernanceNotice] = useState('');
-  const [integrationProvider, setIntegrationProvider] = useState<IntegrationConnection['providerType']>('GITHUB');
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceCommandView>('overview');
-  const [scannerUploadForm, setScannerUploadForm] = useState(initialWorkspaceScannerUploadValues);
+  const {
+    deliverableForm,
+    disputeForm,
+    disputeResolutionById,
+    disputeStatusById,
+    governanceNotice,
+    integrationProvider,
+    milestoneForm,
+    participantForm,
+    scannerUploadForm,
+    setDisputeResolutionById,
+    setDisputeStatusById,
+    setGovernanceNotice,
+    setIntegrationProvider,
+    setScannerUploadForm,
+    setSupportResolutionById,
+    setSupportStatusById,
+    setWorkspaceView,
+    supportForm,
+    supportResolutionById,
+    supportStatusById,
+    workspaceForm,
+    workspaceView,
+  } = useWorkspaceCommandUiState();
   const {
     attachmentOpenError,
     attachments,
@@ -85,48 +81,6 @@ export default function WorkspaceCommandPage() {
     workspaceList,
     workspaceScannerReadiness,
   } = useWorkspaceCommandData({ canAttachEvidence });
-
-  const workspaceForm = useAdvancedForm<WorkspacePayload>({
-    initialValues: initialActiveWorkspaceValues,
-    validationRules: {
-      packageInstanceId: [{ type: 'required', message: 'Service plan is required' }],
-    },
-  });
-  const milestoneForm = useAdvancedForm<MilestonePayload>({
-    initialValues: initialMilestoneValues,
-    validationRules: {
-      title: [{ type: 'required', message: 'Milestone title is required' }],
-    },
-  });
-  const deliverableForm = useAdvancedForm<DeliverablePayload>({
-    initialValues: initialDeliverableValues,
-    validationRules: {
-      title: [{ type: 'required', message: 'Deliverable title is required' }],
-    },
-  });
-  const participantForm = useAdvancedForm<ParticipantPayload>({
-    initialValues: initialParticipantValues,
-    validationRules: {
-      email: [
-        { type: 'required', message: 'Participant email is required' },
-        { type: 'email', message: 'Use a valid email address' },
-      ],
-    },
-  });
-  const supportForm = useAdvancedForm<SupportRequestPayload>({
-    initialValues: initialSupportRequestValues,
-    validationRules: {
-      title: [{ type: 'required', message: 'Support title is required' }],
-      description: [{ type: 'required', message: 'Support context is required' }],
-    },
-  });
-  const disputeForm = useAdvancedForm<DisputePayload>({
-    initialValues: initialDisputeValues,
-    validationRules: {
-      title: [{ type: 'required', message: 'Risk title is required' }],
-      description: [{ type: 'required', message: 'Risk context is required' }],
-    },
-  });
 
   const {
     activeWorkspaceCount,
