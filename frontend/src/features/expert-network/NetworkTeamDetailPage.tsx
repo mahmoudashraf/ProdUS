@@ -14,6 +14,7 @@ import {
 import type { TeamJoinRequest } from '@/features/platform/types';
 import { networkApi } from './api';
 import { PersonAvatar, TagRow } from './NetworkSharedPanels';
+import { detailCoverSx } from './networkProfileCover';
 import { joinRequestForTeam, messageFor } from './networkPresentation';
 import { useNetworkMessageAction } from './useNetworkMessageAction';
 
@@ -44,7 +45,7 @@ export function NetworkTeamDetailPage() {
       {record && (
         <>
           <Surface sx={{ p: 0, overflow: 'hidden' }}>
-            <Box sx={{ height: 220, background: record.coverPhotoUrl ? `url(${record.coverPhotoUrl}) center/cover` : 'linear-gradient(135deg, #eef2ff, #ecfeff)' }} />
+            <Box sx={detailCoverSx(record.coverPhotoUrl)} />
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-end' }} sx={{ px: 3, pb: 3, mt: -4 }}>
               <PersonAvatar name={record.name} src={record.profilePhotoUrl} square />
               <Box sx={{ flex: 1 }}>

@@ -13,6 +13,7 @@ import {
 } from '@/features/platform/PlatformComponents';
 import { networkApi } from './api';
 import { PersonAvatar, TagRow } from './NetworkSharedPanels';
+import { detailCoverSx } from './networkProfileCover';
 import { messageFor } from './networkPresentation';
 import { useNetworkMessageAction } from './useNetworkMessageAction';
 
@@ -28,7 +29,7 @@ export function NetworkExpertDetailPage() {
       {profile && (
         <>
           <Surface sx={{ p: 0, overflow: 'hidden' }}>
-            <Box sx={{ height: 220, background: profile.coverPhotoUrl ? `url(${profile.coverPhotoUrl}) center/cover` : 'linear-gradient(135deg, #eef2ff, #ecfeff)' }} />
+            <Box sx={detailCoverSx(profile.coverPhotoUrl)} />
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-end' }} sx={{ px: 3, pb: 3, mt: -4 }}>
               <PersonAvatar name={profile.displayName} src={profile.profilePhotoUrl} />
               <Box sx={{ flex: 1 }}>

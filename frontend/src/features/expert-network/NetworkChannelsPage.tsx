@@ -7,6 +7,7 @@ import { AddOutlined, FavoriteBorderOutlined } from '@mui/icons-material';
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  EmptyState,
   PageHeader,
   PastelChip,
   QueryState,
@@ -82,6 +83,7 @@ export function NetworkChannelsPage() {
                 </Stack>
               </Button>
             ))}
+            {!channels.data?.length && <EmptyState label="No service channels are available yet." />}
           </Stack>
         </Surface>
         <Stack spacing={2.5}>
@@ -118,6 +120,7 @@ export function NetworkChannelsPage() {
               </Stack>
             </Surface>
           ))}
+          {!posts.data?.length && <EmptyState label="No posts in this channel yet." />}
         </Stack>
       </Box>
     </Stack>
