@@ -5,7 +5,7 @@ import {
   ArrowUpwardOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Checkbox, Stack, Typography } from '@mui/material';
-import { AiReviewList } from './ProductOnboardingAiPanels';
+import { AiReviewList } from './ProductOnboardingReviewCards';
 import {
   DotLabel,
   appleColors,

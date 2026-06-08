@@ -21,3 +21,11 @@ export interface ProductOnboardingProfileDraft {
   repositoryUrl: string;
   riskProfile: string;
 }
+
+export interface ProductOnboardingAttributeItem {
+  label: string;
+  value?: string | null | undefined;
+  source: string;
+  accent: string;
+  wide?: boolean;
+}

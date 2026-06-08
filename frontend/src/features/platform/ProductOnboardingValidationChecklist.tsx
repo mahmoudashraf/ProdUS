@@ -5,7 +5,7 @@ import { Accordion, AccordionDetails, AccordionSummary, Box, Stack, Typography }
 import {
   ValidationRow,
   type ValidationState,
-} from './ProductOnboardingAiPanels';
+} from './ProductOnboardingValidationRow';
 import { DotLabel, appleColors } from './PlatformComponents';
 
 export interface ProductOnboardingValidationItem {

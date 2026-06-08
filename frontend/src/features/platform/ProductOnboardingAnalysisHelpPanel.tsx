@@ -2,9 +2,7 @@
 
 import { ExpandMoreOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Accordion, AccordionDetails, AccordionSummary, Box, Stack, Typography } from '@mui/material';
-import {
-  ProjectAnalysisChatPanel,
-} from './ProductOnboardingAiPanels';
+import { ProjectAnalysisChatPanel } from './ProductAnalysisChatPanel';
 import { DotLabel, appleColors } from './PlatformComponents';
 
 interface ProductOnboardingAnalysisHelpPanelProps {

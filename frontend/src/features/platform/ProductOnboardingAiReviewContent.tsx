@@ -3,8 +3,8 @@
 import { Box, Stack, Typography } from '@mui/material';
 import { DotLabel, appleColors, formatLabel } from './PlatformComponents';
 import ProductOnboardingUnderstandingSummary from './ProductOnboardingUnderstandingSummary';
-import ProductOnboardingDetailedReviewSections, { type ProductOnboardingAttributeItem } from './ProductOnboardingDetailedReviewSections';
-import type { ProductOnboardingProfileDraft } from './ProductOnboardingAnalysisTypes';
+import ProductOnboardingDetailedReviewSections from './ProductOnboardingDetailedReviewSections';
+import type { ProductOnboardingAttributeItem, ProductOnboardingProfileDraft } from './ProductOnboardingAnalysisTypes';
 import type { AiAssistedProductAnalysisResponse, ServiceModuleRecommendation } from './types';
 
 export default function ProductOnboardingAiReviewContent({
