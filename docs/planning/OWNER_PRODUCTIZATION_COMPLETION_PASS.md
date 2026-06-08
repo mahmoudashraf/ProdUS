@@ -968,6 +968,52 @@ Status:
   - `/teams` returned 1 team.
   - `/expert-network/home` currently returns 500 for the available mock fixtures, but the dashboard route still renders its shell and Browse Network action. This appears to be a backend fixture/data issue, not a regression from the frontend split.
 
+### Completed: Handwritten Owner Journey Implementation
+
+Problem:
+
+- The handwritten journey notes asked for Product Home, Services, Product Creation, and Public Share to feel like one product-context journey.
+- Services still needed to work as a product entry path, not only a global catalog or post-diagnosis page.
+- Product creation needed focused internal views with a way back, not a long page that swapped sections under buttons.
+- External product sharing needed safe public summaries and owner-controlled section visibility before any private proof could be exposed.
+
+Solution:
+
+- Added service-first and product-first entry points on Product Home.
+- Reworked the Service Catalog into a discovery landing plus focused internal catalog views with explicit back navigation.
+- Carried selected service/template context into `/products/new` and preserved it through setup and manual product creation.
+- Added focused product-creation internal views for setup, manual fields, and AI review.
+- Added Product Workspace `Share` navigation and a share-link management surface.
+- Implemented backend share-link persistence, revocation, public token lookup, public section visibility, and private-by-default locked sections.
+- Added public product share pages at `/share/product/{token}` with safe summaries and selected services when explicitly shared.
+
+Status:
+
+- Implemented, committed, deployed, and live-verified at commit `417ec0c`.
+- Coolify backend deployment: `wn0nah8wmg7d7tnsry9lhogq`.
+- Coolify frontend deployment: `tmfritqr8q08wjfvrpl68m7a`.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+  - `mvn -q -DskipTests compile`
+  - `mvn -q -Dtest=LiquibaseChangelogParsingTest test`
+- Live backend health returned `UP`.
+- Focused live verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/201-products-home-service-entry-live-417ec0c.png`
+  - `tmp/live-verification/2026-06-08/202-service-catalog-internal-workstreams-live-417ec0c.png`
+  - `tmp/live-verification/2026-06-08/203-product-setup-from-service-live-417ec0c.png`
+  - `tmp/live-verification/2026-06-08/204-product-create-manual-internal-view-live-417ec0c.png`
+  - `tmp/live-verification/2026-06-08/205-product-share-links-created-live-417ec0c.png`
+  - `tmp/live-verification/2026-06-08/206-public-product-share-safe-summary-live-417ec0c.png`
+  - `tmp/live-verification/2026-06-08/207-products-home-mobile-live-417ec0c.png`
+  - `tmp/live-verification/2026-06-08/208-service-catalog-product-context-mobile-live-417ec0c.png`
+- Live scanner sanity for product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237` confirmed:
+  - Latest tools: `10/10`
+  - Completed tools: `10/10`
+  - `zap-baseline`: `COMPLETED`
+  - Mapped findings preserved: `73` open findings with `10` mapped ZAP findings.
+
 ## Implementation Loop
 
 For each slice:

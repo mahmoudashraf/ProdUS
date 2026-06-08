@@ -23,6 +23,47 @@ The strongest idea is that ProdUS should become product-context-first. The owner
 
 Adopt the notes with one important constraint: the public share page must be designed as a permissioned sharing system, not only as a UI page. Findings, evidence, service selections, and team participation must never become visible through a share link unless the owner explicitly chooses that scope and the viewer has the right access level.
 
+## Implementation Status
+
+Status: MVP implementation completed and live verified on 2026-06-08.
+
+Implementation commit: `417ec0c`.
+
+Coolify deployments:
+
+- Backend: `wn0nah8wmg7d7tnsry9lhogq`
+- Frontend: `tmfritqr8q08wjfvrpl68m7a`
+
+What shipped:
+
+- Product home now exposes `New product`, `Start from service`, and `Project Start Plan` as clear owner paths.
+- Service Catalog now has a discovery landing and focused internal catalog views with a visible back path instead of button-row content swapping.
+- Service-first selection carries selected service context into `/products/new`, where the owner can review product fields before creation.
+- Product creation supports focused internal views for setup, manual fields, and AI review rather than one long dense screen.
+- Product workspace now includes a `Share` spoke for controlled disclosure.
+- Backend share-link API, persistence, revocation, public token lookup, and section visibility rules are implemented.
+- Public product share pages are live at `/share/product/{token}` and expose only safe summary sections by default.
+- Selected service context is available in public shares when the owner explicitly enables `Selected services`.
+- Detailed findings, evidence, and team status remain private unless future authenticated share scopes are deliberately added.
+
+Live verification screenshots:
+
+- `tmp/live-verification/2026-06-08/201-products-home-service-entry-live-417ec0c.png`
+- `tmp/live-verification/2026-06-08/202-service-catalog-internal-workstreams-live-417ec0c.png`
+- `tmp/live-verification/2026-06-08/203-product-setup-from-service-live-417ec0c.png`
+- `tmp/live-verification/2026-06-08/204-product-create-manual-internal-view-live-417ec0c.png`
+- `tmp/live-verification/2026-06-08/205-product-share-links-created-live-417ec0c.png`
+- `tmp/live-verification/2026-06-08/206-public-product-share-safe-summary-live-417ec0c.png`
+- `tmp/live-verification/2026-06-08/207-products-home-mobile-live-417ec0c.png`
+- `tmp/live-verification/2026-06-08/208-service-catalog-product-context-mobile-live-417ec0c.png`
+
+Live scanner sanity for the ProdUS repo/readme fixture `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`:
+
+- Latest scanner tools: `10/10`
+- Completed scanner tools: `10/10`
+- `zap-baseline`: `COMPLETED`
+- Mapped findings preserved: `73` open findings, including `10` mapped ZAP findings
+
 ## Interpreted Notes
 
 Some handwriting is uncertain, so this document captures the product intent rather than treating every word as exact source text.
