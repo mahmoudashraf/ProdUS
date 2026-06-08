@@ -1041,7 +1041,7 @@ Solution:
 
 Status:
 
-- Implemented and locally verified in this pass.
+- Implemented, deployed, and live-verified at UI commit `c5362bd`, Coolify frontend deployment `ixusf8wx8sbfpnfe372yv65l`.
 - Local checks passed:
   - `git diff --check`
   - `npm --prefix frontend run type-check`
@@ -1052,7 +1052,11 @@ Status:
   - `tmp/live-verification/2026-06-08/215-owner-home-navigation-dedup-local.png`
   - `tmp/live-verification/2026-06-08/216-selected-product-context-fixed-local.png`
   - `tmp/live-verification/2026-06-08/217-selected-product-context-mobile-local.png`
-- Deployment/live verification is still pending for this navigation slice.
+- Live verification passed against `https://produs-staging.46.224.145.148.sslip.io`.
+- Live screenshots:
+  - `tmp/live-verification/2026-06-08/215-owner-home-navigation-dedup-live.png`
+  - `tmp/live-verification/2026-06-08/216-selected-product-context-fixed-live.png`
+  - `tmp/live-verification/2026-06-08/217-selected-product-context-mobile-live.png`
 
 ## Implementation Loop
 
