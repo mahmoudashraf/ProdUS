@@ -6,10 +6,10 @@ import {
 } from './PlatformComponents';
 import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
 import OwnerFindingReviewDrawerHost from './OwnerFindingReviewDrawerHost';
-import OwnerWorkspaceActionsPane from './OwnerWorkspaceActionsPane';
+import OwnerWorkspaceActionsArea from './OwnerWorkspaceActionsArea';
 import OwnerWorkspaceFindingsPane from './OwnerWorkspaceFindingsPane';
-import OwnerWorkspaceOverviewPane from './OwnerWorkspaceOverviewPane';
-import OwnerWorkspaceServicesPane from './OwnerWorkspaceServicesPane';
+import OwnerWorkspaceOverviewArea from './OwnerWorkspaceOverviewArea';
+import OwnerWorkspaceServicesArea from './OwnerWorkspaceServicesArea';
 import OwnerWorkspaceSideRailHost from './OwnerWorkspaceSideRailHost';
 import {
   OwnerProductizationWorkspaceHeader,
@@ -436,77 +436,52 @@ export default function OwnerProductizationWorkspace({
             onViewProof={() => openFindingsView('technical')}
           />
 
-          {selectedProduct && workspaceTab === 'overview' && (
-            <OwnerWorkspaceOverviewPane
-              view={overviewView}
-              detailOpen={workspaceDetailOpen}
-              launchCelebration={{
-                readinessScore: launchStatus.score,
-                blockerCount: launchStatus.blockerCount,
-                improvementCount: launchStatus.improvementCount,
-                completedChecks: latestCompletedTools,
-                totalChecks: scanToolOptions.length,
-                isGenerating: generateLaunchReadinessReport.isPending,
-                onGenerateReport: () => generateLaunchReadinessReport.mutate(),
-              }}
-              decision={{
-                launchStatus,
-                latestCompletedTools,
-                totalScanTools: scanToolOptions.length,
-                topRecommendedServiceName,
-                topOwnerRisks,
-                ownerActionGroups,
-                scannerCoverageGroups,
-                selectedPackage,
-                scannerMappedServices,
-                onOpenServicesRecommend: () => openServicesView('recommend'),
-                onOpenServicesPlan: () => openServicesView('plan'),
-                onOpenFindingsEvidence: () => openFindingsView('evidence'),
-                onOpenFindingsRisks: () => openFindingsView('risks'),
-                onOpenTimeline: () => setTimelineOpen(true),
-              }}
-              shipConfidence={{
-                history: shipConfidence.data,
-                isLoading: shipConfidence.isFetching,
-                title: 'Ship Confidence History',
-                subtitle: 'Every diagnosis and scanner map becomes a checkpoint, so this prototype has a visible path from rough edges to ready-to-ship.',
-                showScoreRing: false,
-              }}
-              launchReadinessReport={{
-                report: launchReadinessReport.data ?? null,
-                isLoading: launchReadinessReport.isFetching,
-                isGenerating: generateLaunchReadinessReport.isPending,
-                onGenerate: () => generateLaunchReadinessReport.mutate(),
-                title: 'Launch Readiness Report',
-                subtitle: 'Create a shareable snapshot for the next pilot, paid beta, customer demo, or launch decision. This is deterministic and only updates when you generate it.',
-              }}
-            />
-          )}
+          <OwnerWorkspaceOverviewArea
+            detailOpen={workspaceDetailOpen}
+            launchReadinessReport={launchReadinessReport.data ?? null}
+            launchReadinessReportGenerating={generateLaunchReadinessReport.isPending}
+            launchReadinessReportLoading={launchReadinessReport.isFetching}
+            launchStatus={launchStatus}
+            latestCompletedTools={latestCompletedTools}
+            onGenerateLaunchReadinessReport={() => generateLaunchReadinessReport.mutate()}
+            onOpenFindingsEvidence={() => openFindingsView('evidence')}
+            onOpenFindingsRisks={() => openFindingsView('risks')}
+            onOpenServicesPlan={() => openServicesView('plan')}
+            onOpenServicesRecommend={() => openServicesView('recommend')}
+            onOpenTimeline={() => setTimelineOpen(true)}
+            ownerActionGroups={ownerActionGroups}
+            scannerCoverageGroups={scannerCoverageGroups}
+            scannerMappedServices={scannerMappedServices}
+            selectedPackage={selectedPackage}
+            selectedProduct={selectedProduct}
+            shipConfidenceHistory={shipConfidence.data}
+            shipConfidenceLoading={shipConfidence.isFetching}
+            topOwnerRisks={topOwnerRisks}
+            topRecommendedServiceName={topRecommendedServiceName}
+            totalScanTools={scanToolOptions.length}
+            view={overviewView}
+            workspaceTab={workspaceTab}
+          />
 
-          {selectedProduct && workspaceTab === 'actions' && (
-            <OwnerWorkspaceActionsPane
-              view={actionView}
-              detailOpen={workspaceDetailOpen}
-              actionPlan={{
-                ownerActionGroups,
-                onOpenServicesRecommend: () => openServicesView('recommend'),
-              }}
-              diagnosis={{
-                product: selectedProduct,
-                diagnosisForm,
-                latestDiagnosis,
-                catalogModules: catalogModules.data || [],
-                cartServiceIds,
-                diagnosisPromptFacts,
-                assistantContext: assistantContext('product-diagnosis'),
-                assistantActions: assistantActionProps,
-                isCreatingDiagnosis: createDiagnosis.isPending,
-                isAddingService: addServiceToCart.isPending,
-                onCreateDiagnosis: () => createDiagnosis.mutate(),
-                onAddService: addLifecycleService,
-              }}
-            />
-          )}
+          <OwnerWorkspaceActionsArea
+            assistantActions={assistantActionProps}
+            assistantContext={assistantContext('product-diagnosis')}
+            cartServiceIds={cartServiceIds}
+            catalogModules={catalogModules.data || []}
+            detailOpen={workspaceDetailOpen}
+            diagnosisForm={diagnosisForm}
+            diagnosisPromptFacts={diagnosisPromptFacts}
+            isAddingService={addServiceToCart.isPending}
+            isCreatingDiagnosis={createDiagnosis.isPending}
+            latestDiagnosis={latestDiagnosis}
+            onAddService={addLifecycleService}
+            onCreateDiagnosis={() => createDiagnosis.mutate()}
+            onOpenServicesRecommend={() => openServicesView('recommend')}
+            ownerActionGroups={ownerActionGroups}
+            selectedProduct={selectedProduct}
+            view={actionView}
+            workspaceTab={workspaceTab}
+          />
 
           {selectedProduct && workspaceTab === 'findings' && (
             <OwnerWorkspaceFindingsPane
@@ -682,73 +657,62 @@ export default function OwnerProductizationWorkspace({
             />
           )}
 
-          {workspaceTab === 'services' && (
-            <OwnerWorkspaceServicesPane
-              view={servicesView}
-              detailOpen={workspaceDetailOpen}
-              recommend={{
-                product: selectedProduct,
-                categories: categories.data || [],
-                catalogModules: catalogModules.data || [],
-                recommendedServices,
-                cartServiceItems,
-                cartServiceIds,
-                blockerCount: launchStatus.blockerCount,
-                improvementCount: launchStatus.improvementCount,
-                mappedServiceNames: scannerMappedServices,
-                ownerRisks: serviceRiskItems,
-                cartStartPromptFacts,
-                assistantContext: assistantContext('service-selection'),
-                assistantActions: assistantActionProps,
-                isAddingService: addServiceToCart.isPending,
-                isRemovingService: removeServiceFromCart.isPending,
-                onAddService: addLifecycleService,
-                onRemoveService: (itemId) => removeServiceFromCart.mutate(itemId),
-              }}
-              plan={{
-                showProductCreation,
-                selectedProduct,
-                productFormValues: productForm.values,
-                requirementFormValues: requirementForm.values,
-                selectedProductRequirements,
-                catalogModules: catalogModules.data || [],
-                selectedPackage,
-                packageModules: packageModules.data || [],
-                isPackageFetching: packageModules.isFetching,
-                isTeamRecommendationsFetching: teamRecommendations.isFetching,
-                isCreatingProduct: createProduct.isPending,
-                isCreatingRequirement: createRequirement.isPending,
-                isBuildingPackage: buildPackage.isPending,
-                cartStartPromptFacts,
-                packageAssistantContext: assistantContext('package-recommendation'),
-                assistantActions: assistantActionProps,
-                onProductValueChange: (key, value) => productForm.setValue(key as keyof ProductProfilePayload, value as any),
-                onRequirementValueChange: (key, value) => requirementForm.setValue(key as keyof RequirementPayload, value as any),
-                onSubmitProduct: submitProduct,
-                onSubmitRequirement: submitRequirement,
-                onBuildPackage: (requirementId) => buildPackage.mutate(requirementId),
-              }}
-              team={{
-                recommendations: teamRecommendations.data || [],
-                productProposals,
-                cartTalentItems,
-                activeShortlists,
-                suggestedTeams,
-                suggestedExperts,
-                hasServicePlan: !!selectedPackage,
-                isAddingTalent: addTalentToCart.isPending,
-                isRemovingTalent: removeTalentFromCart.isPending,
-                isShortlisting: upsertShortlist.isPending,
-                isAcceptingProposal: acceptProposal.isPending,
-                onAddRecommendationTeam: addRecommendationTeamToCart,
-                onAddTeam: addTeamToCart,
-                onAddExpert: addExpertToCart,
-                onRemoveTalent: (itemId) => removeTalentFromCart.mutate(itemId),
-                onRecordShortlist: recordShortlist,
-                onAcceptProposal: (proposalId) => acceptProposal.mutate(proposalId),
-              }}
-            />
-          )}
+          <OwnerWorkspaceServicesArea
+            activeShortlists={activeShortlists}
+            assistantActions={assistantActionProps}
+            blockerCount={launchStatus.blockerCount}
+            cartServiceIds={cartServiceIds}
+            cartServiceItems={cartServiceItems}
+            cartStartPromptFacts={cartStartPromptFacts}
+            cartTalentItems={cartTalentItems}
+            catalogModules={catalogModules.data || []}
+            categories={categories.data || []}
+            detailOpen={workspaceDetailOpen}
+            hasServicePlan={!!selectedPackage}
+            improvementCount={launchStatus.improvementCount}
+            isAcceptingProposal={acceptProposal.isPending}
+            isAddingService={addServiceToCart.isPending}
+            isAddingTalent={addTalentToCart.isPending}
+            isBuildingPackage={buildPackage.isPending}
+            isCreatingProduct={createProduct.isPending}
+            isCreatingRequirement={createRequirement.isPending}
+            isPackageFetching={packageModules.isFetching}
+            isRemovingService={removeServiceFromCart.isPending}
+            isRemovingTalent={removeTalentFromCart.isPending}
+            isShortlisting={upsertShortlist.isPending}
+            isTeamRecommendationsFetching={teamRecommendations.isFetching}
+            mappedServiceNames={scannerMappedServices}
+            onAcceptProposal={(proposalId) => acceptProposal.mutate(proposalId)}
+            onAddExpert={addExpertToCart}
+            onAddRecommendationTeam={addRecommendationTeamToCart}
+            onAddService={addLifecycleService}
+            onAddTeam={addTeamToCart}
+            onBuildPackage={(requirementId) => buildPackage.mutate(requirementId)}
+            onProductValueChange={(key, value) => productForm.setValue(key as keyof ProductProfilePayload, value as any)}
+            onRecordShortlist={recordShortlist}
+            onRemoveService={(itemId) => removeServiceFromCart.mutate(itemId)}
+            onRemoveTalent={(itemId) => removeTalentFromCart.mutate(itemId)}
+            onRequirementValueChange={(key, value) => requirementForm.setValue(key as keyof RequirementPayload, value as any)}
+            onSubmitProduct={submitProduct}
+            onSubmitRequirement={submitRequirement}
+            ownerRisks={serviceRiskItems}
+            packageAssistantContext={assistantContext('package-recommendation')}
+            packageModules={packageModules.data || []}
+            productFormValues={productForm.values}
+            productProposals={productProposals}
+            recommendationAssistantContext={assistantContext('service-selection')}
+            recommendations={teamRecommendations.data || []}
+            recommendedServices={recommendedServices}
+            requirementFormValues={requirementForm.values}
+            selectedPackage={selectedPackage}
+            selectedProduct={selectedProduct}
+            selectedProductRequirements={selectedProductRequirements}
+            showProductCreation={showProductCreation}
+            suggestedExperts={suggestedExperts}
+            suggestedTeams={suggestedTeams}
+            view={servicesView}
+            workspaceTab={workspaceTab}
+          />
         </Stack>
 
         <OwnerWorkspaceSideRailHost
