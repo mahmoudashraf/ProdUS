@@ -69,6 +69,7 @@ Scanner names, raw artifacts, AI internals, and operator controls must remain av
 - The live Expert Network Messages backend caveat is fixed: backend deployment `nmg3fupz2hwmtxq3kx7hdo20` is running commit `35a0c1a128a3c98d31bc6a6dfdfb1f501ededee0`, and `/expert-network/conversations` now returns `200` for the specialist fixture.
 - Product portfolio is split into route orchestration plus focused action, summary, metrics, and list panels. Mobile now shows the next owner action before the product list.
 - Owner service-plan and team-match spokes now stay preview/decision-first: pre-plan products bridge to the Project Start Plan, team fallback rows are mobile-safe, and the workspace shell no longer overflows horizontally on phone viewports.
+- The standalone Project Start Plan route is split into data, action, journey model, hero, and metric-strip modules while preserving the mobile owner-first hub and URL-backed Readiness / Services / Talent / Approve spokes.
 
 ## Completion Sequence
 
@@ -758,6 +759,47 @@ Status:
   - `tmp/live-verification/2026-06-08/157-mobile-service-plan-preview-live-a38bcb0.png`
   - `tmp/live-verification/2026-06-08/158-team-match-decision-live-a38bcb0.png`
   - `tmp/live-verification/2026-06-08/159-mobile-team-match-decision-live-a38bcb0.png`
+- Live scanner coverage sanity check reports 10/10 latest tools, 10/10 completed tools, `zap-baseline` completed, and 73 mapped scanner findings preserved in latest coverage.
+
+### Current Pass: Project Start Plan Route Split
+
+Problem:
+
+- `ProjectStartPlanPage.tsx` still owned data queries, mutations, readiness scoring, journey item construction, product selection, catalog recommendation actions, and board wiring in one route file.
+- `ProjectStartPlanOverview.tsx` still combined the mobile-first Start Plan hero/product selector with the metric strip in one component.
+- A few approval-path strings still used `Add` language where the owner action should be choosing blocker coverage for an approved plan.
+
+Solution:
+
+- Split the route orchestration into:
+  - `useProjectStartPlanData.ts`
+  - `useProjectStartPlanActions.ts`
+  - `projectStartPlanModel.tsx`
+- Split the overview into:
+  - `ProjectStartPlanHeroCard.tsx`
+  - `ProjectStartPlanMetricStrip.tsx`
+- Keep `ProjectStartPlanPage.tsx` as a board coordinator and `ProjectStartPlanOverview.tsx` as a small layout composer.
+- Replace remaining approval-path `Add` wording with `Choose` language.
+
+Status:
+
+- Implemented, committed, deployed, and live-verified at UI commit `cc038ad`, Coolify frontend deployment `tukad2yfk3n7gq56cyam42cj`.
+- `ProjectStartPlanPage.tsx` is now 185 lines, down from 280 lines.
+- `ProjectStartPlanOverview.tsx` is now 60 lines, down from 196 lines.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+- Focused local verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/160-project-start-plan-hub-local.png`
+  - `tmp/live-verification/2026-06-08/161-project-start-plan-services-local.png`
+  - `tmp/live-verification/2026-06-08/162-project-start-plan-approval-local.png`
+  - `tmp/live-verification/2026-06-08/163-mobile-project-start-plan-hub-local.png`
+- Focused live verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/160-project-start-plan-hub-live-cc038ad.png`
+  - `tmp/live-verification/2026-06-08/161-project-start-plan-services-live-cc038ad.png`
+  - `tmp/live-verification/2026-06-08/162-project-start-plan-approval-live-cc038ad.png`
+  - `tmp/live-verification/2026-06-08/163-mobile-project-start-plan-hub-live-cc038ad.png`
 - Live scanner coverage sanity check reports 10/10 latest tools, 10/10 completed tools, `zap-baseline` completed, and 73 mapped scanner findings preserved in latest coverage.
 
 ### Current Pass: Public Profile Detail Completion
