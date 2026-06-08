@@ -1,14 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Stack } from '@mui/material';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAdvancedForm } from '@/hooks/enterprise';
+import { useQuery } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
-import { getJson, postJson, putJson } from './api';
-import { sortPackagesForOwner } from './displayOrder';
+import { getJson } from './api';
 import { PageHeader, QueryState } from './PlatformComponents';
 import {
   ServicePlanHeroPanel,
@@ -18,18 +14,9 @@ import {
 import ServicePlanCommercialPanel from './ServicePlanCommercialPanel';
 import { ServicePlanServicesPanel, ServicePlanTeamMatchPanel } from './ServicePlanBuilderServicesPanel';
 import ServicePlanSummaryPanel from './ServicePlanBuilderSummaryPanel';
-import {
-  type BuildPackagePayload,
-  type ContractPayload,
-  type InvoicePayload,
-  type ProposalPayload,
-  type ServicePlanBuilderView,
-  initialContractValues,
-  initialInvoiceValues,
-  initialProposalValues,
-  isServicePlanBuilderView,
-  packageScore,
-} from './servicePlanBuilderConfig';
+import { packageScore } from './servicePlanBuilderConfig';
+import { useServicePlanBuilderUiState } from './useServicePlanBuilderUiState';
+import { useServicePlanCommerceActions } from './useServicePlanCommerceActions';
 import type {
   ContractAgreement,
   InvoiceRecord,
@@ -43,13 +30,6 @@ import type {
 } from './types';
 
 export default function PackagesPage() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const searchParamString = searchParams?.toString() || '';
-  const viewParam = searchParams?.get('view') || null;
-  const planView: ServicePlanBuilderView = isServicePlanBuilderView(viewParam) ? viewParam : 'summary';
-  const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const canCreateProposal = hasRole([UserRole.ADMIN, UserRole.TEAM_MANAGER]);
   const canAcceptProposal = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER]);
@@ -62,47 +42,27 @@ export default function PackagesPage() {
   const contracts = useQuery({ queryKey: ['commerce-contracts'], queryFn: () => getJson<ContractAgreement[]>('/commerce/contracts') });
   const invoices = useQuery({ queryKey: ['commerce-invoices'], queryFn: () => getJson<InvoiceRecord[]>('/commerce/invoices') });
 
-  const [selectedPackageId, setSelectedPackageId] = useState('');
-  const [contractProposalId, setContractProposalId] = useState('');
-  const [invoiceContractId, setInvoiceContractId] = useState('');
-
-  const buildForm = useAdvancedForm<BuildPackagePayload>({
-    initialValues: { requirementId: '' },
-    validationRules: {
-      requirementId: [{ type: 'required', message: 'Requirement intake is required' }],
-    },
+  const {
+    buildForm,
+    contractForm,
+    contractProposalId,
+    eligibleRequirements,
+    invoiceContractId,
+    invoiceForm,
+    openPlanView,
+    packageList,
+    planView,
+    proposalForm,
+    selectPackage,
+    selectedPackage,
+    selectedRequirement,
+    setContractProposalId,
+    setInvoiceContractId,
+    setSelectedPackageId,
+  } = useServicePlanBuilderUiState({
+    packages: packages.data || [],
+    requirements: requirements.data || [],
   });
-  const proposalForm = useAdvancedForm<ProposalPayload>({
-    initialValues: initialProposalValues,
-    validationRules: {
-      teamId: [{ type: 'required', message: 'Team is required' }],
-      title: [{ type: 'required', message: 'Proposal title is required' }],
-    },
-  });
-  const contractForm = useAdvancedForm<ContractPayload>({
-    initialValues: initialContractValues,
-    validationRules: {
-      title: [{ type: 'required', message: 'Contract title is required' }],
-    },
-  });
-  const invoiceForm = useAdvancedForm<InvoicePayload>({
-    initialValues: initialInvoiceValues,
-    validationRules: {
-      invoiceNumber: [{ type: 'required', message: 'Invoice number is required' }],
-    },
-  });
-
-  const packageList = sortPackagesForOwner(packages.data || []);
-  const selectedPackage = useMemo(
-    () => packageList.find((item) => item.id === selectedPackageId) || packageList[0],
-    [packageList, selectedPackageId]
-  );
-
-  useEffect(() => {
-    if (!selectedPackageId && packageList[0]) {
-      setSelectedPackageId(packageList[0].id);
-    }
-  }, [packageList, selectedPackageId]);
 
   const modules = useQuery({
     queryKey: ['packages', selectedPackage?.id, 'modules'],
@@ -133,73 +93,31 @@ export default function PackagesPage() {
     (workspace) => !selectedPackage?.id || workspace.packageInstance?.id === selectedPackage.id
   );
   const requirementList = requirements.data || [];
-  const eligibleRequirements = requirementList.filter((item) => item.status === 'SUBMITTED' || item.status === 'PACKAGE_RECOMMENDED');
-  const selectedRequirement = eligibleRequirements.find((item) => item.id === buildForm.values.requirementId);
   const score = packageScore(selectedPackage, moduleList);
   const estimatedBudget = (proposalList[0]?.fixedPriceCents || 18000000) + (proposalList[0]?.platformFeeCents || 3000000);
 
-  const openPlanView = (view: ServicePlanBuilderView) => {
-    const next = new URLSearchParams(searchParamString);
-    next.set('view', view);
-    router.push(`${pathname || '/packages'}?${next.toString()}`, { scroll: false });
-  };
-
-  const buildPackage = useMutation({
-    mutationFn: () => postJson<PackageInstance, Record<string, never>>(`/packages/from-requirement/${buildForm.values.requirementId}`, {}),
-    onSuccess: async (packageInstance) => {
-      buildForm.resetForm();
-      setSelectedPackageId(packageInstance.id);
-      openPlanView('summary');
-      await queryClient.invalidateQueries({ queryKey: ['packages'] });
-      await queryClient.invalidateQueries({ queryKey: ['requirements'] });
-      await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
-    },
+  const {
+    acceptProposal,
+    buildPackage,
+    createContract,
+    createInvoice,
+    createProposal,
+    toggleContractForm,
+    toggleInvoiceForm,
+  } = useServicePlanCommerceActions({
+    buildForm,
+    contractForm,
+    contractProposalId,
+    invoiceContractId,
+    invoiceForm,
+    openPlanView,
+    proposalForm,
+    selectedPackage,
+    setContractProposalId,
+    setInvoiceContractId,
+    setSelectedPackageId,
+    workspaceOptions,
   });
-  const createProposal = useMutation({
-    mutationFn: () => postJson<QuoteProposal, ProposalPayload>(`/commerce/packages/${selectedPackage?.id}/proposals`, proposalForm.values),
-    onSuccess: async () => {
-      proposalForm.resetForm();
-      openPlanView('commercial');
-      await queryClient.invalidateQueries({ queryKey: ['commerce-package-proposals', selectedPackage?.id] });
-      await queryClient.invalidateQueries({ queryKey: ['commerce-contracts'] });
-    },
-  });
-  const acceptProposal = useMutation({
-    mutationFn: (proposalId: string) =>
-      putJson<QuoteProposal, { status: QuoteProposal['status'] }>(`/commerce/proposals/${proposalId}/status`, { status: 'OWNER_ACCEPTED' }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['commerce-package-proposals', selectedPackage?.id] });
-    },
-  });
-  const createContract = useMutation({
-    mutationFn: () => postJson<ContractAgreement, ContractPayload>(`/commerce/proposals/${contractProposalId}/contract`, contractForm.values),
-    onSuccess: async () => {
-      contractForm.resetForm();
-      setContractProposalId('');
-      await queryClient.invalidateQueries({ queryKey: ['commerce-contracts'] });
-      await queryClient.invalidateQueries({ queryKey: ['commerce-package-proposals', selectedPackage?.id] });
-    },
-  });
-  const createInvoice = useMutation({
-    mutationFn: () => postJson<InvoiceRecord, InvoicePayload>(`/commerce/contracts/${invoiceContractId}/invoices`, invoiceForm.values),
-    onSuccess: async () => {
-      invoiceForm.resetForm();
-      setInvoiceContractId('');
-      await queryClient.invalidateQueries({ queryKey: ['commerce-invoices'] });
-    },
-  });
-
-  const toggleContractForm = (proposal: QuoteProposal) => {
-    setContractProposalId((current) => (current === proposal.id ? '' : proposal.id));
-    contractForm.setValue('title', `${proposal.team.name} delivery agreement`);
-    contractForm.setValue('workspaceId', workspaceOptions[0]?.id || null);
-  };
-
-  const toggleInvoiceForm = (contract: ContractAgreement) => {
-    setInvoiceContractId((current) => (current === contract.id ? '' : contract.id));
-    invoiceForm.setValue('invoiceNumber', `INV-${Date.now()}`);
-    invoiceForm.setValue('amountCents', contract.proposal?.fixedPriceCents || 0);
-  };
 
   return (
     <>
@@ -231,11 +149,7 @@ export default function PackagesPage() {
         <ServicePlanSelectorPanel
           packageList={packageList}
           selectedPackage={selectedPackage}
-          onSelectPackage={(packageId) => {
-            setSelectedPackageId(packageId);
-            setContractProposalId('');
-            setInvoiceContractId('');
-          }}
+          onSelectPackage={selectPackage}
         />
 
         {selectedPackage && (

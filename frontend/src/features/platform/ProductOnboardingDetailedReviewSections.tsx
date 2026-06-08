@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { ExpandMoreOutlined } from '@mui/icons-material';
 import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Stack, Typography } from '@mui/material';
-import { AiOpportunityDiscoveryPanel } from './OwnerOnboardingJourneyCards';
+import { AiOpportunityDiscoveryPanel } from './AiOpportunityDiscoveryPanel';
 import {
   AiAttributeCard,
   AiDocumentUsageList,

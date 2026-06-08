@@ -1,10 +1,8 @@
 'use client';
 
 import { Box, Button, Stack } from '@mui/material';
-import {
-  ProductAnalysisProgress,
-  ProductIntakeFrontDoor,
-} from './OwnerOnboardingJourneyCards';
+import { ProductAnalysisProgress } from './ProductAnalysisProgress';
+import { ProductIntakeFrontDoor } from './ProductIntakeFrontDoor';
 import {
   PageHeader,
   QueryState,
