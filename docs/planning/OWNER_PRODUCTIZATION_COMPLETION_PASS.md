@@ -1058,6 +1058,41 @@ Status:
   - `tmp/live-verification/2026-06-08/216-selected-product-context-fixed-live.png`
   - `tmp/live-verification/2026-06-08/217-selected-product-context-mobile-live.png`
 
+### Completed: Product Workspace Internal Routing
+
+Problem:
+
+- Deep selected-product routes such as `/products/{id}?tab=services&view=plan` still looked like the product home plus more UI underneath.
+- The left sidebar could keep `Product Home`/old overview state active while the URL was on a selected-product spoke such as Services.
+- Mobile still used a tab-style product-area switcher, which made the owner feel like content was swapping below the same screen instead of navigating into an internal product page.
+- Internal spokes needed an obvious return path to the selected product home.
+
+Solution:
+
+- Treat `Action Plan`, `Findings`, `Services`, and `Share` query routes as focused internal product pages.
+- Keep the fixed selected-product context bar at the top, then replace the product hero/readiness reveal with an internal page header for the active spoke.
+- Add a `Product home` return action that clears `tab` and `view` and returns to `/products/{id}`.
+- Make `/products/{id}?tab=services` and similar area routes resolve to their first focused internal view when no `view` is present.
+- Replace the mobile product-area tabs with navigation buttons and a back-style `Product Home` choice.
+- Fix selected-product sidebar active matching so the active item follows `tab`, while ignoring deeper `view` changes inside the same product area.
+
+Status:
+
+- Implemented, committed, deployed, and live-verified at UI commit `44ba524`, Coolify frontend deployment `empuwv9zys464wsf1nyjcw41`.
+- `OwnerWorkspaceInternalPageHeader.tsx` now owns the focused internal-page heading and return action.
+- `OwnerWorkspaceNavigationPanel.tsx` no longer uses MUI Tabs for product areas; mobile product navigation is button-based.
+- `Overview` product-area language is now `Product Home` in the selected-product model and sidebar.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+- Focused local and live verification passed with `tmp/live-verification/2026-06-08/product-internal-routing.js`.
+- Live screenshots:
+  - `tmp/live-verification/2026-06-08/219-product-home-route-live.png`
+  - `tmp/live-verification/2026-06-08/220-service-plan-internal-route-live.png`
+  - `tmp/live-verification/2026-06-08/221-returned-product-home-live.png`
+  - `tmp/live-verification/2026-06-08/222-mobile-service-plan-internal-route-live.png`
+
 ## Implementation Loop
 
 For each slice:
