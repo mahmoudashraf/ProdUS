@@ -8,38 +8,23 @@ import {
   PersonSearchOutlined,
 } from '@mui/icons-material';
 import { Button, Stack } from '@mui/material';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteJson, getJson, postJson, putJson } from './api';
-import { isPlaceholderProduct, sortProductsForOwner } from './displayOrder';
+import { isPlaceholderProduct } from './displayOrder';
 import {
   PageHeader,
-  PastelChip,
   QueryState,
-  appleColors,
-  clampScore,
-  formatLabel,
 } from './PlatformComponents';
-import { PackageTemplate, ProductProfile, ProductizationCart, ProductizationCartConvertResponse, ProjectWorkspace } from './types';
-import type { CatalogRuleItem } from './types';
-import type { ProjectStartJourneyItem } from './ProjectStartJourneyNavigation';
+import type { ProjectWorkspace } from './types';
 import ProjectStartPlanBoard from './ProjectStartPlanBoard';
+import {
+  buildProjectStartPlanJourneyItems,
+  projectStartPlanDetailLabel,
+  projectStartReadinessScore,
+} from './projectStartPlanModel';
+import { useProjectStartPlanActions } from './useProjectStartPlanActions';
+import { useProjectStartPlanData } from './useProjectStartPlanData';
 import { useProjectStartJourneyState } from './useProjectStartJourneyState';
 
-interface CartUpdatePayload {
-  productProfileId?: string;
-  title?: string;
-  businessGoal?: string;
-}
-
-interface CartConvertPayload {
-  projectName: string;
-}
-
-const readinessScore = (cart?: ProductizationCart) =>
-  clampScore((cart?.productProfile ? 30 : 0) + (cart?.serviceItems.length || 0) * 18 + (cart?.talentItems.length || 0) * 12);
-
 export default function ProjectStartPlanPage() {
-  const queryClient = useQueryClient();
   const [projectName, setProjectName] = useState('');
   const [notice, setNotice] = useState('');
   const [createdWorkspace, setCreatedWorkspace] = useState<ProjectWorkspace | null>(null);
@@ -49,69 +34,14 @@ export default function ProjectStartPlanPage() {
     openStartPlanHub,
     openStartPlanDetail,
   } = useProjectStartJourneyState();
-
-  const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
-  const cart = useQuery({ queryKey: ['productization-cart'], queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
-  const packageTemplates = useQuery({
-    queryKey: ['catalog-package-templates'],
-    queryFn: () => getJson<PackageTemplate[]>('/catalog/package-templates'),
-  });
-
-  const updateCart = useMutation({
-    mutationFn: (payload: CartUpdatePayload) => putJson<ProductizationCart, CartUpdatePayload>('/productization-cart/current', payload),
-    onSuccess: async () => {
-      setCreatedWorkspace(null);
-      setNotice('Start plan product updated.');
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-    },
-  });
-  const removeService = useMutation({
-    mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
-    onSuccess: async () => {
-      setNotice('Service removed from the start plan.');
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-    },
-  });
-  const removeTalent = useMutation({
-    mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/talent/${itemId}`),
-    onSuccess: async () => {
-      setNotice('Team or expert removed from the start plan.');
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-    },
-  });
-  const addRecommendedService = useMutation({
-    mutationFn: (payload: { serviceModuleId: string; notes: string }) => postJson<ProductizationCart, { serviceModuleId: string; notes: string }>('/productization-cart/services', payload),
-    onSuccess: async () => {
-      setNotice('Recommended service added to the start plan.');
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-    },
-  });
-  const applyTemplate = useMutation({
-    mutationFn: (templateId: string) => postJson<ProductizationCart, Record<string, never>>(`/productization-cart/templates/${templateId}/apply`, {}),
-    onSuccess: async () => {
-      setCreatedWorkspace(null);
-      setNotice('Launch-hardening template applied. Review the suggested next steps before approving the workspace.');
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-    },
-  });
-  const convertCart = useMutation({
-    mutationFn: () =>
-      postJson<ProductizationCartConvertResponse, CartConvertPayload>('/productization-cart/convert', {
-        projectName: projectName || `${cart.data?.productProfile?.name || 'Product'} productization workspace`,
-    }),
-    onSuccess: async (result) => {
-      setNotice('Workspace created. Your approved plan became service milestones, participants, and a project workspace.');
-      setCreatedWorkspace(result.workspace);
-      setProjectName('');
-      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
-      await queryClient.invalidateQueries({ queryKey: ['packages'] });
-      await queryClient.invalidateQueries({ queryKey: ['workspaces'] });
-    },
-  });
-
-  const currentCart = cart.data;
-  const productList = sortProductsForOwner(products.data || []);
-  const selectableProducts = productList.filter((item) => !isPlaceholderProduct(item));
+  const {
+    products,
+    cart,
+    packageTemplates,
+    currentCart,
+    productList,
+    selectableProducts,
+  } = useProjectStartPlanData();
   const product = currentCart?.productProfile;
   const hasPlaceholderProduct = isPlaceholderProduct(product);
   const serviceCount = currentCart?.serviceItems.length || 0;
@@ -124,57 +54,32 @@ export default function ProjectStartPlanPage() {
   );
   const blockingStartGaps = startGaps.filter((gap) => gap.blocking);
   const canStartWorkspace = !!product && !hasPlaceholderProduct && (startReadiness?.ready ?? (serviceCount > 0 && blockers === 0));
-  const score = readinessScore(currentCart);
+  const score = projectStartReadinessScore(currentCart);
   const cartServiceIds = new Set((currentCart?.serviceItems || []).map((item) => item.serviceModule.id));
-
-  const startPlanJourneyItems: ProjectStartJourneyItem[] = [
-    {
-      value: 'readiness',
-      label: 'Readiness',
-      detail: 'Product, templates, service gaps, and start blockers.',
-      accent: canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.amber,
-      meta: <PastelChip label={canStartWorkspace ? 'Ready' : blockers ? `${blockers} gaps` : 'Needs scope'} accent={canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.amber} bg={canStartWorkspace ? '#e7f8ee' : blockers ? '#fff1f2' : '#fff4dc'} />,
-    },
-    {
-      value: 'services',
-      label: 'Services',
-      detail: 'Review selected lifecycle services and choose missing ones.',
-      accent: appleColors.purple,
-      meta: <PastelChip label={`${serviceCount} selected`} accent={serviceCount ? appleColors.purple : appleColors.amber} />,
-    },
-    {
-      value: 'talent',
-      label: 'Talent',
-      detail: 'Review teams and experts before handoff.',
-      accent: appleColors.cyan,
-      meta: <PastelChip label={`${talentCount} saved`} accent={talentCount ? appleColors.cyan : appleColors.muted} bg="#e4f9fd" />,
-    },
-    {
-      value: 'handoff',
-      label: 'Approve',
-      detail: 'Approve the launch-hardening plan when scope is ready.',
-      accent: appleColors.green,
-      meta: <PastelChip label={canStartWorkspace ? 'Can start' : 'Blocked'} accent={canStartWorkspace ? appleColors.green : appleColors.amber} bg={canStartWorkspace ? '#e7f8ee' : '#fff4dc'} />,
-    },
-  ];
-  const currentStartPlanDetailLabel = startPlanJourneyItems.find((item) => item.value === startPlanView)?.label || 'Start plan';
-
-  const selectProduct = (productId: string) => {
-    const selected = productList.find((item) => item.id === productId);
-    if (!selected) return;
-    updateCart.mutate({
-      productProfileId: selected.id,
-      title: `${selected.name} productization start plan`,
-      businessGoal: selected.summary || `Move ${selected.name} toward production-ready delivery.`,
-    });
-  };
-
-  const addCatalogRecommendation = (item: CatalogRuleItem) => {
-    addRecommendedService.mutate({
-      serviceModuleId: item.recommendedModule.id,
-      notes: `Added from the suggested fix path (${formatLabel(item.source)}). ${item.reason || ''}`.trim(),
-    });
-  };
+  const startPlanJourneyItems = buildProjectStartPlanJourneyItems({
+    canStartWorkspace,
+    blockers,
+    serviceCount,
+    talentCount,
+  });
+  const currentStartPlanDetailLabel = projectStartPlanDetailLabel(startPlanJourneyItems, startPlanView);
+  const {
+    addCatalogRecommendation,
+    addRecommendedService,
+    applyTemplate,
+    convertCart,
+    removeService,
+    removeTalent,
+    selectProduct,
+    updateCart,
+  } = useProjectStartPlanActions({
+    currentCart,
+    productList,
+    projectName,
+    setCreatedWorkspace,
+    setNotice,
+    setProjectName,
+  });
 
   return (
     <>
@@ -251,7 +156,7 @@ export default function ProjectStartPlanPage() {
             gap.serviceModule &&
             addRecommendedService.mutate({
               serviceModuleId: gap.serviceModule.id,
-              notes: `Added from the start readiness path. ${gap.description || ''}`.trim(),
+              notes: `Chosen from the start readiness path. ${gap.description || ''}`.trim(),
             }),
         }}
         talent={{

@@ -75,7 +75,7 @@ export default function ProjectStartApprovalPanel({
             {isStartingWorkspace ? 'Starting...' : 'Approve Plan And Start Workspace'}
           </Button>
           {!product && <DotLabel label="Select a production product first" color={appleColors.amber} />}
-          {product && !serviceCount && <DotLabel label="Add at least one launch-hardening service" color={appleColors.amber} />}
+          {product && !serviceCount && <DotLabel label="Choose at least one launch-hardening service" color={appleColors.amber} />}
           {product && serviceCount > 0 && blockers > 0 && <DotLabel label={`Cover ${blockerText} before approval`} color={appleColors.red} />}
           {hasStartedWorkspace && (
             <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>
@@ -95,7 +95,7 @@ export default function ProjectStartApprovalPanel({
                   Blockers to cover before approval
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, lineHeight: 1.45 }}>
-                  Add the missing service work so the plan matches the launch decision.
+                  Choose the missing service work so the plan matches the launch decision.
                 </Typography>
               </Box>
             </Stack>
@@ -117,7 +117,7 @@ export default function ProjectStartApprovalPanel({
                     onClick={() => onAddCatalogRecommendation(item)}
                     sx={{ minHeight: 36 }}
                   >
-                    Add
+                    Choose
                   </Button>
                 </Box>
               ))
