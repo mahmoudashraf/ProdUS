@@ -80,6 +80,7 @@ export default function ProductOnboardingWizard() {
       ? 'ai-review'
       : 'setup';
   const selectedServiceCount = currentCart.data?.serviceItems.length || 0;
+  const isSetupStep = currentStep === 'setup';
 
   const openStep = (step: ProductCreationStep) => {
     const next = new URLSearchParams(searchParamString);
@@ -120,14 +121,16 @@ export default function ProductOnboardingWizard() {
         error={createProduct.error || analyzeProductWithAI.error || currentCart.error || removeSelectedService.error}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 340px' }, gap: 2.5 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: isSetupStep ? '1fr 340px' : '1fr' }, gap: 2.5 }}>
         <Stack spacing={2.5}>
           <ProductCreationInternalHeader step={currentStep} onBackToSetup={openSetup} />
-          <ProductCreationStartingPointPanel
-            cart={currentCart.data}
-            fromCatalog={fromCatalog}
-            onManualProfile={() => openStep('manual')}
-          />
+          {isSetupStep && (
+            <ProductCreationStartingPointPanel
+              cart={currentCart.data}
+              fromCatalog={fromCatalog}
+              onManualProfile={() => openStep('manual')}
+            />
+          )}
 
           {currentStep === 'setup' && (
             <ProductIntakeFrontDoor
@@ -236,15 +239,17 @@ export default function ProductOnboardingWizard() {
           )}
         </Stack>
 
-        <Stack spacing={2.5}>
-          <ProductCreationCartSnapshot
-            cart={currentCart.data}
-            isRemovingService={removeSelectedService.isPending}
-            onChangeServices={openServicesCatalog}
-            onRemoveService={(itemId) => removeSelectedService.mutate(itemId)}
-          />
-          <ProductOnboardingSideGuidePanel />
-        </Stack>
+        {isSetupStep && (
+          <Stack spacing={2.5}>
+            <ProductCreationCartSnapshot
+              cart={currentCart.data}
+              isRemovingService={removeSelectedService.isPending}
+              onChangeServices={openServicesCatalog}
+              onRemoveService={(itemId) => removeSelectedService.mutate(itemId)}
+            />
+            <ProductOnboardingSideGuidePanel />
+          </Stack>
+        )}
       </Box>
     </>
   );
