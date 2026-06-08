@@ -61,6 +61,9 @@ export const Surface = ({ children, sx, id }: { children: ReactNode; sx?: SxProp
     sx={[
       {
         p: { xs: 2, md: 2.5 },
+        boxSizing: 'border-box',
+        minWidth: 0,
+        maxWidth: '100%',
         borderRadius: 1,
         borderColor: appleColors.line,
         background: appleColors.panel,

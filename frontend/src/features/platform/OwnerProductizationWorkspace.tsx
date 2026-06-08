@@ -375,8 +375,8 @@ export default function OwnerProductizationWorkspace({
         onViewProof={() => openFindingsView('technical')}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 340px' }, gap: 2.5 }}>
-        <Stack spacing={2.5}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 340px' }, gap: 2.5, minWidth: 0 }}>
+        <Stack spacing={2.5} sx={{ minWidth: 0 }}>
           <OwnerProductizationWorkspaceLead
             currentAreaLabel={currentAreaLabel}
             currentDetailLabel={currentDetailLabel}
