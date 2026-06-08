@@ -43,6 +43,7 @@ export function useOwnerProductizationWorkspaceData({
 }: OwnerProductizationWorkspaceDataInput) {
   const queryClient = useQueryClient();
   const [lastDiagnosisRefreshRunId, setLastDiagnosisRefreshRunId] = useState('');
+  const [lastRepoSignalAutoRefreshProductId, setLastRepoSignalAutoRefreshProductId] = useState('');
 
   const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const requirements = useQuery({ queryKey: ['requirements'], queryFn: () => getJson<RequirementIntake[]>('/requirements') });
@@ -177,6 +178,43 @@ export function useOwnerProductizationWorkspaceData({
     queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
     queryClient.invalidateQueries({ queryKey: ['repo-signals', selectedProductId] });
   }, [latestCompletedScannerRunId, lastDiagnosisRefreshRunId, queryClient, selectedProductId]);
+
+  useEffect(() => {
+    const productId = selectedProduct?.id;
+    const hasRepoContext = Boolean(
+      selectedProduct?.repositoryUrl
+      || selectedProduct?.techStack
+      || scannerSummary.data?.sources.length
+      || scannerSummary.data?.recentRuns.length
+    );
+    if (
+      !productId
+      || repoSignals.data?.sourceStatus !== 'NOT_REFRESHED'
+      || !hasRepoContext
+      || repoSignals.isFetching
+      || lastRepoSignalAutoRefreshProductId === productId
+    ) {
+      return;
+    }
+    setLastRepoSignalAutoRefreshProductId(productId);
+    void postJson<RepoSignalSummary, Record<string, never>>(`/products/${productId}/repo-signals/refresh`, {})
+      .then((summary) => {
+        queryClient.setQueryData(['repo-signals', productId], summary);
+      })
+      .catch(() => {
+        queryClient.invalidateQueries({ queryKey: ['repo-signals', productId] });
+      });
+  }, [
+    lastRepoSignalAutoRefreshProductId,
+    queryClient,
+    repoSignals.data?.sourceStatus,
+    repoSignals.isFetching,
+    scannerSummary.data?.recentRuns.length,
+    scannerSummary.data?.sources.length,
+    selectedProduct?.id,
+    selectedProduct?.repositoryUrl,
+    selectedProduct?.techStack,
+  ]);
 
   const primaryQueries = [
     products,
