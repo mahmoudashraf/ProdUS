@@ -4,7 +4,6 @@ import NextLink from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   AddOutlined,
-  BuildCircleOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Stack } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
@@ -87,9 +86,6 @@ export default function ProductizationLaunchpad() {
             <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44, minWidth: 150 }}>
               New product
             </Button>
-            <Button component={NextLink} href="/services" variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 44, minWidth: 168 }}>
-              Start from service
-            </Button>
           </Stack>
         }
       />
@@ -133,7 +129,7 @@ export default function ProductizationLaunchpad() {
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 340px' }, gap: 2.5 }}>
               <LaunchpadFocusPanel
-                value="plan"
+                value={null}
                 draftServices={draftServices}
                 draftTalent={draftTalent}
                 productCount={productList.length}

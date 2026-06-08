@@ -33,9 +33,6 @@ export function ProductPortfolioHeaderActions() {
       <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 42, minWidth: 140 }}>
         New product
       </Button>
-      <Button component={NextLink} href="/services" variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 42, minWidth: 164 }}>
-        Start from service
-      </Button>
     </Stack>
   );
 }
@@ -75,73 +72,14 @@ export function ProductPortfolioListPanel({
       <SectionTitle title="Products" action={<PastelChip label={`${productList.length} tracked`} accent={appleColors.purple} />} />
       {productList.length ? (
         <Stack spacing={0}>
-          {productList.map((profile, index) => {
-            const score = clampScore(productScore(profile, packageList));
-            const tone = productReadinessTone(score);
-            const packageInstance = packageList.find((item) => item.productProfile?.id === profile.id);
-            const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
-
-            return (
-              <Box
-                key={profile.id}
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', xl: '1.6fr 120px 130px 1.3fr 1fr minmax(150px, auto)' },
-                  gap: 2,
-                  alignItems: 'center',
-                  py: 2,
-                  borderTop: index === 0 ? 0 : '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
-                  <Box
-                    sx={{
-                      width: 42,
-                      height: 42,
-                      borderRadius: 1,
-                      bgcolor: palette.bg,
-                      color: palette.accent,
-                      display: 'grid',
-                      placeItems: 'center',
-                      fontWeight: 900,
-                      flex: '0 0 auto',
-                    }}
-                  >
-                    {profile.name.charAt(0)}
-                  </Box>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>{profile.name}</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-                      {profile.summary || 'No summary yet.'}
-                    </Typography>
-                  </Box>
-                </Stack>
-                <PastelChip label={formatLabel(profile.businessStage)} accent={palette.accent} bg={palette.bg} />
-                <ProgressRing value={score} color={tone.color} size={68} />
-                <Box>
-                  <DotLabel label={tone.label} color={tone.color} />
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    {profile.riskProfile || 'No launch risk profile recorded yet.'}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography sx={{ fontWeight: 800 }}>{packageInstance?.name || 'No start plan yet'}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {packageInstance ? formatLabel(packageInstance.status) : 'Choose services when ready'}
-                  </Typography>
-                </Box>
-                <Stack spacing={0.75} alignItems={{ xs: 'stretch', xl: 'flex-end' }}>
-                  <Button component={NextLink} href={`/products/${profile.id}`} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 38 }}>
-                    Open workspace
-                  </Button>
-                  <Button component={NextLink} href={`/services?productId=${profile.id}`} variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 36 }}>
-                    Choose services
-                  </Button>
-                </Stack>
-              </Box>
-            );
-          })}
+          {productList.map((profile, index) => (
+            <ProductPortfolioProductRow
+              key={profile.id}
+              profile={profile}
+              packageList={packageList}
+              index={index}
+            />
+          ))}
         </Stack>
       ) : (
         <EmptyState label="Create a product profile to start the productization journey." />
@@ -150,19 +88,124 @@ export function ProductPortfolioListPanel({
   );
 }
 
-export function ProductPortfolioNextActionPanel() {
+function ProductPortfolioProductRow({
+  profile,
+  packageList,
+  index,
+}: {
+  profile: ProductProfile;
+  packageList: PackageInstance[];
+  index: number;
+}) {
+  const score = clampScore(productScore(profile, packageList));
+  const tone = productReadinessTone(score);
+  const packageInstance = packageList.find((item) => item.productProfile?.id === profile.id);
+  const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
+
   return (
-    <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
-      <SectionTitle title="Next Product Action" action={<AddOutlined sx={{ color: appleColors.purple }} />} />
-      <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-        Create a product first, or start from a service when the owner already knows the help they need. Either way, ProdUS brings the choice back into one product workspace.
-      </Typography>
-      <Stack spacing={1.25} sx={{ mt: 2 }}>
-        <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44 }}>
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', xl: '1.55fr 120px 130px 1.25fr 1fr minmax(150px, auto)' },
+        gap: 2,
+        alignItems: 'center',
+        py: 2,
+        borderTop: index === 0 ? 0 : '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+        <Box
+          sx={{
+            width: 42,
+            height: 42,
+            borderRadius: 1,
+            bgcolor: palette.bg,
+            color: palette.accent,
+            display: 'grid',
+            placeItems: 'center',
+            fontWeight: 900,
+            flex: '0 0 auto',
+          }}
+        >
+          {profile.name.charAt(0)}
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>{profile.name}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+            {profile.summary || 'No summary yet.'}
+          </Typography>
+        </Box>
+      </Stack>
+      <PastelChip label={formatLabel(profile.businessStage)} accent={palette.accent} bg={palette.bg} />
+      <ProgressRing value={score} color={tone.color} size={68} />
+      <Box>
+        <DotLabel label={tone.label} color={tone.color} />
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          {profile.riskProfile || 'No launch risk profile recorded yet.'}
+        </Typography>
+      </Box>
+      <Box>
+        <Typography sx={{ fontWeight: 800 }}>{packageInstance?.name || 'No start plan yet'}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {packageInstance ? formatLabel(packageInstance.status) : 'Choose services when ready'}
+        </Typography>
+      </Box>
+      <Stack spacing={0.75} alignItems={{ xs: 'stretch', xl: 'flex-end' }}>
+        <Button component={NextLink} href={`/products/${profile.id}`} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 38 }}>
+          Select product
+        </Button>
+        <Button component={NextLink} href={`/services?productId=${profile.id}`} variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 36 }}>
+          Plan services
+        </Button>
+      </Stack>
+    </Box>
+  );
+}
+
+export function ProductPortfolioNextActionPanel({
+  productList,
+  packageList,
+}: {
+  productList: ProductProfile[];
+  packageList: PackageInstance[];
+}) {
+  const selectedProduct = productList.find((profile) => productScore(profile, packageList) < 65) || productList[0];
+  if (!selectedProduct) {
+    return (
+      <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
+        <SectionTitle title="First Product" action={<AddOutlined sx={{ color: appleColors.purple }} />} />
+        <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
+          Create the product profile first. Services, teams, findings, and share links become product-specific after that choice.
+        </Typography>
+        <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ mt: 2, minHeight: 44 }}>
           Create product
         </Button>
-        <Button component={NextLink} href="/services" variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 42 }}>
-          Start from service
+      </Surface>
+    );
+  }
+
+  const score = clampScore(productScore(selectedProduct, packageList));
+  const tone = productReadinessTone(score);
+  const packageInstance = packageList.find((item) => item.productProfile?.id === selectedProduct.id);
+
+  return (
+    <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
+      <SectionTitle title="Product To Open" action={<PastelChip label={tone.label} accent={tone.color} bg={`${tone.color}14`} />} />
+      <Typography variant="h4" sx={{ overflowWrap: 'anywhere' }}>
+        {selectedProduct.name}
+      </Typography>
+      <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
+        {score < 65
+          ? 'This product needs the next owner decision first. Open it to see the action plan, findings, services, and share route in one selected workspace.'
+          : 'Open this product to continue from its selected workspace instead of choosing services from a generic catalog view.'}
+      </Typography>
+      <Stack spacing={1.25} sx={{ mt: 2 }}>
+        <Button component={NextLink} href={`/products/${selectedProduct.id}`} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 44 }}>
+          Select product
+        </Button>
+        <Button component={NextLink} href={`/services?productId=${selectedProduct.id}`} variant="outlined" startIcon={<BuildCircleOutlined />} sx={{ minHeight: 42 }}>
+          {packageInstance ? 'Review services' : 'Plan services'}
         </Button>
       </Stack>
     </Surface>

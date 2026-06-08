@@ -25,7 +25,7 @@ export function LaunchpadFocusPanel({
   draftTalent: number;
   productCount: number;
   activeWorkspaceCount: number;
-  value: LaunchpadJourneyValue;
+  value: LaunchpadJourneyValue | null;
   onSelect: (value: LaunchpadJourneyValue) => void;
 }) {
   const items: JourneyStepItem<LaunchpadJourneyValue>[] = [

@@ -28,8 +28,8 @@ export default function ProductProfilesPage() {
   return (
     <>
       <PageHeader
-        title="My Products"
-        description="Track each product's launch state, owner action, and delivery path without turning the portfolio into an operations console."
+        title="Switch Product"
+        description="Choose the product to manage. Once selected, the product workspace shows its action plan, findings, services, and share path."
         action={<ProductPortfolioHeaderActions />}
       />
       <QueryState isLoading={profiles.isLoading || packages.isLoading} error={profiles.error || packages.error} />
@@ -38,8 +38,8 @@ export default function ProductProfilesPage() {
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 330px' },
           gridTemplateAreas: {
-            xs: '"actions" "portfolio"',
-            lg: '"portfolio actions"',
+            xs: '"decision" "portfolio" "summary"',
+            lg: '"portfolio decision" "portfolio summary"',
           },
           gap: 2.5,
           alignItems: 'start',
@@ -56,14 +56,17 @@ export default function ProductProfilesPage() {
           <ProductPortfolioListPanel productList={productList} packageList={packageList} />
         </Stack>
 
-        <Stack spacing={2.5} sx={{ gridArea: 'actions', minWidth: 0 }}>
-          <ProductPortfolioNextActionPanel />
+        <Box sx={{ gridArea: 'decision', minWidth: 0 }}>
+          <ProductPortfolioNextActionPanel productList={productList} packageList={packageList} />
+        </Box>
+
+        <Box sx={{ gridArea: 'summary', minWidth: 0 }}>
           <ProductPortfolioAiSummaryPanel
             productCount={productList.length}
             attentionCount={stats.attentionCount}
             healthPercent={stats.healthPercent}
           />
-        </Stack>
+        </Box>
       </Box>
     </>
   );
