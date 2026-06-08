@@ -12,6 +12,13 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  // Coolify's frontend builder has a tight execution window. We keep type
+  // safety as an explicit pre-deploy check and skip Next's duplicate pass only
+  // for containerized staging builds.
+  typescript: {
+    ignoreBuildErrors: process.env.NEXT_SKIP_BUILD_TYPECHECK === 'true',
+  },
+
   // Optimize package imports for better tree shaking
   modularizeImports: {
     '@mui/material': {
