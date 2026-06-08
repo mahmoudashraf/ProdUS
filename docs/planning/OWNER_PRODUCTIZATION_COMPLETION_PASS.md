@@ -329,7 +329,7 @@ Solution:
 - Reframe Service Catalog as a focused discovery hub:
   - Launch Templates: bundled paths for quick owner starts.
   - Service Workstreams: individual services grouped by owner need.
-  - AI Contracts: what the assistant can safely explain or recommend.
+  - AI Integration Options: where AI can help the product journey while actions stay human-confirmed.
 - Replace remaining visible service-selection copy with `Choose` / `Use` / `in plan` language.
 - Remove visible layout-description text from the app.
 - Split catalog visuals into granular template, workstream, and focus/AI panels.
@@ -968,7 +968,7 @@ Status:
   - `/teams` returned 1 team.
   - `/expert-network/home` currently returns 500 for the available mock fixtures, but the dashboard route still renders its shell and Browse Network action. This appears to be a backend fixture/data issue, not a regression from the frontend split.
 
-### Completed: Handwritten Owner Journey Implementation
+### Completed: Handwritten Owner Journey Implementation And Final Live Verification
 
 Problem:
 
@@ -976,43 +976,51 @@ Problem:
 - Services still needed to work as a product entry path, not only a global catalog or post-diagnosis page.
 - Product creation needed focused internal views with a way back, not a long page that swapped sections under buttons.
 - External product sharing needed safe public summaries and owner-controlled section visibility before any private proof could be exposed.
+- The first deployed implementation still allowed product creation directly from the manual form and did not yet expose viewer-action fields or safe findings/evidence/team summaries on public links.
+- The first forced Coolify rebuild for the final share-link schema overloaded the staging host and timed out, so the deployment needed to be repeated with a build-cache fix.
 
 Solution:
 
 - Added service-first and product-first entry points on Product Home.
 - Reworked the Service Catalog into a discovery landing plus focused internal catalog views with explicit back navigation.
 - Carried selected service/template context into `/products/new` and preserved it through setup and manual product creation.
-- Added focused product-creation internal views for setup, manual fields, and AI review.
+- Added focused product-creation internal views for setup, manual fields, AI review, and final owner review before creating the workspace.
 - Added Product Workspace `Share` navigation and a share-link management surface.
-- Implemented backend share-link persistence, revocation, public token lookup, public section visibility, and private-by-default locked sections.
+- Implemented backend share-link persistence, revocation, public token lookup, viewer actions, public section visibility, and private-by-default locked sections.
 - Added public product share pages at `/share/product/{token}` with safe summaries and selected services when explicitly shared.
+- Renamed the confusing `AI Contracts` catalog language to `AI Integration Options`.
+- Added backend scanner Maven dependency caching in `backend/Dockerfile.scanner` so Coolify can rebuild the scanner image within the staging build window.
 
 Status:
 
-- Implemented, committed, deployed, and live-verified at commit `417ec0c`.
-- Coolify backend deployment: `wn0nah8wmg7d7tnsry9lhogq`.
-- Coolify frontend deployment: `tmfritqr8q08wjfvrpl68m7a`.
+- Final implementation deployed and live-verified at commit `343833b`.
+- Feature implementation commit: `2671e5c`.
+- Coolify backend deployment: `u1m7k8ldj27qbsot3ig6pf15`.
+- Coolify frontend deployment: `m129q7ixdtf2r8zpasb9zxct`.
+- Failed forced deployment attempts `egwrrbform0c6odtrk5le7z5` and `n9dr37thje29fedr1bfk1fic` timed out during rebuild and rolled back; the successful redeploy used the scanner Maven cache fix.
 - Local checks passed:
-  - `git diff --check`
   - `npm --prefix frontend run type-check`
-  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
-  - `mvn -q -DskipTests compile`
-  - `mvn -q -Dtest=LiquibaseChangelogParsingTest test`
+  - `mvn test`
+  - `npm --prefix frontend run build`
 - Live backend health returned `UP`.
-- Focused live verification passed with screenshots:
-  - `tmp/live-verification/2026-06-08/201-products-home-service-entry-live-417ec0c.png`
-  - `tmp/live-verification/2026-06-08/202-service-catalog-internal-workstreams-live-417ec0c.png`
-  - `tmp/live-verification/2026-06-08/203-product-setup-from-service-live-417ec0c.png`
-  - `tmp/live-verification/2026-06-08/204-product-create-manual-internal-view-live-417ec0c.png`
-  - `tmp/live-verification/2026-06-08/205-product-share-links-created-live-417ec0c.png`
-  - `tmp/live-verification/2026-06-08/206-public-product-share-safe-summary-live-417ec0c.png`
-  - `tmp/live-verification/2026-06-08/207-products-home-mobile-live-417ec0c.png`
-  - `tmp/live-verification/2026-06-08/208-service-catalog-product-context-mobile-live-417ec0c.png`
+- Final focused live verification artifact:
+  - `tmp/live-verification/2026-06-08/owner-journey-final-343833b-result.json`
+- Final live verification passed with screenshots:
+  - `tmp/live-verification/2026-06-08/209-product-creation-review-live-343833b.png`
+  - `tmp/live-verification/2026-06-08/210-service-catalog-ai-options-live-343833b.png`
+  - `tmp/live-verification/2026-06-08/211-share-link-config-live-343833b.png`
+  - `tmp/live-verification/2026-06-08/212-public-share-safe-summaries-live-343833b.png`
+  - `tmp/live-verification/2026-06-08/213-public-share-safe-summaries-mobile-live-343833b.png`
+  - `tmp/live-verification/2026-06-08/214-product-create-mobile-internal-view-live-343833b.png`
 - Live scanner sanity for product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237` confirmed:
   - Latest tools: `10/10`
   - Completed tools: `10/10`
   - `zap-baseline`: `COMPLETED`
   - Mapped findings preserved: `73` open findings with `10` mapped ZAP findings.
+- Live share-link sanity confirmed:
+  - Public link exposes only selected safe sections plus viewer action.
+  - Public safe sections include findings, evidence, and team summaries, not private detailed artifacts.
+  - Internal-only share links return `404` through `/share/product/{token}`.
 
 ## Implementation Loop
 

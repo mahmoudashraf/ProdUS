@@ -25,37 +25,46 @@ Adopt the notes with one important constraint: the public share page must be des
 
 ## Implementation Status
 
-Status: MVP implementation completed and live verified on 2026-06-08.
+Status: MVP implementation completed, redeployed, and live verified on 2026-06-08.
 
-Implementation commit: `417ec0c`.
+Final live commit: `343833b`.
+
+Feature implementation commit: `2671e5c`.
+
+Deployment reliability fix: `343833b` added backend scanner Maven dependency caching so the Coolify scanner image rebuild stays inside the staging host build window.
 
 Coolify deployments:
 
-- Backend: `wn0nah8wmg7d7tnsry9lhogq`
-- Frontend: `tmfritqr8q08wjfvrpl68m7a`
+- Backend application: `jk3n39yatabf8zc9sn5nknj9`
+- Backend deployment: `u1m7k8ldj27qbsot3ig6pf15`
+- Frontend application: `wfvdve1ezt7vixejye4bhrgl`
+- Frontend deployment: `m129q7ixdtf2r8zpasb9zxct`
 
 What shipped:
 
 - Product home now exposes `New product`, `Start from service`, and `Project Start Plan` as clear owner paths.
 - Service Catalog now has a discovery landing and focused internal catalog views with a visible back path instead of button-row content swapping.
 - Service-first selection carries selected service context into `/products/new`, where the owner can review product fields before creation.
-- Product creation supports focused internal views for setup, manual fields, and AI review rather than one long dense screen.
+- Product creation supports focused internal views for setup, manual fields, AI review, and final owner review rather than one long dense screen.
 - Product workspace now includes a `Share` spoke for controlled disclosure.
-- Backend share-link API, persistence, revocation, public token lookup, and section visibility rules are implemented.
+- Backend share-link API, persistence, revocation, public token lookup, viewer action fields, and section visibility rules are implemented.
 - Public product share pages are live at `/share/product/{token}` and expose only safe summary sections by default.
 - Selected service context is available in public shares when the owner explicitly enables `Selected services`.
-- Detailed findings, evidence, and team status remain private unless future authenticated share scopes are deliberately added.
+- Findings, evidence, and team details remain safe summaries only on public links. The internal-only audience returns `404` on the public route.
+- Service Catalog wording now uses `AI Integration Options`; the older `AI Contracts` label is gone.
 
 Live verification screenshots:
 
-- `tmp/live-verification/2026-06-08/201-products-home-service-entry-live-417ec0c.png`
-- `tmp/live-verification/2026-06-08/202-service-catalog-internal-workstreams-live-417ec0c.png`
-- `tmp/live-verification/2026-06-08/203-product-setup-from-service-live-417ec0c.png`
-- `tmp/live-verification/2026-06-08/204-product-create-manual-internal-view-live-417ec0c.png`
-- `tmp/live-verification/2026-06-08/205-product-share-links-created-live-417ec0c.png`
-- `tmp/live-verification/2026-06-08/206-public-product-share-safe-summary-live-417ec0c.png`
-- `tmp/live-verification/2026-06-08/207-products-home-mobile-live-417ec0c.png`
-- `tmp/live-verification/2026-06-08/208-service-catalog-product-context-mobile-live-417ec0c.png`
+- `tmp/live-verification/2026-06-08/209-product-creation-review-live-343833b.png`
+- `tmp/live-verification/2026-06-08/210-service-catalog-ai-options-live-343833b.png`
+- `tmp/live-verification/2026-06-08/211-share-link-config-live-343833b.png`
+- `tmp/live-verification/2026-06-08/212-public-share-safe-summaries-live-343833b.png`
+- `tmp/live-verification/2026-06-08/213-public-share-safe-summaries-mobile-live-343833b.png`
+- `tmp/live-verification/2026-06-08/214-product-create-mobile-internal-view-live-343833b.png`
+
+Live verification artifact:
+
+- `tmp/live-verification/2026-06-08/owner-journey-final-343833b-result.json`
 
 Live scanner sanity for the ProdUS repo/readme fixture `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`:
 
@@ -63,6 +72,13 @@ Live scanner sanity for the ProdUS repo/readme fixture `0a56637c-41b3-4b8b-9ecd-
 - Completed scanner tools: `10/10`
 - `zap-baseline`: `COMPLETED`
 - Mapped findings preserved: `73` open findings, including `10` mapped ZAP findings
+
+Live share-link sanity:
+
+- Public share token verified: `EyQD0dOU1sgtiDQwbtZEr-8zgX70o_ZG`
+- Public sections verified: `PRODUCT_SUMMARY`, `LAUNCH_STATUS`, `SELECTED_SERVICES`, `FINDINGS_SUMMARY`, `EVIDENCE_SUMMARY`, `TEAM_STATUS`
+- Viewer action verified: `Request owner access`
+- Internal-only public route verified: `404`
 
 ## Interpreted Notes
 
