@@ -1093,6 +1093,65 @@ Status:
   - `tmp/live-verification/2026-06-08/221-returned-product-home-live.png`
   - `tmp/live-verification/2026-06-08/222-mobile-service-plan-internal-route-live.png`
 
+### Completed: Owner Navigation Density And Context Follow-Up
+
+Problem:
+
+- The sidebar could switch into selected-product actions while the owner was still on Home, which made Home feel less like the portfolio switchboard.
+- Product-specific service selection links still pointed through the legacy `/services` alias instead of the canonical catalog route, and some links lost the active product context.
+- Product Briefs, Team Match, and public solo-expert discovery could become long list/grid surfaces as records grow.
+- Project Start Plan could show a high/perfect readiness score while still showing blockers, which weakens owner trust in the verdict.
+
+Solution:
+
+- Keep Home on the general owner menu. Show the selected-product sidebar only on product-context routes such as Product Home, Project Start Plan, and product-scoped catalog views.
+- Add `Project Start Plan` to the selected-product sidebar so product-specific actions are coherent from the left rail.
+- Route visible service links to `/catalog`, while preserving `/services` as compatibility.
+- Pass active `productId` into Start Plan service/readiness panels so `Choose service` opens `/catalog?productId=...`.
+- Add search and visible-list caps to Product Briefs queue, Team Match plan picker, and public solo-expert/team discovery.
+- Clamp Team Match plan summaries on mobile so plan selection remains a quick choice.
+- Cap Project Start Plan readiness score when blockers exist and show `Blocked` consistently in score, status metrics, and internal context panels.
+
+Status:
+
+- Implemented, committed, deployed, and live-verified at UI commit `f0ad6d9`, Coolify frontend deployment `rdq6512o00l34ell65ggulx8`.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+- Focused local and live verification passed with `tmp/live-verification/2026-06-09/navigation-density-context-review.js`.
+- Local screenshots:
+  - `tmp/live-verification/2026-06-09/404-home-general-menu-local-nav-density.png`
+  - `tmp/live-verification/2026-06-09/405-product-home-context-menu-local-nav-density.png`
+  - `tmp/live-verification/2026-06-09/406-start-plan-product-scoped-services-local-nav-density.png`
+  - `tmp/live-verification/2026-06-09/407-product-briefs-capped-queue-local-nav-density.png`
+  - `tmp/live-verification/2026-06-09/408-team-match-capped-plan-picker-local-nav-density.png`
+  - `tmp/live-verification/2026-06-09/409-talent-experts-capped-directory-local-nav-density.png`
+  - `tmp/live-verification/2026-06-09/410-home-general-menu-local-nav-density.png`
+  - `tmp/live-verification/2026-06-09/411-product-home-context-menu-local-nav-density.png`
+  - `tmp/live-verification/2026-06-09/412-start-plan-product-scoped-services-local-nav-density.png`
+  - `tmp/live-verification/2026-06-09/413-product-briefs-capped-queue-local-nav-density.png`
+  - `tmp/live-verification/2026-06-09/414-team-match-capped-plan-picker-local-nav-density.png`
+  - `tmp/live-verification/2026-06-09/415-talent-experts-capped-directory-local-nav-density.png`
+- Live screenshots:
+  - `tmp/live-verification/2026-06-09/404-home-general-menu-live-f0ad6d9.png`
+  - `tmp/live-verification/2026-06-09/405-product-home-context-menu-live-f0ad6d9.png`
+  - `tmp/live-verification/2026-06-09/406-start-plan-product-scoped-services-live-f0ad6d9.png`
+  - `tmp/live-verification/2026-06-09/407-product-briefs-capped-queue-live-f0ad6d9.png`
+  - `tmp/live-verification/2026-06-09/408-team-match-capped-plan-picker-live-f0ad6d9.png`
+  - `tmp/live-verification/2026-06-09/409-talent-experts-capped-directory-live-f0ad6d9.png`
+  - `tmp/live-verification/2026-06-09/410-home-general-menu-live-f0ad6d9.png`
+  - `tmp/live-verification/2026-06-09/411-product-home-context-menu-live-f0ad6d9.png`
+  - `tmp/live-verification/2026-06-09/412-start-plan-product-scoped-services-live-f0ad6d9.png`
+  - `tmp/live-verification/2026-06-09/413-product-briefs-capped-queue-live-f0ad6d9.png`
+  - `tmp/live-verification/2026-06-09/414-team-match-capped-plan-picker-live-f0ad6d9.png`
+  - `tmp/live-verification/2026-06-09/415-talent-experts-capped-directory-live-f0ad6d9.png`
+- Live scanner sanity for product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237` confirmed:
+  - Tool coverage: `10/10`
+  - Completed tool coverage: `10/10`
+  - `zap-baseline`: `COMPLETED`
+  - Mapped findings preserved: `73` open findings with `10` mapped ZAP findings.
+
 ## Implementation Loop
 
 For each slice:
