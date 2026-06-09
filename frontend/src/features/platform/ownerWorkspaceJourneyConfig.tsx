@@ -4,14 +4,14 @@ import { type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import { PastelChip, appleColors } from './PlatformComponents';
 import { WorkspaceTab } from './ownerWorkspaceModel';
 
-export type OverviewJourneyView = 'decision' | 'progress' | 'refresh';
+export type OverviewJourneyView = 'decision' | 'profile' | 'progress' | 'refresh';
 export type ActionJourneyView = 'plan' | 'diagnosis';
 export type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
 export type ServicesJourneyView = 'recommend' | 'plan' | 'team';
 export type ShareJourneyView = 'create' | 'links' | 'preview';
 
 export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
-  overview: ['decision', 'progress', 'refresh'],
+  overview: ['decision', 'profile', 'progress', 'refresh'],
   actions: ['plan', 'diagnosis'],
   findings: ['risks', 'evidence', 'technical'],
   services: ['recommend', 'plan', 'team'],
@@ -66,11 +66,11 @@ export const buildOwnerWorkspaceJourneyItems = ({
       meta: <PastelChip label={launchStatus.confidence} accent={launchStatus.accent} bg={`${launchStatus.accent}12`} />,
     },
     {
-      value: 'progress',
-      label: 'Progress',
-      detail: 'Confidence history and the shareable readiness report.',
-      accent: appleColors.cyan,
-      meta: <PastelChip label={hasLaunchReadinessReport ? 'Report ready' : 'Report'} accent={appleColors.cyan} bg="#e4f9fd" />,
+      value: 'profile',
+      label: 'Edit profile',
+      detail: 'Update name, stage, links, stack, summary, and risk notes directly at any point in the product lifecycle.',
+      accent: appleColors.purple,
+      meta: <PastelChip label="Manual" accent={appleColors.purple} bg="#f1efff" />,
     },
     {
       value: 'refresh',
@@ -78,6 +78,13 @@ export const buildOwnerWorkspaceJourneyItems = ({
       detail: 'Rerun AI analysis, review suggested profile updates, and save only owner-approved fields.',
       accent: appleColors.blue,
       meta: <PastelChip label="Owner chooses" accent={appleColors.blue} bg="#e8f2ff" />,
+    },
+    {
+      value: 'progress',
+      label: 'Progress',
+      detail: 'Confidence history and the shareable readiness report.',
+      accent: appleColors.cyan,
+      meta: <PastelChip label={hasLaunchReadinessReport ? 'Report ready' : 'Report'} accent={appleColors.cyan} bg="#e4f9fd" />,
     },
   ],
   actionJourneyItems: [

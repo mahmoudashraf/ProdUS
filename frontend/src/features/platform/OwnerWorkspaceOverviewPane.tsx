@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react';
 import { Stack } from '@mui/material';
 import LaunchReadinessReportPanel from './LaunchReadinessReportPanel';
 import OwnerProductAiRefreshPanel from './OwnerProductAiRefreshPanel';
+import OwnerProductProfileEditPanel from './OwnerProductProfileEditPanel';
 import OwnerOverviewDecisionPanel from './OwnerOverviewDecisionPanel';
 import { OwnerLaunchReadyCelebration } from './OwnerJourneyCards';
 import type { OverviewJourneyView } from './ownerWorkspaceJourneyConfig';
@@ -15,6 +16,7 @@ type DecisionPanelProps = ComponentProps<typeof OwnerOverviewDecisionPanel>;
 type ShipConfidenceProps = ComponentProps<typeof ShipConfidencePanel>;
 type LaunchReadinessReportProps = ComponentProps<typeof LaunchReadinessReportPanel>;
 type ProductAiRefreshProps = ComponentProps<typeof OwnerProductAiRefreshPanel>;
+type ProductProfileEditProps = ComponentProps<typeof OwnerProductProfileEditPanel>;
 
 interface OwnerWorkspaceOverviewPaneProps {
   view: OverviewJourneyView;
@@ -24,6 +26,7 @@ interface OwnerWorkspaceOverviewPaneProps {
   shipConfidence: ShipConfidenceProps;
   launchReadinessReport: LaunchReadinessReportProps;
   productAiRefresh: ProductAiRefreshProps;
+  productProfileEdit: ProductProfileEditProps;
 }
 
 export default function OwnerWorkspaceOverviewPane({
@@ -34,6 +37,7 @@ export default function OwnerWorkspaceOverviewPane({
   shipConfidence,
   launchReadinessReport,
   productAiRefresh,
+  productProfileEdit,
 }: OwnerWorkspaceOverviewPaneProps) {
   return (
     <Stack spacing={2.5}>
@@ -54,6 +58,10 @@ export default function OwnerWorkspaceOverviewPane({
 
       {detailOpen && view === 'refresh' && (
         <OwnerProductAiRefreshPanel {...productAiRefresh} />
+      )}
+
+      {detailOpen && view === 'profile' && (
+        <OwnerProductProfileEditPanel {...productProfileEdit} />
       )}
     </Stack>
   );

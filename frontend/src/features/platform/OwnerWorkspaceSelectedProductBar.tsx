@@ -1,7 +1,7 @@
 'use client';
 
 import NextLink from 'next/link';
-import { ArrowBackOutlined, Inventory2Outlined } from '@mui/icons-material';
+import { ArrowBackOutlined, EditOutlined, Inventory2Outlined } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import {
   PastelChip,
@@ -52,15 +52,26 @@ export default function OwnerWorkspaceSelectedProductBar({
             </Typography>
           </Box>
         </Stack>
-        <Button
-          component={NextLink}
-          href="/dashboard?focus=products"
-          variant="outlined"
-          startIcon={<ArrowBackOutlined />}
-          sx={{ minHeight: 42, alignSelf: { xs: 'flex-start', md: 'center' }, flexShrink: 0 }}
-        >
-          Switch product on Home
-        </Button>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ flexShrink: 0 }}>
+          <Button
+            component={NextLink}
+            href={`/products/${product.id}?tab=overview&view=profile`}
+            variant="outlined"
+            startIcon={<EditOutlined />}
+            sx={{ minHeight: 42, whiteSpace: 'normal' }}
+          >
+            Edit profile
+          </Button>
+          <Button
+            component={NextLink}
+            href="/dashboard?focus=products"
+            variant="outlined"
+            startIcon={<ArrowBackOutlined />}
+            sx={{ minHeight: 42, whiteSpace: 'normal' }}
+          >
+            Switch product on Home
+          </Button>
+        </Stack>
       </Stack>
     </Surface>
   );

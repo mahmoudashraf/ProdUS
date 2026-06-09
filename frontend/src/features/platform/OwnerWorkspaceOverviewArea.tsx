@@ -114,6 +114,9 @@ export default function OwnerWorkspaceOverviewArea({
       productAiRefresh={{
         product: selectedProduct,
       }}
+      productProfileEdit={{
+        product: selectedProduct,
+      }}
     />
   );
 }
