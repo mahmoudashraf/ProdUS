@@ -153,6 +153,15 @@ function MatchedTeamsPage() {
     setSelectedTeamId(teamId);
     setActiveView('profile', { teamId });
   };
+  const openProfileRoute = () => {
+    const teamId = selectedTeam?.id || selectedTeamId || matchedTeams[0]?.team.id || '';
+    if (teamId) {
+      setSelectedTeamId(teamId);
+      setActiveView('profile', { teamId });
+      return;
+    }
+    setActiveView('profile');
+  };
   const compareTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
     recordShortlist(teamId, 'COMPARED');
@@ -226,6 +235,7 @@ function MatchedTeamsPage() {
               shortlistCount={activeShortlists.length}
               topRecommendation={matchedTeams[0]}
               onOpenMatches={() => setActiveView('matches')}
+              onOpenProfile={openProfileRoute}
               onOpenShortlist={() => setActiveView('shortlist')}
             />
           </>

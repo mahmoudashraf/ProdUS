@@ -103,6 +103,8 @@ export default function ProjectStartPlanContextPanel({
   const displayName = hasPlaceholderProduct
     ? 'Choose a real product'
     : product?.name || title || 'Productization start plan';
+  const currentAction = routeActions.find((action) => action.value === currentView);
+  const availableRouteActions = routeActions.filter((action) => action.value !== currentView);
 
   return (
     <Surface sx={{ p: { xs: 1.5, md: 2 }, background: '#fff' }}>
@@ -133,7 +135,7 @@ export default function ProjectStartPlanContextPanel({
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
               <PastelChip label="Selected start plan" accent={appleColors.purple} />
-              <PastelChip label={currentDetailLabel} accent={appleColors.blue} bg="#eaf3ff" />
+              <PastelChip label={`Current: ${currentDetailLabel}`} accent={appleColors.blue} bg="#eaf3ff" />
               <PastelChip label={statusLabel} accent={statusAccent} bg={`${statusAccent}12`} />
             </Stack>
             <Typography variant="h3" sx={{ mt: 0.9, overflowWrap: 'anywhere', lineHeight: 1.14 }}>
@@ -164,18 +166,21 @@ export default function ProjectStartPlanContextPanel({
           <Box
             aria-label="Start plan internal pages"
             component="nav"
-            sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, minmax(0, 1fr))' }, gap: 0.75 }}
+            sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'auto minmax(0, 1fr)' }, gap: 0.75, alignItems: 'center' }}
           >
-            {routeActions.map((action) => {
-              const selected = currentView === action.value;
-              return (
+            <PastelChip
+              label={`Viewing ${currentAction?.label || currentDetailLabel}`}
+              accent={appleColors.blue}
+              bg="#eaf3ff"
+            />
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))' }, gap: 0.75 }}>
+              {availableRouteActions.map((action) => (
                 <Button
                   key={action.value}
-                  variant={selected ? 'contained' : 'outlined'}
+                  variant="outlined"
                   startIcon={action.icon}
                   onClick={() => onOpenDetail(action.value)}
                   aria-label={`Open ${action.label}`}
-                  aria-current={selected ? 'page' : undefined}
                   sx={{
                     minWidth: 0,
                     minHeight: 38,
@@ -189,8 +194,8 @@ export default function ProjectStartPlanContextPanel({
                     {action.label}
                   </Box>
                 </Button>
-              );
-            })}
+              ))}
+            </Box>
           </Box>
         </Stack>
       </Box>

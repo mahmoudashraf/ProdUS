@@ -129,6 +129,7 @@ export function TeamMatchSelectedContextPanel({
   shortlistCount,
   topRecommendation,
   onOpenMatches,
+  onOpenProfile,
   onOpenShortlist,
 }: {
   activeView: TeamMatchView;
@@ -138,11 +139,18 @@ export function TeamMatchSelectedContextPanel({
   shortlistCount: number;
   topRecommendation?: TeamRecommendation | undefined;
   onOpenMatches: () => void;
+  onOpenProfile: () => void;
   onOpenShortlist: () => void;
 }) {
   const score = topRecommendation ? Math.round(topRecommendation.score * 100) : averageMatch;
   const planName = selectedPackage?.productProfile?.name || selectedPackage?.name || 'No start plan selected';
   const teamName = selectedTeam?.name || topRecommendation?.team.name || 'Top match pending';
+  const currentView = teamMatchViews.find((item) => item.value === activeView) || teamMatchViews[0]!;
+  const routeActions: Array<{ value: TeamMatchView; label: string; onClick: () => void }> = [
+    { value: 'matches', label: 'Open team matches', onClick: onOpenMatches },
+    { value: 'profile', label: 'Open inspect team', onClick: onOpenProfile },
+    { value: 'shortlist', label: 'Open shortlist', onClick: onOpenShortlist },
+  ];
 
   return (
     <Surface sx={{ p: { xs: 1.5, md: 2 } }}>
@@ -174,12 +182,12 @@ export function TeamMatchSelectedContextPanel({
           </Typography>
         </Box>
         <Stack direction={{ xs: 'column', sm: 'row', md: 'column' }} spacing={1} sx={{ minWidth: { md: 150 } }}>
-          <Button variant={activeView === 'matches' ? 'contained' : 'outlined'} size="small" onClick={onOpenMatches}>
-            Compare teams
-          </Button>
-          <Button variant={activeView === 'shortlist' ? 'contained' : 'outlined'} size="small" onClick={onOpenShortlist}>
-            Shortlist
-          </Button>
+          <PastelChip label={`Current: ${currentView.title}`} accent={teamMatchColor(score || 0)} bg={`${teamMatchColor(score || 0)}14`} />
+          {routeActions.filter((action) => action.value !== activeView).map((action) => (
+            <Button key={action.value} variant="outlined" size="small" onClick={action.onClick}>
+              {action.label}
+            </Button>
+          ))}
         </Stack>
       </Box>
     </Surface>
