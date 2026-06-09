@@ -4,10 +4,10 @@ Date: 2026-06-08
 
 Baseline:
 
-- Latest live-verified UI commit after the workspace-command focused routing pass: `b76e8be`.
-- Latest live-verified Coolify frontend deployment after the workspace-command focused routing pass: `sb39g5z5iovsfsbn9fq8yjaq`.
+- Latest live-verified UI commit after the AI catalog owner-action pass: `14e586e`.
+- Latest live-verified Coolify frontend deployment after the AI catalog owner-action pass: `m81n519suooosc1iqrdwpvmo`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
-- Latest live verification script: `tmp/live-verification/2026-06-08/workspace-command-subview-navigation-review.js`.
+- Latest live verification script: `tmp/live-verification/2026-06-08/service-path-language-live-review.js`.
 - Current largest owner-facing active files after the completed splits:
   - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`: 642 lines.
   - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 411 lines.
@@ -1277,6 +1277,46 @@ Status:
   - `tmp/live-verification/2026-06-08/325-workspace-team-return-hub-live-b76e8be.png`
   - `tmp/live-verification/2026-06-08/326-workspace-handoff-review-internal-route-live-b76e8be.png`
   - `tmp/live-verification/2026-06-08/327-workspace-handoff-return-hub-live-b76e8be.png`
+
+### Completed: AI Catalog Owner-Action Path
+
+Problem:
+
+- The service catalog AI page had already removed the confusing `AI Contracts` wording, but it still behaved like an explanatory capability list instead of an owner decision page.
+- The AI catalog route did not have a strong next action for owners who want to start from an AI integration need.
+- When the AI catalog CTA opened product setup, the setup page only said it started from the service catalog, losing the AI-specific journey context.
+
+Solution:
+
+- Split the AI catalog content into `ServiceCatalogAiOptionsPanel.tsx`.
+- Replace passive AI capability chips with owner-readable option cards that show:
+  - what the AI support does,
+  - approved-context usage,
+  - human-review guardrails,
+  - stable non-truncating readiness badges.
+- Add a clear CTA:
+  - discovery mode -> `/products/new?step=setup&from=service-catalog&ai=1`
+  - product-scoped mode -> `/owner/project-cart?step=readiness`
+- Carry the AI route flag into Product Setup so the landing context says `AI integration path selected` and keeps the AI option chip visible next to existing selected services.
+
+Status:
+
+- Implemented and live-verified in batched UI commit `14e586e`, Coolify frontend deployment `m81n519suooosc1iqrdwpvmo`.
+- The batch includes:
+  - `b191123` (`Clarify AI catalog service path`)
+  - `14e586e` (`Carry AI catalog context into product setup`)
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+- Local and live verification passed with `tmp/live-verification/2026-06-08/service-path-language-live-review.js`.
+- Live screenshots:
+  - `tmp/live-verification/2026-06-08/374-landing-service-path-language-live-14e586e.png`
+  - `tmp/live-verification/2026-06-08/375-choose-services-hub-language-live-14e586e.png`
+  - `tmp/live-verification/2026-06-08/376-choose-services-ai-language-live-14e586e.png`
+  - `tmp/live-verification/2026-06-08/377-ai-catalog-product-setup-continuity-live-14e586e.png`
+  - `tmp/live-verification/2026-06-08/379-choose-services-ai-product-context-live-14e586e.png`
+  - `tmp/live-verification/2026-06-08/380-mobile-choose-services-ai-language-live-14e586e.png`
 
 ## Implementation Loop
 
