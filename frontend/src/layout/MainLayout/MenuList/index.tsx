@@ -9,6 +9,7 @@ import {
   IconListDetails,
   IconPackage,
   IconShare,
+  IconSparkles,
 } from '@tabler/icons-react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { memo, useMemo } from 'react';
@@ -176,6 +177,14 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
           type: 'item',
           url: productWorkspaceRoute(productId),
           icon: IconListDetails,
+          breadcrumbs: true,
+        },
+        {
+          id: 'product-ai-opportunities',
+          title: 'AI Opportunities',
+          type: 'item',
+          url: productWorkspaceRoute(productId, 'ai'),
+          icon: IconSparkles,
           breadcrumbs: true,
         },
         {
