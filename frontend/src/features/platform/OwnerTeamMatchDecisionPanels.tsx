@@ -2,12 +2,13 @@
 
 import NextLink from 'next/link';
 import { BookmarkBorderOutlined, FactCheckOutlined } from '@mui/icons-material';
-import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import {
   DotLabel,
   PastelChip,
   ProgressRing,
   SectionTitle,
+  StatusChip,
   Surface,
   appleColors,
 } from './PlatformComponents';
@@ -17,23 +18,24 @@ import { PackageInstance, Team, TeamRecommendation } from './types';
 
 export function TeamMatchDecisionPanel({
   selectedPackageId,
-  packages,
+  selectedPackage,
   topRecommendation,
   averageMatch,
   shortlistCount,
-  onPackageChange,
+  onChangePlan,
   onOpenShortlist,
 }: {
   selectedPackageId: string;
-  packages: PackageInstance[];
+  selectedPackage?: PackageInstance | undefined;
   topRecommendation?: TeamRecommendation | undefined;
   averageMatch: number;
   shortlistCount: number;
-  onPackageChange: (packageId: string) => void;
+  onChangePlan: () => void;
   onOpenShortlist: () => void;
 }) {
   const topScore = topRecommendation ? Math.round(topRecommendation.score * 100) : 0;
   const adjustPlanHref = selectedPackageId ? `/packages?planId=${encodeURIComponent(selectedPackageId)}&view=team` : '/packages';
+  const planName = selectedPackage?.productProfile?.name || selectedPackage?.name || 'Selected start plan';
 
   return (
     <Surface sx={{ p: { xs: 2, md: 3 } }}>
@@ -56,27 +58,19 @@ export function TeamMatchDecisionPanel({
           </Stack>
         </Stack>
 
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.4fr) auto auto' },
-            gap: 1.5,
-            alignItems: 'center',
-          }}
-        >
-          <TextField
-            select
-            size="small"
-            label="Start plan"
-            value={selectedPackageId}
-            onChange={(event) => onPackageChange(event.target.value)}
-          >
-            {packages.map((item) => (
-              <MenuItem key={item.id} value={item.id}>
-                {item.productProfile?.name || item.name}
-              </MenuItem>
-            ))}
-          </TextField>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) auto auto auto' }, gap: 1.5, alignItems: 'center' }}>
+          <Box sx={{ minWidth: 0, p: 1.25, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
+            <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+              <PastelChip label="Selected start plan" accent={appleColors.cyan} bg="#e4f9fd" />
+              {selectedPackage && <StatusChip label={selectedPackage.status} />}
+            </Stack>
+            <Typography sx={{ mt: 0.65, fontWeight: 950, overflowWrap: 'anywhere' }}>
+              {planName}
+            </Typography>
+          </Box>
+          <Button variant="outlined" onClick={onChangePlan} sx={{ minHeight: 40 }}>
+            Change plan
+          </Button>
           <Button component={NextLink} href={adjustPlanHref} variant="outlined" sx={{ minHeight: 40 }}>
             Adjust plan
           </Button>

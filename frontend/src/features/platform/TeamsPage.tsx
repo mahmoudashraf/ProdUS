@@ -26,6 +26,7 @@ import {
   ReputationManagementPanel,
   TeamCreatePanel,
 } from './TeamMatchManagementPanels';
+import TeamMatchPlanPickerPanel from './TeamMatchPlanPickerPanel';
 import {
   PageHeader,
   QueryState,
@@ -60,6 +61,7 @@ function MatchedTeamsPage() {
     capabilityForm,
     hasActiveView,
     memberForm,
+    openTeamPlanPicker,
     openTeamMatchHub,
     reputationForm,
     selectedPackageId,
@@ -227,19 +229,24 @@ function MatchedTeamsPage() {
               onOpenShortlist={() => setActiveView('shortlist')}
             />
           </>
-        ) : (
+        ) : selectedPackageId ? (
           <>
             <TeamMatchDecisionPanel
               selectedPackageId={selectedPackageId}
-              packages={packageList}
+              selectedPackage={selectedPackage}
               topRecommendation={matchedTeams[0]}
               averageMatch={avgMatch}
               shortlistCount={activeShortlists.length}
-              onPackageChange={setSelectedPackageId}
+              onChangePlan={openTeamPlanPicker}
               onOpenShortlist={() => setActiveView('shortlist')}
             />
             <TeamMatchFocusNav activeView={null} counts={viewCounts} onChange={setActiveView} />
           </>
+        ) : (
+          <TeamMatchPlanPickerPanel
+            packageList={packageList}
+            onChoosePlan={setSelectedPackageId}
+          />
         )}
 
         {hasActiveView && activeView === 'matches' && (
@@ -285,7 +292,7 @@ function MatchedTeamsPage() {
           />
         )}
 
-        {!hasActiveView && <TeamMatchMethodPanel />}
+        {!hasActiveView && selectedPackageId && <TeamMatchMethodPanel />}
       </Stack>
     </>
   );

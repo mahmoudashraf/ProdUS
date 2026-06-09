@@ -23,11 +23,11 @@ export function useTeamMatchUiState() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [selectedTeamStateId, setSelectedTeamStateId] = useState('');
-  const [selectedPackageId, setSelectedPackageId] = useState('');
   const queryString = searchParams?.toString() || '';
   const viewParam = searchParams?.get('view');
+  const selectedPackageId = searchParams?.get('planId') || '';
   const teamParam = searchParams?.get('team') || '';
-  const hasActiveView = isTeamMatchView(viewParam);
+  const hasActiveView = !!selectedPackageId && isTeamMatchView(viewParam);
   const activeView: TeamMatchView = isTeamMatchView(viewParam) ? viewParam : 'matches';
   const routePath = pathname || '/teams';
   const routeForParams = (params: URLSearchParams) => {
@@ -46,6 +46,24 @@ export function useTeamMatchUiState() {
     const params = new URLSearchParams(queryString);
     params.delete('view');
     params.delete('team');
+    router.push(routeForParams(params), { scroll: false });
+  };
+  const openTeamPlanPicker = () => {
+    const params = new URLSearchParams(queryString);
+    params.delete('planId');
+    params.delete('view');
+    params.delete('team');
+    router.push(routeForParams(params), { scroll: false });
+  };
+  const setSelectedPackageId = (packageId: string) => {
+    const params = new URLSearchParams(queryString);
+    params.delete('view');
+    params.delete('team');
+    if (packageId) {
+      params.set('planId', packageId);
+    } else {
+      params.delete('planId');
+    }
     router.push(routeForParams(params), { scroll: false });
   };
   const setSelectedTeamId = (teamId: string) => {
@@ -90,6 +108,7 @@ export function useTeamMatchUiState() {
     capabilityForm,
     hasActiveView,
     memberForm,
+    openTeamPlanPicker,
     openTeamMatchHub,
     reputationForm,
     selectedPackageId,

@@ -46,8 +46,8 @@ export function useTeamMatchData({
   );
 
   useEffect(() => {
-    if (!selectedPackageId && packageList[0]) {
-      setSelectedPackageId(packageList[0].id);
+    if (selectedPackageId && packageList.length && !packageList.some((item) => item.id === selectedPackageId)) {
+      setSelectedPackageId('');
     }
   }, [packageList, selectedPackageId, setSelectedPackageId]);
 
