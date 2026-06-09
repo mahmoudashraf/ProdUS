@@ -91,12 +91,13 @@ export const PastelChip = ({
       color: accent,
       fontWeight: 700,
       border: `1px solid ${accent}1f`,
-      flexShrink: 0,
+      flexShrink: 1,
+      minWidth: 0,
       maxWidth: '100%',
       '& .MuiChip-label': {
         px: 1,
-        overflow: 'visible',
-        textOverflow: 'clip',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
       },
     }}
