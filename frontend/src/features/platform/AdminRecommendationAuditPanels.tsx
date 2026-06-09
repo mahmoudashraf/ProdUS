@@ -113,7 +113,7 @@ export function AdminRecommendationAuditHubPanel({
         <SectionTitle title="Choose Audit Area" action={<PastelChip label="One admin decision at a time" accent={appleColors.purple} />} />
         <OwnerWorkspaceJourneyNav
           label="AI audit sections"
-          value="readiness"
+          value={null}
           items={items}
           maxColumns={4}
           onChange={onOpenView}

@@ -149,7 +149,7 @@ export default function OwnerTechnicalProofJourneyPanel({
           </Box>
           <OwnerWorkspaceJourneyNav
             label="Technical proof journey"
-            value={view}
+            value={null}
             items={items}
             maxColumns={4}
             onChange={onViewChange}

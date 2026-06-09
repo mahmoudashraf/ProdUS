@@ -10,7 +10,6 @@ export const isProjectStartJourneyView = (value: string | null): value is Projec
 
 export function ProjectStartJourneyNavigation({
   detailOpen,
-  value,
   items,
   productName,
   currentDetailLabel,
@@ -18,7 +17,6 @@ export function ProjectStartJourneyNavigation({
   onOpenDetail,
 }: {
   detailOpen: boolean;
-  value: ProjectStartJourneyView;
   items: ProjectStartJourneyItem[];
   productName: string;
   currentDetailLabel: string;
@@ -42,7 +40,7 @@ export function ProjectStartJourneyNavigation({
   return (
     <OwnerWorkspaceJourneyNav
       label="Project start plan hub"
-      value={value}
+      value={null}
       items={items}
       onChange={onOpenDetail}
     />

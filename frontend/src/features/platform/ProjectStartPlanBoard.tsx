@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from 'react';
 import { Box, Stack } from '@mui/material';
-import { ProjectStartJourneyNavigation } from './ProjectStartJourneyNavigation';
+import { ProjectStartJourneyNavigation, type ProjectStartJourneyView } from './ProjectStartJourneyNavigation';
 import ProjectStartApprovalPanel from './ProjectStartApprovalPanel';
 import ProjectStartLifecycleServicesPanel from './ProjectStartLifecycleServicesPanel';
 import ProjectStartPackageTemplatesPanel from './ProjectStartPackageTemplatesPanel';
@@ -21,7 +21,7 @@ type ApprovalProps = ComponentProps<typeof ProjectStartApprovalPanel>;
 
 interface ProjectStartPlanBoardProps {
   detailOpen: boolean;
-  view: NavigationProps['value'];
+  view: ProjectStartJourneyView;
   overview: OverviewProps;
   navigation: NavigationProps;
   templates: TemplatesProps;

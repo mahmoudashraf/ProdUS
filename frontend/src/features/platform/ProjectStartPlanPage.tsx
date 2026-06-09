@@ -125,7 +125,6 @@ export default function ProjectStartPlanPage() {
         }}
         navigation={{
           detailOpen: startPlanDetailOpen,
-          value: startPlanView,
           items: startPlanJourneyItems,
           productName: product?.name || 'Draft',
           currentDetailLabel: currentStartPlanDetailLabel,

@@ -116,7 +116,7 @@ export default function AdminScannerOperationsPage() {
                 <SectionTitle title="Choose Operations Area" action={<PastelChip label="One operational task at a time" accent={appleColors.purple} />} />
                 <OwnerWorkspaceJourneyNav
                   label="Scanner operations sections"
-                  value="tools"
+                  value={null}
                   items={navigationItems}
                   maxColumns={3}
                   onChange={openView}

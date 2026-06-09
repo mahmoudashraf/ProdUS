@@ -70,7 +70,7 @@ export default function WorkspaceCommandSelectedWorkspacePane({
       {isFetchingWorkspaceDetail && <LinearProgress />}
 
       <WorkspaceCommandJourneyNav
-        value={view}
+        value={null}
         onChange={onViewChange}
         {...journey}
       />

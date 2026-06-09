@@ -6,7 +6,7 @@ import { PastelChip, appleColors } from './PlatformComponents';
 export type WorkspaceCommandView = 'overview' | 'proof' | 'team' | 'handoff';
 
 interface WorkspaceCommandJourneyNavProps {
-  value: WorkspaceCommandView;
+  value?: WorkspaceCommandView | null;
   onChange: (value: WorkspaceCommandView) => void;
   priorityFixes: number;
   proofGaps: number;
@@ -61,5 +61,5 @@ export default function WorkspaceCommandJourneyNav({
     },
   ];
 
-  return <OwnerWorkspaceJourneyNav label="Workspace delivery journey" value={value} items={items} onChange={onChange} />;
+  return <OwnerWorkspaceJourneyNav label="Workspace delivery journey" value={value ?? null} items={items} onChange={onChange} />;
 }
