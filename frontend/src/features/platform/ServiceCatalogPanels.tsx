@@ -13,12 +13,9 @@ import { Box, Button, Stack, Typography } from '@mui/material';
 import { OwnerWorkspaceJourneyNav, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import {
   PastelChip,
-  SectionTitle,
   Surface,
   appleColors,
-  formatLabel,
 } from './PlatformComponents';
-import type { AICapabilityConfig } from './types';
 
 export type ServiceCatalogView = 'templates' | 'services' | 'ai';
 
@@ -179,32 +176,6 @@ export function ServiceCatalogProductContextPanel({
             Open Start Plan
           </Button>
         )}
-      </Stack>
-    </Surface>
-  );
-}
-
-export function AiServiceOptionsPanel({
-  aiCapabilities,
-}: {
-  aiCapabilities: AICapabilityConfig[];
-}) {
-  return (
-    <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f5fdff)' }}>
-      <SectionTitle title="AI Integration Options" />
-      <Typography color="text.secondary" sx={{ lineHeight: 1.7, mb: 1.5 }}>
-        ProdUS can use structured product context, evidence requirements, testing gates, team capability signals, and human-review rules to explain where AI should help. AI can recommend and explain services, but product actions stay human-confirmed in ProdUS.
-      </Typography>
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-        {aiCapabilities.slice(0, 8).map((capability) => (
-          <PastelChip
-            key={capability.id}
-            label={`${capability.name}: ${capability.enabled ? 'Enabled' : 'Prepared'}`}
-            accent={capability.enabled ? appleColors.green : appleColors.cyan}
-            bg={capability.enabled ? '#e7f8ee' : '#e4f9fd'}
-          />
-        ))}
-        <PastelChip label={`Human review ${formatLabel('required')}`} accent={appleColors.purple} />
       </Stack>
     </Surface>
   );

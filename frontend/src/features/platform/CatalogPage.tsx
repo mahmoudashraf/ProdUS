@@ -9,13 +9,13 @@ import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
 import { PageHeader, QueryState } from './PlatformComponents';
 import {
-  AiServiceOptionsPanel,
   ServiceCatalogInternalHeader,
   ServiceCatalogLandingPanel,
   ServiceCatalogProductContextPanel,
   type ServiceCatalogView,
   isServiceCatalogView,
 } from './ServiceCatalogPanels';
+import AiServiceOptionsPanel from './ServiceCatalogAiOptionsPanel';
 import PackageTemplatesPanel from './ServiceCatalogTemplatePanel';
 import ServiceWorkstreamsPanel from './ServiceCatalogWorkstreamsPanel';
 import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
@@ -42,6 +42,7 @@ export default function CatalogPage() {
   const startPlanServicesHref = canUseStartPlan ? `${PROJECT_START_PLAN_HREF}?step=services` : startPlanHref;
   const startPlanReadinessHref = canUseStartPlan ? `${PROJECT_START_PLAN_HREF}?step=readiness` : startPlanHref;
   const startPlanActionLabel = canUseStartPlan ? 'Project Start Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
+  const aiProductSetupHref = isLoggedIn ? '/products/new?step=setup&from=service-catalog&ai=1' : '/login';
 
   const categories = useQuery({
     queryKey: ['catalog-categories'],
@@ -234,7 +235,12 @@ export default function CatalogPage() {
       )}
 
       {hasCatalogView && catalogView === 'ai' && (
-        <AiServiceOptionsPanel aiCapabilities={aiCapabilities.data || []} />
+        <AiServiceOptionsPanel
+          aiCapabilities={aiCapabilities.data || []}
+          productName={selectedProduct.data?.name}
+          setupHref={aiProductSetupHref}
+          startPlanHref={startPlanReadinessHref}
+        />
       )}
     </Stack>
   );
