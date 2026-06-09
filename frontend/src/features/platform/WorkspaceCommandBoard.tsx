@@ -65,23 +65,16 @@ export default function WorkspaceCommandBoard({
             <EmptyState label="Open or create a workspace to coordinate milestones, evidence, and delivery participants." />
           </Surface>
         )}
-      </Stack>
 
-      <Stack
-        ref={detailRailRef}
-        spacing={2}
-        sx={{
-          display: showDetailRail ? 'flex' : 'none',
-          gridColumn: { lg: '2 / -1' },
-          order: { xs: 2, lg: 3 },
-          minWidth: 0,
-        }}
-      >
-        {workspaceView === 'team' && teamPanels && (
-          <WorkspaceCommandTeamPanels {...teamPanels} />
-        )}
-        {workspaceView === 'handoff' && handoffPanels && (
-          <WorkspaceCommandHandoffPanels {...handoffPanels} />
+        {showDetailRail && (
+          <Stack ref={detailRailRef} spacing={2} sx={{ minWidth: 0 }}>
+            {workspaceView === 'team' && teamPanels && (
+              <WorkspaceCommandTeamPanels {...teamPanels} />
+            )}
+            {workspaceView === 'handoff' && handoffPanels && (
+              <WorkspaceCommandHandoffPanels {...handoffPanels} />
+            )}
+          </Stack>
         )}
       </Stack>
     </Box>
