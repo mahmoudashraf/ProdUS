@@ -6,7 +6,16 @@ Audience: ProdUS backend, frontend, platform operations, MCP, scanner, and LoomA
 
 Status: staging LoomAI deployment is live and verified. ProdUS should integrate through the standardized backend-mediated private runtime contract. The Platform consumer bridge remains useful for operator smoke tests and fallback comparison, but it is not the target application path.
 
-Latest LoomAI-side status, verified 2026-06-01:
+Latest LoomAI-side status, verified 2026-06-02:
+
+- 2026-06-02 production-Coolify shift-left update: LoomAI exported staging deployment `dep-7706fafb` with sealed secrets through the Platform deployment export API, reimported it on the production Platform/Coolify server after the private-runtime audience clone fix, published imported deployment version `ver-a9f46201`, and applied it through release `rel-7aa6f229`.
+- Imported production-server staging runtime deployment is `dep-53f9ca56`.
+- Production Platform consumer `produs-staging` is now assigned to `dep-53f9ca56`; assignment discovery returns `externalIntegrationReady=true`, `privateRuntimeAudience=produs-staging`, and `privateRuntimeAudienceMode=CONSUMER_ID`.
+- Production-hosted runtime health, connector health, and managed vectorization runner health all return `UP`.
+- Direct private-runtime auth smoke passed against `dep-53f9ca56` using issuer `produs-staging-backend` and audience `produs-staging`.
+- Direct private-runtime `POST /api/chat/me/query-once` smoke passed against `dep-53f9ca56` with `mode=thinker`. Runtime selected a read-only ProdUS catalog action and returned a grounded answer.
+- Source staging deployment `dep-7706fafb` remains healthy and untouched: runtime, connector, and vectorization runner return `UP`; latest staging release `rel-2d0807c7` is `APPLIED_VERIFIED`, verification `PASSED`, provisioning `ACTIVE` on `dtp-coolify-staging`.
+- Runtime assignment discovery now requires the scoped `X-LOOMAI-ASSIGNMENT-API-KEY` header. Anonymous, wrong-key, other-consumer, and credentials requests were rejected; the correct key returned `200` only for `produs-staging/runtime-assignment`.
 
 - 2026-06-01 update: LoomAI rediscovered the ProdUS staging MCP server, imported `produs.catalog.export`, published `mkp-action-produs-productization-read-mcp@0.1.1`, updated the live deployment install, published deployment version `ver-37ca6cc2`, and applied it through release `rel-68c38e15`.
 - Live release verification `vrf-55a0bfc1` passed with `28 passed, 0 failed, 1 skipped`.
@@ -17,7 +26,7 @@ Latest LoomAI-side status, verified 2026-06-01:
 - Runtime `dep-7706fafb` accepts issuer `produs-staging-backend`.
 - Runtime `dep-7706fafb` accepts the stable consumer audience `produs-staging`; it also accepts `dep-7706fafb` as a transition audience.
 - Runtime assignment discovery now returns `privateRuntimeIssuer=produs-staging-backend`, `privateRuntimeAudience=produs-staging`, and `externalIntegrationReady=true`.
-- ProdUS should sign private runtime assertions with `aud=produs-staging`. Keep `deploymentId=dep-7706fafb` only as audit/debug metadata.
+- ProdUS should sign private runtime assertions with `aud=produs-staging`. Keep the current assignment `deploymentId` only as audit/debug metadata.
 - Deployment version `ver-e55296b1` / label `v11` was applied through release `rel-2d0807c7`; latest verification `vrf-7b9ffb3d` passed.
 - Live smoke passed for `GET /api/chat/me/auth-context` and `POST /api/chat/me/query-once` using issuer `produs-staging-backend` and audience `produs-staging`.
 - Runtime trusted backend key and HMAC private assertion signing key are configured in Coolify. Values are not stored in this document.
@@ -80,8 +89,8 @@ Information LoomAI should share with ProdUS:
 ProdUS should stop hardcoding the runtime URL in application code. The ProdUS backend can discover the currently assigned LoomAI runtime at startup and when the cached runtime fails health/query checks.
 
 ```http
-GET https://loomai-platform-backend.46.224.145.148.sslip.io/api/public/consumers/produs-staging/runtime-assignment
-X-PLATFORM-API-KEY: <backend-only-platform-api-key>
+GET https://loomai-platform-backend.46.225.162.106.sslip.io/api/public/consumers/produs-staging/runtime-assignment
+X-LOOMAI-ASSIGNMENT-API-KEY: <backend-only-assignment-key>
 ```
 
 Current non-secret response shape:
@@ -89,22 +98,22 @@ Current non-secret response shape:
 ```json
 {
   "consumerId": "produs-staging",
-  "deploymentId": "dep-7706fafb",
-  "runtimeBaseUrl": "http://dep-7706fafb.46.224.145.148.sslip.io",
+  "deploymentId": "dep-53f9ca56",
+  "runtimeBaseUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io",
   "runtimeAuthMode": "PRIVATE_RUNTIME_SIGNED_ASSERTION",
   "preferredIntegrationMode": "BACKEND_MEDIATED_PRIVATE_RUNTIME",
   "privateRuntimeIssuer": "produs-staging-backend",
   "privateRuntimeAudience": "produs-staging",
   "privateRuntimeAudienceMode": "CONSUMER_ID",
   "externalIntegrationReady": true,
-  "assignmentRevision": "mw-ToWWiNFmJtuV_KllM79",
+  "assignmentRevision": "<changes-when-assignment-material-changes>",
   "cacheTtlSeconds": 300,
   "endpoints": {
-    "chatQueryUrl": "http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/query",
-    "queryOnceUrl": "http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/query-once",
-    "suggestionsUrl": "http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/suggestions",
-    "authContextUrl": "http://dep-7706fafb.46.224.145.148.sslip.io/api/chat/me/auth-context",
-    "healthUrl": "http://dep-7706fafb.46.224.145.148.sslip.io/actuator/health"
+    "chatQueryUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/query",
+    "queryOnceUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/query-once",
+    "suggestionsUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/suggestions",
+    "authContextUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/auth-context",
+    "healthUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/actuator/health"
   }
 }
 ```
@@ -116,7 +125,7 @@ ProdUS implementation rule:
 - Use `endpoints.chatQueryUrl`, `endpoints.queryOnceUrl`, `endpoints.suggestionsUrl`, and `endpoints.authContextUrl` for direct runtime calls.
 - Treat `deploymentId` as audit/debug metadata, not as the routing source of truth.
 - Sign private assertions with `aud=produs-staging`, using the returned `privateRuntimeAudience`.
-- Keep `deploymentId=dep-7706fafb` in the assertion payload for audit/debug metadata, but do not use it as the private-runtime audience in new ProdUS code.
+- Keep the assignment `deploymentId` in the assertion payload for audit/debug metadata, but do not use it as the private-runtime audience in new ProdUS code.
 - `LOOMAI_ASSERTION_DEPLOYMENT_ID` is not required when `LOOMAI_ASSIGNMENT_URL` is configured and reachable. The backend derives `deploymentId` from assignment discovery. The env var exists only as a fallback for local/break-glass direct-runtime diagnostics without assignment discovery.
 
 ProdUS implementation status:
@@ -124,8 +133,82 @@ ProdUS implementation status:
 - Backend code now supports `LOOMAI_ASSIGNMENT_URL` and caches the assignment response by `cacheTtlSeconds`.
 - Backend assignment discovery supports `LOOMAI_ASSIGNMENT_API_KEY` and `LOOMAI_ASSIGNMENT_API_KEY_HEADER_NAME`; if omitted it falls back to `LOOMAI_API_KEY`.
 - Backend direct runtime calls resolve assignment endpoint URLs before falling back to `LOOMAI_BASE_URL`.
-- Backend assertions now keep `aud` and `deploymentId` separate: `aud=produs-staging`, `deploymentId=dep-7706fafb`.
+- Backend assertions now keep `aud` and `deploymentId` separate: `aud=produs-staging`, `deploymentId` comes from assignment discovery.
 - Safe knowledge sync trace/auth context also uses the resolved assignment deployment/customer/issuer values.
+
+## 0A. Production Coolify-Hosted Staging Runtime
+
+This is the shift-left environment on the LoomAI production server. It was created by sealed Platform deployment export/import, not by manual runtime recreation.
+
+Use this environment when ProdUS wants staging integration traffic to exercise production Coolify infrastructure while still keeping the ProdUS integration posture as staging.
+
+```http
+GET https://loomai-platform-backend.46.225.162.106.sslip.io/api/public/consumers/produs-staging/runtime-assignment
+X-LOOMAI-ASSIGNMENT-API-KEY: <backend-only-assignment-key>
+```
+
+Current non-secret response shape:
+
+```json
+{
+  "consumerId": "produs-staging",
+  "deploymentId": "dep-53f9ca56",
+  "runtimeBaseUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io",
+  "runtimeAuthMode": "PRIVATE_RUNTIME_SIGNED_ASSERTION",
+  "preferredIntegrationMode": "BACKEND_MEDIATED_PRIVATE_RUNTIME",
+  "privateRuntimeIssuer": "produs-staging-backend",
+  "privateRuntimeAudience": "produs-staging",
+  "privateRuntimeAudienceMode": "CONSUMER_ID",
+  "externalIntegrationReady": true,
+  "cacheTtlSeconds": 300,
+  "endpoints": {
+    "chatQueryUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/query",
+    "queryOnceUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/query-once",
+    "suggestionsUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/suggestions",
+    "conversationsUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/conversations",
+    "authContextUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/auth-context",
+    "healthUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/actuator/health"
+  }
+}
+```
+
+ProdUS backend configuration for this environment:
+
+```bash
+LOOMAI_ENABLED=true
+LOOMAI_INTEGRATION_MODE=BACKEND_MEDIATED_PRIVATE_RUNTIME
+LOOMAI_AUTH_MODE=PRIVATE_RUNTIME_ASSERTION
+LOOMAI_ASSIGNMENT_URL=https://loomai-platform-backend.46.225.162.106.sslip.io/api/public/consumers/produs-staging/runtime-assignment
+LOOMAI_ASSIGNMENT_API_KEY_HEADER_NAME=X-LOOMAI-ASSIGNMENT-API-KEY
+LOOMAI_ASSIGNMENT_API_KEY=<provided-through-secure-channel>
+LOOMAI_ASSERTION_ISSUER=produs-staging-backend
+LOOMAI_ASSERTION_AUDIENCE=produs-staging
+LOOMAI_ASSISTANT_QUERY_PATH=/api/chat/me/query
+LOOMAI_ASSISTANT_QUERY_ONCE_PATH=/api/chat/me/query-once
+LOOMAI_ASSISTANT_SUGGESTIONS_PATH=/api/chat/me/suggestions
+```
+
+Rules for ProdUS:
+
+- Fetch the assignment from the ProdUS backend at startup and cache it for at most `cacheTtlSeconds`.
+- Refetch assignment when runtime health fails or direct runtime calls repeatedly fail with connection-level errors.
+- Do not route every chat request through Platform. Platform is used for assignment discovery, not as the per-request chat proxy.
+- Sign runtime assertions with `aud=produs-staging`; keep the assignment `deploymentId` only as audit/debug metadata after assignment discovery resolves it.
+- Do not expose the Platform assignment key, runtime API key, assertion signing secret, MCP key, provider keys, or Coolify tokens to browser code.
+- Keep using `mode=thinker` for read-only analysis and `mode=executor` only for governed action execution.
+- Use `/query-once` for one-time helpers and analysis that must not create chat history. Use `/query` only for persistent chat panels.
+
+Live verification performed by LoomAI on 2026-06-02:
+
+- Platform production backend health: `UP`.
+- Platform production backend deployed commit `b067fe3033895eebf82c2edd60b043165c7b869e` with scoped assignment-key support.
+- Imported runtime `dep-53f9ca56` health: `UP`.
+- Imported connector `dep-53f9ca56-connector` health: `UP`.
+- Imported vectorization runner `dep-53f9ca56-vectorization-runner` health: `UP`.
+- Runtime assignment discovery now requires `X-LOOMAI-ASSIGNMENT-API-KEY`; anonymous, wrong-key, other-consumer, and credentials requests were rejected.
+- Scoped assignment key returned `200` only for `produs-staging/runtime-assignment`.
+- `GET /api/chat/me/auth-context` accepted a ProdUS private assertion with `iss=produs-staging-backend` and `aud=produs-staging`.
+- `POST /api/chat/me/query-once` returned success with `mode=thinker`; runtime selected the read-only ProdUS catalog search action and returned grounded ProdUS lifecycle/package information.
 
 ## 1. Live Staging Deployment
 
@@ -222,9 +305,9 @@ LOOMAI_ENABLED=true
 LOOMAI_ENVIRONMENT=staging
 LOOMAI_INTEGRATION_MODE=BACKEND_MEDIATED_PRIVATE_RUNTIME
 LOOMAI_AUTH_MODE=PRIVATE_RUNTIME_ASSERTION
-LOOMAI_ASSIGNMENT_URL=https://loomai-platform-backend.46.224.145.148.sslip.io/api/public/consumers/produs-staging/runtime-assignment
-LOOMAI_ASSIGNMENT_API_KEY=<backend-only platform assignment key>
-LOOMAI_ASSIGNMENT_API_KEY_HEADER_NAME=X-PLATFORM-API-KEY
+LOOMAI_ASSIGNMENT_URL=https://loomai-platform-backend.46.225.162.106.sslip.io/api/public/consumers/produs-staging/runtime-assignment
+LOOMAI_ASSIGNMENT_API_KEY=<backend-only assignment key>
+LOOMAI_ASSIGNMENT_API_KEY_HEADER_NAME=X-LOOMAI-ASSIGNMENT-API-KEY
 LOOMAI_BASE_URL=<fallback-only: use assignment endpoints first>
 LOOMAI_RUNTIME_API_KEY=<same value accepted by X-AIFABRIC-RUNTIME-API-KEY>
 LOOMAI_ASSERTION_ISSUER=produs-staging-backend
