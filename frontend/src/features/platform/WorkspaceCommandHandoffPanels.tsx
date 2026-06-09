@@ -5,6 +5,7 @@ import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } 
 import { PastelChip, appleColors, formatLabel } from './PlatformComponents';
 import WorkspaceHandoffAssistantPanel from './WorkspaceHandoffAssistantPanel';
 import WorkspaceHandoffReviewPanel from './WorkspaceHandoffReviewPanel';
+import WorkspaceCommandSubrouteActions, { type WorkspaceCommandSubrouteItem } from './WorkspaceCommandSubrouteActions';
 import WorkspaceIntegrationSignalsPanel from './WorkspaceIntegrationSignalsPanel';
 import type {
   HandoffDocument,
@@ -104,6 +105,11 @@ export default function WorkspaceCommandHandoffPanels({
       meta: <PastelChip label="Optional" accent={appleColors.purple} bg="#f1efff" />,
     },
   ];
+  const subrouteItems: WorkspaceCommandSubrouteItem<WorkspaceCommandHandoffView>[] = items.map((item) => ({
+    value: item.value,
+    label: item.label,
+    accent: item.accent || appleColors.purple,
+  }));
 
   return (
     <Stack spacing={2}>
@@ -118,12 +124,21 @@ export default function WorkspaceCommandHandoffPanels({
         />
       )}
 
-      <OwnerWorkspaceJourneyNav
-        label="Handoff command"
-        value={view}
-        items={items}
-        onChange={onViewChange}
-      />
+      {view ? (
+        <WorkspaceCommandSubrouteActions
+          ariaLabel="Handoff internal pages"
+          currentValue={view}
+          items={subrouteItems}
+          onChange={onViewChange}
+        />
+      ) : (
+        <OwnerWorkspaceJourneyNav
+          label="Handoff command"
+          value={null}
+          items={items}
+          onChange={onViewChange}
+        />
+      )}
 
       {view === 'review' && (
         <WorkspaceHandoffReviewPanel

@@ -6,6 +6,7 @@ import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } 
 import { PastelChip, appleColors } from './PlatformComponents';
 import WorkspaceParticipantsPanel from './WorkspaceParticipantsPanel';
 import WorkspaceRisksPanel from './WorkspaceRisksPanel';
+import WorkspaceCommandSubrouteActions, { type WorkspaceCommandSubrouteItem } from './WorkspaceCommandSubrouteActions';
 import WorkspaceSupportRequestsPanel from './WorkspaceSupportRequestsPanel';
 import type {
   AttachmentScope,
@@ -119,6 +120,11 @@ export default function WorkspaceCommandTeamPanels({
       meta: <PastelChip label={`${disputeList.length} open`} accent={disputeList.length ? appleColors.red : appleColors.green} bg={disputeList.length ? '#fff1f1' : '#e7f8ee'} />,
     },
   ];
+  const subrouteItems: WorkspaceCommandSubrouteItem<WorkspaceCommandTeamView>[] = items.map((item) => ({
+    value: item.value,
+    label: item.label,
+    accent: item.accent || appleColors.purple,
+  }));
 
   return (
     <Stack spacing={2}>
@@ -133,12 +139,21 @@ export default function WorkspaceCommandTeamPanels({
         />
       )}
 
-      <OwnerWorkspaceJourneyNav
-        label="Team and risk command"
-        value={view}
-        items={items}
-        onChange={onViewChange}
-      />
+      {view ? (
+        <WorkspaceCommandSubrouteActions
+          ariaLabel="Team and risk internal pages"
+          currentValue={view}
+          items={subrouteItems}
+          onChange={onViewChange}
+        />
+      ) : (
+        <OwnerWorkspaceJourneyNav
+          label="Team and risk command"
+          value={null}
+          items={items}
+          onChange={onViewChange}
+        />
+      )}
 
       {view === 'participants' && (
         <WorkspaceParticipantsPanel
