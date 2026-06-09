@@ -1,8 +1,9 @@
 'use client';
 
 import NextLink from 'next/link';
-import { ArrowForwardOutlined, DeleteOutlineOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton, Stack, Typography } from '@mui/material';
+import { useState } from 'react';
+import { ArrowForwardOutlined, DeleteOutlineOutlined, SearchOutlined } from '@mui/icons-material';
+import { Box, Button, IconButton, InputAdornment, Stack, TextField, Typography } from '@mui/material';
 import {
   DotLabel,
   EmptyState,
@@ -25,12 +26,42 @@ export default function ProjectStartLifecycleServicesPanel({
   isRemovingService,
   onRemoveService,
 }: ProjectStartLifecycleServicesPanelProps) {
+  const [query, setQuery] = useState('');
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchingServices = normalizedQuery
+    ? serviceItems.filter((item) =>
+        [
+          item.serviceModule.name,
+          item.serviceModule.description,
+          item.serviceModule.category?.name,
+          item.notes,
+        ].some((value) => (value || '').toLowerCase().includes(normalizedQuery))
+      )
+    : serviceItems;
+  const visibleLimit = normalizedQuery ? 12 : 8;
+  const visibleServices = matchingServices.slice(0, visibleLimit);
+  const hiddenCount = Math.max(0, matchingServices.length - visibleServices.length);
+
   return (
     <Surface>
       <SectionTitle title="Lifecycle Services" action={<Button component={NextLink} href="/services" variant="text" endIcon={<ArrowForwardOutlined />}>Choose service</Button>} />
       {serviceItems.length ? (
         <Stack spacing={1.25}>
-          {serviceItems.map((item, index) => {
+          <TextField
+            size="small"
+            fullWidth
+            label="Search selected services"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchOutlined fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+          {visibleServices.map((item, index) => {
             const palette = categoryPalette[index % categoryPalette.length] ?? categoryPalette[0]!;
             const serviceMeta = item.serviceModule.timelineRange || item.serviceModule.priceRange || 'Scoped during planning';
 
@@ -86,6 +117,19 @@ export default function ProjectStartLifecycleServicesPanel({
               </Box>
             );
           })}
+          {visibleServices.length ? (
+            <Box sx={{ p: 1.25, border: '1px dashed', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+                {hiddenCount
+                  ? `Showing ${visibleServices.length} ${normalizedQuery ? 'matching' : 'highest-priority'} services. ${hiddenCount} more ${normalizedQuery ? 'matches are hidden; refine the search to narrow them' : 'services are available through search'}.`
+                  : normalizedQuery
+                    ? `Showing all ${visibleServices.length} matching services.`
+                    : 'Showing the highest-priority selected services first.'}
+              </Typography>
+            </Box>
+          ) : (
+            <EmptyState label="No selected services match that search." />
+          )}
         </Stack>
       ) : (
         <EmptyState label="No services yet. Choose productization services such as validation, security, cloud, database, launch, or support." />
