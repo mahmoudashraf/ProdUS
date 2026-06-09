@@ -55,7 +55,13 @@ export function ServicePlanServicesPanel({
                   <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' }, lineHeight: 1.55 }}>
                     {module.deliverables || module.serviceModule.expectedDeliverables || 'Deliverables pending.'}
                   </Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    flexWrap="wrap"
+                    useFlexGap
+                    sx={{ gridColumn: { xs: '2 / -1', md: 'auto' }, minWidth: 0 }}
+                  >
                     <PastelChip label={module.required ? 'Included' : 'Optional'} accent={module.required ? appleColors.green : appleColors.amber} bg={module.required ? '#e7f8ee' : '#fff4dc'} />
                     <StatusChip label={module.status} />
                   </Stack>
@@ -129,7 +135,9 @@ export function ServicePlanTeamMatchPanel({
               <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', lg: 'block' }, lineHeight: 1.55 }}>
                 {recommendation.reasons.join(' · ') || recommendation.team.capabilitiesSummary || 'Match reasons pending.'}
               </Typography>
-              <StatusChip label={recommendation.team.verificationStatus} color="success" />
+              <Box sx={{ gridColumn: { xs: '2 / -1', lg: 'auto' }, justifySelf: { lg: 'end' } }}>
+                <StatusChip label={recommendation.team.verificationStatus} color="success" />
+              </Box>
             </Box>
           ))}
         </Stack>
