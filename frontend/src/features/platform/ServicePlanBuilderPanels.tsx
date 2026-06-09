@@ -4,7 +4,7 @@ import {
   ArrowForwardOutlined,
   FactCheckOutlined,
 } from '@mui/icons-material';
-import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import {
   PastelChip,
@@ -27,42 +27,6 @@ const servicePlanViewLabel: Record<ServicePlanBuilderView, string> = {
   team: 'Team Match',
   commercial: 'Handoff',
 };
-
-export function ServicePlanSelectorPanel({
-  packageList,
-  selectedPackage,
-  onSelectPackage,
-}: {
-  packageList: PackageInstance[];
-  selectedPackage?: PackageInstance | undefined;
-  onSelectPackage: (packageId: string) => void;
-}) {
-  return (
-    <Surface>
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ md: 'center' }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ md: 'center' }} sx={{ minWidth: 0, flex: 1 }}>
-          <Typography color="text.secondary" sx={{ fontWeight: 850 }}>
-            Service plan
-          </Typography>
-          <TextField
-            select
-            size="small"
-            value={selectedPackage?.id || ''}
-            onChange={(event) => onSelectPackage(event.target.value)}
-            sx={{ minWidth: { xs: '100%', md: 320 }, maxWidth: { md: 560 } }}
-          >
-            {packageList.map((item) => (
-              <MenuItem key={item.id} value={item.id}>
-                {item.name}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Stack>
-        {selectedPackage && <StatusChip label={selectedPackage.status} />}
-      </Stack>
-    </Surface>
-  );
-}
 
 export function ServicePlanHeroPanel({
   selectedPackage,
@@ -158,7 +122,7 @@ export function ServicePlanJourneyPanel({
   contractCount,
   onChange,
 }: {
-  value: ServicePlanBuilderView;
+  value?: ServicePlanBuilderView | null;
   moduleCount: number;
   teamMatchCount: number;
   proposalCount: number;
@@ -169,7 +133,7 @@ export function ServicePlanJourneyPanel({
     {
       value: 'summary',
       label: 'Plan Summary',
-      detail: 'Owner answer, warnings, and one way to create a new plan.',
+      detail: 'Owner answer, warnings, and readiness context.',
       accent: appleColors.purple,
       meta: <PastelChip label="Start here" accent={appleColors.purple} bg="#f1efff" />,
     },
@@ -198,10 +162,10 @@ export function ServicePlanJourneyPanel({
 
   return (
     <Surface>
-      <SectionTitle title="Choose Focus" action={<PastelChip label="One decision per view" accent={appleColors.purple} />} />
+      <SectionTitle title="Choose Focus" action={<PastelChip label="Plan sections" accent={appleColors.purple} />} />
       <OwnerWorkspaceJourneyNav
         label="Service plan builder focus"
-        value={value}
+        value={value ?? null}
         items={items}
         onChange={onChange}
       />
@@ -213,14 +177,14 @@ export function ServicePlanDetailNavigation({
   currentView,
   onOpenHub,
 }: {
-  currentView: ServicePlanBuilderView;
+  currentView?: ServicePlanBuilderView | null;
   onOpenHub: () => void;
 }) {
   return (
     <WorkspaceBreadcrumbs
       items={[
         { label: 'Service Plans', onClick: onOpenHub },
-        { label: servicePlanViewLabel[currentView] },
+        { label: currentView ? servicePlanViewLabel[currentView] : 'Plan Home' },
       ]}
       backLabel="Plans home"
       onBack={onOpenHub}

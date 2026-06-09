@@ -30,10 +30,10 @@ export function useServicePlanBuilderUiState({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchParamString = searchParams?.toString() || '';
+  const planIdParam = searchParams?.get('planId') || '';
   const viewParam = searchParams?.get('view') || null;
-  const detailOpen = isServicePlanBuilderView(viewParam);
-  const planView: ServicePlanBuilderView = detailOpen ? viewParam : 'summary';
-  const [selectedPackageId, setSelectedPackageId] = useState('');
+  const activePlanView = isServicePlanBuilderView(viewParam) ? viewParam : null;
+  const planView: ServicePlanBuilderView = activePlanView || 'summary';
   const [contractProposalId, setContractProposalId] = useState('');
   const [invoiceContractId, setInvoiceContractId] = useState('');
 
@@ -65,9 +65,11 @@ export function useServicePlanBuilderUiState({
 
   const packageList = useMemo(() => sortPackagesForOwner(packages), [packages]);
   const selectedPackage = useMemo(
-    () => packageList.find((item) => item.id === selectedPackageId) || packageList[0],
-    [packageList, selectedPackageId]
+    () => packageList.find((item) => item.id === planIdParam),
+    [packageList, planIdParam]
   );
+  const planOpen = !!selectedPackage;
+  const detailOpen = !!selectedPackage && !!activePlanView;
   const eligibleRequirements = useMemo(
     () => requirements.filter((item) => item.status === 'SUBMITTED' || item.status === 'PACKAGE_RECOMMENDED'),
     [requirements]
@@ -78,15 +80,33 @@ export function useServicePlanBuilderUiState({
   );
 
   useEffect(() => {
-    if (!selectedPackageId && packageList[0]) {
-      setSelectedPackageId(packageList[0].id);
+    if (planIdParam && packageList.length && !selectedPackage) {
+      const next = new URLSearchParams(searchParamString);
+      next.delete('planId');
+      next.delete('view');
+      const suffix = next.toString();
+      router.replace(suffix ? `${pathname || '/packages'}?${suffix}` : pathname || '/packages', { scroll: false });
     }
-  }, [packageList, selectedPackageId]);
+  }, [packageList.length, pathname, planIdParam, router, searchParamString, selectedPackage]);
 
   const openPlanView = useCallback(
-    (view: ServicePlanBuilderView) => {
+    (view: ServicePlanBuilderView, packageIdOverride?: string) => {
       const next = new URLSearchParams(searchParamString);
+      const packageId = packageIdOverride || selectedPackage?.id || planIdParam;
+      if (packageId) {
+        next.set('planId', packageId);
+      }
       next.set('view', view);
+      router.push(`${pathname || '/packages'}?${next.toString()}`, { scroll: false });
+    },
+    [pathname, planIdParam, router, searchParamString, selectedPackage?.id]
+  );
+
+  const openPlanOverview = useCallback(
+    (packageId: string) => {
+      const next = new URLSearchParams(searchParamString);
+      next.set('planId', packageId);
+      next.delete('view');
       router.push(`${pathname || '/packages'}?${next.toString()}`, { scroll: false });
     },
     [pathname, router, searchParamString]
@@ -94,16 +114,17 @@ export function useServicePlanBuilderUiState({
 
   const openPlanHub = useCallback(() => {
     const next = new URLSearchParams(searchParamString);
+    next.delete('planId');
     next.delete('view');
     const suffix = next.toString();
     router.push(suffix ? `${pathname || '/packages'}?${suffix}` : pathname || '/packages', { scroll: false });
   }, [pathname, router, searchParamString]);
 
   const selectPackage = useCallback((packageId: string) => {
-    setSelectedPackageId(packageId);
     setContractProposalId('');
     setInvoiceContractId('');
-  }, []);
+    openPlanOverview(packageId);
+  }, [openPlanOverview]);
 
   return {
     buildForm,
@@ -113,17 +134,19 @@ export function useServicePlanBuilderUiState({
     eligibleRequirements,
     invoiceContractId,
     invoiceForm,
-    openPlanView,
     openPlanHub,
+    openPlanOverview,
+    openPlanView,
     packageList,
+    planOpen,
     planView,
     proposalForm,
     selectPackage,
     selectedPackage,
-    selectedPackageId,
+    selectedPackageId: selectedPackage?.id || '',
     selectedRequirement,
     setContractProposalId,
     setInvoiceContractId,
-    setSelectedPackageId,
+    setSelectedPackageId: openPlanOverview,
   };
 }

@@ -11,8 +11,8 @@ import {
   ServicePlanHeroPanel,
   ServicePlanJourneyPanel,
   ServicePlanSelectedContextPanel,
-  ServicePlanSelectorPanel,
 } from './ServicePlanBuilderPanels';
+import ServicePlanLibraryPanel from './ServicePlanLibraryPanel';
 import ServicePlanCommercialPanel from './ServicePlanCommercialPanel';
 import { ServicePlanServicesPanel, ServicePlanTeamMatchPanel } from './ServicePlanBuilderServicesPanel';
 import ServicePlanSummaryPanel from './ServicePlanBuilderSummaryPanel';
@@ -55,6 +55,7 @@ export default function PackagesPage() {
     openPlanHub,
     openPlanView,
     packageList,
+    planOpen,
     planView,
     proposalForm,
     selectPackage,
@@ -150,36 +151,34 @@ export default function PackagesPage() {
       />
 
       <Stack spacing={2.5}>
-        {!detailOpen && (
+        {!planOpen && (
+          <ServicePlanLibraryPanel
+            packageList={packageList}
+            onOpenPlan={selectPackage}
+          />
+        )}
+
+        {selectedPackage && planOpen && !detailOpen && (
           <>
-            <ServicePlanSelectorPanel
-              packageList={packageList}
+            <ServicePlanDetailNavigation currentView={null} onOpenHub={openPlanHub} />
+            <ServicePlanHeroPanel
               selectedPackage={selectedPackage}
-              onSelectPackage={selectPackage}
+              score={score}
+              moduleCount={moduleList.length}
+              teamMatchCount={teamRecommendationList.length}
+              proposalCount={proposalList.length}
+              estimatedBudget={estimatedBudget}
+              onChangeView={openPlanView}
             />
 
-            {selectedPackage && (
-              <>
-                <ServicePlanHeroPanel
-                  selectedPackage={selectedPackage}
-                  score={score}
-                  moduleCount={moduleList.length}
-                  teamMatchCount={teamRecommendationList.length}
-                  proposalCount={proposalList.length}
-                  estimatedBudget={estimatedBudget}
-                  onChangeView={openPlanView}
-                />
-
-                <ServicePlanJourneyPanel
-                  value={planView}
-                  moduleCount={moduleList.length}
-                  teamMatchCount={teamRecommendationList.length}
-                  proposalCount={proposalList.length}
-                  contractCount={packageContracts.length}
-                  onChange={openPlanView}
-                />
-              </>
-            )}
+            <ServicePlanJourneyPanel
+              value={null}
+              moduleCount={moduleList.length}
+              teamMatchCount={teamRecommendationList.length}
+              proposalCount={proposalList.length}
+              contractCount={packageContracts.length}
+              onChange={openPlanView}
+            />
           </>
         )}
 

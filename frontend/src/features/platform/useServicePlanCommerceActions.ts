@@ -33,7 +33,7 @@ interface ServicePlanCommerceActionsInput {
   contractProposalId: string;
   invoiceContractId: string;
   invoiceForm: ServicePlanEditableForm<InvoicePayload>;
-  openPlanView: (view: ServicePlanBuilderView) => void;
+  openPlanView: (view: ServicePlanBuilderView, packageIdOverride?: string) => void;
   proposalForm: ServicePlanMutationForm<ProposalPayload>;
   selectedPackage: PackageInstance | undefined;
   setContractProposalId: Dispatch<SetStateAction<string>>;
@@ -63,7 +63,7 @@ export function useServicePlanCommerceActions({
     onSuccess: async (packageInstance) => {
       buildForm.resetForm();
       setSelectedPackageId(packageInstance.id);
-      openPlanView('summary');
+      openPlanView('summary', packageInstance.id);
       await queryClient.invalidateQueries({ queryKey: ['packages'] });
       await queryClient.invalidateQueries({ queryKey: ['requirements'] });
       await queryClient.invalidateQueries({ queryKey: ['ai-recommendations'] });
