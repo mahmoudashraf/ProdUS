@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Stack } from '@mui/material';
-import { OwnerWorkspaceJourneyNav, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import { PastelChip, appleColors } from './PlatformComponents';
 import WorkspaceParticipantsPanel from './WorkspaceParticipantsPanel';
 import WorkspaceRisksPanel from './WorkspaceRisksPanel';
@@ -23,9 +23,16 @@ import type {
   WorkspaceCommandFormController,
 } from './workspaceCommandTeamTypes';
 
-type WorkspaceCommandTeamView = 'participants' | 'support' | 'risks';
+export type WorkspaceCommandTeamView = 'participants' | 'support' | 'risks';
+
+const teamViewLabel: Record<WorkspaceCommandTeamView, string> = {
+  participants: 'Participants',
+  support: 'Support',
+  risks: 'Risks',
+};
 
 interface WorkspaceCommandTeamPanelsProps {
+  view: WorkspaceCommandTeamView | null;
   canCoordinate: boolean;
   teams: Team[];
   participantList: WorkspaceParticipant[];
@@ -52,10 +59,13 @@ interface WorkspaceCommandTeamPanelsProps {
   onSupportResolutionChange: (id: string, resolution: string) => void;
   onDisputeStatusChange: (id: string, status: DisputeCase['status']) => void;
   onDisputeResolutionChange: (id: string, resolution: string) => void;
+  onOpenHub: () => void;
+  onViewChange: (view: WorkspaceCommandTeamView) => void;
   evidencePanel: (scopeType: AttachmentScope, scopeId: string) => ReactNode;
 }
 
 export default function WorkspaceCommandTeamPanels({
+  view,
   canCoordinate,
   teams,
   participantList,
@@ -82,19 +92,10 @@ export default function WorkspaceCommandTeamPanels({
   onSupportResolutionChange,
   onDisputeStatusChange,
   onDisputeResolutionChange,
+  onOpenHub,
+  onViewChange,
   evidencePanel,
 }: WorkspaceCommandTeamPanelsProps) {
-  const [teamView, setTeamView] = useState<WorkspaceCommandTeamView>('participants');
-
-  useEffect(() => {
-    if (teamView !== 'participants') return;
-    if (disputeList.length) {
-      setTeamView('risks');
-      return;
-    }
-    if (supportList.length) setTeamView('support');
-  }, [disputeList.length, supportList.length, teamView]);
-
   const items: JourneyStepItem<WorkspaceCommandTeamView>[] = [
     {
       value: 'participants',
@@ -121,14 +122,25 @@ export default function WorkspaceCommandTeamPanels({
 
   return (
     <Stack spacing={2}>
+      {view && (
+        <WorkspaceBreadcrumbs
+          items={[
+            { label: 'Team And Risks', onClick: onOpenHub },
+            { label: teamViewLabel[view] },
+          ]}
+          backLabel="Team hub"
+          onBack={onOpenHub}
+        />
+      )}
+
       <OwnerWorkspaceJourneyNav
         label="Team and risk command"
-        value={teamView}
+        value={view}
         items={items}
-        onChange={setTeamView}
+        onChange={onViewChange}
       />
 
-      {teamView === 'participants' && (
+      {view === 'participants' && (
         <WorkspaceParticipantsPanel
           canCoordinate={canCoordinate}
           participantList={participantList}
@@ -138,7 +150,7 @@ export default function WorkspaceCommandTeamPanels({
         />
       )}
 
-      {teamView === 'support' && (
+      {view === 'support' && (
         <WorkspaceSupportRequestsPanel
           canCoordinate={canCoordinate}
           teams={teams}
@@ -155,7 +167,7 @@ export default function WorkspaceCommandTeamPanels({
         />
       )}
 
-      {teamView === 'risks' && (
+      {view === 'risks' && (
         <WorkspaceRisksPanel
           canCoordinate={canCoordinate}
           teams={teams}

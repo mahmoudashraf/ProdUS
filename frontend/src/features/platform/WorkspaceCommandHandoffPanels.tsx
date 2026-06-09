@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { Stack } from '@mui/material';
-import { OwnerWorkspaceJourneyNav, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import { PastelChip, appleColors, formatLabel } from './PlatformComponents';
 import WorkspaceHandoffAssistantPanel from './WorkspaceHandoffAssistantPanel';
 import WorkspaceHandoffReviewPanel from './WorkspaceHandoffReviewPanel';
@@ -15,9 +14,16 @@ import type {
   ProjectWorkspace,
 } from './types';
 
-type WorkspaceCommandHandoffView = 'review' | 'signals' | 'assistant';
+export type WorkspaceCommandHandoffView = 'review' | 'signals' | 'assistant';
+
+const handoffViewLabel: Record<WorkspaceCommandHandoffView, string> = {
+  review: 'Owner Handoff',
+  signals: 'Signals',
+  assistant: 'Ask AI',
+};
 
 interface WorkspaceCommandHandoffPanelsProps {
+  view: WorkspaceCommandHandoffView | null;
   workspace: ProjectWorkspace;
   productId: string;
   selectedMilestone: Milestone | undefined;
@@ -42,9 +48,12 @@ interface WorkspaceCommandHandoffPanelsProps {
   onPublishHealthReview: () => void;
   onCreateIntegration: (provider: IntegrationConnection['providerType']) => void;
   onRecordIntegrationSignal: (connectionId: string) => void;
+  onOpenHub: () => void;
+  onViewChange: (view: WorkspaceCommandHandoffView) => void;
 }
 
 export default function WorkspaceCommandHandoffPanels({
+  view,
   workspace,
   productId,
   selectedMilestone,
@@ -69,9 +78,9 @@ export default function WorkspaceCommandHandoffPanels({
   onPublishHealthReview,
   onCreateIntegration,
   onRecordIntegrationSignal,
+  onOpenHub,
+  onViewChange,
 }: WorkspaceCommandHandoffPanelsProps) {
-  const [handoffView, setHandoffView] = useState<WorkspaceCommandHandoffView>('review');
-
   const items: JourneyStepItem<WorkspaceCommandHandoffView>[] = [
     {
       value: 'review',
@@ -98,14 +107,25 @@ export default function WorkspaceCommandHandoffPanels({
 
   return (
     <Stack spacing={2}>
+      {view && (
+        <WorkspaceBreadcrumbs
+          items={[
+            { label: 'Handoff', onClick: onOpenHub },
+            { label: handoffViewLabel[view] },
+          ]}
+          backLabel="Handoff hub"
+          onBack={onOpenHub}
+        />
+      )}
+
       <OwnerWorkspaceJourneyNav
         label="Handoff command"
-        value={handoffView}
+        value={view}
         items={items}
-        onChange={setHandoffView}
+        onChange={onViewChange}
       />
 
-      {handoffView === 'review' && (
+      {view === 'review' && (
         <WorkspaceHandoffReviewPanel
           latestHandoff={latestHandoff}
           latestHealthReview={latestHealthReview}
@@ -119,7 +139,7 @@ export default function WorkspaceCommandHandoffPanels({
         />
       )}
 
-      {handoffView === 'signals' && (
+      {view === 'signals' && (
         <WorkspaceIntegrationSignalsPanel
           canCoordinate={canCoordinate}
           integrationList={integrationList}
@@ -133,7 +153,7 @@ export default function WorkspaceCommandHandoffPanels({
         />
       )}
 
-      {handoffView === 'assistant' && (
+      {view === 'assistant' && (
         <WorkspaceHandoffAssistantPanel
           workspace={workspace}
           productId={productId}
