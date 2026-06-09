@@ -11,7 +11,7 @@ import {
   appleColors,
   formatLabel,
 } from './PlatformComponents';
-import { projectStartPlanTitle } from './projectStartPlanModel';
+import { compactProjectTechStack, projectStartPlanTitle } from './projectStartPlanModel';
 import type { ProductProfile } from './types';
 
 interface ProjectStartPlanHeroCardProps {
@@ -42,6 +42,7 @@ export default function ProjectStartPlanHeroCard({
     : product?.name
       ? product.name
       : projectStartPlanTitle(title);
+  const techStackLabel = compactProjectTechStack(product?.techStack);
 
   return (
     <Surface sx={{ p: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
@@ -97,7 +98,7 @@ export default function ProjectStartPlanHeroCard({
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                     <PastelChip label={formatLabel(product.businessStage)} accent={appleColors.purple} />
-                    {product.techStack && <PastelChip label={product.techStack} accent={appleColors.cyan} bg="#e4f9fd" />}
+                    {techStackLabel && <PastelChip label={techStackLabel} accent={appleColors.cyan} bg="#e4f9fd" />}
                   </Stack>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                     Product is selected globally. Switch products from Home.

@@ -22,6 +22,12 @@ export const projectStartPlanTitle = (title?: string | null, productName?: strin
     .replace(/\bproductization plan\b/gi, 'Project Start Plan');
 };
 
+export const compactProjectTechStack = (techStack?: string | null) => {
+  const value = techStack?.trim();
+  if (!value) return '';
+  return value.length > 44 ? `${value.slice(0, 41)}...` : value;
+};
+
 export const buildProjectStartPlanJourneyItems = ({
   canStartWorkspace,
   blockers,

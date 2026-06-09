@@ -16,7 +16,7 @@ import {
   appleColors,
   formatLabel,
 } from './PlatformComponents';
-import { projectStartPlanTitle } from './projectStartPlanModel';
+import { compactProjectTechStack, projectStartPlanTitle } from './projectStartPlanModel';
 import type { ProjectStartJourneyView } from './ProjectStartJourneyNavigation';
 import type { ProductProfile } from './types';
 
@@ -104,6 +104,7 @@ export default function ProjectStartPlanContextPanel({
   const displayName = hasPlaceholderProduct
     ? 'Choose a real product'
     : product?.name || projectStartPlanTitle(title);
+  const techStackLabel = compactProjectTechStack(product?.techStack);
   const currentAction = routeActions.find((action) => action.value === currentView);
   const availableRouteActions = routeActions.filter((action) => action.value !== currentView);
 
@@ -148,7 +149,7 @@ export default function ProjectStartPlanContextPanel({
             {product && !hasPlaceholderProduct && (
               <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                 <PastelChip label={formatLabel(product.businessStage)} accent={appleColors.purple} />
-                {product.techStack && <PastelChip label={product.techStack} accent={appleColors.cyan} bg="#e4f9fd" />}
+                {techStackLabel && <PastelChip label={techStackLabel} accent={appleColors.cyan} bg="#e4f9fd" />}
               </Stack>
             )}
           </Box>
