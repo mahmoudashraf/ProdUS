@@ -58,19 +58,29 @@ export function ProductCreationInternalHeader({
 
 export function ProductCreationStartingPointPanel({
   cart,
+  fromAiCatalog,
   fromCatalog,
   onManualProfile,
 }: {
   cart?: ProductizationCart | undefined;
+  fromAiCatalog: boolean;
   fromCatalog: boolean;
   onManualProfile: () => void;
 }) {
   const selectedServices = cart?.serviceItems || [];
   const selectedProduct = cart?.productProfile;
 
-  if (!fromCatalog && !selectedServices.length) {
+  if (!fromCatalog && !fromAiCatalog && !selectedServices.length) {
     return null;
   }
+  const title = fromAiCatalog
+    ? 'AI integration path selected'
+    : selectedServices.length
+      ? 'Service path already selected'
+      : 'Started from the service catalog';
+  const detail = fromAiCatalog
+    ? 'Use AI-assisted setup to explain the product, identify useful AI support, and choose only the services the owner approves.'
+    : 'ProdUS will attach the product you create to this Project Start Plan. Review or change the product context before creation.';
 
   return (
     <Surface sx={{ background: '#fbfdff' }}>
@@ -88,17 +98,18 @@ export function ProductCreationStartingPointPanel({
               flexShrink: 0,
             }}
           >
-            <BuildCircleOutlined />
+            {fromAiCatalog ? <AutoAwesomeOutlined /> : <BuildCircleOutlined />}
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography sx={{ fontWeight: 950 }}>
-              {selectedServices.length ? 'Service path already selected' : 'Started from the service catalog'}
+              {title}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.55 }}>
-              ProdUS will attach the product you create to this Project Start Plan. Review or change the product context before creation.
+              {detail}
             </Typography>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
               {selectedProduct && <PastelChip label={selectedProduct.name} accent={appleColors.green} bg="#e7f8ee" />}
+              {fromAiCatalog && <PastelChip label="AI integration option" accent={appleColors.cyan} bg="#e4f9fd" />}
               <PastelChip label={`${selectedServices.length} service${selectedServices.length === 1 ? '' : 's'} selected`} accent={appleColors.purple} bg="#f1efff" />
               {cart?.businessGoal && <PastelChip label="Business goal saved" accent={appleColors.cyan} bg="#e4f9fd" />}
             </Stack>

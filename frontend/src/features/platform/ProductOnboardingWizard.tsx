@@ -39,6 +39,7 @@ export default function ProductOnboardingWizard() {
   const searchParamString = searchParams?.toString() || '';
   const stepParam = searchParams?.get('step') || null;
   const fromCatalog = searchParams?.get('from') === 'service-catalog';
+  const fromAiCatalog = fromCatalog && searchParams?.get('ai') === '1';
   const {
     addAiDocumentFiles,
     aiAnalysis,
@@ -127,6 +128,7 @@ export default function ProductOnboardingWizard() {
           {isSetupStep && (
             <ProductCreationStartingPointPanel
               cart={currentCart.data}
+              fromAiCatalog={fromAiCatalog}
               fromCatalog={fromCatalog}
               onManualProfile={() => openStep('manual')}
             />
