@@ -78,7 +78,7 @@ export function ProductPortfolioListPanel({
         ].some((value) => (value || '').toLowerCase().includes(normalizedQuery))
       )
     : productList;
-  const visibleLimit = normalizedQuery ? 12 : 8;
+  const visibleLimit = normalizedQuery ? 8 : 4;
   const visibleProducts = matchingProducts.slice(0, visibleLimit);
   const hiddenCount = Math.max(0, matchingProducts.length - visibleProducts.length);
 
