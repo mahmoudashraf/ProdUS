@@ -1,27 +1,19 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import {
-  SaveOutlined,
-} from '@mui/icons-material';
-import {
-  Alert,
-  Button,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Stack } from '@mui/material';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getJson, postFormData, postJson } from './api';
-import OwnerProductAiOpportunityControls from './OwnerProductAiOpportunityControls';
 import OwnerProductAiOpportunityHome from './OwnerProductAiOpportunityHome';
-import OwnerProductAiOpportunityResult from './OwnerProductAiOpportunityResult';
+import OwnerProductAiOpportunityRefreshView from './OwnerProductAiOpportunityRefreshView';
+import OwnerProductLoomAiIntegrationHome from './OwnerProductLoomAiIntegrationHome';
 import {
   buildAiOpportunityAcceptancePayload,
   defaultAiOpportunitySelection,
   emptyAiOpportunitySelection,
   type AiOpportunitySelectionState,
 } from './ownerProductAiOpportunityModel';
-import { PastelChip, Surface, appleColors } from './PlatformComponents';
 import type { AiJourneyView } from './ownerWorkspaceJourneyConfig';
 import type {
   AiAssistedProductAnalysisResponse,
@@ -38,6 +30,10 @@ export default function OwnerProductAiOpportunityPanel({
   view: AiJourneyView;
 }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamString = searchParams?.toString() || '';
   const [ownerNote, setOwnerNote] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [sharedFileIndexes, setSharedFileIndexes] = useState<Set<number>>(new Set());
@@ -90,6 +86,8 @@ export default function OwnerProductAiOpportunityPanel({
     },
     onSuccess: async (response) => {
       setAcceptedResult(response);
+      setAnalysis(null);
+      setSelection(emptyAiOpportunitySelection);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['products'] }),
         queryClient.invalidateQueries({ queryKey: ['product-ai-opportunities', product.id] }),
@@ -106,100 +104,73 @@ export default function OwnerProductAiOpportunityPanel({
     setSharedFileIndexes(new Set(nextFiles.map((_, index) => index)));
   };
 
+  const openAiView = (nextView: AiJourneyView) => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || `/products/${product.id}`;
+    next.set('tab', 'ai');
+    next.set('view', nextView);
+    next.delete('proof');
+    router.push(`${routePath}?${next.toString()}`);
+  };
+
   return (
     <Stack spacing={2.5}>
-      <Surface sx={{ background: view === 'loomai' ? 'linear-gradient(135deg, #ffffff 0%, #effcff 100%)' : 'linear-gradient(135deg, #ffffff 0%, #fbfaff 100%)' }}>
-        <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Typography variant="h3">
-              {view === 'loomai' ? 'LoomAI for this product' : 'AI opportunities for this product'}
-            </Typography>
-            <PastelChip label={product.name} accent={appleColors.purple} bg="#f1efff" />
-          </Stack>
-          <Typography color="text.secondary" sx={{ maxWidth: 780, lineHeight: 1.65 }}>
-            {view === 'loomai'
-              ? 'Review the accepted LoomAI fit for this product, then refresh it when the product or delivery plan changes.'
-              : 'See the AI opportunities already accepted for this product, then refresh analysis when new context arrives.'}
-          </Typography>
-        </Stack>
-      </Surface>
-
-      <OwnerProductAiOpportunityHome
-        context={aiOpportunityContext.data}
-        latestAnalysis={analysis}
-        product={product}
-        selectedItemCount={selectedItemCount}
-      />
-
       {aiOpportunityContext.error && (
         <Alert severity="warning">
           Could not load the accepted AI opportunity context. You can still refresh analysis below.
         </Alert>
       )}
 
-      <OwnerProductAiOpportunityControls
-        files={files}
-        isRunning={analyzeProduct.isPending}
-        ownerNote={ownerNote}
-        sharedFileIndexes={sharedFileIndexes}
-        onFilesChange={setAllFilesShared}
-        onOwnerNoteChange={setOwnerNote}
-        onRun={() => analyzeProduct.mutate()}
-        onToggleSharedFile={(index, checked) => {
-          setSharedFileIndexes((current) => {
-            const next = new Set(current);
-            if (checked) next.add(index);
-            else next.delete(index);
-            return next;
-          });
-        }}
-      />
-
-      {analyzeProduct.error && (
-        <Alert severity="error">
-          {analyzeProduct.error instanceof Error ? analyzeProduct.error.message : 'AI opportunity scan failed.'}
-        </Alert>
+      {view === 'refresh' ? (
+        <OwnerProductAiOpportunityRefreshView
+          acceptedResult={acceptedResult}
+          acceptError={acceptSelection.error}
+          accepting={acceptSelection.isPending}
+          analysis={analysis}
+          analyzeError={analyzeProduct.error}
+          context={aiOpportunityContext.data}
+          files={files}
+          isRunning={analyzeProduct.isPending}
+          ownerNote={ownerNote}
+          product={product}
+          selectedItemCount={selectedItemCount}
+          selection={selection}
+          sharedFileIndexes={sharedFileIndexes}
+          onAccept={() => acceptSelection.mutate()}
+          onBackHome={() => openAiView('opportunities')}
+          onFilesChange={setAllFilesShared}
+          onOwnerNoteChange={setOwnerNote}
+          onRun={() => analyzeProduct.mutate()}
+          onSelectAll={() => {
+            if (analysis) setSelection(defaultAiOpportunitySelection(analysis));
+          }}
+          onSelectionChange={setSelection}
+          onToggleSharedFile={(index, checked) => {
+            setSharedFileIndexes((current) => {
+              const next = new Set(current);
+              if (checked) next.add(index);
+              else next.delete(index);
+              return next;
+            });
+          }}
+        />
+      ) : view === 'loomai' ? (
+        <OwnerProductLoomAiIntegrationHome
+          context={aiOpportunityContext.data}
+          product={product}
+          onOpportunityHome={() => openAiView('opportunities')}
+          onRefresh={() => openAiView('refresh')}
+        />
+      ) : (
+        <OwnerProductAiOpportunityHome
+          context={aiOpportunityContext.data}
+          latestAnalysis={analysis}
+          product={product}
+          selectedItemCount={selectedItemCount}
+          onRefresh={() => openAiView('refresh')}
+          onViewLoomAi={() => openAiView('loomai')}
+        />
       )}
-
-      <OwnerProductAiOpportunityResult
-        analysis={analysis}
-        focus={view}
-        selection={selection}
-        onSelectAll={() => {
-          if (analysis) setSelection(defaultAiOpportunitySelection(analysis));
-        }}
-        onSelectionChange={setSelection}
-      />
-
-      {acceptSelection.error && (
-        <Alert severity="error">
-          {acceptSelection.error instanceof Error ? acceptSelection.error.message : 'AI opportunity acceptance failed.'}
-        </Alert>
-      )}
-
-      {acceptedResult && (
-        <Alert severity="success" data-testid="ai-opportunity-accepted">
-          Saved {acceptedResult.acceptedUseCases} opportunities, {acceptedResult.acceptedServiceRecommendations} services, {acceptedResult.acceptedScannerFocusAreas} scanner focus areas, and {acceptedResult.acceptedNextSteps} next steps for {acceptedResult.product.name}.
-        </Alert>
-      )}
-
-      <Surface sx={{ background: '#fff' }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }} justifyContent="space-between">
-          <Typography color="text.secondary" sx={{ lineHeight: 1.55 }}>
-            {selectedItemCount} selected item{selectedItemCount === 1 ? '' : 's'} will update the product's accepted AI opportunity context.
-          </Typography>
-          <Button
-            data-testid="accept-ai-opportunity-selection"
-            variant="contained"
-            startIcon={<SaveOutlined />}
-            onClick={() => acceptSelection.mutate()}
-            disabled={!analysis || !selectedItemCount || acceptSelection.isPending}
-            sx={{ minHeight: 44, whiteSpace: 'normal' }}
-          >
-            {acceptSelection.isPending ? 'Saving...' : 'Accept selected'}
-          </Button>
-        </Stack>
-      </Surface>
     </Stack>
   );
 }

@@ -36,7 +36,7 @@ import type { AiAssistedProductAnalysisResponse } from './types';
 
 interface OwnerProductAiOpportunityResultProps {
   analysis: AiAssistedProductAnalysisResponse | null;
-  focus: 'opportunities' | 'loomai';
+  focus: 'opportunities' | 'refresh' | 'loomai';
   selection: AiOpportunitySelectionState;
   onSelectAll: () => void;
   onSelectionChange: (selection: AiOpportunitySelectionState) => void;
