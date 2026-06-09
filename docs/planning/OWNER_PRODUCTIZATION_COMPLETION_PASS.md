@@ -1152,6 +1152,30 @@ Status:
   - `zap-baseline`: `COMPLETED`
   - Mapped findings preserved: `73` open findings with `10` mapped ZAP findings.
 
+### Completed: Duplicate Product Navigation Cleanup
+
+Problem:
+
+- Product Home desktop had two navigation systems competing for the same selected-product actions: the left selected-product sidebar and an in-page `Product navigation` block.
+- Mobile still needed the in-page product navigation because the persistent selected-product sidebar is not visible at that viewport.
+
+Solution:
+
+- Hide `ProductAreaNavigation` on desktop and keep it visible on mobile only.
+- Preserve the left selected-product sidebar as the canonical desktop route surface.
+
+Status:
+
+- Implemented, committed, deployed, and live-verified at UI commit `a2604ea`, Coolify frontend deployment `x12yxhxons9aesvgo4k4xxua`.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+- Focused local and live verification passed with `tmp/live-verification/2026-06-09/navigation-density-context-review.js`.
+- Live screenshots:
+  - `tmp/live-verification/2026-06-09/405-product-home-context-menu-live-a2604ea.png`
+  - `tmp/live-verification/2026-06-09/411-product-home-context-menu-live-a2604ea.png`
+
 ## Implementation Loop
 
 For each slice:
