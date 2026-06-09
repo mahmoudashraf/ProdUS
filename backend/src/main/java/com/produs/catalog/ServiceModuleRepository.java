@@ -13,4 +13,5 @@ public interface ServiceModuleRepository extends JpaRepository<ServiceModule, UU
     List<ServiceModule> findByServiceLayerAndActiveTrueOrderBySortOrderAscNameAsc(String serviceLayer);
     Optional<ServiceModule> findBySlug(String slug);
     Optional<ServiceModule> findByStableCode(String stableCode);
+    Optional<ServiceModule> findByNameIgnoreCase(String name);
 }

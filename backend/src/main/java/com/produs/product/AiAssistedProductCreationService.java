@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static com.produs.dto.PlatformDtos.toProductProfileResponse;
 
@@ -868,7 +869,11 @@ public class AiAssistedProductCreationService {
         int sequence = 0;
         int created = 0;
         for (ServiceModuleRecommendation recommendation : selected) {
-            ServiceModule module = resolveServiceModule(recommendation.moduleCode());
+            Optional<ServiceModule> resolvedModule = resolveServiceModule(recommendation);
+            if (resolvedModule.isEmpty()) {
+                continue;
+            }
+            ServiceModule module = resolvedModule.get();
             if (serviceRecommendationRepository.findByProductProfileIdAndServiceModuleId(product.getId(), module.getId()).isPresent()) {
                 continue;
             }
@@ -1056,14 +1061,35 @@ public class AiAssistedProductCreationService {
 
     private record ReadinessTaskSeed(String title, String description, String sourceAnalysisField, String priority) {}
 
-    private ServiceModule resolveServiceModule(String moduleCode) {
-        String code = firstNonBlank(moduleCode).trim();
-        if (code.isBlank()) {
-            throw new IllegalArgumentException("AI service recommendation is missing moduleCode");
+    private Optional<ServiceModule> resolveServiceModule(ServiceModuleRecommendation recommendation) {
+        if (recommendation == null) {
+            return Optional.empty();
         }
-        return serviceModuleRepository.findByStableCode(code)
-                .or(() -> serviceModuleRepository.findBySlug(code))
-                .orElseThrow(() -> new IllegalArgumentException("Recommended service module is not available: " + code));
+        String code = firstNonBlank(recommendation.moduleCode()).trim();
+        String name = firstNonBlank(recommendation.moduleName()).trim();
+        String codeSlug = slugCandidate(code);
+        String nameSlug = slugCandidate(name);
+        return Stream.of(
+                        code.isBlank() ? Optional.<ServiceModule>empty() : serviceModuleRepository.findByStableCode(code),
+                        code.isBlank() ? Optional.<ServiceModule>empty() : serviceModuleRepository.findBySlug(code),
+                        codeSlug.isBlank() ? Optional.<ServiceModule>empty() : serviceModuleRepository.findBySlug(codeSlug),
+                        nameSlug.isBlank() ? Optional.<ServiceModule>empty() : serviceModuleRepository.findBySlug(nameSlug),
+                        name.isBlank() ? Optional.<ServiceModule>empty() : serviceModuleRepository.findByNameIgnoreCase(name)
+                )
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .findFirst();
+    }
+
+    private String slugCandidate(String value) {
+        String cleaned = firstNonBlank(value).trim().toLowerCase(Locale.ROOT);
+        if (cleaned.contains(".")) {
+            cleaned = cleaned.substring(cleaned.indexOf('.') + 1);
+        }
+        return cleaned
+                .replace('_', '-')
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", "");
     }
 
     private String moduleCode(ServiceModule module) {
