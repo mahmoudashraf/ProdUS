@@ -155,14 +155,14 @@ export const buildOwnerWorkspaceJourneyItems = ({
   aiJourneyItems: [
     {
       value: 'opportunities',
-      label: 'Fresh opportunities',
-      detail: 'Rerun AI opportunity analysis, attach extra context, and approve only the ideas that should shape this product.',
+      label: 'Opportunity home',
+      detail: 'See accepted AI opportunities, LoomAI fit, services, scanner focus, and refresh work in one place.',
       accent: appleColors.purple,
-      meta: <PastelChip label="Owner chooses" accent={appleColors.purple} bg="#f1efff" />,
+      meta: <PastelChip label="Accepted context" accent={appleColors.purple} bg="#f1efff" />,
     },
     {
       value: 'loomai',
-      label: 'LoomAI path',
+      label: 'LoomAI integration',
       detail: 'Review the integration starting point, capabilities, implementation steps, and owner decisions.',
       accent: appleColors.cyan,
       meta: <PastelChip label="Integration" accent={appleColors.cyan} bg="#e4f9fd" />,

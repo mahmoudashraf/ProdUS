@@ -354,6 +354,27 @@ export interface ProductAiOpportunityAcceptanceResponse {
   aiSourceAttachmentCount: number;
 }
 
+export interface ProductAiOpportunityContextResponse {
+  product: ProductProfile;
+  hasAcceptedContext: boolean;
+  projectIntelligenceId?: string;
+  analysisProvider?: string;
+  analysisProviderRequestId?: string;
+  analysisSchemaVersion?: string;
+  ownerApprovedAt?: string;
+  createdByAi: boolean;
+  aiCreationSummary?: string;
+  recommendedServiceModules: ServiceModuleRecommendation[];
+  scannerFocusAreas: string[];
+  suggestedNextSteps: string[];
+  sourceInsights: string[];
+  assumptions: string[];
+  missingEvidence: string[];
+  aiOpportunityReport?: AiOpportunityReport;
+  loomaiIntegrationOverview?: LoomAIIntegrationOverview;
+  aiSourceAttachmentCount: number;
+}
+
 export interface ProductCreationActionResponse {
   product: ProductProfile;
   intent: ProductCreationIntent;

@@ -42,11 +42,11 @@ export default function OwnerProductAiOpportunityControls({
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ md: 'flex-start' }}>
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Typography variant="h3">Run AI opportunity scan</Typography>
+              <Typography variant="h3">Refresh workspace</Typography>
               <PastelChip label="LoomAI" accent={appleColors.purple} bg="#f1efff" />
             </Stack>
             <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 760, lineHeight: 1.6 }}>
-              Refresh product-specific AI ideas, then approve only the opportunities, services, and next steps that should update this product.
+              Add what changed, attach supporting files, then refresh product-specific AI opportunities for owner approval.
             </Typography>
           </Box>
           <Button
@@ -57,7 +57,7 @@ export default function OwnerProductAiOpportunityControls({
             disabled={isRunning}
             sx={{ minHeight: 44, whiteSpace: 'normal' }}
           >
-            {isRunning ? 'Scanning...' : 'Run scan'}
+            {isRunning ? 'Refreshing...' : 'Refresh AI opportunities'}
           </Button>
         </Stack>
 

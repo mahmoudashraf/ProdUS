@@ -3,6 +3,7 @@ package com.produs.product;
 import com.produs.product.AiAssistedProductCreationService.AiAssistedProductCreationRequest;
 import com.produs.product.AiAssistedProductCreationService.AiAssistedProductAnalysisResponse;
 import com.produs.product.AiAssistedProductCreationService.AnalysisMode;
+import com.produs.product.AiAssistedProductCreationService.ProductAiOpportunityContextResponse;
 import com.produs.product.AiAssistedProductCreationService.ProductAiOpportunityAcceptanceRequest;
 import com.produs.product.AiAssistedProductCreationService.ProductAiOpportunityAcceptanceResponse;
 import com.produs.product.AiAssistedProductCreationService.ProductCreationActionRequest;
@@ -204,6 +205,14 @@ public class ProductProfileController {
             @RequestBody ProductAiOpportunityAcceptanceRequest request
     ) {
         return aiAssistedProductCreationService.acceptAiOpportunityRefresh(owner, id, request);
+    }
+
+    @GetMapping("/{id}/ai-opportunities")
+    public ProductAiOpportunityContextResponse getProductAiOpportunities(
+            @AuthenticationPrincipal User owner,
+            @PathVariable UUID id
+    ) {
+        return aiAssistedProductCreationService.getAiOpportunityContext(owner, id);
     }
 
     @PutMapping("/{id}")

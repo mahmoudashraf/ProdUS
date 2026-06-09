@@ -1,5 +1,6 @@
 package com.produs.product;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.produs.ai.LoomAIIntegrationService;
@@ -459,6 +460,55 @@ public class AiAssistedProductCreationService {
                 acceptedNextStepCount,
                 aiSourceAttachmentCount
         );
+    }
+
+    @Transactional(readOnly = true)
+    public ProductAiOpportunityContextResponse getAiOpportunityContext(User owner, UUID productId) {
+        ProductProfile product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product profile not found"));
+        if (owner.getRole() != User.UserRole.ADMIN && !product.getOwner().getId().equals(owner.getId())) {
+            throw new AccessDeniedException("Product profile does not belong to the signed-in user");
+        }
+
+        Optional<ProductProjectIntelligence> stored = intelligenceRepository.findByProductProfileId(product.getId());
+        if (stored.isEmpty()) {
+            return ProductAiOpportunityContextResponse.empty(toProductProfileResponse(product));
+        }
+
+        ProductProjectIntelligence intelligence = stored.get();
+        ProductCreationActionRequest accepted = readStoredAnalysis(intelligence);
+        return new ProductAiOpportunityContextResponse(
+                toProductProfileResponse(product),
+                true,
+                intelligence.getId(),
+                intelligence.getAnalysisProvider(),
+                intelligence.getAnalysisProviderRequestId(),
+                intelligence.getAnalysisSchemaVersion(),
+                intelligence.getOwnerApprovedAt(),
+                intelligence.isCreatedByAi(),
+                accepted.aiCreationSummary(),
+                listOrEmpty(accepted.recommendedServiceModules()),
+                listOrEmpty(accepted.scannerFocusAreas()),
+                listOrEmpty(accepted.suggestedNextSteps()),
+                listOrEmpty(accepted.sourceInsights()),
+                listOrEmpty(accepted.assumptions()),
+                listOrEmpty(accepted.missingEvidence()),
+                accepted.aiOpportunityReport(),
+                accepted.loomaiIntegrationOverview(),
+                product.getAiSourceAttachmentCount()
+        );
+    }
+
+    private ProductCreationActionRequest readStoredAnalysis(ProductProjectIntelligence intelligence) {
+        try {
+            Map<String, Object> value = objectMapper.readValue(
+                    intelligence.getAnalysisJson(),
+                    new TypeReference<Map<String, Object>>() {}
+            );
+            return ProductCreationActionRequest.from(value);
+        } catch (Exception exception) {
+            return ProductCreationActionRequest.from(Map.of());
+        }
     }
 
     @Transactional
@@ -3077,6 +3127,50 @@ public class AiAssistedProductCreationService {
             int acceptedNextSteps,
             int aiSourceAttachmentCount
     ) {}
+
+    public record ProductAiOpportunityContextResponse(
+            ProductProfileResponse product,
+            boolean hasAcceptedContext,
+            UUID projectIntelligenceId,
+            String analysisProvider,
+            String analysisProviderRequestId,
+            String analysisSchemaVersion,
+            LocalDateTime ownerApprovedAt,
+            boolean createdByAi,
+            String aiCreationSummary,
+            List<ServiceModuleRecommendation> recommendedServiceModules,
+            List<String> scannerFocusAreas,
+            List<String> suggestedNextSteps,
+            List<String> sourceInsights,
+            List<String> assumptions,
+            List<String> missingEvidence,
+            AiOpportunityReport aiOpportunityReport,
+            LoomAIIntegrationOverview loomaiIntegrationOverview,
+            int aiSourceAttachmentCount
+    ) {
+        static ProductAiOpportunityContextResponse empty(ProductProfileResponse product) {
+            return new ProductAiOpportunityContextResponse(
+                    product,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    false,
+                    null,
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    null,
+                    null,
+                    product == null ? 0 : product.aiSourceAttachmentCount()
+            );
+        }
+    }
 
     public record ProductAiOpportunityAcceptanceRequest(
             AnalysisMode analysisMode,
