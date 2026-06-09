@@ -8,7 +8,7 @@ import useAuth from '@/hooks/useAuth';
 import { appleColors } from './PlatformComponents';
 
 const navItems = [
-  { label: 'Services', href: '/services' },
+  { label: 'Services', href: '/catalog' },
   { label: 'Teams', href: '/teams' },
   { label: 'Solo Experts', href: '/solo-experts' },
   { label: 'Network', href: '/expert-network' },

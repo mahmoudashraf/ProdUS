@@ -268,7 +268,7 @@ export function PublicTalentServicesPanel({
       <SectionTitle
         title="Service Workstreams"
         action={
-          <Button component={NextLink} href="/services" variant="outlined" sx={{ minHeight: 40 }}>
+          <Button component={NextLink} href="/catalog" variant="outlined" sx={{ minHeight: 40 }}>
             Open catalog
           </Button>
         }

@@ -36,7 +36,13 @@ export default function ProjectStartPlanHeroCard({
   onNoticeClose,
 }: ProjectStartPlanHeroCardProps) {
   const statusLabel = canStartWorkspace ? 'Ready to start' : hasPlaceholderProduct ? 'Choose product' : blockers ? 'Blocked' : 'Needs scope';
-  const statusAccent = canStartWorkspace ? appleColors.green : hasPlaceholderProduct || blockers ? appleColors.amber : appleColors.purple;
+  const statusAccent = canStartWorkspace
+    ? appleColors.green
+    : blockers
+      ? appleColors.red
+      : hasPlaceholderProduct
+        ? appleColors.amber
+        : appleColors.purple;
   const displayTitle = hasPlaceholderProduct
     ? 'Choose a real product'
     : product?.name
@@ -51,10 +57,10 @@ export default function ProjectStartPlanHeroCard({
           <PastelChip label={statusLabel} accent={statusAccent} bg={`${statusAccent}12`} />
           <Stack direction="row" spacing={{ xs: 1.25, sm: 2 }} alignItems="center" sx={{ minWidth: 0 }}>
             <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
-              <ProgressRing value={score} size={76} color={canStartWorkspace ? appleColors.green : appleColors.purple} label="ready" />
+              <ProgressRing value={score} size={76} color={canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.purple} label="ready" />
             </Box>
             <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-              <ProgressRing value={score} size={108} color={canStartWorkspace ? appleColors.green : appleColors.purple} label="ready" />
+              <ProgressRing value={score} size={108} color={canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.purple} label="ready" />
             </Box>
             <Box sx={{ minWidth: 0 }}>
               <Typography

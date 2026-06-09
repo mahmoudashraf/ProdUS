@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowForwardOutlined, Groups2Outlined } from '@mui/icons-material';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { useState } from 'react';
+import { ArrowForwardOutlined, Groups2Outlined, SearchOutlined } from '@mui/icons-material';
+import { Box, Button, InputAdornment, Stack, TextField, Typography } from '@mui/material';
 import { EmptyState, PastelChip, ProgressRing, SectionTitle, StatusChip, Surface, appleColors } from './PlatformComponents';
 import { packageScore, servicePlanStatusAccent } from './servicePlanBuilderConfig';
 import type { PackageInstance } from './types';
@@ -13,6 +14,22 @@ export default function TeamMatchPlanPickerPanel({
   packageList: PackageInstance[];
   onChoosePlan: (packageId: string) => void;
 }) {
+  const [query, setQuery] = useState('');
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchingPackages = normalizedQuery
+    ? packageList.filter((item) =>
+        [
+          item.name,
+          item.summary,
+          item.status,
+          item.productProfile?.name,
+          item.productProfile?.summary,
+        ].some((value) => (value || '').toLowerCase().includes(normalizedQuery))
+      )
+    : packageList;
+  const visibleLimit = normalizedQuery ? 12 : 8;
+  const visiblePackages = matchingPackages.slice(0, visibleLimit);
+  const hiddenCount = Math.max(0, matchingPackages.length - visiblePackages.length);
   const readyCount = packageList.filter((item) => item.status === 'AWAITING_TEAM' || item.status === 'SCOPE_NEGOTIATION').length;
 
   return (
@@ -44,9 +61,38 @@ export default function TeamMatchPlanPickerPanel({
         <SectionTitle title="Start With A Plan" action={<PastelChip label="No auto-selected plan" accent={appleColors.cyan} bg="#e4f9fd" />} />
         {packageList.length ? (
           <Stack spacing={1.25}>
-            {packageList.map((item) => (
-              <TeamMatchPlanRow key={item.id} item={item} onOpen={() => onChoosePlan(item.id)} />
-            ))}
+            <TextField
+              size="small"
+              fullWidth
+              label="Search service plans"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchOutlined fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            {visiblePackages.length ? (
+              <>
+                {visiblePackages.map((item) => (
+                  <TeamMatchPlanRow key={item.id} item={item} onOpen={() => onChoosePlan(item.id)} />
+                ))}
+                <Box sx={{ p: 1.25, border: '1px dashed', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+                    {hiddenCount
+                      ? `Showing ${visiblePackages.length} ${normalizedQuery ? 'matching' : 'visible'} service plans. ${hiddenCount} more ${normalizedQuery ? 'matches are hidden; refine the search to narrow them' : 'plans are available through search'}.`
+                      : normalizedQuery
+                        ? `Showing all ${visiblePackages.length} matching service plans.`
+                        : 'Showing the visible service plans first.'}
+                  </Typography>
+                </Box>
+              </>
+            ) : (
+              <EmptyState label="No service plans match that search." />
+            )}
           </Stack>
         ) : (
           <EmptyState label="No service plans are ready for team matching yet. Create or approve a start plan first." />
@@ -115,7 +161,18 @@ function TeamMatchPlanRow({
           <Typography variant="h4" sx={{ mt: 0.75, overflowWrap: 'anywhere' }}>
             {item.name}
           </Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.55, maxWidth: 820 }}>
+          <Typography
+            color="text.secondary"
+            sx={{
+              mt: 0.35,
+              lineHeight: 1.55,
+              maxWidth: 820,
+              display: '-webkit-box',
+              WebkitLineClamp: { xs: 4, md: 2 },
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
             {item.summary || 'Choose this plan to compare verified delivery teams.'}
           </Typography>
         </Box>

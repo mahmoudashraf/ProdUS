@@ -11,8 +11,13 @@ interface ProjectStartPlanReadinessInput {
   talentCount: number;
 }
 
-export const projectStartReadinessScore = (cart?: ProductizationCart) =>
-  clampScore((cart?.productProfile ? 30 : 0) + (cart?.serviceItems.length || 0) * 18 + (cart?.talentItems.length || 0) * 12);
+export const projectStartReadinessScore = (cart?: ProductizationCart) => {
+  const rawScore = clampScore((cart?.productProfile ? 30 : 0) + (cart?.serviceItems.length || 0) * 18 + (cart?.talentItems.length || 0) * 12);
+  const blockers = cart?.startReadiness?.blockerCount ?? cart?.catalogEvaluation?.blockerCount ?? 0;
+  if (!blockers) return rawScore;
+  const blockerCap = blockers >= 3 ? 45 : blockers === 2 ? 58 : 68;
+  return Math.min(rawScore, blockerCap);
+};
 
 export const projectStartPlanTitle = (title?: string | null, productName?: string | null) => {
   const fallback = productName ? `${productName} Project Start Plan` : 'Project Start Plan';
@@ -59,8 +64,8 @@ export const buildProjectStartPlanJourneyItems = ({
     value: 'handoff',
     label: 'Approve',
     detail: 'Approve the launch-hardening plan when scope is ready.',
-    accent: appleColors.green,
-    meta: <PastelChip label={canStartWorkspace ? 'Can start' : 'Blocked'} accent={canStartWorkspace ? appleColors.green : appleColors.amber} bg={canStartWorkspace ? '#e7f8ee' : '#fff4dc'} />,
+    accent: canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.amber,
+    meta: <PastelChip label={canStartWorkspace ? 'Can start' : blockers ? 'Blocked' : 'Needs scope'} accent={canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.amber} bg={canStartWorkspace ? '#e7f8ee' : blockers ? '#fff1f2' : '#fff4dc'} />,
   },
 ];
 

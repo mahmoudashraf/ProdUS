@@ -99,7 +99,9 @@ export default function ProjectStartPlanContextPanel({
   const statusAccent = canStartWorkspace
     ? appleColors.green
     : blockers || hasPlaceholderProduct
-      ? appleColors.amber
+      ? blockers
+        ? appleColors.red
+        : appleColors.amber
       : appleColors.purple;
   const displayName = hasPlaceholderProduct
     ? 'Choose a real product'
@@ -157,11 +159,11 @@ export default function ProjectStartPlanContextPanel({
 
         <Stack spacing={1.4} sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
-            <ProgressRing value={score} size={70} color={canStartWorkspace ? appleColors.green : appleColors.purple} label="ready" />
+            <ProgressRing value={score} size={70} color={canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.purple} label="ready" />
             <Box sx={{ minWidth: 0, flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1 }}>
               <SmallContextMetric label="Services" value={serviceCount} accent={appleColors.purple} />
               <SmallContextMetric label="Team" value={talentCount} accent={appleColors.cyan} />
-              <SmallContextMetric label="Status" value={canStartWorkspace ? 'Ready' : 'Scope'} accent={canStartWorkspace ? appleColors.green : appleColors.amber} />
+              <SmallContextMetric label="Status" value={canStartWorkspace ? 'Ready' : blockers ? 'Blocked' : 'Scope'} accent={canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.amber} />
             </Box>
           </Stack>
 

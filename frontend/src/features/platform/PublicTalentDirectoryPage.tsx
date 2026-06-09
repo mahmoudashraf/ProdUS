@@ -1,8 +1,10 @@
 'use client';
 
 import NextLink from 'next/link';
+import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Box, Button, Stack } from '@mui/material';
+import { SearchOutlined } from '@mui/icons-material';
+import { Box, Button, InputAdornment, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
@@ -35,6 +37,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [talentQuery, setTalentQuery] = useState('');
   const { isLoggedIn, user } = useAuth();
   const canUseProjectCart = user?.role === UserRole.PRODUCT_OWNER;
   const cartHref = canUseProjectCart ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login';
@@ -79,6 +82,24 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
 
   const teamList = teams.data || [];
   const soloExperts = (experts.data || []).filter((expert) => expert.soloMode && expert.active);
+  const normalizedTalentQuery = talentQuery.trim().toLowerCase();
+  const matchingTeams = normalizedTalentQuery
+    ? teamList.filter((team) =>
+        [team.name, team.headline, team.description, team.capabilitiesSummary, team.typicalProjectSize, team.verificationStatus]
+          .some((value) => (value || '').toLowerCase().includes(normalizedTalentQuery))
+      )
+    : teamList;
+  const matchingExperts = normalizedTalentQuery
+    ? soloExperts.filter((expert) =>
+        [expert.displayName, expert.headline, expert.bio, expert.skills, expert.location, expert.timezone, expert.availability]
+          .some((value) => (value || '').toLowerCase().includes(normalizedTalentQuery))
+      )
+    : soloExperts;
+  const visibleTalentLimit = normalizedTalentQuery ? 12 : 8;
+  const visibleTeams = matchingTeams.slice(0, visibleTalentLimit);
+  const visibleExperts = matchingExperts.slice(0, visibleTalentLimit);
+  const hiddenTeamCount = Math.max(0, matchingTeams.length - visibleTeams.length);
+  const hiddenExpertCount = Math.max(0, matchingExperts.length - visibleExperts.length);
   const categoryList = (categories.data || []).filter((category) => category.active);
   const moduleList = (modules.data || []).filter((module) => module.active);
   const cartTeamIds = new Set((cart.data?.talentItems || []).map((item) => item.team?.id).filter(Boolean) as string[]);
@@ -148,34 +169,49 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
           <SectionTitle
             title="Verified Teams"
             action={
-              <Button component={NextLink} href="/services" variant="outlined" sx={{ minHeight: 40 }}>
+              <Button component={NextLink} href="/catalog" variant="outlined" sx={{ minHeight: 40 }}>
                 Match by service
               </Button>
             }
           />
-          {teamList.length ? (
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
-                gap: 2,
-              }}
-            >
-              {teamList.map((team) => (
-                <PublicTeamCard
-                  key={team.id}
-                  team={team}
-                  isLoggedIn={isLoggedIn}
-                  canUseProjectCart={canUseProjectCart}
-                  inCart={cartTeamIds.has(team.id)}
-                  isAttaching={addTeamToCart.isPending}
-                  onAttach={() => addTeamToCart.mutate({ teamId: team.id, notes: 'Owner saved team from public directory.' })}
+          <Stack spacing={1.25}>
+            <TalentSearchBox
+              label="Search teams"
+              value={talentQuery}
+              onChange={setTalentQuery}
+            />
+            {teamList.length > 0 && visibleTeams.length > 0 ? (
+              <>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
+                    gap: 2,
+                  }}
+                >
+                  {visibleTeams.map((team) => (
+                    <PublicTeamCard
+                      key={team.id}
+                      team={team}
+                      isLoggedIn={isLoggedIn}
+                      canUseProjectCart={canUseProjectCart}
+                      inCart={cartTeamIds.has(team.id)}
+                      isAttaching={addTeamToCart.isPending}
+                      onAttach={() => addTeamToCart.mutate({ teamId: team.id, notes: 'Owner saved team from public directory.' })}
+                    />
+                  ))}
+                </Box>
+                <TalentListSummary
+                  itemLabel="teams"
+                  visibleCount={visibleTeams.length}
+                  hiddenCount={hiddenTeamCount}
+                  isSearching={Boolean(normalizedTalentQuery)}
                 />
-              ))}
-            </Box>
-          ) : (
-            <EmptyState label="No public teams are available yet." />
-          )}
+              </>
+            ) : (
+              <EmptyState label={teamList.length ? 'No teams match that search.' : 'No public teams are available yet.'} />
+            )}
+          </Stack>
         </Box>
       )}
 
@@ -191,29 +227,44 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
               )
             }
           />
-          {soloExperts.length ? (
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' },
-                gap: 2,
-              }}
-            >
-              {soloExperts.map((expert) => (
-                <ExpertCard
-                  key={expert.id}
-                  expert={expert}
-                  isLoggedIn={isLoggedIn}
-                  canUseProjectCart={canUseProjectCart}
-                  inCart={cartExpertIds.has(expert.id)}
-                  isAttaching={addExpertToCart.isPending}
-                  onAttach={() => addExpertToCart.mutate({ expertProfileId: expert.id, notes: 'Owner saved solo expert from public directory.' })}
+          <Stack spacing={1.25}>
+            <TalentSearchBox
+              label="Search experts"
+              value={talentQuery}
+              onChange={setTalentQuery}
+            />
+            {soloExperts.length > 0 && visibleExperts.length > 0 ? (
+              <>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' },
+                    gap: 2,
+                  }}
+                >
+                  {visibleExperts.map((expert) => (
+                    <ExpertCard
+                      key={expert.id}
+                      expert={expert}
+                      isLoggedIn={isLoggedIn}
+                      canUseProjectCart={canUseProjectCart}
+                      inCart={cartExpertIds.has(expert.id)}
+                      isAttaching={addExpertToCart.isPending}
+                      onAttach={() => addExpertToCart.mutate({ expertProfileId: expert.id, notes: 'Owner saved solo expert from public directory.' })}
+                    />
+                  ))}
+                </Box>
+                <TalentListSummary
+                  itemLabel="experts"
+                  visibleCount={visibleExperts.length}
+                  hiddenCount={hiddenExpertCount}
+                  isSearching={Boolean(normalizedTalentQuery)}
                 />
-              ))}
-            </Box>
-          ) : (
-            <EmptyState label="No public solo expert profiles are available yet." />
-          )}
+              </>
+            ) : (
+              <EmptyState label={soloExperts.length ? 'No solo experts match that search.' : 'No public solo expert profiles are available yet.'} />
+            )}
+          </Stack>
         </Box>
       )}
 
@@ -227,5 +278,56 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
 
       {!hasActiveView && <PublicTalentCta isLoggedIn={isLoggedIn} />}
     </Stack>
+  );
+}
+
+function TalentSearchBox({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <TextField
+      size="small"
+      fullWidth
+      label={label}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <SearchOutlined fontSize="small" />
+          </InputAdornment>
+        ),
+      }}
+    />
+  );
+}
+
+function TalentListSummary({
+  itemLabel,
+  visibleCount,
+  hiddenCount,
+  isSearching,
+}: {
+  itemLabel: string;
+  visibleCount: number;
+  hiddenCount: number;
+  isSearching: boolean;
+}) {
+  return (
+    <Box sx={{ p: 1.25, border: '1px dashed', borderColor: 'divider', borderRadius: 1, bgcolor: '#fbfdff' }}>
+      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+        {hiddenCount
+          ? `Showing ${visibleCount} ${isSearching ? 'matching' : 'visible'} ${itemLabel}. ${hiddenCount} more ${isSearching ? 'matches are hidden; refine the search to narrow them' : `${itemLabel} are available through search`}.`
+          : isSearching
+            ? `Showing all ${visibleCount} matching ${itemLabel}.`
+            : `Showing the visible ${itemLabel} first.`}
+      </Typography>
+    </Box>
   );
 }

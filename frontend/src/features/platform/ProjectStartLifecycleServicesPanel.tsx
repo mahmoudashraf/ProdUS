@@ -17,12 +17,14 @@ import type { ProductizationCartServiceItem } from './types';
 
 interface ProjectStartLifecycleServicesPanelProps {
   serviceItems: ProductizationCartServiceItem[];
+  productId?: string | undefined;
   isRemovingService: boolean;
   onRemoveService: (itemId: string) => void;
 }
 
 export default function ProjectStartLifecycleServicesPanel({
   serviceItems,
+  productId,
   isRemovingService,
   onRemoveService,
 }: ProjectStartLifecycleServicesPanelProps) {
@@ -41,10 +43,11 @@ export default function ProjectStartLifecycleServicesPanel({
   const visibleLimit = normalizedQuery ? 12 : 8;
   const visibleServices = matchingServices.slice(0, visibleLimit);
   const hiddenCount = Math.max(0, matchingServices.length - visibleServices.length);
+  const catalogHref = productId ? `/catalog?productId=${encodeURIComponent(productId)}` : '/catalog';
 
   return (
     <Surface>
-      <SectionTitle title="Lifecycle Services" action={<Button component={NextLink} href="/services" variant="text" endIcon={<ArrowForwardOutlined />}>Choose service</Button>} />
+      <SectionTitle title="Lifecycle Services" action={<Button component={NextLink} href={catalogHref} variant="text" endIcon={<ArrowForwardOutlined />}>Choose service</Button>} />
       {serviceItems.length ? (
         <Stack spacing={1.25}>
           <TextField

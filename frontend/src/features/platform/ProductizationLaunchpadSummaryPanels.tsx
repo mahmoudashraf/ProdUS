@@ -53,7 +53,7 @@ export function LaunchpadHeroPanel({
             <Button component={NextLink} href={nextProduct ? `/products/${nextProduct.id}` : '/products/new'} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 46 }}>
               {nextProduct ? 'Continue product' : 'Create first product'}
             </Button>
-            <Button component={NextLink} href="/services" variant="outlined" sx={{ minHeight: 46 }}>
+            <Button component={NextLink} href="/catalog" variant="outlined" sx={{ minHeight: 46 }}>
               Explore services
             </Button>
           </Stack>

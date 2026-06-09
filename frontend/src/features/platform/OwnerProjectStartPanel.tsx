@@ -92,6 +92,7 @@ export default function OwnerProjectStartPanel({
           />
           <OwnerProjectStartServicesPanel
             serviceItems={serviceItems}
+            productId={product?.id}
             blockingGaps={blockingGaps}
             isAddingService={isAddingService}
             isRemovingService={isRemovingService}

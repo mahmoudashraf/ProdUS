@@ -1,7 +1,9 @@
 'use client';
 
 import type { FormEvent } from 'react';
-import { Box, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { useState } from 'react';
+import { SearchOutlined } from '@mui/icons-material';
+import { Box, InputAdornment, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import {
   EmptyState,
@@ -193,38 +195,88 @@ export function ProductBriefQueuePanel({
 }: {
   requirements: RequirementIntake[];
 }) {
+  const [query, setQuery] = useState('');
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchingRequirements = normalizedQuery
+    ? requirements.filter((requirement) =>
+        [
+          requirement.productProfile?.name,
+          requirement.businessGoal,
+          requirement.currentProblems,
+          requirement.constraints,
+          requirement.riskSignals,
+          requirement.requestedServiceModule?.name,
+          requirement.status,
+        ].some((value) => (value || '').toLowerCase().includes(normalizedQuery))
+      )
+    : requirements;
+  const visibleLimit = normalizedQuery ? 12 : 8;
+  const visibleRequirements = matchingRequirements.slice(0, visibleLimit);
+  const hiddenCount = Math.max(0, matchingRequirements.length - visibleRequirements.length);
+
   return (
     <Surface>
       <SectionTitle title="Intake Queue" action={<PastelChip label={`${requirements.length} records`} accent={appleColors.purple} />} />
       {requirements.length ? (
-        <Stack spacing={0}>
-          {requirements.map((requirement, index) => (
-            <Box
-              key={requirement.id}
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: '82px minmax(0, 1fr) auto' },
-                gap: 1.5,
-                alignItems: { xs: 'flex-start', md: 'center' },
-                py: 1.75,
-                borderTop: index === 0 ? 0 : '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <ProgressRing value={intakeScore(requirement.status)} size={66} color={requirement.status === 'PACKAGE_RECOMMENDED' ? appleColors.green : appleColors.amber} />
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="h4">{requirement.productProfile?.name || 'Product requirement'}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  {requirement.businessGoal}
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                  {requirement.requestedServiceModule && <PastelChip label={requirement.requestedServiceModule.name} accent={appleColors.blue} />}
-                  {requirement.riskSignals && <PastelChip label="Risk signals captured" accent={appleColors.amber} />}
-                </Stack>
-              </Box>
-              <StatusChip label={requirement.status} />
+        <Stack spacing={1.25}>
+          <TextField
+            size="small"
+            fullWidth
+            label="Search briefs"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchOutlined fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+          {visibleRequirements.length ? (
+            <Stack spacing={0}>
+              {visibleRequirements.map((requirement, index) => (
+                <Box
+                  key={requirement.id}
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: '82px minmax(0, 1fr) auto' },
+                    gap: 1.5,
+                    alignItems: { xs: 'flex-start', md: 'center' },
+                    py: 1.75,
+                    borderTop: index === 0 ? 0 : '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <ProgressRing value={intakeScore(requirement.status)} size={66} color={requirement.status === 'PACKAGE_RECOMMENDED' ? appleColors.green : appleColors.amber} />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="h4">{requirement.productProfile?.name || 'Product requirement'}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {requirement.businessGoal}
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                      {requirement.requestedServiceModule && <PastelChip label={requirement.requestedServiceModule.name} accent={appleColors.blue} />}
+                      {requirement.riskSignals && <PastelChip label="Risk signals captured" accent={appleColors.amber} />}
+                    </Stack>
+                  </Box>
+                  <StatusChip label={requirement.status} />
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            <EmptyState label="No product briefs match that search." />
+          )}
+          {visibleRequirements.length > 0 && (
+            <Box sx={{ p: 1.25, border: '1px dashed', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+                {hiddenCount
+                  ? `Showing ${visibleRequirements.length} ${normalizedQuery ? 'matching' : 'visible'} briefs. ${hiddenCount} more ${normalizedQuery ? 'matches are hidden; refine the search to narrow them' : 'briefs are available through search'}.`
+                  : normalizedQuery
+                    ? `Showing all ${visibleRequirements.length} matching briefs.`
+                    : 'Showing the visible briefs first.'}
+              </Typography>
             </Box>
-          ))}
+          )}
         </Stack>
       ) : (
         <EmptyState label="No requirement intakes have been submitted." />

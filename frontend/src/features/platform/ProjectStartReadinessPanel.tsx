@@ -16,6 +16,7 @@ interface ProjectStartReadinessPanelProps {
   startGaps: ProductizationStartGap[];
   blockingStartGaps: ProductizationStartGap[];
   currentCart?: ProductizationCart | undefined;
+  productId?: string | undefined;
   serviceCount: number;
   blockers: number;
   canStartWorkspace: boolean;
@@ -28,6 +29,7 @@ export default function ProjectStartReadinessPanel({
   startGaps,
   blockingStartGaps,
   currentCart,
+  productId,
   serviceCount,
   blockers,
   canStartWorkspace,
@@ -36,6 +38,7 @@ export default function ProjectStartReadinessPanel({
 }: ProjectStartReadinessPanelProps) {
   const statusLabel = startReadiness?.status || (blockers ? `${blockers} service gaps` : 'Looks complete');
   const nextBestActions = startReadiness?.nextBestActions || currentCart?.catalogEvaluation?.nextBestActions || [];
+  const catalogHref = productId ? `/catalog?productId=${encodeURIComponent(productId)}` : '/catalog';
 
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fffaf1 100%)' }}>
@@ -108,7 +111,7 @@ export default function ProjectStartReadinessPanel({
               ) : (
                 <Button
                   component={NextLink}
-                  href={gap.type === 'PRODUCT' ? '/products/new' : '/services'}
+                  href={gap.type === 'PRODUCT' ? '/products/new' : catalogHref}
                   variant="outlined"
                   sx={{ minHeight: 42, minWidth: 148 }}
                 >

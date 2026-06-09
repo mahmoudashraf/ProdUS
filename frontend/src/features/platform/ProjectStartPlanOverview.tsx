@@ -43,6 +43,7 @@ export default function ProjectStartPlanOverview({
       />
       <ProjectStartPlanMetricStrip
         canStartWorkspace={canStartWorkspace}
+        blockers={blockers}
         serviceCount={serviceCount}
         talentCount={talentCount}
       />

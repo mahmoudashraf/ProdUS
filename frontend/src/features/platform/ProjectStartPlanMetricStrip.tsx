@@ -13,22 +13,27 @@ import {
 
 interface ProjectStartPlanMetricStripProps {
   canStartWorkspace: boolean;
+  blockers: number;
   serviceCount: number;
   talentCount: number;
 }
 
 export default function ProjectStartPlanMetricStrip({
   canStartWorkspace,
+  blockers,
   serviceCount,
   talentCount,
 }: ProjectStartPlanMetricStripProps) {
+  const statusValue = canStartWorkspace ? 'Ready' : blockers ? 'Blocked' : 'Scope';
+  const statusAccent = canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.amber;
+
   return (
     <Box sx={{ minWidth: 0 }}>
       <Box sx={{ display: { xs: 'grid', sm: 'none' }, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1 }}>
         {[
           { label: 'Services', value: serviceCount, accent: appleColors.purple },
           { label: 'Team', value: talentCount, accent: appleColors.cyan },
-          { label: 'Status', value: canStartWorkspace ? 'Ready' : 'Scope', accent: canStartWorkspace ? appleColors.green : appleColors.amber },
+          { label: 'Status', value: statusValue, accent: statusAccent },
         ].map((item) => (
           <Box
             key={item.label}
@@ -55,9 +60,9 @@ export default function ProjectStartPlanMetricStrip({
         <MetricTile label="Teams / experts" value={talentCount} detail="Become shortlist and participants" accent={appleColors.cyan} icon={<GroupsOutlined />} sparkline />
         <MetricTile
           label="Workspace status"
-          value={canStartWorkspace ? 'Ready' : 'Needs scope'}
-          detail={canStartWorkspace ? 'Product and services selected' : 'Product plus one service required'}
-          accent={canStartWorkspace ? appleColors.green : appleColors.amber}
+          value={canStartWorkspace ? 'Ready' : blockers ? 'Blocked' : 'Needs scope'}
+          detail={canStartWorkspace ? 'Product and services selected' : blockers ? `${blockers} blocker${blockers === 1 ? '' : 's'} must be resolved first` : 'Product plus one service required'}
+          accent={statusAccent}
           icon={<WorkspacesOutlined />}
           sparkline
         />

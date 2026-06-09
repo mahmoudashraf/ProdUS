@@ -33,7 +33,7 @@ export function buildOwnerWorkspaceStartPlanState({
     (item) => item.severity === 'BLOCKER' && !item.alreadySelected
   );
   const cartBlockingGaps = cartStartGaps.filter((gap) => gap.blocking);
-  const canStartProjectWorkspace = !!selectedProduct && (cartStartReadiness?.ready ?? (cartServiceItems.length > 0 && cartBlockers === 0));
+  const canStartProjectWorkspace = !!selectedProduct && cartBlockers === 0 && (cartStartReadiness?.ready ?? cartServiceItems.length > 0);
   const cartStartContext: StudioAssistantContext['startReadiness'] = cartStartReadiness
     ? {
         status: cartStartReadiness.status,

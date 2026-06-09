@@ -10,7 +10,7 @@ import {
   IconPackage,
   IconShare,
 } from '@tabler/icons-react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { memo, useMemo } from 'react';
 
 // project imports
@@ -22,7 +22,7 @@ import { useMenuState } from 'contexts/MenuContext';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson } from '@/features/platform/api';
-import type { ProductizationCart } from '@/features/platform/types';
+import type { ProductProfile, ProductizationCart } from '@/features/platform/types';
 
 // types
 import { NavItemType } from 'types';
@@ -38,6 +38,7 @@ const MenuList = () => {
   const { drawerOpen } = useMenuState();
   const { user } = useAuth();
   const pathname = usePathname() || '';
+  const searchParams = useSearchParams();
   const isProductOwner = user?.role === UserRole.PRODUCT_OWNER;
   const globalProductContext = useQuery({
     queryKey: ['productization-cart'],
@@ -68,14 +69,26 @@ const MenuList = () => {
   const routeProductId = productWorkspaceMatch?.[1] && productWorkspaceMatch[1] !== 'new'
     ? productWorkspaceMatch[1]
     : '';
+  const productIdParam = searchParams?.get('productId') || '';
   const globalProductId = globalProductContext.data?.productProfile?.id || '';
   const globalProductName = globalProductContext.data?.productProfile?.name || '';
-  const selectedProductId = globalProductId || routeProductId;
+  const selectedProductId = routeProductId || productIdParam || globalProductId;
+  const routeProduct = useQuery({
+    queryKey: ['products', selectedProductId, 'menu-context'],
+    enabled: isProductOwner && !!selectedProductId && (!globalProductId || selectedProductId !== globalProductId),
+    queryFn: () => getJson<ProductProfile>(`/products/${selectedProductId}`),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const selectedProductName = routeProduct.data?.name || (selectedProductId === globalProductId ? globalProductName : '');
+  const isProductContextRoute = Boolean(routeProductId)
+    || pathname === '/owner/project-cart'
+    || Boolean(productIdParam && (pathname === '/catalog' || pathname === '/services'));
   const visibleMenuItems = useMemo(
-    () => isProductOwner && selectedProductId
-      ? buildOwnerProductWorkspaceMenu(roleVisibleMenuItems, selectedProductId, globalProductName)
+    () => isProductOwner && selectedProductId && isProductContextRoute
+      ? buildOwnerProductWorkspaceMenu(roleVisibleMenuItems, selectedProductId, selectedProductName)
       : roleVisibleMenuItems,
-    [globalProductName, isProductOwner, roleVisibleMenuItems, selectedProductId]
+    [isProductContextRoute, isProductOwner, roleVisibleMenuItems, selectedProductId, selectedProductName]
   );
 
   let lastItemIndex = visibleMenuItems.length - 1;
@@ -163,6 +176,14 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
           type: 'item',
           url: basePath,
           icon: IconListDetails,
+          breadcrumbs: true,
+        },
+        {
+          id: 'product-start-plan',
+          title: 'Project Start Plan',
+          type: 'item',
+          url: '/owner/project-cart',
+          icon: IconPackage,
           breadcrumbs: true,
         },
         {

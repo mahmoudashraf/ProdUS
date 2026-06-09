@@ -142,13 +142,13 @@ export default function CatalogPage() {
   const openCatalogView = (view: ServiceCatalogView) => {
     const next = new URLSearchParams(searchParamString);
     next.set('view', view);
-    router.push(`${pathname || '/services'}?${next.toString()}`, { scroll: false });
+    router.push(`${pathname || '/catalog'}?${next.toString()}`, { scroll: false });
   };
   const openCatalogLanding = () => {
     const next = new URLSearchParams(searchParamString);
     next.delete('view');
     const query = next.toString();
-    router.push(query ? `${pathname || '/services'}?${query}` : (pathname || '/services'), { scroll: false });
+    router.push(query ? `${pathname || '/catalog'}?${query}` : (pathname || '/catalog'), { scroll: false });
   };
 
   return (

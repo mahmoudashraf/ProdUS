@@ -51,7 +51,7 @@ export default function ProjectStartPlanPage() {
     (item) => item.severity === 'BLOCKER' && !item.alreadySelected
   );
   const blockingStartGaps = startGaps.filter((gap) => gap.blocking);
-  const canStartWorkspace = !!product && !hasPlaceholderProduct && (startReadiness?.ready ?? (serviceCount > 0 && blockers === 0));
+  const canStartWorkspace = !!product && !hasPlaceholderProduct && blockers === 0 && (startReadiness?.ready ?? serviceCount > 0);
   const score = projectStartReadinessScore(currentCart);
   const cartServiceIds = new Set((currentCart?.serviceItems || []).map((item) => item.serviceModule.id));
   const startPlanJourneyItems = buildProjectStartPlanJourneyItems({
@@ -132,6 +132,7 @@ export default function ProjectStartPlanPage() {
         }}
         services={{
           serviceItems: currentCart?.serviceItems || [],
+          productId: product?.id,
           isRemovingService: removeService.isPending,
           onRemoveService: (itemId) => removeService.mutate(itemId),
         }}
@@ -140,6 +141,7 @@ export default function ProjectStartPlanPage() {
           startGaps,
           blockingStartGaps,
           currentCart,
+          productId: product?.id,
           serviceCount,
           blockers,
           canStartWorkspace,

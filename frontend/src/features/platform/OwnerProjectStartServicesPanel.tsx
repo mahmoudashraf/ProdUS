@@ -12,6 +12,7 @@ interface OwnerProjectStartServicesPanelProps {
     id: string;
     serviceModule: ServiceModule;
   }>;
+  productId?: string | undefined;
   blockingGaps: ProductizationStartGap[];
   isAddingService: boolean;
   isRemovingService: boolean;
@@ -21,6 +22,7 @@ interface OwnerProjectStartServicesPanelProps {
 
 export default function OwnerProjectStartServicesPanel({
   serviceItems,
+  productId,
   blockingGaps,
   isAddingService,
   isRemovingService,
@@ -29,6 +31,7 @@ export default function OwnerProjectStartServicesPanel({
 }: OwnerProjectStartServicesPanelProps) {
   const visibleServiceItems = serviceItems.slice(0, 4);
   const remainingServiceCount = Math.max(0, serviceItems.length - visibleServiceItems.length);
+  const catalogHref = productId ? `/catalog?productId=${encodeURIComponent(productId)}` : '/catalog';
 
   return (
     <>
@@ -129,7 +132,7 @@ export default function OwnerProjectStartServicesPanel({
                     Choose
                   </Button>
                 ) : (
-                  <Button component={NextLink} href={gap.type === 'PRODUCT' ? '/products/new' : '/services'} size="small" variant="outlined" sx={{ minHeight: 36 }}>
+                  <Button component={NextLink} href={gap.type === 'PRODUCT' ? '/products/new' : catalogHref} size="small" variant="outlined" sx={{ minHeight: 36 }}>
                     Open
                   </Button>
                 )}
