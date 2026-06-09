@@ -111,6 +111,9 @@ export default function OwnerWorkspaceOverviewArea({
         title: 'Launch Readiness Report',
         subtitle: 'Create a shareable snapshot for the next pilot, paid beta, customer demo, or launch decision. This is deterministic and only updates when you generate it.',
       }}
+      productAiRefresh={{
+        product: selectedProduct,
+      }}
     />
   );
 }

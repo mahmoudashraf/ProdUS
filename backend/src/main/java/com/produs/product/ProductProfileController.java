@@ -111,6 +111,41 @@ public class ProductProfileController {
         );
     }
 
+    @PostMapping(value = "/{id}/ai-assisted/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public AiAssistedProductAnalysisResponse analyzeExistingProductWithAI(
+            @AuthenticationPrincipal User owner,
+            @PathVariable UUID id,
+            @RequestParam(required = false) String ownerMessage,
+            @RequestParam(required = false) String analysisMode,
+            @RequestParam(required = false) List<MultipartFile> files,
+            @RequestParam(required = false) List<Integer> aiSharedFileIndexes,
+            HttpServletRequest servletRequest
+    ) {
+        ProductProfile profile = productProfileRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Product profile not found"));
+        requireOwnerOrAdmin(owner, profile);
+        Set<Integer> selectedDocumentIndexes = aiSharedFileIndexes == null
+                ? Set.of()
+                : aiSharedFileIndexes.stream().filter(index -> index != null && index >= 0).collect(Collectors.toSet());
+        return aiAssistedProductCreationService.analyze(
+                owner,
+                new AiAssistedProductCreationRequest(
+                        id,
+                        profile.getName(),
+                        existingProductRefreshBrief(profile, ownerMessage),
+                        profile.getBusinessStage(),
+                        profile.getTechStack(),
+                        profile.getProductUrl(),
+                        profile.getRepositoryUrl(),
+                        profile.getRiskProfile(),
+                        AnalysisMode.from(analysisMode)
+                ),
+                files,
+                selectedDocumentIndexes,
+                apiBaseUrl(servletRequest)
+        );
+    }
+
     @PostMapping("/ai-assisted/intents/{intentId}/create")
     public ProductCreationActionResponse createFromAIAction(
             @AuthenticationPrincipal User owner,
@@ -181,6 +216,31 @@ public class ProductProfileController {
         profile.setProductUrl(request.productUrl());
         profile.setRepositoryUrl(request.repositoryUrl());
         profile.setRiskProfile(request.riskProfile());
+    }
+
+    private String existingProductRefreshBrief(ProductProfile profile, String ownerMessage) {
+        StringBuilder brief = new StringBuilder();
+        brief.append("Refresh the ProdUS product brief for the selected existing product. ");
+        brief.append("This is analysis only. Suggest product profile updates for owner review; do not create or mutate records. ");
+        brief.append("Current product profile: ");
+        appendBriefField(brief, "Name", profile.getName());
+        appendBriefField(brief, "Summary", profile.getSummary());
+        appendBriefField(brief, "Stage", profile.getBusinessStage() == null ? "" : profile.getBusinessStage().name());
+        appendBriefField(brief, "Tech stack", profile.getTechStack());
+        appendBriefField(brief, "Product URL", profile.getProductUrl());
+        appendBriefField(brief, "Repository URL", profile.getRepositoryUrl());
+        appendBriefField(brief, "Known risks", profile.getRiskProfile());
+        if (ownerMessage != null && !ownerMessage.isBlank()) {
+            brief.append("Owner refresh note: ").append(ownerMessage.trim());
+        }
+        return brief.toString();
+    }
+
+    private void appendBriefField(StringBuilder brief, String label, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        brief.append(label).append(": ").append(value.trim()).append(". ");
     }
 
     private void requireOwnerOrAdmin(User user, ProductProfile profile) {

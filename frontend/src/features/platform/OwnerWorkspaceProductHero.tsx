@@ -2,6 +2,7 @@
 
 import {
   CloudUploadOutlined,
+  AutoAwesomeOutlined,
   Inventory2Outlined,
   RocketLaunchOutlined,
   ShieldOutlined,
@@ -40,6 +41,7 @@ interface OwnerWorkspaceProductHeroProps {
   topOwnerRisks: OwnerRiskSummary[];
   evidenceSummaryItems: EvidenceSummaryItem[];
   onPrimaryAction: () => void;
+  onRefreshBrief: () => void;
   onViewProof: () => void;
   onExportReport: () => void;
   isExporting?: boolean;
@@ -51,6 +53,7 @@ export default function OwnerWorkspaceProductHero({
   topOwnerRisks,
   evidenceSummaryItems,
   onPrimaryAction,
+  onRefreshBrief,
   onViewProof,
   onExportReport,
   isExporting,
@@ -116,6 +119,9 @@ export default function OwnerWorkspaceProductHero({
             </Button>
             <Button variant="outlined" startIcon={<ShieldOutlined />} onClick={onViewProof} sx={{ minHeight: 42, flex: { sm: '1 1 160px' }, whiteSpace: 'normal' }}>
               View scanner proof
+            </Button>
+            <Button variant="outlined" startIcon={<AutoAwesomeOutlined />} onClick={onRefreshBrief} sx={{ minHeight: 42, flex: { sm: '1 1 160px' }, whiteSpace: 'normal' }}>
+              Refresh brief
             </Button>
             <Button
               variant="outlined"

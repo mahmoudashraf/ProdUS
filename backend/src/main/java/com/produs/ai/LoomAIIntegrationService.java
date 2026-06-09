@@ -2222,6 +2222,7 @@ public class LoomAIIntegrationService {
                 If you cannot access or use a selected document, do not silently continue. Return NOT_USED for that document and add a concise missingEvidence item that says which document was not analyzed and the concrete reason.
                 Return the best initial owner-reviewed intake fields. Return only a strict JSON object with these fields:
                 draftName, outcomeSummary, projectDescription, businessProblem, targetUsers, stage, stack, productUrl, repositoryUrl, riskNotes, analysisSummary, coreCapabilities, businessOutcomes, readinessGoals, recommendedServices, recommendedServiceModules, missingCatalogCoverage, scannerFocusAreas, suggestedNextSteps, sourceInsights, assumptions, missingEvidence, documentUsage.
+                Treat draftName as an owner-visible suggested product name, not as a mutation. If this is an existing-product refresh, preserve the current name unless it is blank, generic, misleading, or the owner explicitly asks for a better name.
                 Use one stage value from IDEA, PROTOTYPE, VALIDATED, LIVE, SCALING.
                 projectDescription should be 2-4 sentences about what the product is, who it serves, and what production-ready means for it.
                 businessProblem and targetUsers should be concise strings grounded in the owner brief, public links, selected documents, or explicitly marked assumptions.

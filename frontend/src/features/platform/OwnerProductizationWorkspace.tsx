@@ -390,6 +390,7 @@ export default function OwnerProductizationWorkspace({
             onExportReport={() => createEvidenceExport.mutate()}
             onProductHome={openProductHome}
             onPrimaryAction={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}
+            onRefreshBrief={() => openWorkspaceDetail('overview', 'refresh')}
             onViewProof={() => openFindingsView('technical')}
           />
 

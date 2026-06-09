@@ -4,14 +4,14 @@ import { type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import { PastelChip, appleColors } from './PlatformComponents';
 import { WorkspaceTab } from './ownerWorkspaceModel';
 
-export type OverviewJourneyView = 'decision' | 'progress';
+export type OverviewJourneyView = 'decision' | 'progress' | 'refresh';
 export type ActionJourneyView = 'plan' | 'diagnosis';
 export type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
 export type ServicesJourneyView = 'recommend' | 'plan' | 'team';
 export type ShareJourneyView = 'create' | 'links' | 'preview';
 
 export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
-  overview: ['decision', 'progress'],
+  overview: ['decision', 'progress', 'refresh'],
   actions: ['plan', 'diagnosis'],
   findings: ['risks', 'evidence', 'technical'],
   services: ['recommend', 'plan', 'team'],
@@ -71,6 +71,13 @@ export const buildOwnerWorkspaceJourneyItems = ({
       detail: 'Confidence history and the shareable readiness report.',
       accent: appleColors.cyan,
       meta: <PastelChip label={hasLaunchReadinessReport ? 'Report ready' : 'Report'} accent={appleColors.cyan} bg="#e4f9fd" />,
+    },
+    {
+      value: 'refresh',
+      label: 'Refresh brief',
+      detail: 'Rerun AI analysis, review suggested profile updates, and save only owner-approved fields.',
+      accent: appleColors.blue,
+      meta: <PastelChip label="Owner chooses" accent={appleColors.blue} bg="#e8f2ff" />,
     },
   ],
   actionJourneyItems: [

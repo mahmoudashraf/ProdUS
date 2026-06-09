@@ -104,7 +104,7 @@ public class AiAssistedProductCreationService {
                 : aiOpportunityOnlyFields(request);
         if (analysisMode.includesProjectAnalysis()) {
             assistant = loomAIIntegrationService.projectCreation(owner, new ProjectCreationAssistantRequest(
-                    start.intentId(),
+                    request.productId(),
                     request.ownerMessage(),
                     request.businessStage() == null ? "" : request.businessStage().name(),
                     request.techStack(),
@@ -2750,6 +2750,7 @@ public class AiAssistedProductCreationService {
     }
 
     public record AiAssistedProductCreationRequest(
+            UUID productId,
             String productName,
             String ownerMessage,
             ProductProfile.BusinessStage businessStage,
@@ -2768,7 +2769,20 @@ public class AiAssistedProductCreationService {
                 String repositoryUrl,
                 String knownRisks
         ) {
-            this(productName, ownerMessage, businessStage, techStack, productUrl, repositoryUrl, knownRisks, AnalysisMode.FULL_WITH_AI_OPPORTUNITIES);
+            this(null, productName, ownerMessage, businessStage, techStack, productUrl, repositoryUrl, knownRisks, AnalysisMode.FULL_WITH_AI_OPPORTUNITIES);
+        }
+
+        public AiAssistedProductCreationRequest(
+                String productName,
+                String ownerMessage,
+                ProductProfile.BusinessStage businessStage,
+                String techStack,
+                String productUrl,
+                String repositoryUrl,
+                String knownRisks,
+                AnalysisMode analysisMode
+        ) {
+            this(null, productName, ownerMessage, businessStage, techStack, productUrl, repositoryUrl, knownRisks, analysisMode);
         }
 
         AnalysisMode analysisModeOrDefault() {

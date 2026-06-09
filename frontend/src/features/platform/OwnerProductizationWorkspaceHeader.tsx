@@ -86,6 +86,7 @@ export function OwnerProductizationWorkspaceLead({
   onExportReport,
   onProductHome,
   onPrimaryAction,
+  onRefreshBrief,
   onViewProof,
   product,
   topOwnerRisks,
@@ -106,6 +107,7 @@ export function OwnerProductizationWorkspaceLead({
   onExportReport: () => void;
   onProductHome: () => void;
   onPrimaryAction: () => void;
+  onRefreshBrief: () => void;
   onViewProof: () => void;
   product?: ProductProfile | undefined;
   topOwnerRisks: ProductHeroProps['topOwnerRisks'];
@@ -127,6 +129,7 @@ export function OwnerProductizationWorkspaceLead({
           topOwnerRisks={topOwnerRisks}
           evidenceSummaryItems={evidenceSummaryItems}
           onPrimaryAction={onPrimaryAction}
+          onRefreshBrief={onRefreshBrief}
           onViewProof={onViewProof}
           onExportReport={onExportReport}
           isExporting={Boolean(isExporting)}

@@ -190,6 +190,49 @@ class ProductizationWorkflowIntegrationTest {
     }
 
     @Test
+    void existingProductAiRefreshUsesSelectedProductAndDoesNotMutate() throws Exception {
+        User owner = saveUser("owner-ai-refresh@produs.test", User.UserRole.PRODUCT_OWNER);
+        User anotherOwner = saveUser("owner-ai-refresh-other@produs.test", User.UserRole.PRODUCT_OWNER);
+
+        ObjectNode productPayload = objectMapper.createObjectNode();
+        productPayload.put("name", "Inventory Pilot Desk");
+        productPayload.put("summary", "Prototype for retail teams to prepare inventory operations before launch.");
+        productPayload.put("businessStage", "PROTOTYPE");
+        productPayload.put("techStack", "Next.js, Spring Boot, PostgreSQL");
+        productPayload.put("productUrl", "https://inventory-pilot.example.com");
+        productPayload.put("repositoryUrl", "https://github.com/example/inventory-pilot");
+        productPayload.put("riskProfile", "Needs scanner proof and deployment runbook.");
+
+        MvcResult createResult = mockMvc.perform(post("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(productPayload))
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Inventory Pilot Desk"))
+                .andReturn();
+        UUID productId = UUID.fromString(objectMapper.readTree(createResult.getResponse().getContentAsString()).path("id").asText());
+
+        mockMvc.perform(multipart("/api/products/{id}/ai-assisted/analyze", productId)
+                        .param("ownerMessage", "Suggest a clearer startup-owner product brief if needed.")
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.intent.status").value("READY_FOR_ACTION"))
+                .andExpect(jsonPath("$.analysis.productName").value("Inventory Pilot Desk"))
+                .andExpect(jsonPath("$.analysis.summary", containsString("Current product profile")))
+                .andExpect(jsonPath("$.aiApplied").value(false));
+
+        mockMvc.perform(get("/api/products/{id}", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Inventory Pilot Desk"))
+                .andExpect(jsonPath("$.summary").value("Prototype for retail teams to prepare inventory operations before launch."));
+
+        mockMvc.perform(multipart("/api/products/{id}/ai-assisted/analyze", productId)
+                        .param("ownerMessage", "Try to inspect another owner product.")
+                        .with(auth(anotherOwner)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void aiAssistedProductCreationRejectsDifferentOwnerWithActionMessage() throws Exception {
         User owner = saveUser("owner-ai-create-owner@produs.test", User.UserRole.PRODUCT_OWNER);
         User otherOwner = saveUser("other-ai-create-owner@produs.test", User.UserRole.PRODUCT_OWNER);
