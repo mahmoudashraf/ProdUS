@@ -30,6 +30,8 @@ import type {
 } from './types';
 import type { CategoryPayload } from './adminCatalogModel';
 
+const categoryModulePreviewLimit = 6;
+
 export function AdminCatalogCreateCategoryPanel({
   form,
   isCreating,
@@ -70,6 +72,8 @@ export function AdminCatalogCategoriesPanel({
         <Stack spacing={0}>
           {categories.map((category, index) => {
             const categoryModules = modules.filter((module) => module.category?.id === category.id);
+            const visibleModules = categoryModules.slice(0, categoryModulePreviewLimit);
+            const hiddenModuleCount = Math.max(0, categoryModules.length - visibleModules.length);
             return (
               <Box key={category.id} sx={{ py: 1.75, borderTop: index === 0 ? 0 : '1px solid', borderColor: 'divider' }}>
                 <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
@@ -82,9 +86,12 @@ export function AdminCatalogCategoriesPanel({
                   <PastelChip label={`${categoryModules.length} services`} accent={appleColors.purple} />
                 </Stack>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
-                  {categoryModules.slice(0, 14).map((module) => (
+                  {visibleModules.map((module) => (
                     <PastelChip key={module.id} label={module.stableCode || module.slug} accent={appleColors.cyan} bg="#e4f9fd" />
                   ))}
+                  {hiddenModuleCount > 0 && (
+                    <PastelChip label={`+${hiddenModuleCount} more`} accent={appleColors.muted} bg="#f4f6f8" />
+                  )}
                 </Stack>
               </Box>
             );
