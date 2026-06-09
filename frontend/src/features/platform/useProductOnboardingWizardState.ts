@@ -112,7 +112,7 @@ export function useProductOnboardingWizardState() {
         { productProfileId: string; title: string; businessGoal: string }
       >('/productization-cart/current', {
         productProfileId: product.id,
-        title: `${product.name} productization start plan`,
+        title: `${product.name} Project Start Plan`,
         businessGoal: form.values.summary,
       });
       return product;

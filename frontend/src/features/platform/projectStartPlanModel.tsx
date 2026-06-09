@@ -14,6 +14,14 @@ interface ProjectStartPlanReadinessInput {
 export const projectStartReadinessScore = (cart?: ProductizationCart) =>
   clampScore((cart?.productProfile ? 30 : 0) + (cart?.serviceItems.length || 0) * 18 + (cart?.talentItems.length || 0) * 12);
 
+export const projectStartPlanTitle = (title?: string | null, productName?: string | null) => {
+  const fallback = productName ? `${productName} Project Start Plan` : 'Project Start Plan';
+  const source = title?.trim() || fallback;
+  return source
+    .replace(/\bproductization start plan\b/gi, 'Project Start Plan')
+    .replace(/\bproductization plan\b/gi, 'Project Start Plan');
+};
+
 export const buildProjectStartPlanJourneyItems = ({
   canStartWorkspace,
   blockers,

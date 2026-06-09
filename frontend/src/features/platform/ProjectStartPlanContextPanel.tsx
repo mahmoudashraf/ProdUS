@@ -16,6 +16,7 @@ import {
   appleColors,
   formatLabel,
 } from './PlatformComponents';
+import { projectStartPlanTitle } from './projectStartPlanModel';
 import type { ProjectStartJourneyView } from './ProjectStartJourneyNavigation';
 import type { ProductProfile } from './types';
 
@@ -102,7 +103,7 @@ export default function ProjectStartPlanContextPanel({
       : appleColors.purple;
   const displayName = hasPlaceholderProduct
     ? 'Choose a real product'
-    : product?.name || title || 'Project Start Plan';
+    : product?.name || projectStartPlanTitle(title);
   const currentAction = routeActions.find((action) => action.value === currentView);
   const availableRouteActions = routeActions.filter((action) => action.value !== currentView);
 

@@ -102,7 +102,7 @@ export const useProjectStartPlanActions = ({
     if (!selected) return;
     updateCart.mutate({
       productProfileId: selected.id,
-      title: `${selected.name} productization start plan`,
+      title: `${selected.name} Project Start Plan`,
       businessGoal: selected.summary || `Move ${selected.name} toward production-ready delivery.`,
     });
   };

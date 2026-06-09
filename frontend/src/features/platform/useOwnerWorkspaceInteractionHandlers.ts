@@ -106,7 +106,7 @@ export function useOwnerWorkspaceInteractionHandlers({
     if (selectedProduct?.id && cart?.status === 'DRAFT' && cart.productProfile?.id !== selectedProduct.id && !updateCart.isPending) {
       updateCart.mutate({
         productProfileId: selectedProduct.id,
-        title: `${selectedProduct.name} productization plan`,
+        title: `${selectedProduct.name} Project Start Plan`,
         businessGoal: cart.businessGoal || `Move ${selectedProduct.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
       });
     }
@@ -140,7 +140,7 @@ export function useOwnerWorkspaceInteractionHandlers({
     if (cart?.productProfile?.id !== selectedProduct.id) {
       updateCart.mutate({
         productProfileId: selectedProduct.id,
-        title: `${selectedProduct.name} productization plan`,
+        title: `${selectedProduct.name} Project Start Plan`,
         businessGoal,
       });
     }
@@ -198,7 +198,7 @@ export function useOwnerWorkspaceInteractionHandlers({
     if (product) {
       updateCart.mutate({
         productProfileId: product.id,
-        title: `${product.name} productization plan`,
+        title: `${product.name} Project Start Plan`,
         businessGoal: cart?.businessGoal || `Move ${product.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
       });
     }

@@ -25,6 +25,7 @@ import {
   LaunchpadProductsPanel,
   packageHealth,
 } from './ProductizationLaunchpadPanels';
+import { projectStartPlanTitle } from './projectStartPlanModel';
 import type { PackageInstance, ProductProfile, ProductizationCart, ProjectWorkspace, RequirementIntake } from './types';
 
 const isLaunchpadDetailView = (value: string | null): value is LaunchpadDetailView =>
@@ -58,7 +59,7 @@ export default function ProductizationLaunchpad() {
   const cartProduct = cart.data?.productProfile;
   const nextProduct = cartProduct && !isPlaceholderProduct(cartProduct) ? cartProduct : productList[0];
   const currentDraftTitle = cartProduct && !isPlaceholderProduct(cartProduct)
-    ? cart.data?.title || `${cartProduct.name} Project Start Plan`
+    ? projectStartPlanTitle(cart.data?.title, cartProduct.name)
     : nextProduct
       ? `${nextProduct.name} Project Start Plan`
       : 'Project Start Plan';

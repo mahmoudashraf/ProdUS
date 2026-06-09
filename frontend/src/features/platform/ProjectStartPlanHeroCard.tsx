@@ -10,6 +10,7 @@ import {
   appleColors,
   formatLabel,
 } from './PlatformComponents';
+import { projectStartPlanTitle } from './projectStartPlanModel';
 import type { ProductProfile } from './types';
 
 interface ProjectStartPlanHeroCardProps {
@@ -45,7 +46,7 @@ export default function ProjectStartPlanHeroCard({
     ? 'Choose a real product'
     : product?.name
       ? product.name
-      : title || 'Project Start Plan';
+      : projectStartPlanTitle(title);
 
   return (
     <Surface sx={{ p: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>

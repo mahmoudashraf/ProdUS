@@ -25,7 +25,7 @@ export function ProductAnalysisProgress({ modeLabel }: { modeLabel: string }) {
       <Stack spacing={1.5}>
         <SectionTitle title="Checking your product" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
         <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-          ProdUS is turning the brief, links, and selected files into an owner-readable productization plan.
+          ProdUS is turning the brief, links, and selected files into an owner-readable Project Start Plan.
         </Typography>
         <LinearProgress sx={{ borderRadius: 999, height: 7 }} />
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
