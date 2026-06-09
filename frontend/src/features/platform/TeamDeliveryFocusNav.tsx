@@ -183,6 +183,7 @@ export function TeamDeliveryContextPanel({
   onOpenDelivery: () => void;
   onOpenOpportunities: () => void;
 }) {
+  const currentView = deliveryViews.find((view) => view.value === activeView) || deliveryViews[0]!;
   return (
     <Surface sx={{ p: { xs: 1.5, md: 2 } }}>
       <Box
@@ -216,13 +217,18 @@ export function TeamDeliveryContextPanel({
             <PastelChip label={`${averageRating} rating`} accent={appleColors.cyan} />
           </Stack>
         </Box>
-        <Stack direction={{ xs: 'column', sm: 'row', md: 'column' }} spacing={1} sx={{ minWidth: { md: 150 } }}>
-          <Button variant={activeView === 'opportunities' ? 'contained' : 'outlined'} size="small" onClick={onOpenOpportunities}>
-            Opportunities
-          </Button>
-          <Button variant={activeView === 'delivery' ? 'contained' : 'outlined'} size="small" onClick={onOpenDelivery}>
-            Delivery proof
-          </Button>
+        <Stack direction={{ xs: 'column', sm: 'row', md: 'column' }} spacing={1} sx={{ minWidth: { md: 170 } }}>
+          <PastelChip label={`Current: ${currentView.title}`} accent={currentView.color} bg={`${currentView.color}14`} />
+          {activeView !== 'opportunities' && (
+            <Button variant="outlined" size="small" onClick={onOpenOpportunities}>
+              Open opportunities
+            </Button>
+          )}
+          {activeView !== 'delivery' && (
+            <Button variant="outlined" size="small" onClick={onOpenDelivery}>
+              Open delivery proof
+            </Button>
+          )}
         </Stack>
       </Box>
     </Surface>

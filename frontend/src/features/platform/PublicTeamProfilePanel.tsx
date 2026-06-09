@@ -111,6 +111,7 @@ export default function PublicTeamProfilePanel({
             counts={counts}
             name={team.name}
             summary={team.headline || team.description || team.bio}
+            onOpenOverview={() => onChangeView('overview')}
             onOpenProof={() => onChangeView('proof')}
             onOpenSignals={() => onChangeView('signals')}
           />

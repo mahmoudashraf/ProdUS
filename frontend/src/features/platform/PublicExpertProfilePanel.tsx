@@ -107,6 +107,7 @@ export default function PublicExpertProfilePanel({
             counts={counts}
             name={expert.displayName}
             summary={expert.headline || expert.bio}
+            onOpenOverview={() => onChangeView('overview')}
             onOpenProof={() => onChangeView('proof')}
             onOpenSignals={() => onChangeView('signals')}
           />

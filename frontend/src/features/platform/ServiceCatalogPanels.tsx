@@ -184,34 +184,6 @@ export function ServiceCatalogProductContextPanel({
   );
 }
 
-export function ServiceCatalogFocusPanel({
-  value,
-  templateCount,
-  categoryCount,
-  aiCapabilityCount,
-  onChange,
-}: {
-  value: ServiceCatalogView;
-  templateCount: number;
-  categoryCount: number;
-  aiCapabilityCount: number;
-  onChange: (view: ServiceCatalogView) => void;
-}) {
-  const items = catalogViewItems({ templateCount, categoryCount, aiCapabilityCount });
-
-  return (
-    <Surface>
-      <SectionTitle title="Choose Catalog Focus" action={<PastelChip label="One choice at a time" accent={appleColors.purple} />} />
-      <OwnerWorkspaceJourneyNav
-        label="Service catalog focus"
-        value={value}
-        items={items}
-        onChange={onChange}
-      />
-    </Surface>
-  );
-}
-
 export function AiCatalogContractsPanel({
   aiCapabilities,
 }: {

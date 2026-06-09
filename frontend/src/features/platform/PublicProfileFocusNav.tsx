@@ -163,6 +163,7 @@ export function PublicProfileContextPanel({
   badge,
   counts,
   name,
+  onOpenOverview,
   onOpenProof,
   onOpenSignals,
   summary,
@@ -172,11 +173,13 @@ export function PublicProfileContextPanel({
   badge: ReactNode;
   counts: Record<PublicProfileView, number>;
   name: string;
+  onOpenOverview: () => void;
   onOpenProof: () => void;
   onOpenSignals: () => void;
   summary?: string | undefined;
 }) {
   const activeCount = counts[activeView] || 0;
+  const currentView = profileViews.find((view) => view.value === activeView) || profileViews[0]!;
 
   return (
     <Surface sx={{ p: { xs: 1.5, md: 2 } }}>
@@ -229,12 +232,22 @@ export function PublicProfileContextPanel({
           </Stack>
         </Box>
         <Stack spacing={1} sx={{ minWidth: { md: 170 } }}>
-          <Button variant={activeView === 'proof' ? 'contained' : 'outlined'} size="small" onClick={onOpenProof}>
-            Proof
-          </Button>
-          <Button variant={activeView === 'signals' ? 'contained' : 'outlined'} size="small" onClick={onOpenSignals}>
-            Signals
-          </Button>
+          <PastelChip label={`Current: ${currentView.title}`} accent={currentView.color} bg={`${currentView.color}14`} />
+          {activeView !== 'overview' && (
+            <Button variant="outlined" size="small" onClick={onOpenOverview}>
+              Open overview
+            </Button>
+          )}
+          {activeView !== 'proof' && (
+            <Button variant="outlined" size="small" onClick={onOpenProof}>
+              Open proof
+            </Button>
+          )}
+          {activeView !== 'signals' && (
+            <Button variant="outlined" size="small" onClick={onOpenSignals}>
+              Open signals
+            </Button>
+          )}
           {actions}
         </Stack>
       </Box>

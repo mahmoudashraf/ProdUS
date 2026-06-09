@@ -134,6 +134,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
             cartActionLabel={cartActionLabel}
             cartHref={cartHref}
             counts={viewCounts}
+            onOpenExperts={() => setActiveView('experts')}
             onOpenServices={() => setActiveView('services')}
             onOpenTeams={() => setActiveView('teams')}
           />

@@ -157,6 +157,7 @@ export function PublicTalentContextPanel({
   cartActionLabel,
   cartHref,
   counts,
+  onOpenExperts,
   onOpenServices,
   onOpenTeams,
 }: {
@@ -164,10 +165,12 @@ export function PublicTalentContextPanel({
   cartActionLabel: string;
   cartHref: string;
   counts: Record<PublicTalentView, number>;
+  onOpenExperts: () => void;
   onOpenServices: () => void;
   onOpenTeams: () => void;
 }) {
   const activeCount = counts[activeView] || 0;
+  const currentView = publicTalentViews.find((item) => item.value === activeView) || publicTalentViews[0]!;
 
   return (
     <Surface sx={{ p: { xs: 1.5, md: 2 } }}>
@@ -222,12 +225,22 @@ export function PublicTalentContextPanel({
           </Stack>
         </Box>
         <Stack direction={{ xs: 'column', sm: 'row', md: 'column' }} spacing={1} sx={{ minWidth: { md: 160 } }}>
-          <Button variant={activeView === 'teams' ? 'contained' : 'outlined'} size="small" onClick={onOpenTeams}>
-            Teams
-          </Button>
-          <Button variant={activeView === 'services' ? 'contained' : 'outlined'} size="small" onClick={onOpenServices}>
-            Services
-          </Button>
+          <PastelChip label={`Current: ${currentView.title}`} accent={currentView.color} bg={`${currentView.color}14`} />
+          {activeView !== 'teams' && (
+            <Button variant="outlined" size="small" onClick={onOpenTeams}>
+              Open teams
+            </Button>
+          )}
+          {activeView !== 'experts' && (
+            <Button variant="outlined" size="small" onClick={onOpenExperts}>
+              Open experts
+            </Button>
+          )}
+          {activeView !== 'services' && (
+            <Button variant="outlined" size="small" onClick={onOpenServices}>
+              Open services
+            </Button>
+          )}
           <Button component={NextLink} href={cartHref} variant="outlined" size="small">
             {cartActionLabel}
           </Button>
