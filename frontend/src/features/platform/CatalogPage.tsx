@@ -81,7 +81,7 @@ export default function CatalogPage() {
           '/productization-cart/current',
           {
             productProfileId: selectedProductId,
-            title: `${productName} productization start plan`,
+            title: `${productName} Project Start Plan`,
             businessGoal: selectedProduct.data?.summary || `Plan ${payload.moduleName} for ${productName}.`,
           }
         );

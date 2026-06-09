@@ -102,7 +102,7 @@ export default function ProjectStartPlanContextPanel({
       : appleColors.purple;
   const displayName = hasPlaceholderProduct
     ? 'Choose a real product'
-    : product?.name || title || 'Productization start plan';
+    : product?.name || title || 'Project Start Plan';
   const currentAction = routeActions.find((action) => action.value === currentView);
   const availableRouteActions = routeActions.filter((action) => action.value !== currentView);
 

@@ -29,7 +29,7 @@ export default function ProductProfilesPage() {
     <>
       <PageHeader
         title="Switch Product"
-        description="Choose the product to manage. Once selected, the product workspace shows its action plan, findings, services, and share path."
+        description="Choose which product is active. Product-specific decisions happen inside Product Home, not from the portfolio list."
         action={<ProductPortfolioHeaderActions />}
       />
       <QueryState isLoading={profiles.isLoading || packages.isLoading} error={profiles.error || packages.error} />

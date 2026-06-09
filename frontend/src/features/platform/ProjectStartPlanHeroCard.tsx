@@ -45,7 +45,7 @@ export default function ProjectStartPlanHeroCard({
     ? 'Choose a real product'
     : product?.name
       ? product.name
-      : title || 'Productization start plan';
+      : title || 'Project Start Plan';
 
   return (
     <Surface sx={{ p: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>

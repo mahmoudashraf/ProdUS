@@ -91,18 +91,18 @@ export function LaunchpadAiNextActionPanel({
   draftServices: number;
   hasProducts: boolean;
 }) {
-  const href = draftServices ? PROJECT_START_PLAN_HREF : hasProducts ? '/services' : '/products/new';
+  const href = draftServices ? PROJECT_START_PLAN_HREF : hasProducts ? '/dashboard?focus=products' : '/products/new';
   return (
     <Surface>
       <SectionTitle title="AI Next Best Action" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
       <Typography variant="h4">
-        {draftServices ? 'Review the start plan' : hasProducts ? 'Select lifecycle services' : 'Create a product profile'}
+        {draftServices ? 'Review the start plan' : hasProducts ? 'Choose the product to continue' : 'Create a product profile'}
       </Typography>
       <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
         {draftServices
           ? 'Your start plan already has services. Add matching delivery talent or start the workspace when the scope is clear.'
           : hasProducts
-            ? 'Choose services that represent the work needed to move the selected product into production.'
+            ? 'Open the right Product Home first, then continue to its action plan, findings, services, or share route.'
             : 'A product profile gives the platform enough context to recommend services, teams, and workspace milestones.'}
       </Typography>
       <Button component={NextLink} href={href} variant="contained" sx={{ mt: 2, minHeight: 44 }}>

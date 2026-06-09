@@ -58,10 +58,10 @@ export default function ProductizationLaunchpad() {
   const cartProduct = cart.data?.productProfile;
   const nextProduct = cartProduct && !isPlaceholderProduct(cartProduct) ? cartProduct : productList[0];
   const currentDraftTitle = cartProduct && !isPlaceholderProduct(cartProduct)
-    ? cart.data?.title || `${cartProduct.name} productization start plan`
+    ? cart.data?.title || `${cartProduct.name} Project Start Plan`
     : nextProduct
-      ? `${nextProduct.name} productization start plan`
-      : 'Productization start plan';
+      ? `${nextProduct.name} Project Start Plan`
+      : 'Project Start Plan';
 
   const openDetail = (view: LaunchpadDetailView) => {
     const next = new URLSearchParams(searchParamString);
@@ -84,7 +84,7 @@ export default function ProductizationLaunchpad() {
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44, minWidth: 150 }}>
-              New product
+              Create product
             </Button>
           </Stack>
         }
