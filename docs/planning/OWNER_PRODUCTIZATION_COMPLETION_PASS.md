@@ -4,17 +4,19 @@ Date: 2026-06-08
 
 Baseline:
 
-- Latest live-verified UI commit after the expert-network route split pass: `1da019a`.
-- Latest live-verified Coolify frontend deployment after the expert-network route split pass: `car77thjruwalzfmfush3jif`.
+- Latest live-verified UI commit after the workspace-command focused routing pass: `b76e8be`.
+- Latest live-verified Coolify frontend deployment after the workspace-command focused routing pass: `sb39g5z5iovsfsbn9fq8yjaq`.
 - Verification fixture: ProdUS repo/readme product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`.
-- Live verification script: `tmp/live-verification/2026-06-08/live-network-export-hub.js`.
+- Latest live verification script: `tmp/live-verification/2026-06-08/workspace-command-subview-navigation-review.js`.
 - Current largest owner-facing active files after the completed splits:
-  - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`: 632 lines.
-  - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 362 lines.
-  - `frontend/src/features/platform/ProductizationLaunchpad.tsx`: 332 lines.
-  - `frontend/src/features/platform/OwnerWorkspaceTechnicalProofArea.tsx`: 296 lines.
-  - `frontend/src/features/platform/ProjectStartPlanPage.tsx`: 280 lines.
-  - `frontend/src/features/platform/OwnerOverviewDecisionPanel.tsx`: 278 lines.
+  - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`: 642 lines.
+  - `frontend/src/features/platform/WorkspaceCommandPage.tsx`: 411 lines.
+  - `frontend/src/features/platform/ownerWorkspaceDerivedState.ts`: 340 lines.
+  - `frontend/src/features/platform/PublicTalentPanels.tsx`: 340 lines.
+  - `frontend/src/features/platform/PublicTalentDirectoryPage.tsx`: 333 lines.
+  - `frontend/src/features/platform/StudioAssistantCard.tsx`: 322 lines.
+  - `frontend/src/features/platform/useWorkspaceCommandActions.ts`: 320 lines.
+  - `frontend/src/features/platform/OwnerWorkspaceTechnicalProofArea.tsx`: 309 lines.
   - `frontend/src/features/expert-network/NetworkPages.tsx`: 16 lines after extracting all network route pages into focused modules.
 
 ## Goal
@@ -1239,6 +1241,42 @@ Status:
   - `zap-baseline`: `COMPLETED`
   - Mapped ZAP findings: `10`
   - Open normalized findings remain available: `73`
+
+### Completed: Workspace Command Focused Routing
+
+Problem:
+
+- Workspace Command still behaved like a broad hub after an owner chose a top-level action.
+- Clicking `Team` or `Handoff` opened another switchboard first, which conflicted with the newer product-navigation rule: show the most important surface first, then let the owner go deeper with an explicit back route.
+- The workspace page needed to keep the selected workspace context fixed while making the chosen internal view feel like a real page, not a same-screen tab swap.
+
+Solution:
+
+- Route top-level Workspace Command actions into focused internal views:
+  - `Team` -> `?view=team&teamView=support` when support requests exist.
+  - `Team` -> `?view=team&teamView=risks` when risk/dispute items exist.
+  - `Team` -> `?view=team&teamView=participants` when the workspace has no support/risk items yet.
+  - `Handoff` -> `?view=handoff&handoffView=review`.
+- Preserve `Team hub`, `Handoff hub`, and `Workspace home` as explicit back destinations.
+- Keep the selected workspace summary above the focused content so the owner always knows which workspace is active before acting.
+
+Status:
+
+- Implemented, committed, deployed, and live-verified at UI commit `b76e8be`, Coolify frontend deployment `sb39g5z5iovsfsbn9fq8yjaq`.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+- Focused local and live verification passed with `tmp/live-verification/2026-06-08/workspace-command-subview-navigation-review.js`.
+- Live screenshots:
+  - `tmp/live-verification/2026-06-08/318-workspace-team-focused-internal-route-live-b76e8be.png`
+  - `tmp/live-verification/2026-06-08/319-workspace-team-return-hub-live-b76e8be.png`
+  - `tmp/live-verification/2026-06-08/320-workspace-handoff-review-internal-route-live-b76e8be.png`
+  - `tmp/live-verification/2026-06-08/321-workspace-handoff-return-hub-live-b76e8be.png`
+  - `tmp/live-verification/2026-06-08/324-workspace-team-focused-internal-route-live-b76e8be.png`
+  - `tmp/live-verification/2026-06-08/325-workspace-team-return-hub-live-b76e8be.png`
+  - `tmp/live-verification/2026-06-08/326-workspace-handoff-review-internal-route-live-b76e8be.png`
+  - `tmp/live-verification/2026-06-08/327-workspace-handoff-return-hub-live-b76e8be.png`
 
 ## Implementation Loop
 
