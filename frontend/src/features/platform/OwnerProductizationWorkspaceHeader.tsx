@@ -111,6 +111,10 @@ export function OwnerProductizationWorkspaceLead({
   workspaceTab: WorkspaceTab;
 }) {
   const currentDetailText = currentJourneyItems.find((item) => item.value === currentJourneyValue)?.detail;
+  const internalTitle = workspaceDetailOpen ? currentDetailLabel : currentAreaLabel;
+  const internalDescription = workspaceDetailOpen
+    ? currentDetailText
+    : `Choose the next ${currentAreaLabel.toLowerCase()} view for ${product?.name || 'this product'}.`;
 
   return (
     <>
@@ -128,8 +132,8 @@ export function OwnerProductizationWorkspaceLead({
       ) : product ? (
         <OwnerWorkspaceInternalPageHeader
           areaLabel={currentAreaLabel}
-          detailLabel={currentDetailLabel}
-          detailText={currentDetailText}
+          detailLabel={internalTitle}
+          detailText={internalDescription}
           productName={product.name}
           onBackHome={onProductHome}
         />
@@ -142,7 +146,7 @@ export function OwnerProductizationWorkspaceLead({
         currentDetailLabel={currentDetailLabel}
         currentJourneyItems={currentJourneyItems}
         productName={product?.name}
-        workspaceDetailOpen={isProductHome ? workspaceDetailOpen : false}
+        workspaceDetailOpen={!isProductHome && workspaceDetailOpen}
         workspaceTab={workspaceTab}
         onAreaChange={onAreaChange}
         onDetailChange={onDetailChange}
