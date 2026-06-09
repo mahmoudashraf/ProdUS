@@ -52,7 +52,7 @@ export function TeamMatchDecisionPanel({
             <Box>
               <Typography sx={{ fontWeight: 900 }}>{topRecommendation?.team.name || 'No top match yet'}</Typography>
               <Typography variant="body2" color="text.secondary">
-                {topRecommendation ? `${topScore}% top match` : 'Choose a service plan to calculate fit'}
+                {topRecommendation ? `${topScore}% top match` : 'No ranked team for this plan yet'}
               </Typography>
             </Box>
           </Stack>
