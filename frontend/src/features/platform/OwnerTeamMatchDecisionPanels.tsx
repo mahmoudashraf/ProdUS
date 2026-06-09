@@ -147,9 +147,9 @@ export function TeamMatchSelectedContextPanel({
   const teamName = selectedTeam?.name || topRecommendation?.team.name || 'Top match pending';
   const currentView = teamMatchViews.find((item) => item.value === activeView) || teamMatchViews[0]!;
   const routeActions: Array<{ value: TeamMatchView; label: string; onClick: () => void }> = [
-    { value: 'matches', label: 'Open team matches', onClick: onOpenMatches },
-    { value: 'profile', label: 'Open inspect team', onClick: onOpenProfile },
-    { value: 'shortlist', label: 'Open shortlist', onClick: onOpenShortlist },
+    { value: 'matches', label: 'Team Matches', onClick: onOpenMatches },
+    { value: 'profile', label: 'Inspect Team', onClick: onOpenProfile },
+    { value: 'shortlist', label: 'Shortlist', onClick: onOpenShortlist },
   ];
 
   return (
