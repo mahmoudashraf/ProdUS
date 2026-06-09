@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import NextLink from 'next/link';
 import {
   AddOutlined,
@@ -7,9 +8,10 @@ import {
   FavoriteBorderOutlined,
   Inventory2Outlined,
   LocalShippingOutlined,
+  SearchOutlined,
   WarningAmberOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button, InputAdornment, Stack, TextField, Typography } from '@mui/material';
 import {
   EmptyState,
   MetricTile,
@@ -64,19 +66,64 @@ export function ProductPortfolioListPanel({
   productList: ProductProfile[];
   packageList: PackageInstance[];
 }) {
+  const [query, setQuery] = useState('');
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchingProducts = normalizedQuery
+    ? productList.filter((product) =>
+        [
+          product.name,
+          product.summary,
+          product.businessStage,
+          product.riskProfile,
+        ].some((value) => (value || '').toLowerCase().includes(normalizedQuery))
+      )
+    : productList;
+  const visibleLimit = normalizedQuery ? 12 : 8;
+  const visibleProducts = matchingProducts.slice(0, visibleLimit);
+  const hiddenCount = Math.max(0, matchingProducts.length - visibleProducts.length);
+
   return (
     <Surface>
       <SectionTitle title="Products" action={<PastelChip label={`${productList.length} tracked`} accent={appleColors.purple} />} />
       {productList.length ? (
-        <Stack spacing={0}>
-          {productList.map((profile, index) => (
-            <ProductPortfolioProductRow
-              key={profile.id}
-              profile={profile}
-              packageList={packageList}
-              index={index}
-            />
-          ))}
+        <Stack spacing={1.5}>
+          <TextField
+            size="small"
+            fullWidth
+            label="Search products"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchOutlined fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Stack spacing={0}>
+            {visibleProducts.map((profile, index) => (
+              <ProductPortfolioProductRow
+                key={profile.id}
+                profile={profile}
+                packageList={packageList}
+                index={index}
+              />
+            ))}
+          </Stack>
+          {visibleProducts.length ? (
+            <Box sx={{ p: 1.25, border: '1px dashed', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+                {hiddenCount
+                  ? `Showing ${visibleProducts.length} ${normalizedQuery ? 'matching' : 'highest-priority'} products. ${hiddenCount} more ${normalizedQuery ? 'matches are hidden; refine the search to narrow them' : 'products are available through search'}.`
+                  : normalizedQuery
+                    ? `Showing all ${visibleProducts.length} matching products.`
+                    : 'Showing the highest-priority products first.'}
+              </Typography>
+            </Box>
+          ) : (
+            <EmptyState label="No products match that search." />
+          )}
         </Stack>
       ) : (
         <EmptyState label="Create a product profile to start the productization journey." />
