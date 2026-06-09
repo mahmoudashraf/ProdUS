@@ -14,10 +14,10 @@ export interface BuildPackagePayload {
   requirementId: string;
 }
 
-export type ServicePlanBuilderView = 'summary' | 'services' | 'team' | 'commercial';
+export type ServicePlanBuilderView = 'summary' | 'services' | 'milestones' | 'team' | 'commercial';
 
 export const isServicePlanBuilderView = (value: string | null): value is ServicePlanBuilderView =>
-  value === 'summary' || value === 'services' || value === 'team' || value === 'commercial';
+  value === 'summary' || value === 'services' || value === 'milestones' || value === 'team' || value === 'commercial';
 
 export type ServicePlanFormController<TValues> = {
   values: TValues;

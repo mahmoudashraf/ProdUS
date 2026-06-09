@@ -73,7 +73,17 @@ export function ServicePlanServicesPanel({
           <EmptyState label="No service modules are attached to this service plan yet." />
         )}
       </Surface>
+    </Stack>
+  );
+}
 
+export function ServicePlanMilestonesPanel({
+  modules,
+}: {
+  modules: PackageModule[];
+}) {
+  return (
+    <Stack spacing={2.5}>
       <Surface>
         <SectionTitle title="Milestone Path" />
         {modules.length ? (

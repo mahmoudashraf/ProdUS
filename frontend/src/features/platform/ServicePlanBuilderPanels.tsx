@@ -25,6 +25,7 @@ import type { PackageInstance } from './types';
 const servicePlanViewLabel: Record<ServicePlanBuilderView, string> = {
   summary: 'Plan Summary',
   services: 'Services',
+  milestones: 'Milestones',
   team: 'Team Match',
   commercial: 'Handoff',
 };
@@ -32,6 +33,7 @@ const servicePlanViewLabel: Record<ServicePlanBuilderView, string> = {
 const servicePlanRouteItems: WorkspaceCommandSubrouteItem<ServicePlanBuilderView>[] = [
   { value: 'summary', label: 'Plan Summary', accent: appleColors.purple },
   { value: 'services', label: 'Services', accent: appleColors.blue },
+  { value: 'milestones', label: 'Milestones', accent: appleColors.amber },
   { value: 'team', label: 'Team Match', accent: appleColors.cyan },
   { value: 'commercial', label: 'Handoff', accent: appleColors.green },
 ];
@@ -148,9 +150,16 @@ export function ServicePlanJourneyPanel({
     {
       value: 'services',
       label: 'Services',
-      detail: 'Sequence and milestone gates for the work.',
+      detail: 'Selected workstreams and expected deliverables.',
       accent: appleColors.blue,
       meta: <PastelChip label={`${moduleCount}`} accent={appleColors.blue} bg="#eaf3ff" />,
+    },
+    {
+      value: 'milestones',
+      label: 'Milestones',
+      detail: 'Timeline path and step order for delivery.',
+      accent: appleColors.amber,
+      meta: <PastelChip label={`${moduleCount} steps`} accent={appleColors.amber} bg="#fff4dc" />,
     },
     {
       value: 'team',

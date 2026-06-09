@@ -15,7 +15,7 @@ import {
 } from './ServicePlanBuilderPanels';
 import ServicePlanLibraryPanel from './ServicePlanLibraryPanel';
 import ServicePlanCommercialPanel from './ServicePlanCommercialPanel';
-import { ServicePlanServicesPanel, ServicePlanTeamMatchPanel } from './ServicePlanBuilderServicesPanel';
+import { ServicePlanMilestonesPanel, ServicePlanServicesPanel, ServicePlanTeamMatchPanel } from './ServicePlanBuilderServicesPanel';
 import ServicePlanSummaryPanel from './ServicePlanBuilderSummaryPanel';
 import { packageScore } from './servicePlanBuilderConfig';
 import { useServicePlanBuilderUiState } from './useServicePlanBuilderUiState';
@@ -221,6 +221,12 @@ export default function PackagesPage() {
               <ServicePlanServicesPanel
                 modules={moduleList}
                 isFetching={modules.isFetching}
+              />
+            )}
+
+            {planView === 'milestones' && (
+              <ServicePlanMilestonesPanel
+                modules={moduleList}
               />
             )}
 
