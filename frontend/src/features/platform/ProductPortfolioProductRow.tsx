@@ -7,6 +7,7 @@ import {
   DotLabel,
   PastelChip,
   ProgressRing,
+  appleColors,
   categoryPalette,
   clampScore,
   formatLabel,
@@ -32,10 +33,10 @@ export default function ProductPortfolioProductRow({
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', xl: '1.65fr 120px 130px 1.3fr 1fr minmax(138px, auto)' },
-        gap: 2,
+        gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 90px minmax(150px, auto)' },
+        gap: { xs: 1.25, md: 1.5 },
         alignItems: 'center',
-        py: 2,
+        py: 1.35,
         borderTop: index === 0 ? 0 : '1px solid',
         borderColor: 'divider',
       }}
@@ -61,23 +62,21 @@ export default function ProductPortfolioProductRow({
           <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
             {profile.summary || 'No summary yet.'}
           </Typography>
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.85 }}>
+            <PastelChip label={formatLabel(profile.businessStage)} accent={palette.accent} bg={palette.bg} />
+            <PastelChip
+              label={packageInstance ? formatLabel(packageInstance.status) : 'No approved plan'}
+              accent={packageInstance ? appleColors.cyan : appleColors.muted}
+              bg={packageInstance ? '#e4f9fd' : '#f8fafc'}
+            />
+          </Stack>
         </Box>
       </Stack>
-      <PastelChip label={formatLabel(profile.businessStage)} accent={palette.accent} bg={palette.bg} />
-      <ProgressRing value={score} color={tone.color} size={68} />
-      <Box>
+      <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} alignItems={{ xs: 'center', md: 'flex-start' }}>
+        <ProgressRing value={score} color={tone.color} size={58} />
         <DotLabel label={tone.label} color={tone.color} />
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {profile.riskProfile || 'No launch risk profile recorded yet.'}
-        </Typography>
-      </Box>
-      <Box>
-        <Typography sx={{ fontWeight: 800 }}>{packageInstance?.name || 'No approved plan yet'}</Typography>
-        <Typography variant="body2" color="text.secondary">
-          {packageInstance ? formatLabel(packageInstance.status) : 'Open Product Home to choose the next path'}
-        </Typography>
-      </Box>
-      <Stack spacing={0.75} alignItems={{ xs: 'stretch', xl: 'flex-end' }}>
+      </Stack>
+      <Stack spacing={0.75} alignItems={{ xs: 'stretch', md: 'flex-end' }}>
         <Button component={NextLink} href={`/products/${profile.id}`} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 40 }}>
           Open Product Home
         </Button>
