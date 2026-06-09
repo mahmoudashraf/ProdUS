@@ -120,7 +120,7 @@ export default function ServicePlanStartPage() {
             )}
             {createdPlan && (
               <Alert severity="success" sx={{ borderRadius: 1 }}>
-                Created {createdPlan.name}. Open Service Plans to review modules and matching teams.
+                Created {createdPlan.name}. Open the Plan Library to review modules and matching teams.
               </Alert>
             )}
           </Stack>

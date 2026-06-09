@@ -6,6 +6,7 @@ import {
 } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+import WorkspaceCommandSubrouteActions, { type WorkspaceCommandSubrouteItem } from './WorkspaceCommandSubrouteActions';
 import {
   PastelChip,
   ProgressRing,
@@ -27,6 +28,13 @@ const servicePlanViewLabel: Record<ServicePlanBuilderView, string> = {
   team: 'Team Match',
   commercial: 'Handoff',
 };
+
+const servicePlanRouteItems: WorkspaceCommandSubrouteItem<ServicePlanBuilderView>[] = [
+  { value: 'summary', label: 'Plan Summary', accent: appleColors.purple },
+  { value: 'services', label: 'Services', accent: appleColors.blue },
+  { value: 'team', label: 'Team Match', accent: appleColors.cyan },
+  { value: 'commercial', label: 'Handoff', accent: appleColors.green },
+];
 
 export function ServicePlanHeroPanel({
   selectedPackage,
@@ -183,11 +191,28 @@ export function ServicePlanDetailNavigation({
   return (
     <WorkspaceBreadcrumbs
       items={[
-        { label: 'Service Plans', onClick: onOpenHub },
+        { label: 'Plan Library', onClick: onOpenHub },
         { label: currentView ? servicePlanViewLabel[currentView] : 'Plan Home' },
       ]}
-      backLabel="Plans home"
+      backLabel="Plan library"
       onBack={onOpenHub}
+    />
+  );
+}
+
+export function ServicePlanInternalRouteActions({
+  currentView,
+  onChange,
+}: {
+  currentView: ServicePlanBuilderView;
+  onChange: (view: ServicePlanBuilderView) => void;
+}) {
+  return (
+    <WorkspaceCommandSubrouteActions
+      ariaLabel="Plan library internal pages"
+      currentValue={currentView}
+      items={servicePlanRouteItems}
+      onChange={onChange}
     />
   );
 }

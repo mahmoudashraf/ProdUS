@@ -9,6 +9,7 @@ import { PageHeader, QueryState } from './PlatformComponents';
 import {
   ServicePlanDetailNavigation,
   ServicePlanHeroPanel,
+  ServicePlanInternalRouteActions,
   ServicePlanJourneyPanel,
   ServicePlanSelectedContextPanel,
 } from './ServicePlanBuilderPanels';
@@ -127,8 +128,8 @@ export default function PackagesPage() {
   return (
     <>
       <PageHeader
-        title="Service Plans"
-        description="Review one service plan at a time: scope, sequence, delivery match, and handoff readiness."
+        title="Plan Library"
+        description="Review generated productization plans after a start plan or product brief becomes a scoped delivery path."
       />
       <QueryState
         isLoading={packages.isLoading || requirements.isLoading || teams.isLoading || workspaces.isLoading || contracts.isLoading || invoices.isLoading}
@@ -193,66 +194,70 @@ export default function PackagesPage() {
               proposalCount={proposalList.length}
               estimatedBudget={estimatedBudget}
             />
-
-          {planView === 'summary' && (
-            <ServicePlanSummaryPanel
-              selectedPackage={selectedPackage}
-              modules={moduleList}
-              teamRecommendations={teamRecommendationList}
-              proposals={proposalList}
-              workspaceOptions={workspaceOptions}
-              score={score}
-              estimatedBudget={estimatedBudget}
-              requirements={requirementList}
-              eligibleRequirements={eligibleRequirements}
-              selectedRequirement={selectedRequirement}
-              buildForm={buildForm}
-              isBuildingPackage={buildPackage.isPending}
-              onBuildPackage={() => buildPackage.mutate()}
+            <ServicePlanInternalRouteActions
+              currentView={planView}
+              onChange={openPlanView}
             />
-          )}
 
-          {planView === 'services' && (
-            <ServicePlanServicesPanel
-              modules={moduleList}
-              isFetching={modules.isFetching}
-            />
-          )}
+            {planView === 'summary' && (
+              <ServicePlanSummaryPanel
+                selectedPackage={selectedPackage}
+                modules={moduleList}
+                teamRecommendations={teamRecommendationList}
+                proposals={proposalList}
+                workspaceOptions={workspaceOptions}
+                score={score}
+                estimatedBudget={estimatedBudget}
+                requirements={requirementList}
+                eligibleRequirements={eligibleRequirements}
+                selectedRequirement={selectedRequirement}
+                buildForm={buildForm}
+                isBuildingPackage={buildPackage.isPending}
+                onBuildPackage={() => buildPackage.mutate()}
+              />
+            )}
 
-          {planView === 'team' && (
-            <ServicePlanTeamMatchPanel
-              teamRecommendations={teamRecommendationList}
-              isFetching={teamRecommendations.isFetching}
-            />
-          )}
+            {planView === 'services' && (
+              <ServicePlanServicesPanel
+                modules={moduleList}
+                isFetching={modules.isFetching}
+              />
+            )}
 
-          {planView === 'commercial' && (
-            <ServicePlanCommercialPanel
-              canCreateProposal={canCreateProposal}
-              canAcceptProposal={canAcceptProposal}
-              canCreateInvoice={canCreateInvoice}
-              teams={teams.data || []}
-              proposals={proposalList}
-              packageContracts={packageContracts}
-              packageInvoices={packageInvoices}
-              workspaceOptions={workspaceOptions}
-              proposalForm={proposalForm}
-              contractForm={contractForm}
-              invoiceForm={invoiceForm}
-              contractProposalId={contractProposalId}
-              invoiceContractId={invoiceContractId}
-              isCreatingProposal={createProposal.isPending}
-              isAcceptingProposal={acceptProposal.isPending}
-              isCreatingContract={createContract.isPending}
-              isCreatingInvoice={createInvoice.isPending}
-              onCreateProposal={() => createProposal.mutate()}
-              onAcceptProposal={(proposalId) => acceptProposal.mutate(proposalId)}
-              onToggleContract={toggleContractForm}
-              onCreateContract={() => createContract.mutate()}
-              onToggleInvoice={toggleInvoiceForm}
-              onCreateInvoice={() => createInvoice.mutate()}
-            />
-          )}
+            {planView === 'team' && (
+              <ServicePlanTeamMatchPanel
+                teamRecommendations={teamRecommendationList}
+                isFetching={teamRecommendations.isFetching}
+              />
+            )}
+
+            {planView === 'commercial' && (
+              <ServicePlanCommercialPanel
+                canCreateProposal={canCreateProposal}
+                canAcceptProposal={canAcceptProposal}
+                canCreateInvoice={canCreateInvoice}
+                teams={teams.data || []}
+                proposals={proposalList}
+                packageContracts={packageContracts}
+                packageInvoices={packageInvoices}
+                workspaceOptions={workspaceOptions}
+                proposalForm={proposalForm}
+                contractForm={contractForm}
+                invoiceForm={invoiceForm}
+                contractProposalId={contractProposalId}
+                invoiceContractId={invoiceContractId}
+                isCreatingProposal={createProposal.isPending}
+                isAcceptingProposal={acceptProposal.isPending}
+                isCreatingContract={createContract.isPending}
+                isCreatingInvoice={createInvoice.isPending}
+                onCreateProposal={() => createProposal.mutate()}
+                onAcceptProposal={(proposalId) => acceptProposal.mutate(proposalId)}
+                onToggleContract={toggleContractForm}
+                onCreateContract={() => createContract.mutate()}
+                onToggleInvoice={toggleInvoiceForm}
+                onCreateInvoice={() => createInvoice.mutate()}
+              />
+            )}
           </>
         )}
       </Stack>

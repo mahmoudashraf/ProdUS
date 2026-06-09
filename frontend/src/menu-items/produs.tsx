@@ -94,7 +94,7 @@ const produs: NavItemType = {
     },
     {
       id: 'packages',
-      title: 'Service Plans',
+      title: 'Plan Library',
       type: 'item',
       url: '/packages',
       icon: icons.IconPackage,

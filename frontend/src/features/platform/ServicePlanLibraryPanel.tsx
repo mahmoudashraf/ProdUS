@@ -22,7 +22,7 @@ export default function ServicePlanLibraryPanel({
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 360px' }, gap: 2.5, alignItems: 'center' }}>
           <Stack spacing={1.5} sx={{ minWidth: 0 }}>
             <Box sx={{ alignSelf: 'flex-start' }}>
-              <PastelChip label="Service plan library" accent={appleColors.purple} bg="#f1efff" />
+              <PastelChip label="Generated plan library" accent={appleColors.purple} bg="#f1efff" />
             </Box>
             <Box>
               <Typography variant="h1" sx={{ fontSize: { xs: 30, md: 40 }, letterSpacing: 0, overflowWrap: 'anywhere' }}>
@@ -44,7 +44,7 @@ export default function ServicePlanLibraryPanel({
 
       <Surface>
         <SectionTitle
-          title="Open a Service Plan"
+          title="Open a Generated Plan"
           action={<PastelChip label="Library view" accent={appleColors.purple} bg="#f1efff" />}
         />
         {packageList.length ? (
