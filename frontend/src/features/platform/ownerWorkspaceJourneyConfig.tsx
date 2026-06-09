@@ -8,6 +8,7 @@ export type OverviewJourneyView = 'decision' | 'profile' | 'progress' | 'refresh
 export type ActionJourneyView = 'plan' | 'diagnosis';
 export type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
 export type ServicesJourneyView = 'recommend' | 'plan' | 'team';
+export type AiJourneyView = 'opportunities' | 'loomai';
 export type ShareJourneyView = 'create' | 'links' | 'preview';
 
 export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
@@ -15,6 +16,7 @@ export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
   actions: ['plan', 'diagnosis'],
   findings: ['risks', 'evidence', 'technical'],
   services: ['recommend', 'plan', 'team'],
+  ai: ['opportunities', 'loomai'],
   share: ['create', 'links', 'preview'],
 };
 
@@ -41,6 +43,7 @@ export interface OwnerWorkspaceJourneyGroups {
   actionJourneyItems: JourneyStepItem<ActionJourneyView>[];
   findingsJourneyItems: JourneyStepItem<FindingsJourneyView>[];
   servicesJourneyItems: JourneyStepItem<ServicesJourneyView>[];
+  aiJourneyItems: JourneyStepItem<AiJourneyView>[];
   shareJourneyItems: JourneyStepItem<ShareJourneyView>[];
 }
 
@@ -147,6 +150,22 @@ export const buildOwnerWorkspaceJourneyItems = ({
       detail: 'Compare teams, experts, workspace handoff, and risk.',
       accent: appleColors.cyan,
       meta: <PastelChip label={`${teamMatchCount} matches`} accent={appleColors.cyan} bg="#e4f9fd" />,
+    },
+  ],
+  aiJourneyItems: [
+    {
+      value: 'opportunities',
+      label: 'Fresh opportunities',
+      detail: 'Rerun AI opportunity analysis, attach extra context, and approve only the ideas that should shape this product.',
+      accent: appleColors.purple,
+      meta: <PastelChip label="Owner chooses" accent={appleColors.purple} bg="#f1efff" />,
+    },
+    {
+      value: 'loomai',
+      label: 'LoomAI path',
+      detail: 'Review the integration starting point, capabilities, implementation steps, and owner decisions.',
+      accent: appleColors.cyan,
+      meta: <PastelChip label="Integration" accent={appleColors.cyan} bg="#e4f9fd" />,
     },
   ],
   shareJourneyItems: [

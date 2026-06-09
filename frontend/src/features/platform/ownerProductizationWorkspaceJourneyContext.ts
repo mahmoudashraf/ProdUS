@@ -1,5 +1,6 @@
 import type {
   ActionJourneyView,
+  AiJourneyView,
   FindingsJourneyView,
   OverviewJourneyView,
   ServicesJourneyView,
@@ -11,6 +12,7 @@ import type { OwnerLaunchStatus, WorkspaceTab } from './ownerWorkspaceModel';
 
 interface OwnerProductizationWorkspaceJourneyContextInput {
   actionView: ActionJourneyView;
+  aiView: AiJourneyView;
   findingsView: FindingsJourneyView;
   hasLaunchReadinessReport: boolean;
   hasSelectedPackage: boolean;
@@ -31,6 +33,7 @@ interface OwnerProductizationWorkspaceJourneyContextInput {
 
 export const buildOwnerProductizationWorkspaceJourneyContext = ({
   actionView,
+  aiView,
   findingsView,
   hasLaunchReadinessReport,
   hasSelectedPackage,
@@ -66,6 +69,7 @@ export const buildOwnerProductizationWorkspaceJourneyContext = ({
     ...getOwnerWorkspaceCurrentJourney({
       ...journeyGroups,
       actionView,
+      aiView,
       findingsView,
       overviewView,
       servicesView,

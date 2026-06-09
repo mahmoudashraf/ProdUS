@@ -341,6 +341,19 @@ export interface AiAssistedProductAnalysisResponse {
   runtimeActionPayload: Record<string, unknown>;
 }
 
+export interface ProductAiOpportunityAcceptanceResponse {
+  product: ProductProfile;
+  intent: ProductCreationIntent;
+  attachments: ProductProjectAttachment[];
+  auditEventId?: string;
+  projectIntelligenceId?: string;
+  acceptedUseCases: number;
+  acceptedServiceRecommendations: number;
+  acceptedScannerFocusAreas: number;
+  acceptedNextSteps: number;
+  aiSourceAttachmentCount: number;
+}
+
 export interface ProductCreationActionResponse {
   product: ProductProfile;
   intent: ProductCreationIntent;

@@ -2,6 +2,7 @@
 
 import { Box, Stack } from '@mui/material';
 import OwnerWorkspaceActionsArea from './OwnerWorkspaceActionsArea';
+import OwnerWorkspaceAiArea from './OwnerWorkspaceAiArea';
 import OwnerWorkspaceFindingsArea from './OwnerWorkspaceFindingsArea';
 import OwnerWorkspaceOverviewArea from './OwnerWorkspaceOverviewArea';
 import OwnerWorkspaceServicesArea from './OwnerWorkspaceServicesArea';
@@ -62,6 +63,7 @@ export default function OwnerProductizationWorkspace({
     actionView,
     findingsView,
     servicesView,
+    aiView,
     shareView,
     technicalProofDetailOpen,
     technicalProofView,
@@ -73,6 +75,7 @@ export default function OwnerProductizationWorkspace({
     openActionView,
     openFindingsView,
     openServicesView,
+    openAiView,
     openTechnicalProofHub,
     openTechnicalProofView,
   } = useOwnerWorkspaceNavigationState();
@@ -335,6 +338,7 @@ export default function OwnerProductizationWorkspace({
     isProductHome,
   } = buildOwnerProductizationWorkspaceJourneyContext({
     actionView,
+    aiView,
     findingsView,
     hasLaunchReadinessReport: !!launchReadinessReport.data,
     hasSelectedPackage: !!selectedPackage,
@@ -390,6 +394,7 @@ export default function OwnerProductizationWorkspace({
             onExportReport={() => createEvidenceExport.mutate()}
             onProductHome={openProductHome}
             onPrimaryAction={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}
+            onOpenAiOpportunities={() => openAiView('opportunities')}
             onRefreshBrief={() => openWorkspaceDetail('overview', 'refresh')}
             onViewProof={() => openFindingsView('technical')}
           />
@@ -545,6 +550,12 @@ export default function OwnerProductizationWorkspace({
             suggestedExperts={suggestedExperts}
             suggestedTeams={suggestedTeams}
             view={servicesView}
+            workspaceTab={workspaceTab}
+          />
+
+          <OwnerWorkspaceAiArea
+            selectedProduct={selectedProduct}
+            view={aiView}
             workspaceTab={workspaceTab}
           />
 

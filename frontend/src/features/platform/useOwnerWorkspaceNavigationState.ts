@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type {
   ActionJourneyView,
+  AiJourneyView,
   FindingsJourneyView,
   OverviewJourneyView,
   ShareJourneyView,
@@ -29,6 +30,7 @@ export function useOwnerWorkspaceNavigationState() {
   const [actionView, setActionView] = useState<ActionJourneyView>('plan');
   const [findingsView, setFindingsView] = useState<FindingsJourneyView>('risks');
   const [servicesView, setServicesView] = useState<ServicesJourneyView>('recommend');
+  const [aiView, setAiView] = useState<AiJourneyView>('opportunities');
   const [shareView, setShareView] = useState<ShareJourneyView>('create');
   const [technicalProofView, setTechnicalProofView] = useState<TechnicalProofView>('run');
   const [technicalProofDetailOpen, setTechnicalProofDetailOpen] = useState(false);
@@ -49,6 +51,7 @@ export function useOwnerWorkspaceNavigationState() {
       if (nextTab === 'actions') setActionView(viewParam as ActionJourneyView);
       if (nextTab === 'findings') setFindingsView(viewParam as FindingsJourneyView);
       if (nextTab === 'services') setServicesView(viewParam as ServicesJourneyView);
+      if (nextTab === 'ai') setAiView(viewParam as AiJourneyView);
       if (nextTab === 'share') setShareView(viewParam as ShareJourneyView);
     } else {
       setWorkspaceDetailOpen(false);
@@ -126,6 +129,7 @@ export function useOwnerWorkspaceNavigationState() {
     if (tab === 'actions') setActionView(view as ActionJourneyView);
     if (tab === 'findings') setFindingsView(view as FindingsJourneyView);
     if (tab === 'services') setServicesView(view as ServicesJourneyView);
+    if (tab === 'ai') setAiView(view as AiJourneyView);
     if (tab === 'share') setShareView(view as ShareJourneyView);
     pushWorkspaceLocation(tab, view);
   };
@@ -163,6 +167,7 @@ export function useOwnerWorkspaceNavigationState() {
     actionView,
     findingsView,
     servicesView,
+    aiView,
     shareView,
     technicalProofView,
     technicalProofDetailOpen,
@@ -179,6 +184,7 @@ export function useOwnerWorkspaceNavigationState() {
     openActionView: (view: ActionJourneyView) => openWorkspaceDetail('actions', view),
     openFindingsView: (view: FindingsJourneyView) => openWorkspaceDetail('findings', view),
     openServicesView: (view: ServicesJourneyView) => openWorkspaceDetail('services', view),
+    openAiView: (view: AiJourneyView) => openWorkspaceDetail('ai', view),
     openShareView: (view: ShareJourneyView) => openWorkspaceDetail('share', view),
     openTechnicalProofHub,
     openTechnicalProofView,

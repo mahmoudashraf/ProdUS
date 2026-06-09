@@ -71,7 +71,7 @@ function ProductAreaNavigation({
       sx={{
         p: { xs: 1, md: 1 },
         boxShadow: 'none',
-        display: { xs: 'block', md: 'none' },
+        display: 'block',
         zIndex: 2,
         overflow: 'hidden',
       }}
@@ -85,7 +85,7 @@ function ProductAreaNavigation({
           component="nav"
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(5, minmax(0, 1fr))' },
+            gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(6, minmax(0, 1fr))' },
             gap: 0.75,
             minWidth: 0,
           }}

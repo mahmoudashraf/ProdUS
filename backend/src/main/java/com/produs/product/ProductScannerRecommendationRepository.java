@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface ProductScannerRecommendationRepository extends JpaRepository<ProductScannerRecommendation, UUID> {
     List<ProductScannerRecommendation> findByProductProfileIdOrderByCreatedAtAsc(UUID productProfileId);
+    long deleteByProductProfileIdAndCreatedByAiTrue(UUID productProfileId);
 }

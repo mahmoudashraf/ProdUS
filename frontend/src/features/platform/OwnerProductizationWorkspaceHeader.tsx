@@ -84,6 +84,7 @@ export function OwnerProductizationWorkspaceLead({
   onAreaHub,
   onDetailChange,
   onExportReport,
+  onOpenAiOpportunities,
   onProductHome,
   onPrimaryAction,
   onRefreshBrief,
@@ -105,6 +106,7 @@ export function OwnerProductizationWorkspaceLead({
   onAreaHub: (tab: WorkspaceTab) => void;
   onDetailChange: (value: string) => void;
   onExportReport: () => void;
+  onOpenAiOpportunities: () => void;
   onProductHome: () => void;
   onPrimaryAction: () => void;
   onRefreshBrief: () => void;
@@ -132,6 +134,7 @@ export function OwnerProductizationWorkspaceLead({
           onRefreshBrief={onRefreshBrief}
           onViewProof={onViewProof}
           onExportReport={onExportReport}
+          onOpenAiOpportunities={onOpenAiOpportunities}
           isExporting={Boolean(isExporting)}
         />
       ) : product ? (

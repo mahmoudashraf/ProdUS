@@ -4,6 +4,7 @@ import {
   CloudUploadOutlined,
   AutoAwesomeOutlined,
   Inventory2Outlined,
+  PsychologyOutlined,
   RocketLaunchOutlined,
   ShieldOutlined,
 } from '@mui/icons-material';
@@ -44,6 +45,7 @@ interface OwnerWorkspaceProductHeroProps {
   onRefreshBrief: () => void;
   onViewProof: () => void;
   onExportReport: () => void;
+  onOpenAiOpportunities: () => void;
   isExporting?: boolean;
 }
 
@@ -56,6 +58,7 @@ export default function OwnerWorkspaceProductHero({
   onRefreshBrief,
   onViewProof,
   onExportReport,
+  onOpenAiOpportunities,
   isExporting,
 }: OwnerWorkspaceProductHeroProps) {
   return (
@@ -123,6 +126,9 @@ export default function OwnerWorkspaceProductHero({
             <Button variant="outlined" startIcon={<AutoAwesomeOutlined />} onClick={onRefreshBrief} sx={{ minHeight: 42, flex: { sm: '1 1 160px' }, whiteSpace: 'normal' }}>
               Refresh brief
             </Button>
+            <Button variant="outlined" startIcon={<PsychologyOutlined />} onClick={onOpenAiOpportunities} sx={{ minHeight: 42, flex: { sm: '1 1 190px' }, whiteSpace: 'normal' }}>
+              AI opportunities
+            </Button>
             <Button
               variant="outlined"
               startIcon={<CloudUploadOutlined />}
@@ -167,6 +173,45 @@ export default function OwnerWorkspaceProductHero({
             )}
           </Stack>
         </Box>
+      </Box>
+      <Box
+        sx={{
+          mt: 1.5,
+          p: 1.5,
+          borderRadius: 1,
+          border: '1px solid',
+          borderColor: `${appleColors.purple}28`,
+          bgcolor: '#fff',
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'auto minmax(0, 1fr) auto' },
+          gap: 1.25,
+          alignItems: 'center',
+        }}
+      >
+        <Box
+          sx={{
+            width: 42,
+            height: 42,
+            borderRadius: 1,
+            bgcolor: '#f1efff',
+            color: appleColors.purple,
+            display: 'grid',
+            placeItems: 'center',
+          }}
+        >
+          <PsychologyOutlined />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body2" sx={{ fontWeight: 950 }}>
+            Find new AI opportunities
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, lineHeight: 1.45 }}>
+            Rerun product-specific AI analysis, attach fresh context, and approve what should update the plan.
+          </Typography>
+        </Box>
+        <Button variant="contained" startIcon={<AutoAwesomeOutlined />} onClick={onOpenAiOpportunities} sx={{ minHeight: 40, whiteSpace: 'normal' }}>
+          Open
+        </Button>
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1.25, mt: 1.5 }}>
         {evidenceSummaryItems.map((item) => (

@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface ProductReadinessTaskRepository extends JpaRepository<ProductReadinessTask, UUID> {
     List<ProductReadinessTask> findByProductProfileIdOrderByCreatedAtAsc(UUID productProfileId);
+    long deleteByProductProfileIdAndCreatedByAiTrue(UUID productProfileId);
 }

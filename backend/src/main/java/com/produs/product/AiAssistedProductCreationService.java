@@ -360,6 +360,109 @@ public class AiAssistedProductCreationService {
     }
 
     @Transactional
+    public ProductAiOpportunityAcceptanceResponse acceptAiOpportunityRefresh(
+            User owner,
+            UUID productId,
+            ProductAiOpportunityAcceptanceRequest request
+    ) {
+        if (request == null || request.creationIntentId() == null) {
+            throw new IllegalArgumentException("AI opportunity analysis result is required");
+        }
+        ProductProfile product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product profile not found"));
+        if (owner.getRole() != User.UserRole.ADMIN && !product.getOwner().getId().equals(owner.getId())) {
+            throw new AccessDeniedException("Product profile does not belong to the signed-in user");
+        }
+
+        ProductCreationIntent intent = validateAiOpportunityAcceptanceIntent(owner, request);
+        if (request.analysisModeOrDefault() != AnalysisMode.AI_OPPORTUNITIES) {
+            throw projectCreationActionRejected(
+                    "AI_OPPORTUNITY_MODE_REQUIRED",
+                    "Re-run the dedicated AI opportunity scan before accepting opportunity updates."
+            );
+        }
+        ProductCreationActionRequest actionRequest = request.toActionRequest(product);
+        validateAttachmentOwnership(intent, actionRequest.sourceAttachmentIds());
+        validateAttachmentOwnership(intent, actionRequest.aiAccessibleAttachmentIds());
+        validateSelectedDocumentUsage(intent, actionRequest);
+
+        List<ProductProjectAttachment> attachments = attachmentRepository.findByCreationIntentIdOrderByCreatedAtDesc(intent.getId());
+        Set<UUID> aiAccessibleIds = actionRequest.aiAccessibleAttachmentIds() == null
+                ? Set.of()
+                : Set.copyOf(actionRequest.aiAccessibleAttachmentIds());
+        int aiSourceAttachmentCount = aiAccessibleIds.isEmpty()
+                ? (int) attachments.stream().filter(ProductProjectAttachment::isAiShareRequested).count()
+                : aiAccessibleIds.size();
+
+        product.setAiProviderRequestId(firstNonBlank(request.analysisProviderRequestId(), intent.getAnalysisProviderRequestId(), product.getAiProviderRequestId()));
+        product.setAiCreationSummary(firstNonBlank(enrichedActionCreationSummary(actionRequest), product.getAiCreationSummary()));
+        product.setAiSourceAttachmentCount(aiSourceAttachmentCount);
+        ProductProfile saved = productRepository.save(product);
+
+        for (ProductProjectAttachment attachment : attachments) {
+            attachment.setProductProfile(saved);
+            if (attachment.isAiShareRequested()) {
+                attachment.setAiAccessRevokedAt(LocalDateTime.now());
+            }
+            attachmentRepository.save(attachment);
+        }
+
+        ProductProjectIntelligence intelligence = persistAiOpportunityIntelligence(intent, saved, actionRequest);
+        serviceRecommendationRepository.deleteByProductProfileIdAndCreatedByAiTrue(saved.getId());
+        scannerRecommendationRepository.deleteByProductProfileIdAndCreatedByAiTrue(saved.getId());
+        readinessTaskRepository.deleteByProductProfileIdAndCreatedByAiTrue(saved.getId());
+        int serviceRecommendationCount = persistServiceRecommendations(saved, actionRequest.recommendedServiceModules());
+        int scannerRecommendationCount = persistScannerRecommendations(saved, actionRequest.scannerFocusAreas());
+        int readinessTaskCount = persistReadinessTasks(saved, actionRequest);
+        int acceptedNextStepCount = listOrEmpty(actionRequest.suggestedNextSteps()).size();
+
+        intent.setProductProfile(saved);
+        intent.setStatus(ProductCreationIntent.Status.CREATED);
+        intent.setCreatedProductAt(LocalDateTime.now());
+        intent.setProductName(saved.getName());
+        intent.setSummary(saved.getSummary());
+        intent.setBusinessStage(saved.getBusinessStage());
+        intent.setTechStack(saved.getTechStack());
+        intent.setProductUrl(saved.getProductUrl());
+        intent.setRepositoryUrl(saved.getRepositoryUrl());
+        intent.setRiskProfile(saved.getRiskProfile());
+        intent.setAiCreationSummary(saved.getAiCreationSummary());
+        intent.setAnalysisProviderRequestId(saved.getAiProviderRequestId());
+        intent.setAiSourceAttachmentCount(saved.getAiSourceAttachmentCount());
+        intentRepository.save(intent);
+
+        AuditEvent audit = auditService.logAction(
+                owner.getId(),
+                "AI_PRODUCT_OPPORTUNITY_ACCEPTANCE",
+                "PRODUCT_PROFILE",
+                saved.getId(),
+                AuditEvent.RiskLevel.MEDIUM,
+                "AI opportunity refresh accepted; intent=%s providerRequestId=%s acceptedUseCases=%d serviceRecommendations=%d scannerRecommendations=%d readinessTasks=%d"
+                        .formatted(
+                                intent.getId(),
+                                nullToEmpty(saved.getAiProviderRequestId()),
+                                request.acceptedUseCaseCount(),
+                                serviceRecommendationCount,
+                                scannerRecommendationCount,
+                                readinessTaskCount
+                        )
+        );
+
+        return new ProductAiOpportunityAcceptanceResponse(
+                toProductProfileResponse(saved),
+                ProductCreationIntentResponse.from(intent, null),
+                attachments.stream().map(ProductProjectAttachmentResponse::from).toList(),
+                audit.getId(),
+                intelligence.getId(),
+                request.acceptedUseCaseCount(),
+                serviceRecommendationCount,
+                scannerRecommendationCount,
+                acceptedNextStepCount,
+                aiSourceAttachmentCount
+        );
+    }
+
+    @Transactional
     public Map<String, Object> createFromMcpAction(Map<String, Object> args) {
         try {
             ProductCreationActionRequest request = ProductCreationActionRequest.from(args);
@@ -447,6 +550,51 @@ public class AiAssistedProductCreationService {
         validateAttachmentOwnership(intent, request.sourceAttachmentIds());
         validateAttachmentOwnership(intent, request.aiAccessibleAttachmentIds());
         validateSelectedDocumentUsage(intent, request);
+    }
+
+    private ProductCreationIntent validateAiOpportunityAcceptanceIntent(
+            User owner,
+            ProductAiOpportunityAcceptanceRequest request
+    ) {
+        ProductCreationIntent intent = intentRepository.findById(request.creationIntentId())
+                .orElseThrow(() -> new IllegalArgumentException("AI opportunity analysis intent not found"));
+        if (owner.getRole() != User.UserRole.ADMIN && !intent.getOwner().getId().equals(owner.getId())) {
+            throw projectCreationActionRejected(
+                    "AI_OPPORTUNITY_INTENT_OWNER_MISMATCH",
+                    "This AI opportunity analysis belongs to a different signed-in user. Re-run analysis from this account."
+            );
+        }
+        if (intent.getStatus() != ProductCreationIntent.Status.READY_FOR_ACTION) {
+            throw projectCreationActionRejected(
+                    "AI_OPPORTUNITY_INTENT_NOT_READY",
+                    "This AI opportunity analysis is not ready. Re-run the AI opportunity scan."
+            );
+        }
+        if (intent.getExpiresAt() == null || intent.getExpiresAt().isBefore(LocalDateTime.now())) {
+            intent.setStatus(ProductCreationIntent.Status.EXPIRED);
+            intentRepository.save(intent);
+            throw projectCreationActionRejected(
+                    "AI_OPPORTUNITY_INTENT_EXPIRED",
+                    "This AI opportunity analysis expired. Re-run the AI opportunity scan."
+            );
+        }
+        if (request.consentToken() == null || request.consentToken().isBlank()
+                || !MessageDigest.isEqual(
+                intent.getConsentTokenHash().getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                sha256Hex(request.consentToken()).getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        )) {
+            throw projectCreationActionRejected(
+                    "AI_OPPORTUNITY_CONSENT_INVALID",
+                    "This AI opportunity action payload is stale. Use the latest analysis result."
+            );
+        }
+        if (request.idempotencyKey() == null || !intent.getIdempotencyKey().equals(request.idempotencyKey())) {
+            throw projectCreationActionRejected(
+                    "AI_OPPORTUNITY_IDEMPOTENCY_INVALID",
+                    "This AI opportunity action payload is stale. Use the latest analysis result."
+            );
+        }
+        return intent;
     }
 
     private void validateAttachmentOwnership(ProductCreationIntent intent, List<UUID> attachmentIds) {
@@ -690,6 +838,24 @@ public class AiAssistedProductCreationService {
         return intelligenceRepository.save(intelligence);
     }
 
+    private ProductProjectIntelligence persistAiOpportunityIntelligence(
+            ProductCreationIntent intent,
+            ProductProfile product,
+            ProductCreationActionRequest request
+    ) {
+        ProductProjectIntelligence intelligence = intelligenceRepository.findByProductProfileId(product.getId())
+                .orElseGet(ProductProjectIntelligence::new);
+        intelligence.setProductProfile(product);
+        intelligence.setCreationIntent(intent);
+        intelligence.setAnalysisProvider("LOOMAI");
+        intelligence.setAnalysisProviderRequestId(firstNonBlank(request.analysisProviderRequestId(), intent.getAnalysisProviderRequestId()));
+        intelligence.setAnalysisSchemaVersion("produs-ai-opportunity-refresh-v1");
+        intelligence.setAnalysisJson(writeAnalysisJson(request));
+        intelligence.setOwnerApprovedAt(LocalDateTime.now());
+        intelligence.setCreatedByAi(true);
+        return intelligenceRepository.save(intelligence);
+    }
+
     private int persistServiceRecommendations(
             ProductProfile product,
             List<ServiceModuleRecommendation> recommendations
@@ -700,8 +866,12 @@ public class AiAssistedProductCreationService {
                 .limit(12)
                 .toList();
         int sequence = 0;
+        int created = 0;
         for (ServiceModuleRecommendation recommendation : selected) {
             ServiceModule module = resolveServiceModule(recommendation.moduleCode());
+            if (serviceRecommendationRepository.findByProductProfileIdAndServiceModuleId(product.getId(), module.getId()).isPresent()) {
+                continue;
+            }
             sequence++;
             ProductServiceRecommendation entity = new ProductServiceRecommendation();
             entity.setProductProfile(product);
@@ -716,8 +886,9 @@ public class AiAssistedProductCreationService {
             entity.setStatus(ProductServiceRecommendation.Status.RECOMMENDED);
             entity.setCreatedByAi(true);
             serviceRecommendationRepository.save(entity);
+            created++;
         }
-        return selected.size();
+        return created;
     }
 
     private int persistScannerRecommendations(ProductProfile product, List<String> scannerFocusAreas) {
@@ -1546,6 +1717,15 @@ public class AiAssistedProductCreationService {
 
     private static <T> List<T> listOrEmptyStatic(List<T> values) {
         return values == null ? List.of() : values;
+    }
+
+    private static String firstNonBlankStatic(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     @SafeVarargs
@@ -2891,6 +3071,127 @@ public class AiAssistedProductCreationService {
             boolean blockUnprovenAiDocumentUsage,
             Map<String, Object> runtimeActionPayload
     ) {}
+
+    public record ProductAiOpportunityAcceptanceResponse(
+            ProductProfileResponse product,
+            ProductCreationIntentResponse intent,
+            List<ProductProjectAttachmentResponse> attachments,
+            UUID auditEventId,
+            UUID projectIntelligenceId,
+            int acceptedUseCases,
+            int acceptedServiceRecommendations,
+            int acceptedScannerFocusAreas,
+            int acceptedNextSteps,
+            int aiSourceAttachmentCount
+    ) {}
+
+    public record ProductAiOpportunityAcceptanceRequest(
+            AnalysisMode analysisMode,
+            UUID creationIntentId,
+            String consentToken,
+            String idempotencyKey,
+            String analysisProviderRequestId,
+            String aiCreationSummary,
+            List<String> recommendedServices,
+            List<ServiceModuleRecommendation> recommendedServiceModules,
+            List<String> scannerFocusAreas,
+            List<String> suggestedNextSteps,
+            List<String> sourceInsights,
+            List<String> assumptions,
+            List<String> missingEvidence,
+            List<DocumentUsageEvidence> documentUsage,
+            AiOpportunityReport aiOpportunityReport,
+            LoomAIIntegrationOverview loomaiIntegrationOverview,
+            List<UUID> sourceAttachmentIds,
+            List<UUID> aiAccessibleAttachmentIds
+    ) {
+        AnalysisMode analysisModeOrDefault() {
+            return analysisMode == null ? AnalysisMode.AI_OPPORTUNITIES : analysisMode;
+        }
+
+        ProductCreationActionRequest toActionRequest(ProductProfile product) {
+            List<ServiceModuleRecommendation> acceptedModules = acceptedServiceModules();
+            return new ProductCreationActionRequest(
+                    analysisModeOrDefault(),
+                    creationIntentId,
+                    consentToken,
+                    idempotencyKey,
+                    analysisProviderRequestId,
+                    product.getName(),
+                    product.getSummary(),
+                    product.getSummary(),
+                    "",
+                    "",
+                    product.getBusinessStage() == null ? ProductProfile.BusinessStage.PROTOTYPE.name() : product.getBusinessStage().name(),
+                    product.getTechStack(),
+                    product.getProductUrl(),
+                    product.getRepositoryUrl(),
+                    product.getRiskProfile(),
+                    aiCreationSummary,
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    acceptedRecommendedServices(acceptedModules),
+                    acceptedModules,
+                    List.of(),
+                    listOrEmptyStatic(scannerFocusAreas),
+                    listOrEmptyStatic(suggestedNextSteps),
+                    listOrEmptyStatic(sourceInsights),
+                    listOrEmptyStatic(assumptions),
+                    listOrEmptyStatic(missingEvidence),
+                    listOrEmptyStatic(documentUsage),
+                    aiOpportunityReport,
+                    loomaiIntegrationOverview,
+                    listOrEmptyStatic(sourceAttachmentIds),
+                    listOrEmptyStatic(aiAccessibleAttachmentIds)
+            );
+        }
+
+        int acceptedUseCaseCount() {
+            return aiOpportunityReport == null ? 0 : listOrEmptyStatic(aiOpportunityReport.useCases()).size();
+        }
+
+        private List<ServiceModuleRecommendation> acceptedServiceModules() {
+            List<ServiceModuleRecommendation> selected = listOrEmptyStatic(recommendedServiceModules).stream()
+                    .filter(recommendation -> recommendation != null && recommendation.acceptedOrDefault())
+                    .toList();
+            List<ServiceModuleRecommendation> result = new ArrayList<>();
+            int sequence = 0;
+            for (ServiceModuleRecommendation recommendation : selected) {
+                sequence++;
+                result.add(new ServiceModuleRecommendation(
+                        recommendation.moduleCode(),
+                        recommendation.moduleName(),
+                        recommendation.categorySlug(),
+                        recommendation.priority(),
+                        sequence,
+                        recommendation.reason(),
+                        recommendation.evidenceBasis(),
+                        recommendation.expectedOutcome(),
+                        recommendation.confidence(),
+                        true
+                ));
+            }
+            return result;
+        }
+
+        private List<String> acceptedRecommendedServices(List<ServiceModuleRecommendation> acceptedModules) {
+            List<String> explicit = listOrEmptyStatic(recommendedServices).stream()
+                    .filter(value -> value != null && !value.isBlank())
+                    .distinct()
+                    .limit(12)
+                    .toList();
+            if (!explicit.isEmpty()) {
+                return explicit;
+            }
+            return acceptedModules.stream()
+                    .map(recommendation -> firstNonBlankStatic(recommendation.moduleName(), recommendation.moduleCode()))
+                    .filter(value -> !value.isBlank())
+                    .distinct()
+                    .limit(12)
+                    .toList();
+        }
+    }
 
     public record AiOpportunityReport(
             String status,
