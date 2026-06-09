@@ -100,6 +100,22 @@ export default function WorkspaceCommandPage() {
     },
   ) => pushWorkspaceRoute(view, workspaceId, options);
 
+  const defaultTeamView: WorkspaceCommandTeamView = supportList.length
+    ? 'support'
+    : disputeList.length
+      ? 'risks'
+      : 'participants';
+  const openFocusedWorkspaceRoute = (view: WorkspaceCommandView, workspaceId = selectedWorkspace?.id) => {
+    if (view === 'team') {
+      openWorkspaceRoute('team', workspaceId, { teamView: defaultTeamView });
+      return;
+    }
+    if (view === 'handoff') {
+      openWorkspaceRoute('handoff', workspaceId, { handoffView: 'review' });
+      return;
+    }
+    openWorkspaceRoute(view, workspaceId);
+  };
   const openWorkspaceTeamHub = () => openWorkspaceRoute('team');
   const openWorkspaceTeamView = (view: WorkspaceCommandTeamView) => openWorkspaceRoute('team', selectedWorkspace?.id, { teamView: view });
   const openWorkspaceHandoffHub = () => openWorkspaceRoute('handoff');
@@ -221,13 +237,13 @@ export default function WorkspaceCommandPage() {
           onSelectWorkspace: (workspaceId) => {
             setSelectedWorkspaceId(workspaceId);
             clearSelectedMilestone();
-            openWorkspaceRoute(workspaceView, workspaceId);
+            openFocusedWorkspaceRoute(workspaceView, workspaceId);
           },
           onCreateWorkspace: () => createWorkspace.mutate(),
         }}
         selectedWorkspacePane={selectedWorkspace ? {
           view: workspaceView,
-          onViewChange: (view) => openWorkspaceRoute(view),
+          onViewChange: (view) => openFocusedWorkspaceRoute(view),
           onOpenHub: () => openWorkspaceRoute('overview'),
           isFetchingWorkspaceDetail: milestones.isFetching || deliverables.isFetching || supportRequests.isFetching || disputes.isFetching || attachments.isFetching,
           hero: {
@@ -261,7 +277,7 @@ export default function WorkspaceCommandPage() {
             selectedMilestone,
             selectedMilestoneCriteria,
             workspace: selectedWorkspace,
-            onPrepareHandoff: () => openWorkspaceRoute(roughEdgeCount ? 'team' : 'handoff'),
+            onPrepareHandoff: () => openFocusedWorkspaceRoute(roughEdgeCount ? 'team' : 'handoff'),
             onReviewProof: () => openWorkspaceRoute('proof'),
           },
           proof: {
