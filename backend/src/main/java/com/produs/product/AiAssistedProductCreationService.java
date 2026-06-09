@@ -416,7 +416,6 @@ public class AiAssistedProductCreationService {
         int readinessTaskCount = persistReadinessTasks(saved, actionRequest);
         int acceptedNextStepCount = listOrEmpty(actionRequest.suggestedNextSteps()).size();
 
-        intent.setProductProfile(saved);
         intent.setStatus(ProductCreationIntent.Status.CREATED);
         intent.setCreatedProductAt(LocalDateTime.now());
         intent.setProductName(saved.getName());
@@ -450,7 +449,7 @@ public class AiAssistedProductCreationService {
 
         return new ProductAiOpportunityAcceptanceResponse(
                 toProductProfileResponse(saved),
-                ProductCreationIntentResponse.from(intent, null),
+                ProductCreationIntentResponse.from(intent, null, saved.getId()),
                 attachments.stream().map(ProductProjectAttachmentResponse::from).toList(),
                 audit.getId(),
                 intelligence.getId(),
@@ -3279,6 +3278,10 @@ public class AiAssistedProductCreationService {
             int aiSourceAttachmentCount
     ) {
         static ProductCreationIntentResponse from(ProductCreationIntent intent, String consentToken) {
+            return from(intent, consentToken, null);
+        }
+
+        static ProductCreationIntentResponse from(ProductCreationIntent intent, String consentToken, UUID productIdOverride) {
             return new ProductCreationIntentResponse(
                     intent.getId(),
                     intent.getStatus(),
@@ -3286,7 +3289,9 @@ public class AiAssistedProductCreationService {
                     consentToken,
                     intent.getIdempotencyKey(),
                     intent.getAnalysisProviderRequestId(),
-                    intent.getProductProfile() == null ? null : intent.getProductProfile().getId(),
+                    productIdOverride != null
+                            ? productIdOverride
+                            : intent.getProductProfile() == null ? null : intent.getProductProfile().getId(),
                     intent.getAiSourceAttachmentCount()
             );
         }

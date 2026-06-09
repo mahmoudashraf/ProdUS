@@ -41,6 +41,25 @@ class AiAssistedProductCreationServiceTest {
     }
 
     @Test
+    void aiOpportunityRefreshIntentResponseCanReturnProductIdWithoutLinkingIntent() {
+        ProductCreationIntent intent = new ProductCreationIntent();
+        intent.setStatus(ProductCreationIntent.Status.CREATED);
+        intent.setExpiresAt(LocalDateTime.now().plusMinutes(30));
+        intent.setIdempotencyKey("refresh-idempotency-key");
+        intent.setAnalysisProviderRequestId("provider-refresh-1");
+        intent.setAiSourceAttachmentCount(2);
+        UUID productId = UUID.randomUUID();
+
+        AiAssistedProductCreationService.ProductCreationIntentResponse response =
+                AiAssistedProductCreationService.ProductCreationIntentResponse.from(intent, null, productId);
+
+        assertThat(response.productId()).isEqualTo(productId);
+        assertThat(response.analysisProviderRequestId()).isEqualTo("provider-refresh-1");
+        assertThat(response.aiSourceAttachmentCount()).isEqualTo(2);
+        assertThat(intent.getProductProfile()).isNull();
+    }
+
+    @Test
     void trimsProviderMetadataBeforePersistingAnalysisIntent() throws Exception {
         AiAssistedProductCreationService service = service();
         ProductCreationIntent intent = new ProductCreationIntent();
