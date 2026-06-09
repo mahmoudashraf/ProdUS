@@ -69,7 +69,7 @@ function ProductAreaNavigation({
       sx={{
         p: { xs: 1, md: 1 },
         boxShadow: 'none',
-        display: 'block',
+        display: { xs: 'block', md: 'none' },
         zIndex: 2,
         overflow: 'hidden',
       }}
