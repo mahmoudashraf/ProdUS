@@ -68,6 +68,7 @@ export default function OwnerProductizationWorkspace({
     workspaceDetailOpen,
     openProductHome,
     openWorkspaceArea,
+    openWorkspaceAreaHub,
     openWorkspaceDetail,
     openActionView,
     openFindingsView,
@@ -384,6 +385,7 @@ export default function OwnerProductizationWorkspace({
             workspaceDetailOpen={workspaceDetailOpen}
             workspaceTab={workspaceTab}
             onAreaChange={openWorkspaceArea}
+            onAreaHub={openWorkspaceAreaHub}
             onDetailChange={(value) => openWorkspaceDetail(workspaceTab, value)}
             onExportReport={() => createEvidenceExport.mutate()}
             onProductHome={openProductHome}

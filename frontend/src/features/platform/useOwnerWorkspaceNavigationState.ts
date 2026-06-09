@@ -12,7 +12,7 @@ import type {
 import { workspaceViewValues } from './ownerWorkspaceJourneyConfig';
 import { isTechnicalProofView, type TechnicalProofView } from './ownerTechnicalProofJourneyModel';
 import type { WorkspaceTab } from './ownerWorkspaceModel';
-import { workspaceTabs } from './ownerWorkspaceModel';
+import { workspaceDefaultViewByTab, workspaceTabs } from './ownerWorkspaceModel';
 
 const isWorkspaceTabValue = (value: string | null): value is WorkspaceTab =>
   !!value && workspaceTabs.some((tab) => tab.value === value);
@@ -93,6 +93,23 @@ export function useOwnerWorkspaceNavigationState() {
 
   const openWorkspaceArea = (tab: WorkspaceTab) => {
     setWorkspaceTab(tab);
+    if (tab === 'overview') {
+      setWorkspaceDetailOpen(false);
+      setOverviewView('decision');
+      pushProductHome();
+      return;
+    }
+    const defaultView = workspaceDefaultViewByTab[tab];
+    if (defaultView) {
+      openWorkspaceDetail(tab, defaultView);
+      return;
+    }
+    setWorkspaceDetailOpen(false);
+    pushWorkspaceLocation(tab);
+  };
+
+  const openWorkspaceAreaHub = (tab: WorkspaceTab) => {
+    setWorkspaceTab(tab);
     setWorkspaceDetailOpen(false);
     if (tab === 'overview') {
       setOverviewView('decision');
@@ -157,6 +174,7 @@ export function useOwnerWorkspaceNavigationState() {
       pushProductHome();
     },
     openWorkspaceArea,
+    openWorkspaceAreaHub,
     openWorkspaceDetail,
     openActionView: (view: ActionJourneyView) => openWorkspaceDetail('actions', view),
     openFindingsView: (view: FindingsJourneyView) => openWorkspaceDetail('findings', view),

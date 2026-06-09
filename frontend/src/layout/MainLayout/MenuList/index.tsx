@@ -22,6 +22,7 @@ import { useMenuState } from 'contexts/MenuContext';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { getJson } from '@/features/platform/api';
+import { productWorkspaceRoute } from '@/features/platform/ownerWorkspaceModel';
 import type { ProductProfile, ProductizationCart } from '@/features/platform/types';
 
 // types
@@ -155,7 +156,6 @@ export default memo(MenuList);
 function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string, productName?: string): NavItemType[] {
   const platform = items.find((item) => item.id === 'platform') || items[0];
   if (!platform) return items;
-  const basePath = `/products/${productId}`;
   return [
     {
       ...platform,
@@ -174,7 +174,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
           id: 'product-overview',
           title: 'Product Home',
           type: 'item',
-          url: basePath,
+          url: productWorkspaceRoute(productId),
           icon: IconListDetails,
           breadcrumbs: true,
         },
@@ -190,7 +190,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
           id: 'product-action-plan',
           title: 'Action Plan',
           type: 'item',
-          url: `${basePath}?tab=actions`,
+          url: productWorkspaceRoute(productId, 'actions'),
           icon: IconChecklist,
           breadcrumbs: true,
         },
@@ -198,7 +198,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
           id: 'product-findings',
           title: 'Findings',
           type: 'item',
-          url: `${basePath}?tab=findings`,
+          url: productWorkspaceRoute(productId, 'findings'),
           icon: IconAlertTriangle,
           breadcrumbs: true,
         },
@@ -206,7 +206,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
           id: 'product-services',
           title: 'Services',
           type: 'item',
-          url: `${basePath}?tab=services`,
+          url: productWorkspaceRoute(productId, 'services'),
           icon: IconPackage,
           breadcrumbs: true,
         },
@@ -214,7 +214,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
           id: 'product-share',
           title: 'Share',
           type: 'item',
-          url: `${basePath}?tab=share`,
+          url: productWorkspaceRoute(productId, 'share'),
           icon: IconShare,
           breadcrumbs: true,
         },

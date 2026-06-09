@@ -81,6 +81,7 @@ export function OwnerProductizationWorkspaceLead({
   isProductHome,
   launchStatus,
   onAreaChange,
+  onAreaHub,
   onDetailChange,
   onExportReport,
   onProductHome,
@@ -100,6 +101,7 @@ export function OwnerProductizationWorkspaceLead({
   isProductHome: boolean;
   launchStatus: ProductHeroProps['launchStatus'];
   onAreaChange: (tab: WorkspaceTab) => void;
+  onAreaHub: (tab: WorkspaceTab) => void;
   onDetailChange: (value: string) => void;
   onExportReport: () => void;
   onProductHome: () => void;
@@ -149,6 +151,7 @@ export function OwnerProductizationWorkspaceLead({
         workspaceDetailOpen={!isProductHome && workspaceDetailOpen}
         workspaceTab={workspaceTab}
         onAreaChange={onAreaChange}
+        onAreaHub={onAreaHub}
         onDetailChange={onDetailChange}
       />
     </>

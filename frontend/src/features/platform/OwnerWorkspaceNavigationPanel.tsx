@@ -14,6 +14,7 @@ export default function OwnerWorkspaceNavigationPanel({
   workspaceDetailOpen,
   workspaceTab,
   onAreaChange,
+  onAreaHub,
   onDetailChange,
 }: {
   currentAreaLabel: string;
@@ -23,6 +24,7 @@ export default function OwnerWorkspaceNavigationPanel({
   workspaceDetailOpen: boolean;
   workspaceTab: WorkspaceTab;
   onAreaChange: (tab: WorkspaceTab) => void;
+  onAreaHub: (tab: WorkspaceTab) => void;
   onDetailChange: (value: string) => void;
 }) {
   return (
@@ -38,11 +40,11 @@ export default function OwnerWorkspaceNavigationPanel({
             items={[
               { label: 'Workspace', onClick: () => onAreaChange('overview') },
               { label: productName, onClick: () => onAreaChange('overview') },
-              { label: currentAreaLabel, onClick: () => onAreaChange(workspaceTab) },
+              { label: currentAreaLabel, onClick: () => onAreaHub(workspaceTab) },
               { label: currentDetailLabel },
             ]}
             backLabel={`${currentAreaLabel} hub`}
-            onBack={() => onAreaChange(workspaceTab)}
+            onBack={() => onAreaHub(workspaceTab)}
           />
         ) : (
           <OwnerWorkspaceJourneyNav

@@ -10,6 +10,22 @@ export const workspaceTabs: { value: WorkspaceTab; label: string }[] = [
   { value: 'share', label: 'Share' },
 ];
 
+export const workspaceDefaultViewByTab: Partial<Record<WorkspaceTab, string>> = {
+  actions: 'plan',
+  findings: 'risks',
+  services: 'recommend',
+  share: 'create',
+};
+
+export function productWorkspaceRoute(productId: string, tab: WorkspaceTab = 'overview') {
+  const basePath = `/products/${productId}`;
+  if (tab === 'overview') return basePath;
+  const view = workspaceDefaultViewByTab[tab];
+  const params = new URLSearchParams({ tab });
+  if (view) params.set('view', view);
+  return `${basePath}?${params.toString()}`;
+}
+
 export const scannerEvidenceCategories = [
   { key: 'secrets', label: 'Secrets', tools: ['gitleaks'], action: 'Rotate or confirm detected secret-like strings, then rerun the repository check.' },
   { key: 'dependencies', label: 'Dependencies', tools: ['osv-scanner', 'grype', 'trivy-image'], action: 'Patch dependency and container issues that affect launch confidence.' },
