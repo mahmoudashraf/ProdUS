@@ -5,7 +5,6 @@ import { deleteJson, postJson, putJson } from './api';
 import { formatLabel } from './PlatformComponents';
 import type {
   CatalogRuleItem,
-  ProductProfile,
   ProductizationCart,
   ProductizationCartConvertResponse,
   ProjectWorkspace,
@@ -23,7 +22,6 @@ interface CartConvertPayload {
 
 interface ProjectStartPlanActionsInput {
   currentCart?: ProductizationCart | undefined;
-  productList: ProductProfile[];
   projectName: string;
   setCreatedWorkspace: (workspace: ProjectWorkspace | null) => void;
   setNotice: (notice: string) => void;
@@ -32,7 +30,6 @@ interface ProjectStartPlanActionsInput {
 
 export const useProjectStartPlanActions = ({
   currentCart,
-  productList,
   projectName,
   setCreatedWorkspace,
   setNotice,
@@ -97,16 +94,6 @@ export const useProjectStartPlanActions = ({
     },
   });
 
-  const selectProduct = (productId: string) => {
-    const selected = productList.find((item) => item.id === productId);
-    if (!selected) return;
-    updateCart.mutate({
-      productProfileId: selected.id,
-      title: `${selected.name} Project Start Plan`,
-      businessGoal: selected.summary || `Move ${selected.name} toward production-ready delivery.`,
-    });
-  };
-
   const addCatalogRecommendation = (item: CatalogRuleItem) => {
     addRecommendedService.mutate({
       serviceModuleId: item.recommendedModule.id,
@@ -121,7 +108,6 @@ export const useProjectStartPlanActions = ({
     convertCart,
     removeService,
     removeTalent,
-    selectProduct,
     updateCart,
   };
 };

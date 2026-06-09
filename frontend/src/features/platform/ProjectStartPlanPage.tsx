@@ -39,8 +39,6 @@ export default function ProjectStartPlanPage() {
     cart,
     packageTemplates,
     currentCart,
-    productList,
-    selectableProducts,
   } = useProjectStartPlanData();
   const product = currentCart?.productProfile;
   const hasPlaceholderProduct = isPlaceholderProduct(product);
@@ -70,11 +68,9 @@ export default function ProjectStartPlanPage() {
     convertCart,
     removeService,
     removeTalent,
-    selectProduct,
     updateCart,
   } = useProjectStartPlanActions({
     currentCart,
-    productList,
     projectName,
     setCreatedWorkspace,
     setNotice,
@@ -111,7 +107,6 @@ export default function ProjectStartPlanPage() {
         overview={{
           title: currentCart?.title,
           product,
-          productOptions: selectableProducts.length ? selectableProducts : productList,
           hasPlaceholderProduct,
           score,
           canStartWorkspace,
@@ -119,9 +114,7 @@ export default function ProjectStartPlanPage() {
           serviceCount,
           talentCount,
           notice,
-          isUpdatingProduct: updateCart.isPending,
           onNoticeClose: () => setNotice(''),
-          onSelectProduct: selectProduct,
         }}
         navigation={{
           detailOpen: startPlanDetailOpen,

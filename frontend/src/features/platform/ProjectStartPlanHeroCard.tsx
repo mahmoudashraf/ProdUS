@@ -1,7 +1,8 @@
 'use client';
 
-import { Inventory2Outlined } from '@mui/icons-material';
-import { Alert, Box, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import NextLink from 'next/link';
+import { ArrowForwardOutlined, Inventory2Outlined } from '@mui/icons-material';
+import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import {
   EmptyState,
   PastelChip,
@@ -16,29 +17,23 @@ import type { ProductProfile } from './types';
 interface ProjectStartPlanHeroCardProps {
   title: string | undefined;
   product: ProductProfile | undefined;
-  productOptions: ProductProfile[];
   hasPlaceholderProduct: boolean;
   score: number;
   canStartWorkspace: boolean;
   blockers: number;
   notice: string | undefined;
-  isUpdatingProduct: boolean;
   onNoticeClose: () => void;
-  onSelectProduct: (productId: string) => void;
 }
 
 export default function ProjectStartPlanHeroCard({
   title,
   product,
-  productOptions,
   hasPlaceholderProduct,
   score,
   canStartWorkspace,
   blockers,
   notice,
-  isUpdatingProduct,
   onNoticeClose,
-  onSelectProduct,
 }: ProjectStartPlanHeroCardProps) {
   const statusLabel = canStartWorkspace ? 'Ready to start' : hasPlaceholderProduct ? 'Choose product' : blockers ? 'Blocked' : 'Needs scope';
   const statusAccent = canStartWorkspace ? appleColors.green : hasPlaceholderProduct || blockers ? appleColors.amber : appleColors.purple;
@@ -86,38 +81,11 @@ export default function ProjectStartPlanHeroCard({
           )}
           {hasPlaceholderProduct && (
             <Alert severity="warning" sx={{ borderRadius: 1 }}>
-              This start plan is attached to a temporary test product. Select a production product before starting a workspace.
+              This start plan is attached to a temporary test product. Choose the real product from Home before starting a workspace.
             </Alert>
           )}
-          <TextField
-            select
-            fullWidth
-            label="Product this plan belongs to"
-            value={hasPlaceholderProduct ? '' : product?.id || ''}
-            onChange={(event) => onSelectProduct(event.target.value)}
-            disabled={isUpdatingProduct}
-            InputLabelProps={{ shrink: true }}
-            SelectProps={{ displayEmpty: true }}
-            sx={{
-              '& .MuiSelect-select': {
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                pr: 5,
-              },
-            }}
-          >
-            <MenuItem value="" disabled>
-              Choose product
-            </MenuItem>
-            {productOptions.map((item) => (
-              <MenuItem key={item.id} value={item.id}>
-                {item.name}
-              </MenuItem>
-            ))}
-          </TextField>
           {product && !hasPlaceholderProduct ? (
-            <Surface sx={{ display: { xs: 'none', sm: 'block' }, boxShadow: 'none', background: '#fff' }}>
+            <Surface sx={{ boxShadow: 'none', background: '#fff' }}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="flex-start" sx={{ minWidth: 0 }}>
                 <Box sx={{ width: 46, height: 46, borderRadius: 1, display: 'grid', placeItems: 'center', bgcolor: '#f1efff', color: appleColors.purple }}>
                   <Inventory2Outlined />
@@ -131,12 +99,24 @@ export default function ProjectStartPlanHeroCard({
                     <PastelChip label={formatLabel(product.businessStage)} accent={appleColors.purple} />
                     {product.techStack && <PastelChip label={product.techStack} accent={appleColors.cyan} bg="#e4f9fd" />}
                   </Stack>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    Product is selected globally. Switch products from Home.
+                  </Typography>
                 </Box>
               </Stack>
             </Surface>
           ) : (
-            <EmptyState label="Select or create a production product before this start plan can become a workspace." />
+            <EmptyState label="Choose a production product from Home before this start plan can become a workspace." />
           )}
+          <Button
+            component={NextLink}
+            href="/dashboard?focus=products"
+            variant="outlined"
+            endIcon={<ArrowForwardOutlined />}
+            sx={{ minHeight: 40, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
+          >
+            Switch product on Home
+          </Button>
         </Stack>
       </Box>
     </Surface>
