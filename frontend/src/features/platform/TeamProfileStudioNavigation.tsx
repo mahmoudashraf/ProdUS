@@ -57,7 +57,7 @@ export function TeamProfileStudioFocusNav({
   counts,
   onChange,
 }: {
-  activeView: TeamProfileStudioView;
+  activeView: TeamProfileStudioView | null;
   counts: Record<TeamProfileStudioView, number>;
   onChange: (view: TeamProfileStudioView) => void;
 }) {

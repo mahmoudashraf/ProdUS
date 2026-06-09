@@ -214,7 +214,7 @@ export function AdminControlHubPanel({
         <SectionTitle title="Choose Control Area" action={<PastelChip label="One admin decision at a time" accent={appleColors.purple} />} />
         <OwnerWorkspaceJourneyNav
           label="Admin control sections"
-          value="pipeline"
+          value={null}
           items={items}
           maxColumns={3}
           onChange={onOpenView}

@@ -88,7 +88,7 @@ export function ServiceCatalogLandingPanel({
         </Box>
         <OwnerWorkspaceJourneyNav
           label="Service catalog entry paths"
-          value={'templates'}
+          value={null}
           items={catalogViewItems({ templateCount, categoryCount, aiCapabilityCount })}
           onChange={onOpenView}
         />

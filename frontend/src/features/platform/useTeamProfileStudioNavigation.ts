@@ -16,13 +16,13 @@ export function useTeamProfileStudioNavigation() {
   const setActiveView = (view: TeamProfileStudioView) => {
     const params = new URLSearchParams(searchParams?.toString() || '');
     params.set('view', view);
-    router.replace(`${pathname || '/teams'}?${params.toString()}`, { scroll: false });
+    router.push(`${pathname || '/teams'}?${params.toString()}`, { scroll: false });
   };
   const openHub = () => {
     const params = new URLSearchParams(searchParams?.toString() || '');
     params.delete('view');
     const suffix = params.toString();
-    router.replace(suffix ? `${pathname || '/teams'}?${suffix}` : pathname || '/teams', { scroll: false });
+    router.push(suffix ? `${pathname || '/teams'}?${suffix}` : pathname || '/teams', { scroll: false });
   };
 
   return {

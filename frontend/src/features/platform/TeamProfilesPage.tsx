@@ -197,7 +197,7 @@ export default function TeamProfilesPage() {
         isLoading={allTeams.isLoading || myTeams.isLoading || expertProfile.isLoading || myJoinRequests.isLoading || myInvitations.isLoading}
         error={allTeams.error || myTeams.error || expertProfile.error || myJoinRequests.error || myInvitations.error || members.error || (canManageSelectedTeam ? invitations.error : null) || (canManageSelectedTeam ? joinRequests.error : null) || createTeam.error || updateTeam.error || saveExpert.error || inviteMember.error || respondInvitation.error || requestJoin.error || reviewJoin.error}
       />
-      {!hasActiveView && <TeamProfileStudioFocusNav activeView={activeView} counts={viewCounts} onChange={setActiveView} />}
+      {!hasActiveView && <TeamProfileStudioFocusNav activeView={null} counts={viewCounts} onChange={setActiveView} />}
 
       {hasActiveView && <TeamProfileStudioInternalHeader activeView={activeView} onOpenHub={openHub} />}
 

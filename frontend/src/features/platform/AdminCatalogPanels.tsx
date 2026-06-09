@@ -165,7 +165,7 @@ export function AdminCatalogHubPanel({
         <SectionTitle title="Choose Catalog Area" action={<PastelChip label="One admin task at a time" accent={appleColors.purple} />} />
         <OwnerWorkspaceJourneyNav
           label="Admin catalog sections"
-          value="categories"
+          value={null}
           items={items}
           maxColumns={3}
           onChange={onOpenView}
