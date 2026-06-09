@@ -41,6 +41,71 @@ class AiAssistedProductCreationServiceTest {
     }
 
     @Test
+    void trimsProviderMetadataBeforePersistingAnalysisIntent() throws Exception {
+        AiAssistedProductCreationService service = service();
+        ProductCreationIntent intent = new ProductCreationIntent();
+        intent.setOwnerMessage("Refresh the existing product brief.");
+
+        AiAssistedProductCreationService.ProductCreationFields fields =
+                new AiAssistedProductCreationService.ProductCreationFields(
+                        "Atlas Release Sentinel",
+                        "Release readiness project.",
+                        "A release readiness project for owner-governed production checks.",
+                        "The owner needs reliable launch evidence.",
+                        "Product owners and delivery teams.",
+                        "VALIDATED",
+                        "Next.js, Spring Boot, PostgreSQL",
+                        "https://atlas.example.com",
+                        "https://github.com/example/atlas",
+                        "Needs scanner proof.",
+                        "LoomAI analyzed owner input.",
+                        List.of("Readiness diagnosis"),
+                        List.of("Confident launch decision"),
+                        List.of("Evidence-backed launch gate"),
+                        List.of("Launch Readiness"),
+                        List.of(),
+                        List.of(),
+                        List.of("Security and deployment checks"),
+                        List.of("Create the workspace"),
+                        List.of("Owner brief names launch readiness"),
+                        List.of(),
+                        List.of(),
+                        List.of()
+                );
+        String longProviderRequestId = "provider-" + "x".repeat(260);
+        String longFallbackReason = "fallback-" + "y".repeat(260);
+        LoomAIIntegrationService.AssistantQueryResponse assistant =
+                new LoomAIIntegrationService.AssistantQueryResponse(
+                        "LOOMAI",
+                        "LIVE",
+                        true,
+                        "INFORMATION_PROVIDED",
+                        "{}",
+                        "Live AI analysis completed.",
+                        "conversation",
+                        0.82,
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        longFallbackReason,
+                        longProviderRequestId
+                );
+
+        Method method = AiAssistedProductCreationService.class.getDeclaredMethod(
+                "applyAnalysis",
+                ProductCreationIntent.class,
+                AiAssistedProductCreationService.ProductCreationFields.class,
+                LoomAIIntegrationService.AssistantQueryResponse.class,
+                int.class
+        );
+        method.setAccessible(true);
+        method.invoke(service, intent, fields, assistant, 0);
+
+        assertThat(intent.getAnalysisProviderRequestId()).hasSize(180);
+        assertThat(intent.getAnalysisFallbackReason()).hasSize(180);
+    }
+
+    @Test
     void normalizesLoomAiCapabilityCodesWhenProviderReturnsLabelsOnly() throws Exception {
         AiAssistedProductCreationService service = service();
         LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(

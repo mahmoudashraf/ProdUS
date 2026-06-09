@@ -542,12 +542,12 @@ public class AiAssistedProductCreationService {
         intent.setProductUrl(firstNonBlank(trim(fields.productUrl(), 500), intent.getProductUrl()));
         intent.setRepositoryUrl(firstNonBlank(trim(fields.repositoryUrl(), 500), intent.getRepositoryUrl()));
         intent.setRiskProfile(firstNonBlank(trim(fields.riskProfile(), TEXT_LIMIT), intent.getRiskProfile()));
-        intent.setAnalysisProviderRequestId(assistant.providerRequestId());
+        intent.setAnalysisProviderRequestId(trim(assistant.providerRequestId(), 180));
         intent.setAiSourceAttachmentCount(temporaryAccessCount);
         intent.setAiCreationSummary(enrichedAnalysisSummary(fields, assistant));
         intent.setAssumptions(writeStringList(fields.assumptions()));
         intent.setMissingEvidence(writeStringList(fields.missingEvidence()));
-        intent.setAnalysisFallbackReason(assistant.fallbackReason());
+        intent.setAnalysisFallbackReason(trim(assistant.fallbackReason(), 180));
     }
 
     private String enrichedAnalysisSummary(ProductCreationFields fields, AssistantQueryResponse assistant) {
