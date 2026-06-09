@@ -1,22 +1,18 @@
 'use client';
 
 import { Box, Stack } from '@mui/material';
-import OwnerWorkspaceTimelineDialog from './OwnerWorkspaceTimelineDialog';
-import OwnerFindingReviewDrawerHost from './OwnerFindingReviewDrawerHost';
 import OwnerWorkspaceActionsArea from './OwnerWorkspaceActionsArea';
 import OwnerWorkspaceFindingsArea from './OwnerWorkspaceFindingsArea';
 import OwnerWorkspaceOverviewArea from './OwnerWorkspaceOverviewArea';
 import OwnerWorkspaceServicesArea from './OwnerWorkspaceServicesArea';
 import OwnerWorkspaceShareArea from './OwnerWorkspaceShareArea';
 import OwnerWorkspaceSideRailHost from './OwnerWorkspaceSideRailHost';
+import OwnerProductizationWorkspaceOverlays from './OwnerProductizationWorkspaceOverlays';
 import {
   OwnerProductizationWorkspaceHeader,
   OwnerProductizationWorkspaceLead,
 } from './OwnerProductizationWorkspaceHeader';
 import { buildOwnerWorkspaceAssistantActions } from './ownerWorkspaceAssistantActions';
-import {
-  buildOwnerWorkspaceJourneyItems,
-} from './ownerWorkspaceJourneyConfig';
 import {
   type ProductProfilePayload,
   type RequirementPayload,
@@ -29,7 +25,7 @@ import { useOwnerWorkspaceProductActions } from './useOwnerWorkspaceProductActio
 import { useOwnerWorkspaceInteractionHandlers } from './useOwnerWorkspaceInteractionHandlers';
 import { useOwnerWorkspaceFindingReviewState } from './useOwnerWorkspaceFindingReviewState';
 import { useOwnerProductizationWorkspaceUiState } from './useOwnerProductizationWorkspaceUiState';
-import { getOwnerWorkspaceCurrentJourney } from './ownerWorkspaceCurrentJourney';
+import { buildOwnerProductizationWorkspaceJourneyContext } from './ownerProductizationWorkspaceJourneyContext';
 import { buildOwnerWorkspaceViewModel } from './ownerWorkspaceViewModel';
 
 export default function OwnerProductizationWorkspace({
@@ -331,42 +327,30 @@ export default function OwnerProductizationWorkspace({
     || scannerOperationError;
 
   const {
-    overviewJourneyItems,
-    actionJourneyItems,
-    findingsJourneyItems,
-    servicesJourneyItems,
-    shareJourneyItems,
-  } = buildOwnerWorkspaceJourneyItems({
-    launchStatus,
-    hasLaunchReadinessReport: !!launchReadinessReport.data,
-    latestDiagnosisFindingCount: latestDiagnosis?.findings.length,
-    topOwnerRiskCount: topOwnerRisks.length,
-    storedProofCount: filteredScannerEvidence.length,
-    scannerFindingCount: scannerCounts?.total || 0,
-    scannerOpenFindingCount: scannerOpenFindings.length,
-    serviceFamilyCount: categories.data?.length || 0,
-    hasSelectedPackage: !!selectedPackage,
-    teamMatchCount: teamRecommendations.data?.length || 0,
-  });
-  const {
     currentAreaLabel,
     currentDetailLabel,
     currentJourneyItems,
     currentJourneyValue,
-  } = getOwnerWorkspaceCurrentJourney({
-    actionJourneyItems,
+    isProductHome,
+  } = buildOwnerProductizationWorkspaceJourneyContext({
     actionView,
-    findingsJourneyItems,
     findingsView,
-    overviewJourneyItems,
+    hasLaunchReadinessReport: !!launchReadinessReport.data,
+    hasSelectedPackage: !!selectedPackage,
+    latestDiagnosisFindingCount: latestDiagnosis?.findings.length,
+    launchStatus,
     overviewView,
-    servicesJourneyItems,
+    scannerFindingCount: scannerCounts?.total || 0,
+    scannerOpenFindingCount: scannerOpenFindings.length,
+    serviceFamilyCount: categories.data?.length || 0,
     servicesView,
-    shareJourneyItems,
     shareView,
+    storedProofCount: filteredScannerEvidence.length,
+    teamMatchCount: teamRecommendations.data?.length || 0,
+    topOwnerRiskCount: topOwnerRisks.length,
+    workspaceDetailOpen,
     workspaceTab,
   });
-  const isProductHome = workspaceTab === 'overview' && !workspaceDetailOpen;
 
   return (
     <>
@@ -621,33 +605,35 @@ export default function OwnerProductizationWorkspace({
           onRemoveTalent={(itemId) => removeTalentFromCart.mutate(itemId)}
         />
       </Box>
-      <OwnerFindingReviewDrawerHost
-        open={findingDrawerOpen}
-        product={selectedProduct}
-        finding={selectedFinding}
-        ownerCategory={selectedFindingOwnerCategory}
-        evidence={selectedFindingEvidence}
-        decisionReason={selectedFindingReason}
-        reviewDueOn={selectedFindingReviewDue}
-        canResolve={selectedFindingCanResolve}
-        canAcceptRisk={selectedFindingCanAcceptRisk}
-        recommendedInCart={selectedFindingRecommendedInCart}
-        isAddingService={addServiceToCart.isPending}
-        isUpdatingStatus={updateFindingStatus.isPending}
-        isOpeningEvidence={openSignedEvidence.isPending}
-        onClose={closeFindingReview}
-        onDecisionReasonChange={setSelectedFindingReason}
-        onReviewDueChange={setSelectedFindingReviewDue}
-        onRecordDecision={(status) => selectedFinding && recordFindingDecision(selectedFinding, status)}
-        onAddService={addLifecycleService}
-        onOpenEvidence={openEvidenceArtifact}
-        assistantActions={assistantActionProps}
-        assistantContext={assistantContext}
-      />
-      <OwnerWorkspaceTimelineDialog
-        open={timelineOpen}
-        items={workspaceTimeline}
-        onClose={() => setTimelineOpen(false)}
+      <OwnerProductizationWorkspaceOverlays
+        findingReview={{
+          open: findingDrawerOpen,
+          product: selectedProduct,
+          finding: selectedFinding,
+          ownerCategory: selectedFindingOwnerCategory,
+          evidence: selectedFindingEvidence,
+          decisionReason: selectedFindingReason,
+          reviewDueOn: selectedFindingReviewDue,
+          canResolve: selectedFindingCanResolve,
+          canAcceptRisk: selectedFindingCanAcceptRisk,
+          recommendedInCart: selectedFindingRecommendedInCart,
+          isAddingService: addServiceToCart.isPending,
+          isUpdatingStatus: updateFindingStatus.isPending,
+          isOpeningEvidence: openSignedEvidence.isPending,
+          onClose: closeFindingReview,
+          onDecisionReasonChange: setSelectedFindingReason,
+          onReviewDueChange: setSelectedFindingReviewDue,
+          onRecordDecision: (status) => selectedFinding && recordFindingDecision(selectedFinding, status),
+          onAddService: addLifecycleService,
+          onOpenEvidence: openEvidenceArtifact,
+          assistantActions: assistantActionProps,
+          assistantContext,
+        }}
+        timeline={{
+          open: timelineOpen,
+          items: workspaceTimeline,
+          onClose: () => setTimelineOpen(false),
+        }}
       />
     </>
   );

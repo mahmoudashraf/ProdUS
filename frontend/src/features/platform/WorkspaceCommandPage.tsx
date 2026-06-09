@@ -1,7 +1,6 @@
 'use client';
 
 import { Alert } from '@mui/material';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import WorkspaceCommandBoard from './WorkspaceCommandBoard';
@@ -11,6 +10,7 @@ import WorkspaceCommandMetricsPanel from './WorkspaceCommandMetricsPanel';
 import type { WorkspaceCommandTeamView } from './WorkspaceCommandTeamPanels';
 import { useWorkspaceCommandActions } from './useWorkspaceCommandActions';
 import { useWorkspaceCommandData } from './useWorkspaceCommandData';
+import { useWorkspaceCommandRouteState } from './useWorkspaceCommandRouteState';
 import { useWorkspaceCommandSummary } from './useWorkspaceCommandSummary';
 import { useWorkspaceCommandUiState } from './useWorkspaceCommandUiState';
 import {
@@ -22,27 +22,14 @@ import {
   workspaceAccent,
 } from './workspaceCommandTeamTypes';
 
-const isWorkspaceCommandView = (value: string | null): value is WorkspaceCommandView =>
-  value === 'overview' || value === 'proof' || value === 'team' || value === 'handoff';
-
-const isWorkspaceCommandTeamView = (value: string | null): value is WorkspaceCommandTeamView =>
-  value === 'participants' || value === 'support' || value === 'risks';
-
-const isWorkspaceCommandHandoffView = (value: string | null): value is WorkspaceCommandHandoffView =>
-  value === 'review' || value === 'signals' || value === 'assistant';
-
 export default function WorkspaceCommandPage() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const searchParamString = searchParams?.toString() || '';
-  const workspaceParam = searchParams?.get('workspace') || null;
-  const viewParam = searchParams?.get('view') || null;
-  const teamViewParam = searchParams?.get('teamView') || null;
-  const handoffViewParam = searchParams?.get('handoffView') || null;
-  const workspaceView = isWorkspaceCommandView(viewParam) ? viewParam : 'overview';
-  const workspaceTeamView = workspaceView === 'team' && isWorkspaceCommandTeamView(teamViewParam) ? teamViewParam : null;
-  const workspaceHandoffView = workspaceView === 'handoff' && isWorkspaceCommandHandoffView(handoffViewParam) ? handoffViewParam : null;
+  const {
+    pushWorkspaceRoute,
+    workspaceHandoffView,
+    workspaceParam,
+    workspaceTeamView,
+    workspaceView,
+  } = useWorkspaceCommandRouteState();
   const { hasRole } = useAuth();
   const canCoordinate = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
   const canAttachEvidence = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER, UserRole.SPECIALIST]);
@@ -111,21 +98,7 @@ export default function WorkspaceCommandPage() {
       teamView?: WorkspaceCommandTeamView;
       handoffView?: WorkspaceCommandHandoffView;
     },
-  ) => {
-    const next = new URLSearchParams(searchParamString);
-    if (workspaceId) next.set('workspace', workspaceId);
-    next.delete('teamView');
-    next.delete('handoffView');
-    if (view === 'overview') {
-      next.delete('view');
-    } else {
-      next.set('view', view);
-    }
-    if (view === 'team' && options?.teamView) next.set('teamView', options.teamView);
-    if (view === 'handoff' && options?.handoffView) next.set('handoffView', options.handoffView);
-    const suffix = next.toString();
-    router.push(suffix ? `${pathname || '/workspaces'}?${suffix}` : pathname || '/workspaces', { scroll: false });
-  };
+  ) => pushWorkspaceRoute(view, workspaceId, options);
 
   const openWorkspaceTeamHub = () => openWorkspaceRoute('team');
   const openWorkspaceTeamView = (view: WorkspaceCommandTeamView) => openWorkspaceRoute('team', selectedWorkspace?.id, { teamView: view });
