@@ -33,6 +33,7 @@ export function TeamMatchDecisionPanel({
   onOpenShortlist: () => void;
 }) {
   const topScore = topRecommendation ? Math.round(topRecommendation.score * 100) : 0;
+  const adjustPlanHref = selectedPackageId ? `/packages?planId=${encodeURIComponent(selectedPackageId)}&view=team` : '/packages';
 
   return (
     <Surface sx={{ p: { xs: 2, md: 3 } }}>
@@ -76,7 +77,7 @@ export function TeamMatchDecisionPanel({
               </MenuItem>
             ))}
           </TextField>
-          <Button component={NextLink} href="/packages?view=team" variant="outlined" sx={{ minHeight: 40 }}>
+          <Button component={NextLink} href={adjustPlanHref} variant="outlined" sx={{ minHeight: 40 }}>
             Adjust plan
           </Button>
           <Button variant="contained" startIcon={<BookmarkBorderOutlined />} onClick={onOpenShortlist} sx={{ minHeight: 40 }}>

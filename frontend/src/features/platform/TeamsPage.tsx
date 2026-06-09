@@ -135,6 +135,7 @@ function MatchedTeamsPage() {
     ? Math.round((matchedTeams.reduce((total, item) => total + item.score, 0) / matchedTeams.length) * 100)
     : 0;
   const activeShortlists = (shortlists.data || []).filter((shortlist) => shortlist.status !== 'ARCHIVED');
+  const servicePlanTeamHref = selectedPackageId ? `/packages?planId=${encodeURIComponent(selectedPackageId)}&view=team` : '/packages';
   const recordShortlist = (teamId: string, status: TeamShortlist['status']) => {
     if (!selectedPackageId) return;
     upsertShortlist.mutate({
@@ -200,7 +201,7 @@ function MatchedTeamsPage() {
             <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" sx={{ minHeight: 42 }}>
               Open Project Start Plan
             </Button>
-            <Button component={NextLink} href="/packages?view=team" variant="contained" sx={{ minHeight: 42 }}>
+            <Button component={NextLink} href={servicePlanTeamHref} variant="contained" sx={{ minHeight: 42 }}>
               Review service plan
             </Button>
           </Stack>
