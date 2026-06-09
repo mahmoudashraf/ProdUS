@@ -20,8 +20,6 @@ const isWorkspaceTabValue = (value: string | null): value is WorkspaceTab =>
 const isWorkspaceViewValue = (tab: WorkspaceTab, value: string | null) =>
   !!value && workspaceViewValues[tab].includes(value);
 
-const defaultWorkspaceView = (tab: WorkspaceTab) => workspaceViewValues[tab][0] || '';
-
 export function useOwnerWorkspaceNavigationState() {
   const router = useRouter();
   const pathname = usePathname();
@@ -52,13 +50,6 @@ export function useOwnerWorkspaceNavigationState() {
       if (nextTab === 'findings') setFindingsView(viewParam as FindingsJourneyView);
       if (nextTab === 'services') setServicesView(viewParam as ServicesJourneyView);
       if (nextTab === 'share') setShareView(viewParam as ShareJourneyView);
-    } else if (tabParam && nextTab !== 'overview') {
-      const defaultView = defaultWorkspaceView(nextTab);
-      setWorkspaceDetailOpen(true);
-      if (nextTab === 'actions') setActionView(defaultView as ActionJourneyView);
-      if (nextTab === 'findings') setFindingsView(defaultView as FindingsJourneyView);
-      if (nextTab === 'services') setServicesView(defaultView as ServicesJourneyView);
-      if (nextTab === 'share') setShareView(defaultView as ShareJourneyView);
     } else {
       setWorkspaceDetailOpen(false);
     }
@@ -102,7 +93,7 @@ export function useOwnerWorkspaceNavigationState() {
 
   const openWorkspaceArea = (tab: WorkspaceTab) => {
     setWorkspaceTab(tab);
-    setWorkspaceDetailOpen(tab !== 'overview');
+    setWorkspaceDetailOpen(false);
     if (tab === 'overview') {
       setOverviewView('decision');
       pushProductHome();

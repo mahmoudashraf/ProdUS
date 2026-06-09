@@ -141,7 +141,6 @@ export function OwnerProductizationWorkspaceLead({
         currentAreaLabel={currentAreaLabel}
         currentDetailLabel={currentDetailLabel}
         currentJourneyItems={currentJourneyItems}
-        currentJourneyValue={currentJourneyValue}
         productName={product?.name}
         workspaceDetailOpen={isProductHome ? workspaceDetailOpen : false}
         workspaceTab={workspaceTab}

@@ -10,7 +10,6 @@ export default function OwnerWorkspaceNavigationPanel({
   currentAreaLabel,
   currentDetailLabel,
   currentJourneyItems,
-  currentJourneyValue,
   productName,
   workspaceDetailOpen,
   workspaceTab,
@@ -20,7 +19,6 @@ export default function OwnerWorkspaceNavigationPanel({
   currentAreaLabel: string;
   currentDetailLabel: string;
   currentJourneyItems: JourneyStepItem<string>[];
-  currentJourneyValue: string;
   productName?: string | undefined;
   workspaceDetailOpen: boolean;
   workspaceTab: WorkspaceTab;
@@ -49,7 +47,7 @@ export default function OwnerWorkspaceNavigationPanel({
         ) : (
           <OwnerWorkspaceJourneyNav
             label={`${currentAreaLabel} hub`}
-            value={currentJourneyValue}
+            value={null}
             items={currentJourneyItems}
             onChange={onDetailChange}
           />
