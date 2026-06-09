@@ -1176,6 +1176,70 @@ Status:
   - `tmp/live-verification/2026-06-09/405-product-home-context-menu-live-a2604ea.png`
   - `tmp/live-verification/2026-06-09/411-product-home-context-menu-live-a2604ea.png`
 
+### Completed: Focused Product Action Routing
+
+Problem:
+
+- Selected-product sidebar and mobile product-navigation actions still opened area hubs first, so owner clicks could feel like another switchboard before reaching the useful internal view.
+- The user expectation is that `Action Plan`, `Findings`, `Services`, and `Share` move into a focused internal product page, with an explicit way back to the product home or area hub.
+
+Solution:
+
+- Centralize default selected-product routes:
+  - `Action Plan` -> `?tab=actions&view=plan`
+  - `Findings` -> `?tab=findings&view=risks`
+  - `Services` -> `?tab=services&view=recommend`
+  - `Share` -> `?tab=share&view=create`
+- Keep area hubs available only as a breadcrumb/back target.
+- Preserve Product Home as the product-switch return surface.
+
+Status:
+
+- Implemented, committed, deployed, and live-verified at UI commit `bf8490b`, Coolify frontend deployment `txzjfiiy25sxihkce00lwr21`.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+- Focused local and live verification passed with:
+  - `tmp/live-verification/2026-06-09/navigation-density-context-review.js`
+  - `tmp/live-verification/2026-06-09/product-internal-pages-review.js`
+- Live screenshots:
+  - `tmp/live-verification/2026-06-09/416-product-action-plan-live-bf8490b.png`
+  - `tmp/live-verification/2026-06-09/420-product-services-recommend-live-bf8490b.png`
+  - `tmp/live-verification/2026-06-09/422-product-share-create-live-bf8490b.png`
+  - `tmp/live-verification/2026-06-09/424-product-action-plan-live-bf8490b.png`
+
+### Completed: Service Recommendation Catalog Depth Cap
+
+Problem:
+
+- The focused `Recommended service` page still rendered all catalog families as an optional appendix, recreating the long-page feeling inside a focused internal view.
+- Mobile service-family rows could overflow horizontally when a long family description, family count chip, and expand affordance competed in one row.
+
+Solution:
+
+- Show the top four service families first and move the remaining families behind an explicit `Show more service families` action.
+- Sort service families so selected or evidence-linked families appear before less relevant optional catalog depth.
+- Rework the family accordion summary into a responsive grid so mobile rows stay inside the viewport.
+
+Status:
+
+- Implemented, committed, deployed, and live-verified at UI commit `bea3aa5`, Coolify frontend deployment `bzergef4zga10wrdiajvbxe3`.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+- Focused local and live verification passed with `tmp/live-verification/2026-06-09/product-internal-pages-review.js`.
+- Live screenshots:
+  - `tmp/live-verification/2026-06-09/420-product-services-recommend-live-bea3aa5.png`
+  - `tmp/live-verification/2026-06-09/428-product-services-recommend-live-bea3aa5.png`
+- Live scanner sanity for product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237` confirmed after deploy:
+  - Tool coverage: `10/10`
+  - Completed tool coverage: `10/10`
+  - `zap-baseline`: `COMPLETED`
+  - Mapped ZAP findings: `10`
+  - Open normalized findings remain available: `73`
+
 ## Implementation Loop
 
 For each slice:
