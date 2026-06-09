@@ -80,7 +80,7 @@ export function ServiceCatalogLandingPanel({
             bg={productName ? '#e7f8ee' : '#f1efff'}
           />
           <Typography variant="h2" sx={{ mt: 1.25, mb: 0.75 }}>
-            Choose the path before the details
+            Choose the service path before the details
           </Typography>
           <Typography color="text.secondary" sx={{ maxWidth: 760, lineHeight: 1.7 }}>
             Start from a template, one focused workstream, or an AI integration option behind recommendations. Each choice opens a focused catalog view with a clear way back, so the owner sees the important path first and goes deeper only when ready.
@@ -146,7 +146,7 @@ export function ServiceCatalogInternalHeader({
           </Box>
         </Stack>
         <Button variant="outlined" startIcon={<KeyboardBackspaceOutlined />} onClick={onBack} sx={{ minHeight: 40, alignSelf: { xs: 'flex-start', md: 'center' } }}>
-          Catalog choices
+          Service paths
         </Button>
       </Stack>
     </Surface>
@@ -184,7 +184,7 @@ export function ServiceCatalogProductContextPanel({
   );
 }
 
-export function AiCatalogContractsPanel({
+export function AiServiceOptionsPanel({
   aiCapabilities,
 }: {
   aiCapabilities: AICapabilityConfig[];

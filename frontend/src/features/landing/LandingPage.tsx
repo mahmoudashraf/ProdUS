@@ -166,10 +166,10 @@ export default function LandingPage() {
         <Box sx={{ mt: 4, p: { xs: 2, md: 3 }, borderRadius: 2, bgcolor: '#fff', border: '1px solid #dbe4f0' }}>
           <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2} alignItems={{ md: 'center' }}>
             <Box>
-              <Typography variant="h2">Service Catalog</Typography>
+              <Typography variant="h2">Service Paths</Typography>
               <Typography color="text.secondary" sx={{ mt: 0.75 }}>Production-ready workstreams with clear descriptions, inputs, deliverables, and acceptance criteria.</Typography>
             </Box>
-            <Button component={NextLink} href="/services" variant="outlined">View catalog</Button>
+            <Button component={NextLink} href="/services" variant="outlined">Choose services</Button>
           </Stack>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 1.5, mt: 2.5 }}>
             {catalog.map((item, index) => (

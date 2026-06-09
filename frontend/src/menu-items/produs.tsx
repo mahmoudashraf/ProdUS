@@ -67,7 +67,7 @@ const produs: NavItemType = {
     },
     {
       id: 'catalog',
-      title: 'Service Catalog',
+      title: 'Choose Services',
       type: 'item',
       url: '/catalog',
       icon: icons.IconVocabulary,

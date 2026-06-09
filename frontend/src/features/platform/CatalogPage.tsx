@@ -9,7 +9,7 @@ import { UserRole } from '@/types/auth';
 import { getJson, postJson, putJson } from './api';
 import { PageHeader, QueryState } from './PlatformComponents';
 import {
-  AiCatalogContractsPanel,
+  AiServiceOptionsPanel,
   ServiceCatalogInternalHeader,
   ServiceCatalogLandingPanel,
   ServiceCatalogProductContextPanel,
@@ -154,8 +154,8 @@ export default function CatalogPage() {
   return (
     <Stack spacing={2.5}>
       <PageHeader
-        title="Service Catalog"
-        description="Choose a productization path first, then go deeper into the focused catalog view that belongs to that decision."
+        title="Choose Services"
+        description="Start from a launch template, a focused workstream, or an AI integration option. Each choice opens a focused internal view for the selected product path."
         action={
           <Button
             component={NextLink}
@@ -234,7 +234,7 @@ export default function CatalogPage() {
       )}
 
       {hasCatalogView && catalogView === 'ai' && (
-        <AiCatalogContractsPanel aiCapabilities={aiCapabilities.data || []} />
+        <AiServiceOptionsPanel aiCapabilities={aiCapabilities.data || []} />
       )}
     </Stack>
   );
