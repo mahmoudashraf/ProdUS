@@ -16,7 +16,7 @@ export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
   actions: ['plan', 'diagnosis'],
   findings: ['risks', 'evidence', 'technical'],
   services: ['recommend', 'plan', 'team'],
-  ai: ['opportunities', 'refresh', 'loomai'],
+  ai: ['opportunities', 'refresh'],
   share: ['create', 'links', 'preview'],
 };
 
@@ -166,13 +166,6 @@ export const buildOwnerWorkspaceJourneyItems = ({
       detail: 'Add context, rerun AI, review the proposal, and accept only what should update the product.',
       accent: appleColors.blue,
       meta: <PastelChip label="Owner approves" accent={appleColors.blue} bg="#e8f2ff" />,
-    },
-    {
-      value: 'loomai',
-      label: 'LoomAI integration',
-      detail: 'Review the integration starting point, capabilities, implementation steps, and owner decisions.',
-      accent: appleColors.cyan,
-      meta: <PastelChip label="Integration" accent={appleColors.cyan} bg="#e4f9fd" />,
     },
   ],
   shareJourneyItems: [

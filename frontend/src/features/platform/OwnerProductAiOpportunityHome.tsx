@@ -84,7 +84,7 @@ export default function OwnerProductAiOpportunityHome({
     : latestLoomAiOverview
       ? newNextSteps
       : acceptedNextSteps;
-  const loomAiStateLabel = latestLoomAiOverview ? 'New LoomAI read' : hasContext ? 'Saved with opportunities' : 'Needs analysis';
+  const loomAiStateLabel = latestLoomAiOverview ? 'New AI result' : hasContext ? 'Saved with opportunities' : 'Needs analysis';
 
   return (
     <Stack spacing={2}>
@@ -133,7 +133,7 @@ export default function OwnerProductAiOpportunityHome({
               onClick={onViewLoomAi}
               sx={{ minHeight: 44, whiteSpace: 'normal' }}
             >
-              LoomAI integration
+              View LoomAI fit
             </Button>
           </Stack>
         </Stack>
@@ -250,7 +250,7 @@ export default function OwnerProductAiOpportunityHome({
               <Typography color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
                 {activeLoomAiOverview?.recommendedStartingPoint ||
                   activeLoomAiOverview?.summary ||
-                  'Recommended fit, decisions, and delivery path will appear with the AI opportunities result.'}
+                  'Recommended fit, decisions, and delivery path will appear inside the AI opportunities result.'}
               </Typography>
             </Box>
             <CompactList
@@ -340,7 +340,7 @@ export default function OwnerProductAiOpportunityHome({
                 ? latestLive
                   ? 'Open the refresh view to review and accept only the items that should update this product.'
                   : 'Open the refresh view to see the failed AI result and rerun with clearer context.'
-                : 'Use the refresh view when the repo, pitch, customer insight, or LoomAI integration idea changes.'
+                : 'Use the refresh view when the repo, pitch, customer insight, or AI opportunity direction changes.'
             }
           />
           {latestAnalysis && (

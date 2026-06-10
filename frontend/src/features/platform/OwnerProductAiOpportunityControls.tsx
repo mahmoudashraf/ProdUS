@@ -67,7 +67,7 @@ export default function OwnerProductAiOpportunityControls({
           onChange={(event) => onOwnerNoteChange(event.target.value)}
           minRows={3}
           multiline
-          placeholder="Example: focus on customer-support automation, explain the LoomAI integration path, and use the latest pitch deck."
+          placeholder="Example: focus on customer-support automation, explain the LoomAI fit, and use the latest pitch deck."
           fullWidth
         />
 

@@ -67,7 +67,7 @@ export default function OwnerProductLoomAiIntegrationHome({
           <Stack spacing={1.5} sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               <PsychologyOutlined sx={{ color: appleColors.cyan }} />
-              <Typography variant="h3">LoomAI integration home</Typography>
+              <Typography variant="h3">LoomAI fit inside AI opportunities</Typography>
               <PastelChip
                 label={latestOverview ? 'New AI result' : hasContext ? 'Product-specific' : 'Needs analysis'}
                 accent={latestOverview || hasContext ? appleColors.green : appleColors.amber}
@@ -78,12 +78,12 @@ export default function OwnerProductLoomAiIntegrationHome({
               {overview?.summary
                 || context?.aiCreationSummary
                 || product.aiCreationSummary
-                || 'See how LoomAI should fit this product, which capabilities are worth building, and what the owner must decide before implementation.'}
+                || 'See how LoomAI should support the selected AI opportunities, which capabilities are worth building, and what the owner must decide before implementation.'}
             </Typography>
           </Stack>
           <Stack direction={{ xs: 'column', sm: 'row', lg: 'column' }} spacing={1} sx={{ minWidth: { lg: 220 } }}>
             <Button variant="outlined" startIcon={<ArrowBackOutlined />} onClick={onOpportunityHome} sx={{ minHeight: 44, whiteSpace: 'normal' }}>
-              Opportunity home
+              Back to AI opportunities
             </Button>
             <Button variant="contained" startIcon={<AutoAwesomeOutlined />} onClick={onRefresh} sx={{ minHeight: 44, whiteSpace: 'normal' }}>
               Refresh analysis
@@ -119,7 +119,7 @@ export default function OwnerProductLoomAiIntegrationHome({
 
       <Surface>
         <Stack spacing={1.5}>
-          <Typography variant="h4">AI opportunities using LoomAI</Typography>
+          <Typography variant="h4">AI opportunities supported by LoomAI</Typography>
           {useCases.length ? (
             <Box sx={{ display: 'grid', gap: 1 }}>
               {useCases.slice(0, 5).map((useCase, index) => (
