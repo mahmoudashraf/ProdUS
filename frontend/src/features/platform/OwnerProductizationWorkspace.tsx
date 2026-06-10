@@ -8,6 +8,7 @@ import OwnerWorkspaceOverviewArea from './OwnerWorkspaceOverviewArea';
 import OwnerWorkspaceServicesArea from './OwnerWorkspaceServicesArea';
 import OwnerWorkspaceShareArea from './OwnerWorkspaceShareArea';
 import OwnerWorkspaceSideRailHost from './OwnerWorkspaceSideRailHost';
+import OwnerWorkspaceAiChatDock from './OwnerWorkspaceAiChatDock';
 import OwnerProductizationWorkspaceOverlays from './OwnerProductizationWorkspaceOverlays';
 import {
   OwnerProductizationWorkspaceHeader,
@@ -660,6 +661,15 @@ export default function OwnerProductizationWorkspace({
           items: workspaceTimeline,
           onClose: () => setTimelineOpen(false),
         }}
+      />
+      <OwnerWorkspaceAiChatDock
+        completedChecks={latestCompletedTools}
+        currentAreaLabel={currentAreaLabel}
+        currentDetailLabel={currentDetailLabel}
+        launchStatus={launchStatus}
+        product={selectedProduct}
+        totalChecks={scanToolOptions.length}
+        workspaceTab={workspaceTab}
       />
     </>
   );

@@ -60,6 +60,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItems;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -300,6 +301,23 @@ class LoomAIStagingIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.suggestions[0]").value("Prioritize critical scanner findings"));
 
+        mockMvc.perform(post("/api/ai/assistant/suggestions")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "content": "empty suggestions please",
+                                  "conversationId": "loom-session-123",
+                                  "maxSuggestions": 4,
+                                  "context": {"pageType":"scanner-evidence","productId":"%s"}
+                                }
+                                """.formatted(product.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.provider").value("LOOMAI"))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.suggestions", empty()))
+                .andExpect(jsonPath("$.fallbackReason").value("LOOMAI_EMPTY_SUGGESTIONS"));
+
         mockMvc.perform(post("/api/ai/loomai/knowledge-sync").with(auth(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SYNCED"))
@@ -462,6 +480,16 @@ class LoomAIStagingIntegrationTest {
             if (!requestBody.contains("\"content\"") || !requestBody.contains("\"maxSuggestions\"")
                     || requestBody.contains("\"conversationId\"") || requestBody.contains("\"context\"")) {
                 respond(exchange, 400, "{\"error\":\"content and maxSuggestions are required; conversationId and context are not accepted\"}");
+                return;
+            }
+            if (requestBody.contains("empty suggestions")) {
+                respond(exchange, 200, """
+                        {
+                          "success": true,
+                          "suggestions": [],
+                          "metadata": {"requestId": "loom-empty-suggestions-request"}
+                        }
+                        """);
                 return;
             }
             respond(exchange, 200, """

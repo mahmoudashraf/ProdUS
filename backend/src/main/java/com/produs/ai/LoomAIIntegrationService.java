@@ -403,13 +403,27 @@ public class LoomAIIntegrationService {
             );
             JsonNode body = response.body();
             List<String> parsedSuggestions = suggestionList(body);
-            List<String> suggestions = parsedSuggestions.isEmpty() ? defaultSuggestionText(context) : parsedSuggestions;
+            String fallbackReason = firstText(
+                    body.path("fallbackReason"),
+                    body.path("errorCode"),
+                    body.path("result").path("fallbackReason")
+            );
+            if (parsedSuggestions.isEmpty()) {
+                return new AssistantSuggestionsResponse(
+                        "LOOMAI",
+                        "LIVE",
+                        false,
+                        List.of(),
+                        blank(fallbackReason) ? "LOOMAI_EMPTY_SUGGESTIONS" : fallbackReason,
+                        response.providerRequestId()
+                );
+            }
             return new AssistantSuggestionsResponse(
                     "LOOMAI",
                     "LIVE",
                     boolOr(body, "success", true),
-                    suggestions,
-                    firstText(body.path("fallbackReason"), body.path("errorCode"), body.path("result").path("fallbackReason")),
+                    parsedSuggestions,
+                    fallbackReason,
                     response.providerRequestId()
             );
         } catch (RuntimeException exception) {
