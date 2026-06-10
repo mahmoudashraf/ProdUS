@@ -36,6 +36,46 @@ interface OwnerProductizationWorkspaceDataInput {
   selectedFindingId: string;
 }
 
+const ownerBriefSuggestionContent = ({
+  productName,
+  productSummary,
+  productStage,
+  diagnosisStatus,
+  readinessScore,
+  blockerCount,
+  evidenceCount,
+  scannerRunStatus,
+  selectedPackageName,
+  workspaceStatus,
+}: {
+  productName?: string | undefined;
+  productSummary?: string | undefined;
+  productStage?: string | undefined;
+  diagnosisStatus?: string | undefined;
+  readinessScore?: number | undefined;
+  blockerCount?: number | undefined;
+  evidenceCount?: number | undefined;
+  scannerRunStatus?: string | undefined;
+  selectedPackageName?: string | undefined;
+  workspaceStatus?: string | undefined;
+}) => `
+Return exactly four short, owner-facing AI prompt suggestions for this ProdUS product workspace.
+The suggestions must be useful to a nontechnical startup, MVP, prototype, or product owner deciding what to do next.
+Do not suggest internal tool actions such as exporting catalogs, searching a knowledge base, listing raw records, or inspecting database objects.
+Use plain questions or commands the owner can click, each under 80 characters.
+Focus on launch blockers, service-plan choices, scanner proof, customer/demo readiness, and the next safe owner decision.
+Product: ${productName || 'selected product'}.
+Summary: ${productSummary || 'not recorded'}.
+Stage: ${productStage || 'not recorded'}.
+Latest verdict/status: ${diagnosisStatus || 'not recorded'}.
+Readiness score: ${typeof readinessScore === 'number' ? `${readinessScore}/100` : 'not recorded'}.
+Launch blockers: ${typeof blockerCount === 'number' ? blockerCount : 'not recorded'}.
+Evidence checks: ${typeof evidenceCount === 'number' ? evidenceCount : 'not recorded'}.
+Latest scanner run: ${scannerRunStatus || 'not recorded'}.
+Current service plan: ${selectedPackageName || 'none selected'}.
+Workspace status: ${workspaceStatus || 'none'}.
+`.trim();
+
 export function useOwnerProductizationWorkspaceData({
   selectedProductId,
   selectedPackageId,
@@ -128,13 +168,26 @@ export function useOwnerProductizationWorkspaceData({
     () => (workspaces.data || []).find((workspace) => workspace.packageInstance?.id === selectedPackage?.id),
     [selectedPackage?.id, workspaces.data]
   );
+  const latestDiagnosis = diagnoses.data?.[0];
+  const latestScannerRun = scannerSummary.data?.recentRuns?.[0];
 
   const assistantSuggestions = useQuery({
-    queryKey: ['assistant-suggestions', selectedProduct?.id, selectedPackage?.id, selectedWorkspace?.id, selectedFindingId],
+    queryKey: ['assistant-suggestions', selectedProduct?.id, selectedPackage?.id, selectedWorkspace?.id, selectedFindingId, latestDiagnosis?.id, latestScannerRun?.id],
     enabled: false,
     queryFn: () =>
       postJson<AssistantSuggestionsResponse, { content: string; conversationId: string; maxSuggestions: number; context: Record<string, string | undefined> }>('/ai/assistant/suggestions', {
-        content: `Suggest the next useful product actions for ${selectedProduct?.name || 'this product'}.`,
+        content: ownerBriefSuggestionContent({
+          productName: selectedProduct?.name,
+          productSummary: selectedProduct?.summary,
+          productStage: selectedProduct?.businessStage,
+          diagnosisStatus: latestDiagnosis?.status,
+          readinessScore: latestDiagnosis?.readinessScore,
+          blockerCount: latestDiagnosis?.topBlockerCount,
+          evidenceCount: latestDiagnosis?.evidenceCount,
+          scannerRunStatus: latestScannerRun?.status,
+          selectedPackageName: selectedPackage?.name,
+          workspaceStatus: selectedWorkspace?.status,
+        }),
         conversationId: `owner-productization-${selectedProduct?.id || 'product'}`,
         maxSuggestions: 4,
         context: {
