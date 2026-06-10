@@ -2143,9 +2143,9 @@ public class AiAssistedProductCreationService {
             AiOpportunityReport parsedReport = report;
             AssistantQueryResponse parsedOverviewAssistant = overviewAssistant;
             overview = parseLoomAIIntegrationOverview(parsedOverviewAssistant)
-                    .orElseGet(() -> deterministicLoomAIOverview(parsedReport, parsedOverviewAssistant));
+                    .orElseGet(() -> derivedLoomAIOverview(parsedReport, parsedOverviewAssistant));
         } catch (RuntimeException exception) {
-            overview = deterministicLoomAIOverview(report, overviewAssistant);
+            overview = derivedLoomAIOverview(report, overviewAssistant);
         }
         return new AiOpportunityBundle(report, overview);
     }
@@ -2490,6 +2490,73 @@ public class AiAssistedProductCreationService {
                 response == null ? "PRODUS_AI_RESULT" : firstNonBlank(response.provider(), "LOOMAI"),
                 response == null ? "" : firstNonBlank(response.providerRequestId()),
                 false
+        );
+    }
+
+    private LoomAIIntegrationOverview derivedLoomAIOverview(
+            AiOpportunityReport report,
+            AssistantQueryResponse response
+    ) {
+        if (report == null || !report.live()) {
+            return deterministicLoomAIOverview(report, response);
+        }
+        List<AiOpportunityUseCase> useCases = listOrEmpty(report.useCases());
+        List<String> titles = useCases.stream()
+                .map(AiOpportunityUseCase::title)
+                .filter(value -> value != null && !value.isBlank())
+                .limit(5)
+                .toList();
+        List<String> capabilities = useCases.stream()
+                .map(useCase -> firstNonBlank(
+                        useCase.loomaiCapability(),
+                        useCase.loomaiCapabilityCode(),
+                        hasText(useCase.title()) ? "AI support for " + useCase.title() : ""
+                ))
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .limit(5)
+                .toList();
+        String firstTitle = titles.isEmpty() ? "the highest-value AI opportunity" : titles.get(0);
+        List<String> implementationSteps = mergeList(
+                report.suggestedNextSteps(),
+                List.of(
+                        "Choose the first opportunity to prototype: " + firstTitle + ".",
+                        "Confirm which product data and owner-approved files LoomAI may use.",
+                        "Build the first backend-mediated LoomAI surface before adding write actions."
+                )
+        );
+        List<String> ownerDecisions = List.of(
+                "Pick the first AI opportunity to test with users.",
+                "Approve the data sources LoomAI can use for this product.",
+                "Decide whether the first version is advisory only or can prepare owner-confirmed actions."
+        );
+        List<String> risks = mergeList(
+                report.missingEvidence(),
+                response == null || response.success()
+                        ? List.of("Validate the AI opportunity with real owner/user feedback before implementation scope is locked.")
+                        : List.of(
+                                "The separate LoomAI integration overview call did not return usable structured output.",
+                                "This integration view is derived from the live AI opportunity result."
+                        )
+        );
+        return new LoomAIIntegrationOverview(
+                firstNonBlank(
+                        "LoomAI can support this product through " + (titles.isEmpty() ? "the accepted AI opportunities." : String.join(", ", titles) + "."),
+                        report.summary()
+                ),
+                "Start with " + firstTitle + " because it is the clearest owner-visible AI value from this run.",
+                capabilities,
+                implementationSteps,
+                ownerDecisions,
+                risks,
+                mergeList(
+                        report.sourceInsights(),
+                        List.of("LoomAI integration overview derived from live AI opportunity report " + firstNonBlank(report.providerRequestId(), "without provider trace") + ".")
+                ),
+                report.recommendedServiceModules(),
+                firstNonBlank(report.provider(), response == null ? "" : response.provider(), "LOOMAI"),
+                firstNonBlank(report.providerRequestId(), response == null ? "" : response.providerRequestId()),
+                true
         );
     }
 

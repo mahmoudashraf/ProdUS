@@ -242,6 +242,79 @@ class AiAssistedProductCreationServiceTest {
     }
 
     @Test
+    void derivesLoomAiOverviewFromLiveOpportunityReportWhenOverviewCallFails() throws Exception {
+        AiAssistedProductCreationService service = service();
+        AiAssistedProductCreationService.AiOpportunityReport report =
+                new AiAssistedProductCreationService.AiOpportunityReport(
+                        "REVIEW",
+                        "AI opportunities are available for owner review.",
+                        0.72,
+                        0.66,
+                        "Start with owner-visible AI value.",
+                        List.of(
+                                new AiAssistedProductCreationService.AiOpportunityUseCase(
+                                        "Founder inbox triage",
+                                        "Sort inbound requests.",
+                                        "Owners know what needs attention first.",
+                                        "Reduces manual review time.",
+                                        "",
+                                        "",
+                                        "BACKEND_MEDIATED_PRIVATE_RUNTIME",
+                                        "SHOULD",
+                                        0.74,
+                                        List.of("Owner described manual triage."),
+                                        List.of()
+                                )
+                        ),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of("Validate with two owners before implementation."),
+                        List.of("Live LoomAI opportunity report returned one owner-facing use case."),
+                        List.of(),
+                        List.of("Missing uploaded support tickets."),
+                        "LOOMAI",
+                        "opportunity-trace-1",
+                        true
+                );
+        LoomAIIntegrationService.AssistantQueryResponse failedOverview = new LoomAIIntegrationService.AssistantQueryResponse(
+                "LOOMAI",
+                "ERROR",
+                false,
+                "OUT_OF_SCOPE",
+                "",
+                "The overview request could not be completed.",
+                "conversation-2",
+                0.0,
+                List.of(),
+                List.of(),
+                List.of(),
+                "OUT_OF_SCOPE",
+                "overview-trace-1"
+        );
+
+        Method overviewMethod = AiAssistedProductCreationService.class
+                .getDeclaredMethod(
+                        "derivedLoomAIOverview",
+                        AiAssistedProductCreationService.AiOpportunityReport.class,
+                        LoomAIIntegrationService.AssistantQueryResponse.class
+                );
+        overviewMethod.setAccessible(true);
+
+        AiAssistedProductCreationService.LoomAIIntegrationOverview overview =
+                (AiAssistedProductCreationService.LoomAIIntegrationOverview) overviewMethod.invoke(service, report, failedOverview);
+
+        assertThat(overview.live()).isTrue();
+        assertThat(overview.provider()).isEqualTo("LOOMAI");
+        assertThat(overview.providerRequestId()).isEqualTo("opportunity-trace-1");
+        assertThat(overview.summary()).contains("Founder inbox triage");
+        assertThat(overview.recommendedStartingPoint()).contains("Founder inbox triage");
+        assertThat(overview.capabilities()).contains("AI support for Founder inbox triage");
+        assertThat(overview.risks()).contains("This integration view is derived from the live AI opportunity result.");
+        assertThat(overview.sourceInsights()).contains("LoomAI integration overview derived from live AI opportunity report opportunity-trace-1.");
+    }
+
+    @Test
     void actionRequestParsesDocumentUsageForCreationGuard() {
         AiAssistedProductCreationService.ProductCreationActionRequest request =
                 AiAssistedProductCreationService.ProductCreationActionRequest.from(Map.of(
