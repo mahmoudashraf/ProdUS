@@ -187,7 +187,7 @@ export default function OwnerProductAiOpportunityHome({
       <Surface sx={{ borderColor: latestAnalysis ? `${appleColors.purple}55` : appleColors.line, background: latestAnalysis ? '#fbfaff' : '#fff' }}>
         <Stack spacing={1.25}>
           <SectionHeading
-            title={latestAnalysis ? 'New scan result waiting' : 'Refresh workspace'}
+            title={latestAnalysis ? 'New analysis result waiting' : 'Refresh analysis'}
             subtitle={latestAnalysis
               ? 'Open the refresh view to review and accept only the items that should update this product.'
               : 'Use the refresh view when the repo, pitch, customer insight, or LoomAI integration idea changes.'}

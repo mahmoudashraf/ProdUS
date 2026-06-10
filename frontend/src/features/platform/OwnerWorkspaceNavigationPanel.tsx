@@ -38,7 +38,7 @@ export default function OwnerWorkspaceNavigationPanel({
         workspaceDetailOpen ? (
           <WorkspaceBreadcrumbs
             items={[
-              { label: 'Workspace', onClick: () => onAreaChange('overview') },
+              { label: 'Product', onClick: () => onAreaChange('overview') },
               { label: productName, onClick: () => onAreaChange('overview') },
               { label: currentAreaLabel, onClick: () => onAreaHub(workspaceTab) },
               { label: currentDetailLabel },
