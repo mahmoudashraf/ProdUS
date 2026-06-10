@@ -20,7 +20,7 @@ export default function PublicProfileConversionPanel({
           <AutoAwesomeOutlined sx={{ color: appleColors.purple }} />
           <Box>
             <Typography variant="h4">Need a governed production path?</Typography>
-            <Typography color="text.secondary">Compare profiles, save delivery partners to a start plan, and approve it into a governed workspace after sign in.</Typography>
+            <Typography color="text.secondary">Compare profiles, save delivery partners to a product plan, and approve it into a governed workspace after sign in.</Typography>
           </Box>
         </Stack>
         <Button
@@ -30,7 +30,7 @@ export default function PublicProfileConversionPanel({
           startIcon={<VerifiedOutlined />}
           sx={{ minHeight: 44, minWidth: 160 }}
         >
-          {canUseProjectCart ? 'Project Start Plan' : isLoggedIn ? 'Dashboard' : 'Sign in'}
+          {canUseProjectCart ? 'Product Plan' : isLoggedIn ? 'Dashboard' : 'Sign in'}
         </Button>
       </Stack>
     </Surface>

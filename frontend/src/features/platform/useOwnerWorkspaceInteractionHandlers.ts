@@ -106,7 +106,7 @@ export function useOwnerWorkspaceInteractionHandlers({
     if (selectedProduct?.id && cart?.status === 'DRAFT' && cart.productProfile?.id !== selectedProduct.id && !updateCart.isPending) {
       updateCart.mutate({
         productProfileId: selectedProduct.id,
-        title: `${selectedProduct.name} Project Start Plan`,
+        title: `${selectedProduct.name} Product Plan`,
         businessGoal: cart.businessGoal || `Move ${selectedProduct.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
       });
     }
@@ -128,7 +128,7 @@ export function useOwnerWorkspaceInteractionHandlers({
       status,
       notes: status === 'COMPARED'
         ? 'Owner compared this team against service plan needs, evidence, and commercial readiness.'
-        : 'Owner shortlisted this team for productization service plan review.',
+        : 'Owner shortlisted this team for product plan review.',
     });
   };
 
@@ -140,7 +140,7 @@ export function useOwnerWorkspaceInteractionHandlers({
     if (cart?.productProfile?.id !== selectedProduct.id) {
       updateCart.mutate({
         productProfileId: selectedProduct.id,
-        title: `${selectedProduct.name} Project Start Plan`,
+        title: `${selectedProduct.name} Product Plan`,
         businessGoal,
       });
     }
@@ -162,7 +162,7 @@ export function useOwnerWorkspaceInteractionHandlers({
     addTalentToCart.mutate({
       itemType: 'TEAM',
       teamId: team.id,
-      notes: 'Owner saved team from productization workspace recommendations.',
+      notes: 'Owner saved team from product workspace recommendations.',
     });
   };
 
@@ -170,7 +170,7 @@ export function useOwnerWorkspaceInteractionHandlers({
     addTalentToCart.mutate({
       itemType: 'EXPERT',
       expertProfileId: expert.id,
-      notes: 'Owner saved solo expert from productization workspace recommendations.',
+      notes: 'Owner saved solo expert from product workspace recommendations.',
     });
   };
 
@@ -198,7 +198,7 @@ export function useOwnerWorkspaceInteractionHandlers({
     if (product) {
       updateCart.mutate({
         productProfileId: product.id,
-        title: `${product.name} Project Start Plan`,
+        title: `${product.name} Product Plan`,
         businessGoal: cart?.businessGoal || `Move ${product.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
       });
     }

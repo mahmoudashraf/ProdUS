@@ -148,7 +148,7 @@ public class CatalogRuleEngine {
         List<String> actions = new ArrayList<>();
         long blockers = recommendations.stream().filter(item -> item.severity() == ServiceDependency.DependencySeverity.BLOCKER).count();
         if (blockers > 0) {
-            actions.add("Resolve blocker dependencies before converting the draft into a project workspace.");
+            actions.add("Resolve blocker dependencies before converting the draft into a product workspace.");
         }
         recommendations.stream()
                 .limit(3)

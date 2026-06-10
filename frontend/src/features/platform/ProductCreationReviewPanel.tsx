@@ -49,7 +49,7 @@ export default function ProductCreationReviewPanel({
             <PastelChip label="Final owner check" accent={appleColors.purple} />
             <Typography variant="h2">Review before ProdUS creates the workspace</Typography>
             <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-              Confirm the product context and selected service path. After this, ProdUS creates the product workspace and attaches the Project Start Plan.
+              Confirm the product context and selected service path. After this, ProdUS creates the product workspace and attaches the Product Plan.
             </Typography>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
               <PastelChip label={formatLabel(values.businessStage)} accent={appleColors.purple} bg="#f1efff" />
@@ -122,7 +122,7 @@ export default function ProductCreationReviewPanel({
                   <Box sx={{ minWidth: 0 }}>
                     <Typography sx={{ fontWeight: 950 }}>{item.serviceModule.name}</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
-                      {item.notes || item.serviceModule.ownerOutcome || item.serviceModule.description || 'Selected for the Project Start Plan.'}
+                      {item.notes || item.serviceModule.ownerOutcome || item.serviceModule.description || 'Selected for the Product Plan.'}
                     </Typography>
                   </Box>
                   <Button

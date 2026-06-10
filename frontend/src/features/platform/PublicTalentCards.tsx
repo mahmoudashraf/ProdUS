@@ -91,7 +91,7 @@ export function PublicTeamCard({
             <StatusChip label={team.verificationStatus} />
           </Stack>
           <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
-            {team.headline || team.description || 'Verified productization team.'}
+            {team.headline || team.description || 'Verified product team.'}
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -123,7 +123,7 @@ export function PublicTeamCard({
             }}
             sx={{ minHeight: 42 }}
           >
-            {!isLoggedIn ? 'Sign in to attach team' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Attach team to plan') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign in to attach team' : canUseProjectCart ? (inCart ? 'In Product Plan' : 'Attach team to plan') : 'Open Dashboard'}
           </Button>
         </Stack>
       </Stack>
@@ -180,7 +180,7 @@ export function ExpertCard({
         <Box>
           <Typography variant="h3">{expert.displayName}</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
-            {expert.headline || 'Independent productization expert.'}
+            {expert.headline || 'Independent product expert.'}
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
@@ -215,7 +215,7 @@ export function ExpertCard({
             }}
             sx={{ minHeight: 42 }}
           >
-            {!isLoggedIn ? 'Sign in to attach expert' : canUseProjectCart ? (inCart ? 'In Start Plan' : 'Attach expert to plan') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign in to attach expert' : canUseProjectCart ? (inCart ? 'In Product Plan' : 'Attach expert to plan') : 'Open Dashboard'}
           </Button>
         </Stack>
       </Stack>

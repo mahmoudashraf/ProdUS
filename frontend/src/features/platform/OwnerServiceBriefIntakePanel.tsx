@@ -129,7 +129,7 @@ export default function OwnerServiceBriefIntakePanel({
           ))
         ) : (
           <Typography variant="body2" color="text.secondary">
-            Choose lifecycle services for the start plan, then submit a product brief or create the project workspace directly.
+            Choose lifecycle services for the product plan, then submit a product brief or create the product workspace directly.
           </Typography>
         )}
       </Stack>

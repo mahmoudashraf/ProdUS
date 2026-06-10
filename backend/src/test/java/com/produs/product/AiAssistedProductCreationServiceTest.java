@@ -231,12 +231,12 @@ class AiAssistedProductCreationServiceTest {
                         "action", "produs_productization_project_create",
                         "providedParameters", Map.of(
                                 "productName", "AI Inventory Ops",
-                                "summary", "Initial project attributes for production readiness.",
+                                "summary", "Initial product attributes for production readiness.",
                                 "businessStage", "IDEA",
                                 "techStack", "Next.js, Spring Boot, PostgreSQL",
                                 "repositoryUrl", "https://github.com/mahmoudashraf/easy-luxury",
                                 "riskProfile", "Deployment evidence and database migration proof are missing.",
-                                "aiCreationSummary", "AI-assisted analysis prepared the initial project attributes.",
+                                "aiCreationSummary", "AI-assisted analysis prepared the initial product attributes.",
                                 "assumptions", List.of("Owner wants an AI-assisted productization path."),
                                 "missingEvidence", List.of("Run scanner evidence collection."),
                                 "documentUsage", List.of(Map.of(
@@ -288,7 +288,7 @@ class AiAssistedProductCreationServiceTest {
                 """
                         {
                           "productName": "Orion Launch Auditor",
-                          "summary": "Project creation attributes.",
+                          "summary": "Product creation attributes.",
                           "documentUsage": [
                             {
                               "documentId": "doc-project-overview",

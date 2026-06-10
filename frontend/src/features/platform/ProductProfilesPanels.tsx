@@ -126,7 +126,7 @@ export function ProductPortfolioListPanel({
           )}
         </Stack>
       ) : (
-        <EmptyState label="Create a product profile to start the productization journey." />
+        <EmptyState label="Create a product profile to start the product journey." />
       )}
     </Surface>
   );

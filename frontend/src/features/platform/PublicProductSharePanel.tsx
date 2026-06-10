@@ -117,7 +117,7 @@ export default function PublicProductSharePanel({ token }: { token: string }) {
                       <Box key={service.name} sx={{ p: 1.5, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
                         <Typography sx={{ fontWeight: 950 }}>{service.name}</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
-                          {service.outcome || 'Selected by the owner as part of the productization path.'}
+                          {service.outcome || 'Selected by the owner as part of the product path.'}
                         </Typography>
                         {service.category && (
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>

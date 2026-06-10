@@ -134,7 +134,7 @@ export function useOwnerProductizationWorkspaceData({
     enabled: false,
     queryFn: () =>
       postJson<AssistantSuggestionsResponse, { content: string; conversationId: string; maxSuggestions: number; context: Record<string, string | undefined> }>('/ai/assistant/suggestions', {
-        content: `Suggest the next useful productization actions for ${selectedProduct?.name || 'this product'}.`,
+        content: `Suggest the next useful product actions for ${selectedProduct?.name || 'this product'}.`,
         conversationId: `owner-productization-${selectedProduct?.id || 'product'}`,
         maxSuggestions: 4,
         context: {

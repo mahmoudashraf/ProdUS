@@ -283,7 +283,7 @@ public class PlatformDemoSeedService implements ApplicationRunner {
                 user("team@produs.com"),
                 "Jordan Lee",
                 "Team lead for governed delivery",
-                "Leads multidisciplinary productization teams through service packaging, milestone evidence, and owner-ready launch control.",
+                "Leads multidisciplinary product teams through service packaging, milestone evidence, and owner-ready launch control.",
                 "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80",
                 "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80",
                 "San Francisco, CA",
@@ -341,7 +341,7 @@ public class PlatformDemoSeedService implements ApplicationRunner {
         User specialist = user("specialist@produs.com");
         User advisor = user("advisor@produs.com");
         List<TeamSeed> seeds = List.of(
-                new TeamSeed("CoreLedger Labs", "Payment orchestration, fraud controls, backend APIs, and compliance-ready delivery.", "Payments launch squad", "Senior productization team for regulated payments, settlement, fraud tooling, and launch governance.", "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=240&q=80", "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80", "https://coreledger.example", "San Francisco, CA", "Payments, backend, risk, compliance, API integrations", "$80K-$240K", Team.VerificationStatus.OPERATIONS_READY, List.of("analytics-payments-onboarding-readiness", "backend-rewrite-refactor", "api-security-review")),
+                new TeamSeed("CoreLedger Labs", "Payment orchestration, fraud controls, backend APIs, and compliance-ready delivery.", "Payments launch squad", "Senior product team for regulated payments, settlement, fraud tooling, and launch governance.", "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=240&q=80", "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80", "https://coreledger.example", "San Francisco, CA", "Payments, backend, risk, compliance, API integrations", "$80K-$240K", Team.VerificationStatus.OPERATIONS_READY, List.of("analytics-payments-onboarding-readiness", "backend-rewrite-refactor", "api-security-review")),
                 new TeamSeed("Northstar Engineers", "Secure backend and cloud systems for modern businesses.", "Backend and cloud reliability team", "Focused on backend modernization, platform reliability, security posture, and production operating discipline.", "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=240&q=80", "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80", "https://northstar.example", "Austin, TX", "Backend, DevOps, security, reliability, PostgreSQL", "$60K-$180K", Team.VerificationStatus.SPECIALIST, List.of("backend-rewrite-refactor", "cloud-deployment", "ci-cd-setup", "database-redesign")),
                 new TeamSeed("Pivotal Stack", "Full-stack delivery with risk, fraud, and QA experience.", "Full-stack launch readiness studio", "Turns uncertain prototypes into testable, owner-readable launch workflows with QA evidence and handoff clarity.", "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=240&q=80", "https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=1200&q=80", "https://pivotalstack.example", "New York, NY", "Payments, frontend, QA, test strategy, release acceptance, launch readiness", "$50K-$160K", Team.VerificationStatus.CERTIFIED, List.of("frontend-rewrite-refactor", "test-strategy", "e2e-flow-testing", "release-acceptance-testing", "defect-triage-verification", "launch-readiness-review", "support-package")),
                 new TeamSeed("Signal QA Studio", "Product testing team for release confidence, API contracts, critical flows, and defect verification.", "Testing and release acceptance specialists", "Builds owner-readable testing packs with smoke checks, E2E coverage, API verification, defect triage, and release acceptance proof.", "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=240&q=80", "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1200&q=80", "https://signalqa.example", "London, UK", "Test strategy, smoke testing, E2E testing, API testing, release acceptance, defect verification", "$20K-$90K", Team.VerificationStatus.SPECIALIST, List.of("test-strategy", "smoke-testing", "e2e-flow-testing", "api-testing", "release-acceptance-testing", "defect-triage-verification")),
@@ -660,8 +660,8 @@ public class PlatformDemoSeedService implements ApplicationRunner {
                 specialist,
                 null,
                 FormationPost.PostType.LOOKING_FOR_TEAM,
-                "Backend and launch specialist looking for productization team",
-                "I handle backend refactors, API hardening, launch evidence, and owner-ready handoff. Looking for frontend and documentation partners to form a full productization team.",
+                "Backend and launch specialist looking for product team",
+                "I handle backend refactors, API hardening, launch evidence, and owner-ready handoff. Looking for frontend and documentation partners to form a full product team.",
                 "Backend Rewrite, API Security, Launch Readiness, PostgreSQL, CI/CD",
                 "Frontend, Documentation, Accessibility QA",
                 "Async-first, evidence-heavy, weekly owner checkpoints",

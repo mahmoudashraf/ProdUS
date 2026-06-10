@@ -74,7 +74,7 @@ export default function ServicePlanSummaryPanel({
               <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
                 {modules.length
                   ? `${modules.length} lifecycle services are sequenced before workspace handoff. Review team match next if the owner agrees with the scope.`
-                  : 'No services are attached yet. Generate a plan from a product brief or choose services from the Start Plan first.'}
+                  : 'No services are attached yet. Generate a plan from a product brief or choose services from the Product Plan first.'}
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <PastelChip label={`${modules.length} services`} accent={appleColors.blue} bg="#eaf3ff" />

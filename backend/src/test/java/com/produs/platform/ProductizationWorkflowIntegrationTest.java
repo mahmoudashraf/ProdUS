@@ -247,7 +247,7 @@ class ProductizationWorkflowIntegrationTest {
                         .content(objectMapper.writeValueAsString(actionPayload)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.type").value("https://api.produs.com/errors/project-creation-action"))
-                .andExpect(jsonPath("$.title").value("AI Project Creation Action Rejected"))
+                .andExpect(jsonPath("$.title").value("AI Product Creation Action Rejected"))
                 .andExpect(jsonPath("$.detail").value("This creation action belongs to a different signed-in user. Re-run analysis from this account."))
                 .andExpect(jsonPath("$.errorCode").value("AI_CREATION_INTENT_OWNER_MISMATCH"));
     }
@@ -267,7 +267,7 @@ class ProductizationWorkflowIntegrationTest {
                         .content(objectMapper.writeValueAsString(stalePayload)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.type").value("https://api.produs.com/errors/project-creation-action"))
-                .andExpect(jsonPath("$.title").value("AI Project Creation Action Rejected"))
+                .andExpect(jsonPath("$.title").value("AI Product Creation Action Rejected"))
                 .andExpect(jsonPath("$.detail").value("This action payload is stale. Use the latest AI analysis result."))
                 .andExpect(jsonPath("$.errorCode").value("AI_CREATION_CONSENT_INVALID"));
     }

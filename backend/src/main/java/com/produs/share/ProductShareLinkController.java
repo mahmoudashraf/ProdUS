@@ -14,9 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-import static com.produs.share.ProductShareDtos.ProductShareLinkRequest;
-import static com.produs.share.ProductShareDtos.ProductShareLinkResponse;
-import static com.produs.share.ProductShareDtos.PublicProductShareResponse;
+import com.produs.share.ProductShareDtos.ProductShareLinkRequest;
+import com.produs.share.ProductShareDtos.ProductShareLinkResponse;
+import com.produs.share.ProductShareDtos.PublicProductShareResponse;
 
 @RestController
 @RequiredArgsConstructor

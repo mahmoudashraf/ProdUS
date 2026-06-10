@@ -135,7 +135,7 @@ export default function ProjectStartLifecycleServicesPanel({
           )}
         </Stack>
       ) : (
-        <EmptyState label="No services yet. Choose productization services such as validation, security, cloud, database, launch, or support." />
+        <EmptyState label="No services yet. Choose services such as validation, security, cloud, database, launch, or support." />
       )}
     </Surface>
   );

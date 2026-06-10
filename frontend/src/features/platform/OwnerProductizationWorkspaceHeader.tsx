@@ -146,7 +146,7 @@ export function OwnerProductizationWorkspaceLead({
           onBackHome={onProductHome}
         />
       ) : (
-        <EmptyState label="Create a product profile to start the owner productization workflow." />
+        <EmptyState label="Create a product profile to start the owner product workflow." />
       )}
 
       <OwnerWorkspaceNavigationPanel

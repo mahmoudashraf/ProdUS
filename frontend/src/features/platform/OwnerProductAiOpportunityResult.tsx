@@ -176,7 +176,7 @@ export default function OwnerProductAiOpportunityResult({
             key,
             checked: selection.serviceModuleKeys.includes(key),
             title: recommendation.moduleName || recommendation.moduleCode,
-            detail: recommendation.reason || recommendation.expectedOutcome || 'Suggested productization service.',
+            detail: recommendation.reason || recommendation.expectedOutcome || 'Suggested product service.',
             meta: [
               recommendation.priority ? formatLabel(recommendation.priority) : 'Suggested',
               recommendation.categorySlug ? formatLabel(recommendation.categorySlug) : '',

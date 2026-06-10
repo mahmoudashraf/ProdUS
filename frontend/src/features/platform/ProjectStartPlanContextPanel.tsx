@@ -138,7 +138,7 @@ export default function ProjectStartPlanContextPanel({
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
-              <PastelChip label="Selected start plan" accent={appleColors.purple} />
+              <PastelChip label="Selected product plan" accent={appleColors.purple} />
               <PastelChip label={`Current: ${currentDetailLabel}`} accent={appleColors.blue} bg="#eaf3ff" />
               <PastelChip label={statusLabel} accent={statusAccent} bg={`${statusAccent}12`} />
             </Stack>
@@ -168,7 +168,7 @@ export default function ProjectStartPlanContextPanel({
           </Stack>
 
           <Box
-            aria-label="Start plan internal pages"
+            aria-label="Product plan internal pages"
             component="nav"
             sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'auto minmax(0, 1fr)' }, gap: 0.75, alignItems: 'center' }}
           >

@@ -194,7 +194,7 @@ export default function WorkspaceCommandPage() {
   return (
     <>
       <PageHeader
-        title="Productization Workspaces"
+        title="Product Workspaces"
         description="One focused place to turn a prototype into a shippable product: fixes, proof, people, and next launch decisions."
       />
       <QueryState

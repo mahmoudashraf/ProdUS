@@ -41,7 +41,7 @@ const catalogViewItems = ({
   {
     value: 'services',
     label: 'Service Workstreams',
-    detail: 'Choose individual services by productization need.',
+    detail: 'Choose individual services by product need.',
     accent: appleColors.blue,
     meta: <PastelChip label={`${categoryCount}`} accent={appleColors.blue} bg="#eaf3ff" />,
   },
@@ -167,13 +167,13 @@ export function ServiceCatalogProductContextPanel({
           <Box>
             <Typography sx={{ fontWeight: 950 }}>Product context is active</Typography>
             <Typography variant="body2" color="text.secondary">
-              Service choices will stay attached to {productName}'s Project Start Plan.
+              Service choices will stay attached to {productName}'s Product Plan.
             </Typography>
           </Box>
         </Stack>
         {startPlanHref && (
           <Button component={NextLink} href={startPlanHref} variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 40 }}>
-            Open Start Plan
+            Open Product Plan
           </Button>
         )}
       </Stack>

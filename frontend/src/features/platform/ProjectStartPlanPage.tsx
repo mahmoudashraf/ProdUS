@@ -80,8 +80,8 @@ export default function ProjectStartPlanPage() {
   return (
     <>
       <PageHeader
-        title="Project Start Plan"
-        description="Approve the services, teams, and launch-hardening scope that turn this prototype into a real project workspace."
+        title="Product Plan"
+        description="Approve the services, team, and scope for this product before starting delivery."
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button variant="outlined" startIcon={<FactCheckOutlined />} onClick={() => openStartPlanDetail('services')} sx={{ minHeight: 44 }}>

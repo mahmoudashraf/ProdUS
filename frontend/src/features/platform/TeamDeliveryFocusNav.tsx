@@ -126,7 +126,7 @@ export function TeamDeliveryInternalHeader({
           { label: 'Delivery Control', onClick: onOpenHub },
           { label: view.title },
         ]}
-        backLabel="Delivery hub"
+        backLabel="Delivery home"
         onBack={onOpenHub}
       />
       <Surface sx={{ p: { xs: 2, md: 2.5 }, background: '#fbfcff' }}>

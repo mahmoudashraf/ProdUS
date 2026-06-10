@@ -156,10 +156,10 @@ public class ProductProfileController {
             @RequestBody ProductCreationActionRequest request
     ) {
         if (request == null) {
-            throw new IllegalArgumentException("Project creation action payload is required");
+            throw new IllegalArgumentException("Product creation action payload is required");
         }
         if (request.creationIntentId() != null && !intentId.equals(request.creationIntentId())) {
-            throw new AccessDeniedException("Project creation intent path does not match action payload");
+            throw new AccessDeniedException("Product creation intent path does not match action payload");
         }
         ProductCreationActionRequest actionRequest = new ProductCreationActionRequest(
                 request.analysisModeOrDefault(),

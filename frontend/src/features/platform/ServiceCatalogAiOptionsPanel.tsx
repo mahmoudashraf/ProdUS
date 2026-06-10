@@ -33,7 +33,7 @@ export default function ServiceCatalogAiOptionsPanel({
   startPlanHref?: string | undefined;
 }) {
   const primaryHref = productName && startPlanHref ? startPlanHref : setupHref;
-  const primaryLabel = productName ? 'Review AI fit in Start Plan' : 'Start AI-assisted product setup';
+  const primaryLabel = productName ? 'Review AI fit in Product Plan' : 'Start AI-assisted product setup';
   const hiddenCount = Math.max(aiCapabilities.length - 6, 0);
 
   return (

@@ -90,7 +90,7 @@ public class ProductizationCartService {
             requireProductOwner(owner, product);
             cart.setProductProfile(product);
             if (cart.getTitle() == null || cart.getTitle().isBlank() || "Productization cart".equals(cart.getTitle())) {
-                cart.setTitle(product.getName() + " productization plan");
+                cart.setTitle(product.getName() + " Product Plan");
             }
         }
         if (request.title() != null && !request.title().isBlank()) {
@@ -276,7 +276,7 @@ public class ProductizationCartService {
         packageInstance.setOwner(owner);
         packageInstance.setProductProfile(cart.getProductProfile());
         packageInstance.setName(cart.getTitle() == null || cart.getTitle().isBlank()
-                ? cart.getProductProfile().getName() + " productization plan"
+                ? cart.getProductProfile().getName() + " Product Plan"
                 : cart.getTitle());
         packageInstance.setSummary(buildSummary(cart, services));
         packageInstance.setStatus(PackageInstance.PackageStatus.AWAITING_TEAM);
@@ -338,7 +338,7 @@ public class ProductizationCartService {
     private ProductizationCart createDraftCart(User owner) {
         ProductizationCart cart = new ProductizationCart();
         cart.setOwner(owner);
-        cart.setTitle("Productization cart");
+        cart.setTitle("Product Plan");
         return cartRepository.save(cart);
     }
 
@@ -350,7 +350,7 @@ public class ProductizationCartService {
         shortlist.setPackageInstance(packageInstance);
         shortlist.setTeam(team);
         shortlist.setStatus(TeamShortlist.ShortlistStatus.ACTIVE);
-        shortlist.setNotes(notes == null || notes.isBlank() ? "Selected in the productization cart before project start." : notes);
+        shortlist.setNotes(notes == null || notes.isBlank() ? "Selected in the product plan before delivery start." : notes);
         shortlistRepository.save(shortlist);
 
         ensureParticipant(workspace, team.getManager(), owner, WorkspaceParticipant.ParticipantRole.TEAM_LEAD);
@@ -403,7 +403,7 @@ public class ProductizationCartService {
                             firstNonBlank(
                                     dependency.getMessage(),
                                     dependency.getReason(),
-                                    "Required dependency for a complete productization plan."
+                                    "Required dependency for a complete product plan."
                             )
                     ));
                 }
@@ -518,9 +518,9 @@ public class ProductizationCartService {
         String reason = firstNonBlank(
                 recommendation.reason(),
                 recommendation.expectedOutcome(),
-                "Selected from owner-approved AI project analysis."
+                "Selected from owner-approved AI product analysis."
         );
-        return ("AI-selected during project creation (" + priority + "). " + reason).trim();
+        return ("AI-selected during product creation (" + priority + "). " + reason).trim();
     }
 
     private String buildTemplateNote(PackageTemplate template, PackageTemplateModule templateModule) {
@@ -528,7 +528,7 @@ public class ProductizationCartService {
                 ? ""
                 : " Phase: " + templateModule.getPhaseName().trim() + ".";
         return "Applied from " + template.getName() + " package template." + phase + " "
-                + firstNonBlank(templateModule.getRationale(), "Template-selected service for a complete productization plan.");
+                + firstNonBlank(templateModule.getRationale(), "Template-selected service for a complete product plan.");
     }
 
     private String blockerSummary(CatalogRuleEvaluationResponse evaluation) {

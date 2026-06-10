@@ -1266,10 +1266,10 @@ public final class PlatformDtos {
         String summary;
         if (ready) {
             status = "READY";
-            summary = "Ready to start a project workspace with the selected services.";
+            summary = "Ready to start a product workspace with the selected services.";
         } else if (!productSelected) {
             status = "NEEDS_PRODUCT";
-            summary = "Choose the product this start plan belongs to.";
+            summary = "Choose the product for this product plan.";
         } else if (!serviceSelected) {
             status = "NEEDS_SERVICES";
             summary = "Add at least one lifecycle service before starting the workspace.";

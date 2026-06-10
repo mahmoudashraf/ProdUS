@@ -68,7 +68,7 @@ export default function PublicExpertProfilePanel({
         }}
         sx={{ minHeight: 44, minWidth: 180 }}
       >
-        {!isLoggedIn ? 'Sign in to attach expert' : canUseProjectCart ? (inPlan ? 'In Start Plan' : 'Attach expert to plan') : 'Open dashboard'}
+        {!isLoggedIn ? 'Sign in to attach expert' : canUseProjectCart ? (inPlan ? 'In Product Plan' : 'Attach expert to plan') : 'Open dashboard'}
       </Button>
       <Button component={NextLink} href="/solo-experts" variant="outlined" sx={{ minHeight: 44, minWidth: 150 }}>
         Browse experts
@@ -80,7 +80,7 @@ export default function PublicExpertProfilePanel({
     <Stack spacing={2.5}>
       <PageHeader
         title="Solo Expert Profile"
-        description="Evaluate whether this specialist belongs in the project start plan."
+        description="Evaluate whether this specialist belongs in the product plan."
       />
 
       {!hasActiveView ? (
@@ -130,7 +130,7 @@ export default function PublicExpertProfilePanel({
             {skills.length ? (
               skills.map((skill) => <PastelChip key={skill} label={skill} accent={appleColors.green} bg="#e7f8ee" />)
             ) : (
-              <PastelChip label="Productization support" accent={appleColors.green} bg="#e7f8ee" />
+              <PastelChip label="Product support" accent={appleColors.green} bg="#e7f8ee" />
             )}
           </Stack>
         </Surface>
@@ -154,7 +154,7 @@ export default function PublicExpertProfilePanel({
               </Button>
             )}
             <Button component={NextLink} href={canUseProjectCart ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login'} variant="contained" startIcon={<RocketLaunchOutlined />} sx={{ minHeight: 42 }}>
-              {canUseProjectCart ? 'Project Start Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
+              {canUseProjectCart ? 'Product Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
             </Button>
           </Stack>
         </Surface>

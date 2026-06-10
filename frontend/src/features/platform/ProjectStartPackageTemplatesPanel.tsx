@@ -29,7 +29,7 @@ export default function ProjectStartPackageTemplatesPanel({
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8f7ff 100%)' }}>
       <SectionTitle title="Package Templates" action={<FactCheckOutlined sx={{ color: appleColors.purple }} />} />
       <Typography color="text.secondary" sx={{ lineHeight: 1.65, mb: 2 }}>
-        Apply a mature service plan recipe when the product matches a common productization path. ProdUS keeps the dependency checks active after adding the services.
+        Apply a mature service plan recipe when the product matches a common product path. ProdUS keeps the dependency checks active after adding the services.
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
         {templates.slice(0, 4).map((template) => {

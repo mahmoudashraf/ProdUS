@@ -54,7 +54,7 @@ export default function OwnerServiceDecisionBridgePanel({
     : improvementCount
       ? `Launchable with ${improvementCount} improvement${improvementCount === 1 ? '' : 's'} to schedule`
       : 'Clear enough to keep moving';
-  const primaryActionLabel = primaryServiceInPlan ? 'Already in start plan' : 'Add to start plan';
+  const primaryActionLabel = primaryServiceInPlan ? 'Already in product plan' : 'Add to product plan';
 
   return (
     <>

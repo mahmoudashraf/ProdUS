@@ -31,7 +31,7 @@ export default function OwnerAiBriefPanel({
   const visibleSuggestions = (suggestions.length
     ? suggestions
     : [
-        'Explain productization readiness',
+        'Explain product readiness',
         'Recommend lifecycle services from evidence',
         'Prepare the next package action',
       ]
@@ -76,7 +76,7 @@ export default function OwnerAiBriefPanel({
           <AutoAwesomeOutlined />
         </Box>
         <Box>
-          <Typography variant="h4">Productization clarity</Typography>
+          <Typography variant="h4">Product clarity</Typography>
           <Typography color="success.main" sx={{ fontWeight: 800 }}>
             Evidence-led next steps
           </Typography>
@@ -84,7 +84,7 @@ export default function OwnerAiBriefPanel({
       </Stack>
       <Typography color="text.secondary" sx={{ mt: 2, lineHeight: 1.7 }}>
         {recommendationRationale
-          || 'Use lifecycle services, plan evidence, and verified teams to keep productization decisions concrete.'}
+          || 'Use lifecycle services, plan evidence, and verified teams to keep product decisions concrete.'}
       </Typography>
       <Stack spacing={1} sx={{ mt: 2 }}>
         {visibleSuggestions.map((suggestion) => (

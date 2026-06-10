@@ -28,7 +28,7 @@ import SocialLoginButtons from './SocialLoginButtons';
 
 const demoCredentialOptions = [
   { label: 'Admin', role: 'Platform operations', ...MOCK_CREDENTIALS.admin },
-  { label: 'Owner', role: 'Productization workspace', ...MOCK_CREDENTIALS.owner },
+  { label: 'Owner', role: 'Product workspace', ...MOCK_CREDENTIALS.owner },
   { label: 'Team manager', role: 'Delivery control', ...MOCK_CREDENTIALS.team },
   { label: 'Specialist', role: 'Delivery contributor', ...MOCK_CREDENTIALS.specialist },
   { label: 'Advisor', role: 'Review and guidance', ...MOCK_CREDENTIALS.advisor },

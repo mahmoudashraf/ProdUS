@@ -47,7 +47,7 @@ export function TeamRecommendationsPanel({
     <Surface>
       <SectionTitle title="Recommended Delivery Teams" action={<GroupsOutlined sx={{ color: appleColors.purple }} />} />
       {isLoading ? (
-        <EmptyState label="Matching verified teams against the selected start plan..." />
+        <EmptyState label="Matching verified teams against the selected product plan..." />
       ) : recommendations.length ? (
         <Stack spacing={1.25}>
           {recommendations.slice(0, 6).map((recommendation, index) => {
@@ -135,7 +135,7 @@ export function TeamRecommendationsPanel({
           })}
         </Stack>
       ) : (
-        <EmptyState label={selectedPackageId ? 'No verified team matches for this start plan yet.' : 'Choose a start plan to unlock ranked team matches.'} />
+        <EmptyState label={selectedPackageId ? 'No verified team matches for this product plan yet.' : 'Choose a product plan to unlock ranked team matches.'} />
       )}
     </Surface>
   );

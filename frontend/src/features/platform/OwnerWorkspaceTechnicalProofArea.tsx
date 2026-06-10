@@ -207,7 +207,7 @@ export default function OwnerWorkspaceTechnicalProofArea({
         },
         assistant: {
           title: 'AI Fix Path Summary',
-          description: 'Summarize scanner findings, explain the highest-risk fixes, and turn proof into practical productization actions.',
+          description: 'Summarize scanner findings, explain the highest-risk fixes, and turn proof into practical product actions.',
           prompt: `Do not call write actions for this answer. Summarize scanner ship-readiness for ${selectedProduct.name}. Current scanner score is ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings. Top visible findings: ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none'}. ${scannerReadinessPromptFacts} Prioritize critical and high findings, explain the business risk in plain language, identify missing proof, and recommend lifecycle services or milestone actions. Use the provided context and visible facts directly. Avoid raw artifact details.`,
           conversationId: `studio-scanner-${selectedProduct.id}-${selectedFinding?.id || 'summary'}`,
           context: assistantContext('scanner-readiness', { findingId: selectedFinding?.id }),

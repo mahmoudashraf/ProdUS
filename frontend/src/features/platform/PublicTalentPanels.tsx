@@ -40,7 +40,7 @@ export const publicTalentViews: Array<{
   {
     value: 'services',
     title: 'Service workstreams',
-    description: 'See the productization work these teams can deliver.',
+    description: 'See the product work these teams can deliver.',
     icon: <RocketLaunchOutlined />,
     color: appleColors.green,
   },
@@ -116,7 +116,7 @@ export function PublicTalentInternalHeader({
           { label: 'Talent Network', onClick: onOpenHub },
           { label: view.title },
         ]}
-        backLabel="Talent hub"
+        backLabel="Talent home"
         onBack={onOpenHub}
       />
       <Surface sx={{ p: { xs: 2, md: 2.5 }, background: '#fbfcff' }}>
@@ -137,7 +137,7 @@ export function PublicTalentInternalHeader({
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
-              Productization talent
+              Product talent
             </Typography>
             <Typography variant="h3" sx={{ mt: 0.35 }}>
               {view.title}
@@ -211,7 +211,7 @@ export function PublicTalentContextPanel({
             {activeCount} {publicTalentViews.find((item) => item.value === activeView)?.title.toLowerCase() || 'options'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Compare fit, then move useful talent into a governed product start plan.
+            Compare fit, then move useful talent into a governed product plan.
           </Typography>
         </Box>
         <Box sx={{ minWidth: 0 }}>
@@ -321,7 +321,7 @@ export function PublicTalentCta({ isLoggedIn }: { isLoggedIn: boolean }) {
           <Box>
             <Typography variant="h4">Ready to turn discovery into a governed workspace?</Typography>
             <Typography color="text.secondary">
-              Sign in to create a product brief, save teams and experts to a start plan, and approve it into a project workspace.
+              Sign in to create a product brief, save teams and experts to a product plan, and approve it into a product workspace.
             </Typography>
           </Box>
         </Stack>

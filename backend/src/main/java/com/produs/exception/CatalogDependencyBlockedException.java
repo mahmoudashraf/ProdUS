@@ -26,7 +26,7 @@ public class CatalogDependencyBlockedException extends IllegalArgumentException 
 
     private static String message(CatalogRuleEvaluationResponse evaluation) {
         if (evaluation == null || evaluation.recommendations() == null) {
-            return "Add the required lifecycle services before starting the project workspace.";
+            return "Add the required lifecycle services before starting the product workspace.";
         }
         String services = evaluation.recommendations().stream()
                 .filter(item -> item.severity() == ServiceDependency.DependencySeverity.BLOCKER)
@@ -36,9 +36,9 @@ public class CatalogDependencyBlockedException extends IllegalArgumentException 
                 .limit(5)
                 .collect(java.util.stream.Collectors.joining(", "));
         if (services.isBlank()) {
-            return "Add the required lifecycle services before starting the project workspace.";
+            return "Add the required lifecycle services before starting the product workspace.";
         }
-        return "Resolve required catalog services before starting a project: " + services;
+        return "Resolve required catalog services before starting a product workspace: " + services;
     }
 
     public List<MissingCatalogService> getMissingServices() {

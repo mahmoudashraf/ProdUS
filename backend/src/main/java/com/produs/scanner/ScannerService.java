@@ -867,7 +867,7 @@ public class ScannerService {
         schedule.setIntervalDays(intervalDays);
         schedule.setNextRunAt(request.nextRunAt() == null ? LocalDateTime.now().plusDays(intervalDays) : request.nextRunAt());
         schedule.setActive(request.active() == null || request.active());
-        schedule.setReason(defaultString(trimToNull(request.reason()), "Scheduled scanner run for productization readiness."));
+        schedule.setReason(defaultString(trimToNull(request.reason()), "Scheduled scanner run for product readiness."));
         ScannerSchedule saved = scannerScheduleRepository.save(schedule);
         audit(actor, "SCANNER_SCHEDULE_CREATED", "SCANNER_SCHEDULE", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
                 "Created %s scanner schedule for product %s every %d days".formatted(depth, product.getId(), intervalDays));
@@ -2119,7 +2119,7 @@ public class ScannerService {
                 containerImageRef,
                 true,
                 depth == ScanRun.ScanDepth.RUNTIME_BASELINE,
-                defaultString(request.reason(), "Owner authorized full scanner suite execution for productization readiness."),
+                defaultString(request.reason(), "Owner authorized full scanner suite execution for product readiness."),
                 null
         );
         try {

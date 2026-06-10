@@ -112,7 +112,7 @@ export function useProductOnboardingWizardState() {
         { productProfileId: string; title: string; businessGoal: string }
       >('/productization-cart/current', {
         productProfileId: product.id,
-        title: `${product.name} Project Start Plan`,
+        title: `${product.name} Product Plan`,
         businessGoal: form.values.summary,
       });
       return product;
@@ -171,7 +171,7 @@ export function useProductOnboardingWizardState() {
   const createProductFromAIAction = useMutation({
     mutationFn: async () => {
       if (!aiAnalysis) {
-        throw new Error('Run AI analysis before creating the project.');
+        throw new Error('Run AI analysis before creating the product.');
       }
       const actionPayload = buildProductCreationActionPayload({
         aiAnalysis,

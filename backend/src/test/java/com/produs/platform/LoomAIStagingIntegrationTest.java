@@ -560,7 +560,7 @@ class LoomAIStagingIntegrationTest {
                       "productUrl": "",
                       "repositoryUrl": "https://github.com/example/inventory-launch-desk",
                       "riskNotes": "API security and launch evidence need review.",
-                      "analysisSummary": "Owner intake, repository URL, catalog snapshot, and the selected temporary document were used to produce project creation attributes.",
+                      "analysisSummary": "Owner intake, repository URL, catalog snapshot, and the selected temporary document were used to produce product creation attributes.",
                       "coreCapabilities": ["Production-readiness analysis", "Scanner-backed evidence review"],
                       "businessOutcomes": ["Owner understands launch blockers"],
                       "readinessGoals": ["Confirm API security controls", "Create scanner-backed launch evidence"],

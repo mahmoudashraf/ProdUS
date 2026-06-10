@@ -57,7 +57,7 @@ public class GlobalExceptionHandler {
                 ex.getMessage()
         );
         problemDetail.setType(URI.create("https://api.produs.com/errors/project-creation-action"));
-        problemDetail.setTitle("AI Project Creation Action Rejected");
+        problemDetail.setTitle("AI Product Creation Action Rejected");
         problemDetail.setProperty("errorCode", ex.getErrorCode());
         return problemDetail;
     }

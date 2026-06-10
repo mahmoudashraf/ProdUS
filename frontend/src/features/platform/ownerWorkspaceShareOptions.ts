@@ -20,7 +20,7 @@ export const shareSectionOptions: Array<{
   {
     value: 'SELECTED_SERVICES',
     label: 'Selected services',
-    detail: 'Public service path selected for productization work.',
+    detail: 'Public service path selected for product work.',
   },
   {
     value: 'TEAM_STATUS',

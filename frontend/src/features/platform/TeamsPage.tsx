@@ -206,11 +206,11 @@ function MatchedTeamsPage() {
     <>
       <PageHeader
         title="Team Match"
-        description="Choose the delivery team that can move the selected start plan into launch-hardening work."
+        description="Choose the delivery team that can move the selected product plan into launch-hardening work."
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" sx={{ minHeight: 42 }}>
-              Open Project Start Plan
+              Open Product Plan
             </Button>
             <Button component={NextLink} href={servicePlanTeamHref} variant="contained" sx={{ minHeight: 42 }}>
               Review service plan

@@ -34,7 +34,7 @@ export default function OwnerProjectStartSummaryCard({
         {readiness?.status && <PastelChip label={formatLabel(readiness.status)} accent={statusAccent} bg={`${statusAccent}12`} />}
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.55 }}>
-        {readiness?.summary || (canStartWorkspace ? 'This plan has enough scope to become a project workspace.' : 'Choose the services and delivery support that make the first workspace actionable.')}
+        {readiness?.summary || (canStartWorkspace ? 'This plan has enough scope to become a product workspace.' : 'Choose the services and delivery support that make the first workspace actionable.')}
       </Typography>
     </Box>
   );

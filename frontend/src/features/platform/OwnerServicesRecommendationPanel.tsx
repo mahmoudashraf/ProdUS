@@ -97,7 +97,7 @@ export default function OwnerServicesRecommendationPanel({
       <Box sx={{ mb: 1.5 }}>
         <StudioAssistantCard
           title="AI Service Selector"
-          description="Narrow the work that belongs in the project start plan, using the verdict, scanner proof, current cart, and dependencies."
+          description="Narrow the work that belongs in the product plan, using the verdict, scanner proof, current cart, and dependencies."
           prompt={`Recommend the most relevant lifecycle services for ${product?.name || 'the selected product'}. Consider current diagnosis, scanner findings, product stage, cart services, dependencies, and launch readiness. Use these visible project start facts directly: ${cartStartPromptFacts} Explain why each service should or should not be selected, identify which missing services are required before workspace start, and avoid proposing services that are already in the cart unless the owner should revisit scope.`}
           conversationId={`studio-services-${product?.id || 'none'}`}
           context={assistantContext}

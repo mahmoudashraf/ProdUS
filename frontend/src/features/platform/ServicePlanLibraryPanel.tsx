@@ -54,7 +54,7 @@ export default function ServicePlanLibraryPanel({
             ))}
           </Stack>
         ) : (
-          <EmptyState label="No service plans yet. Submit a product brief or approve a start plan to create the first service plan." />
+          <EmptyState label="No service plans yet. Submit a product brief or approve a product plan to create the first service plan." />
         )}
       </Surface>
     </Stack>

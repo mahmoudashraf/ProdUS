@@ -133,7 +133,7 @@ export function OwnerFindingRecommendedServicePanel({
         {finding.recommendedModule.name}
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45, lineHeight: 1.45, ...wrapFindingText }}>
-        {finding.recommendedModule.ownerOutcome || finding.recommendedModule.description || 'Choose this service for tracked remediation in the Project Start Plan.'}
+        {finding.recommendedModule.ownerOutcome || finding.recommendedModule.description || 'Choose this service for tracked remediation in the Product Plan.'}
       </Typography>
       <Button
         size="small"

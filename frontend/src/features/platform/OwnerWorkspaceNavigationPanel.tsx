@@ -43,12 +43,12 @@ export default function OwnerWorkspaceNavigationPanel({
               { label: currentAreaLabel, onClick: () => onAreaHub(workspaceTab) },
               { label: currentDetailLabel },
             ]}
-            backLabel={`${currentAreaLabel} hub`}
+            backLabel={`${currentAreaLabel} home`}
             onBack={() => onAreaHub(workspaceTab)}
           />
         ) : (
           <OwnerWorkspaceJourneyNav
-            label={`${currentAreaLabel} hub`}
+            label={`${currentAreaLabel} home`}
             value={null}
             items={currentJourneyItems}
             onChange={onDetailChange}

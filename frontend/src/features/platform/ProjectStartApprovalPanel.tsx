@@ -53,17 +53,17 @@ export default function ProjectStartApprovalPanel({
   return (
     <Stack spacing={2.5}>
       <Surface>
-        <SectionTitle title="Approve Launch-Hardening Plan" action={<RocketLaunchOutlined sx={{ color: appleColors.purple }} />} />
+        <SectionTitle title="Approve Product Plan" action={<RocketLaunchOutlined sx={{ color: appleColors.purple }} />} />
         <Stack spacing={1.5}>
           <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-            Approve the selected productization scope when it covers the must-fix launch blockers. ProdUS will turn this plan into delivery milestones, participants, and a workspace.
+            Approve the selected services and team when they cover the must-fix launch blockers. ProdUS will turn this product plan into delivery milestones, participants, and a workspace.
           </Typography>
           <TextField
             size="small"
-            label="Workspace name"
+            label="Product workspace name"
             value={projectName}
             onChange={(event) => onProjectNameChange(event.target.value)}
-            placeholder={product ? `${product.name} productization workspace` : 'Productization workspace'}
+            placeholder={product ? `${product.name} product workspace` : 'Product workspace'}
           />
           <Button
             variant="contained"
@@ -72,7 +72,7 @@ export default function ProjectStartApprovalPanel({
             onClick={onStartWorkspace}
             sx={{ minHeight: 46 }}
           >
-            {isStartingWorkspace ? 'Starting...' : 'Approve Plan And Start Workspace'}
+            {isStartingWorkspace ? 'Starting...' : 'Approve product plan'}
           </Button>
           {!product && <DotLabel label="Select a production product first" color={appleColors.amber} />}
           {product && !serviceCount && <DotLabel label="Choose at least one launch-hardening service" color={appleColors.amber} />}
@@ -163,7 +163,7 @@ export default function ProjectStartApprovalPanel({
             Open product workspace
           </Button>
           <Button component={NextLink} href="/dashboard" variant="text" sx={{ minHeight: 42 }}>
-            Back to command center
+            Back to Product Home
           </Button>
         </Stack>
       </Surface>

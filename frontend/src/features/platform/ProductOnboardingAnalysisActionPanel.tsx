@@ -75,7 +75,7 @@ export default function ProductOnboardingAnalysisActionPanel({
   onRunAnalysis: () => void;
 }) {
   const actionErrorMessage = actionError
-    ? errorMessageFromUnknown(actionError, 'The AI project creation action was rejected.')
+    ? errorMessageFromUnknown(actionError, 'The AI product creation action was rejected.')
     : '';
   const actionErrorCode = actionError ? errorCodeFromUnknown(actionError) : '';
   const blockedValidationCount = validationItems.filter(item => item.state === 'blocked').length;
@@ -123,7 +123,7 @@ export default function ProductOnboardingAnalysisActionPanel({
         >
           <Typography variant="body2" sx={{ fontWeight: 950 }}>
             {canCreate
-              ? 'Ready to create the productization project'
+              ? 'Ready to create the product'
               : blockedValidationCount
                 ? 'Resolve required fields before creating'
                 : 'Review the highlighted evidence before creating'}

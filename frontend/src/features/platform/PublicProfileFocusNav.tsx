@@ -121,7 +121,7 @@ export function PublicProfileInternalHeader({
           { label: profileLabel, onClick: onOpenHub },
           { label: view.title },
         ]}
-        backLabel="Profile hub"
+        backLabel="Profile home"
         onBack={onOpenHub}
       />
       <Surface sx={{ p: { xs: 2, md: 2.5 }, background: '#fbfcff' }}>
@@ -218,7 +218,7 @@ export function PublicProfileContextPanel({
             {badge}
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>
-            {summary || 'Review profile fit before adding this option to a governed product start plan.'}
+            {summary || 'Review profile fit before adding this option to a governed product plan.'}
           </Typography>
         </Box>
         <Box sx={{ minWidth: 0 }}>

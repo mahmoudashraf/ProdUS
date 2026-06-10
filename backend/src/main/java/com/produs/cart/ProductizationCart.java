@@ -32,7 +32,7 @@ public class ProductizationCart extends BaseEntity {
     private ProductProfile productProfile;
 
     @Column(nullable = false)
-    private String title = "Productization cart";
+    private String title = "Product Plan";
 
     @Column(name = "business_goal", columnDefinition = "TEXT")
     private String businessGoal;

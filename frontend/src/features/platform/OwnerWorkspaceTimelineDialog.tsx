@@ -17,7 +17,7 @@ interface OwnerWorkspaceTimelineDialogProps {
 export default function OwnerWorkspaceTimelineDialog({ open, items, onClose }: OwnerWorkspaceTimelineDialogProps) {
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Productization Timeline</DialogTitle>
+      <DialogTitle>Product Timeline</DialogTitle>
       <DialogContent>
         <Stack spacing={1} sx={{ pt: 0.5 }}>
           {items.map((item, index) => (

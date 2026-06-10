@@ -66,7 +66,7 @@ export function LaunchpadProductsPanel({
           })}
         </Stack>
       ) : (
-        <EmptyState label="Create your first product profile to start productization." />
+        <EmptyState label="Create your first product profile to start planning." />
       )}
     </Surface>
   );
@@ -86,7 +86,7 @@ export function LaunchpadActiveWorkspacesPanel({
             <Box key={workspace.id} sx={{ pb: 1.4, borderBottom: '1px solid', borderColor: 'divider' }}>
               <Typography sx={{ fontWeight: 900 }}>{workspace.name}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>
-                {workspace.packageInstance?.productProfile?.name || workspace.packageInstance?.name || 'Productization workspace'}
+                {workspace.packageInstance?.productProfile?.name || workspace.packageInstance?.name || 'Product workspace'}
               </Typography>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
                 <StatusChip label={workspace.status} />
@@ -106,7 +106,7 @@ export function LaunchpadActiveWorkspacesPanel({
         </Stack>
       ) : (
         <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-          Workspaces appear after the owner approves a start plan into a delivery project.
+          Workspaces appear after the owner approves a product plan into a delivery workspace.
         </Typography>
       )}
     </Surface>

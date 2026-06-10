@@ -12,7 +12,7 @@ export const teamMatchViews: Array<{
     value: 'matches',
     title: 'Choose Match',
     eyebrow: 'Best next decision',
-    description: 'Compare the top delivery teams for the selected start plan.',
+    description: 'Compare the top delivery teams for the selected product plan.',
   },
   {
     value: 'profile',

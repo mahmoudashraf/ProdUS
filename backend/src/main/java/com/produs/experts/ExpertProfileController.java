@@ -71,7 +71,7 @@ public class ExpertProfileController {
             ExpertProfile profile = new ExpertProfile();
             profile.setUser(user);
             profile.setDisplayName(defaultDisplayName(user));
-            profile.setHeadline(user.getRole() == User.UserRole.TEAM_MANAGER ? "Team leader" : "Independent productization expert");
+            profile.setHeadline(user.getRole() == User.UserRole.TEAM_MANAGER ? "Team leader" : "Independent product expert");
             profile.setBio("Add a short expert bio, proof, preferred work, and availability.");
             profile.setSoloMode(user.getRole() == User.UserRole.SPECIALIST || user.getRole() == User.UserRole.ADVISOR);
             return expertProfileRepository.save(profile);

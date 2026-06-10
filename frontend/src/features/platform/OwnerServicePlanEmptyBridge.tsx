@@ -19,9 +19,9 @@ export default function OwnerServicePlanEmptyBridge() {
     >
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ sm: 'center' }}>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="h4">Approve the Project Start Plan first</Typography>
+          <Typography variant="h4">Approve the Product Plan first</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>
-            The selected services are already staged for this product. Use the Start Plan to confirm scope, then generate or attach a detailed service package when delivery needs a team handoff.
+            The selected services are already staged for this product. Use Planning to confirm scope, then generate or attach a detailed service package when delivery needs a team handoff.
           </Typography>
         </Box>
         <Button
@@ -31,7 +31,7 @@ export default function OwnerServicePlanEmptyBridge() {
           startIcon={<PlaylistAddCheckOutlined />}
           sx={{ minHeight: 40, flexShrink: 0 }}
         >
-          Open Start Plan
+          Open Planning
         </Button>
       </Stack>
     </Box>

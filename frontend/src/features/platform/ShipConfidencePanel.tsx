@@ -83,7 +83,7 @@ export default function ShipConfidencePanel({
             <MetricTile label="Priority fixes" value={latest.priorityFixCount} detail="Critical/high rough edges" accent={latest.priorityFixCount ? appleColors.red : appleColors.green} icon={<TroubleshootOutlined />} />
             <MetricTile label="Mapped fixes" value={latest.mappedFindingCount} detail="Signals with a service path" accent={appleColors.green} icon={<CheckCircleOutlineOutlined />} />
             <MetricTile label="Proof gaps" value={latest.proofGapCount} detail="Needs a scan, note, or link" accent={latest.proofGapCount ? appleColors.amber : appleColors.green} icon={<AutoAwesomeOutlined />} />
-            <MetricTile label="Services" value={latest.recommendedServiceCount} detail="Recommended productization work" accent={appleColors.purple} icon={<MovingOutlined />} />
+            <MetricTile label="Services" value={latest.recommendedServiceCount} detail="Recommended service work" accent={appleColors.purple} icon={<MovingOutlined />} />
           </Box>
 
           <Box sx={{ mt: 1.5, p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#e5edf7', bgcolor: '#fbfdff' }}>

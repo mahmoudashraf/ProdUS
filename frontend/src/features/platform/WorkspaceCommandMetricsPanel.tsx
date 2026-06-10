@@ -36,7 +36,7 @@ export default function WorkspaceCommandMetricsPanel({
       <MetricTile
         label="Active workspaces"
         value={activeWorkspaceCount}
-        detail={`${totalWorkspaceCount} total productization paths`}
+        detail={`${totalWorkspaceCount} total product paths`}
         accent={appleColors.cyan}
         icon={<FactCheckOutlined />}
       />

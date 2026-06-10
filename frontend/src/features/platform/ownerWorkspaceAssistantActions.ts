@@ -64,7 +64,7 @@ export function buildOwnerWorkspaceAssistantActions({
     }
     if (name.includes('workspace.create')) {
       if (!cartServiceItemCount) {
-        return 'Choose at least one lifecycle service for the start plan first.';
+        return 'Choose at least one lifecycle service for the product plan first.';
       }
       if (cartBlockers > 0) {
         return blockingServiceMessage(cartBlockingGapTitles, cartBlockingRecommendationNames);
@@ -90,7 +90,7 @@ export function buildOwnerWorkspaceAssistantActions({
       return;
     }
     if (name.includes('workspace.create')) {
-      if (!cartServiceItemCount) throw new Error('Choose lifecycle services for the start plan before creating a workspace.');
+      if (!cartServiceItemCount) throw new Error('Choose lifecycle services for the product plan before creating a workspace.');
       if (cartBlockers > 0) {
         throw new Error(blockingServiceMessage(cartBlockingGapTitles, cartBlockingRecommendationNames));
       }

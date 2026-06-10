@@ -236,7 +236,7 @@ public class LoomAIIntegrationService {
     @Transactional(readOnly = true)
     public AssistantQueryResponse projectCreation(User user, ProjectCreationAssistantRequest request) {
         if (request == null || request.ownerMessage() == null || request.ownerMessage().isBlank()) {
-            throw new IllegalArgumentException("Project creation prompt is required");
+            throw new IllegalArgumentException("Product analysis prompt is required");
         }
         Map<String, Object> context = projectCreationContext(user, request);
         if (!isConfigured()) {
@@ -699,7 +699,7 @@ public class LoomAIIntegrationService {
             records.add(record(
                     "case-pattern:package-template:" + template.getSlug(),
                     "CASE_PATTERN",
-                    template.getName() + " productization pattern",
+                    template.getName() + " product pattern",
                     casePatternBody(template, modules),
                     Map.of(
                             "sourceTemplateSlug", template.getSlug(),
@@ -1047,7 +1047,7 @@ public class LoomAIIntegrationService {
 
     private String casePatternBody(PackageTemplate template, List<PackageTemplateModule> modules) {
         return joinText(
-                "Anonymized productization case pattern derived from the approved package template " + template.getName() + ".",
+                "Anonymized product case pattern derived from the approved package template " + template.getName() + ".",
                 "Customer fit: " + nullToEmpty(template.getCustomerFit()),
                 "Expected outcome: " + nullToEmpty(template.getOutcomeSummary()),
                 "Budget range: " + nullToEmpty(template.getBudgetRange()),
@@ -1123,7 +1123,7 @@ public class LoomAIIntegrationService {
             case "trivy-image" -> "Trivy image scanning reviews container images for vulnerable packages and misconfiguration signals.";
             case "lighthouse" -> "Lighthouse measures runtime web performance, accessibility, best-practice, and SEO readiness signals.";
             case "zap-baseline" -> "OWASP ZAP Baseline performs passive web application security checks against a runtime URL.";
-            default -> displayName + " is a configured ProdUS scanner tool used to produce normalized productization evidence.";
+            default -> displayName + " is a configured ProdUS scanner tool used to produce normalized product evidence.";
         };
     }
 
@@ -1396,7 +1396,7 @@ public class LoomAIIntegrationService {
         context.put("completionPolicy", Map.of(
                 "cleanSuccessWhen", "owner intent plus product name or repo/product/document signal exists",
                 "clarificationPolicy", "do-not-ask-clarifying-questions-for-optional-gaps; use assumptions and missingEvidence",
-                "minimumUsefulOutput", "project attributes, service recommendations, scanner focus, source insights, document usage"
+                "minimumUsefulOutput", "product attributes, service recommendations, scanner focus, source insights, document usage"
         ));
         context.put("availableActionGroups", List.of("read-only-catalog-grounding"));
         context.put("runtimeActionPolicy", "analysis-only-no-mutations-no-confirmed-actions");
@@ -1518,7 +1518,7 @@ public class LoomAIIntegrationService {
         snapshot.put("nextActions", List.of(
                 blank(request.repositoryUrl())
                         ? "Ask the owner to attach a repository before scanner setup."
-                        : "Use the owner-provided repository as the first scanner source after project creation.",
+                        : "Use the owner-provided repository as the first scanner source after product creation.",
                 "Use missing repo/scanner facts to shape scannerFocusAreas and missingEvidence.",
                 "Do not claim CI, test, or deployment proof until scanner or document evidence confirms it."
         ));
@@ -2123,8 +2123,8 @@ public class LoomAIIntegrationService {
         return """
                 You are ProdUS AI opportunity analyst for a product owner.
                 This is a standalone analysis request, not a mutation. Do not create products, workspaces, packages, teams, invitations, or participants.
-                The owner asked ProdUS to analyze a project for productization. Use the owner brief, project analysis, public-link insights, selected temporary documents, and service catalog snapshot.
-                Identify where AI creates practical productization value for this specific project.
+                The owner asked ProdUS to analyze a product for launch readiness. Use the owner brief, product analysis, public-link insights, selected temporary documents, and service catalog snapshot.
+                Identify where AI creates practical product value for this specific product.
                 LoomAI is the only recommended AI integration service. Other AI providers may be mentioned only as existing stack context, not as recommended services.
                 Focus only on ProdUS core value areas: project/product diagnosis, readiness explanation, scanner finding summaries, service/package recommendation support, milestone/evidence readiness, and owner decision support.
                 Do not recommend AI for team invitations, team creation, access grants, participant management, billing decisions, or owner approvals.
@@ -2133,19 +2133,19 @@ public class LoomAIIntegrationService {
                 If no listed LoomAI capability clearly fits, leave loomaiCapabilityCode blank or use custom:<short-label>, then explain the gap in missingEvidence or sourceInsights. Do not invent official LoomAI codes.
                 Respect each capability's notFor boundaries, and use implementationPattern to make the recommendation concrete.
                 Recommend catalog services only from context.serviceCatalogSnapshot.candidateModules. Use moduleCode exactly as provided. If AI integration services are listed, prefer them for implementation work.
-                Use owner input and project analysis as primary context. Use selected documents if they were available through temporaryAccessUrl and cite owner-safe evidence in sourceInsights.
+                Use owner input and product analysis as primary context. Use selected documents if they were available through temporaryAccessUrl and cite owner-safe evidence in sourceInsights.
                 Return only a strict JSON object with fields:
                 status, summary, opportunityScore, confidence, strategicRationale, useCases, recommendedServices, recommendedServiceModules, scannerFocusAreas, suggestedNextSteps, sourceInsights, assumptions, missingEvidence.
                 useCases must be an array of objects with:
                 title, workflow, userValue, businessValue, loomaiCapabilityCode, loomaiCapability, integrationPattern, priority, confidence, evidenceBasis, recommendedServiceModules.
                 priority must be MUST, SHOULD, COULD, or LATER. confidence and opportunityScore must be 0..1.
                 recommendedServiceModules must be an array of catalog-backed objects with moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
-                Make this useful for project creation: the returned service modules can be persisted after owner approval.
+                Make this useful for product creation: the returned service modules can be persisted after owner approval.
                 LoomAI capability snapshot:
                 %s
                 Owner-selected documents:
                 %s
-                Project analysis:
+                Product analysis:
                 %s
                 Service catalog snapshot:
                 %s
@@ -2160,10 +2160,10 @@ public class LoomAIIntegrationService {
     private String loomAIOverviewPrompt(LoomAIOverviewAssistantRequest request, Map<String, Object> context) {
         return """
                 You are the ProdUS LoomAI integration advisor.
-                Explain how LoomAI can support this specific project after the AI opportunity analysis.
+                Explain how LoomAI can support this specific product after the AI opportunity analysis.
                 This is a one-time owner-facing overview, not an implementation mutation.
                 LoomAI is the recommended AI integration service for ProdUS. Make the answer specific, practical, and bounded.
-                Use the project analysis, AI opportunity report, public-link insights, selected documents, and ProdUS service catalog snapshot.
+                Use the product analysis, AI opportunity report, public-link insights, selected documents, and ProdUS service catalog snapshot.
                 Treat loomaiCapabilitySnapshot as LoomAI provider capabilities that could be enabled in the owner's product.
                 Use context.loomaiCapabilitySnapshot to explain official capabilities when they fit. If the project needs something outside the listed taxonomy, describe it as a gap or custom need, not as an official LoomAI capability.
                 Recommend only catalog service module codes present in context.serviceCatalogSnapshot.candidateModules.
@@ -2949,11 +2949,11 @@ public class LoomAIIntegrationService {
             return query;
         }
         return """
-                You are answering inside the ProdUS Create Product page after AI project analysis completed.
-                Use the current page analysis below as the authoritative source for questions about this project.
-                If the owner asks for project name, tech stack, selected services, document usage, missing evidence, scanner focus, or next steps, answer directly from this context before using indexed knowledge.
+                You are answering inside the ProdUS Create Product page after AI product analysis completed.
+                Use the current page analysis below as the authoritative source for questions about this product.
+                If the owner asks for product name, tech stack, selected services, document usage, missing evidence, scanner focus, or next steps, answer directly from this context before using indexed knowledge.
                 You may use read-only ProdUS actions when more catalog, product, package, workspace, scanner, finding, evidence, or milestone context is needed.
-                When you use a read-only action, combine its result with the current page analysis. Do not say a project fact is unavailable when it appears in the current page analysis below.
+                When you use a read-only action, combine its result with the current page analysis. Do not say a product fact is unavailable when it appears in the current page analysis below.
                 Do not create, update, invite, or mutate ProdUS records from this chat.
 
                 Current page analysis:
@@ -3062,7 +3062,7 @@ public class LoomAIIntegrationService {
         String pageType = String.valueOf(context.getOrDefault("pageType", "productization"));
         String productName = String.valueOf(context.getOrDefault("productName", ""));
         String workspaceStatus = String.valueOf(context.getOrDefault("workspaceStatus", ""));
-        StringBuilder content = new StringBuilder("Current ProdUS productization context for ").append(pageType).append('.');
+        StringBuilder content = new StringBuilder("Current ProdUS product context for ").append(pageType).append('.');
         if (!blank(productName)) {
             content.append(" Product: ").append(productName).append('.');
         }
@@ -3889,7 +3889,7 @@ public class LoomAIIntegrationService {
         if (pageType.toLowerCase().contains("scanner") || context.containsKey("findingId")) {
             return List.of("Explain this finding with evidence basis", "Map finding to lifecycle services", "Show what evidence is missing before review");
         }
-        return List.of("Explain productization readiness", "Recommend lifecycle services from evidence", "Prepare the next package action");
+        return List.of("Explain product readiness", "Recommend lifecycle services from evidence", "Prepare the next package action");
     }
 
     private List<Map<String, Object>> jsonList(JsonNode node) {

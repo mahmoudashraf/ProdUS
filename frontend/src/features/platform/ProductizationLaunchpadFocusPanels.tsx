@@ -31,7 +31,7 @@ export function LaunchpadFocusPanel({
   const items: JourneyStepItem<LaunchpadJourneyValue>[] = [
     {
       value: 'plan',
-      label: 'Review Start Plan',
+      label: 'Review Product Plan',
       detail: 'Approve services and talent before opening a delivery workspace.',
       accent: appleColors.purple,
       meta: <PastelChip label={`${draftServices + draftTalent} selected`} accent={appleColors.purple} bg="#f1efff" />,
@@ -56,7 +56,7 @@ export function LaunchpadFocusPanel({
     <Surface>
       <SectionTitle title="Choose Focus" action={<PastelChip label="One path at a time" accent={appleColors.purple} />} />
       <OwnerWorkspaceJourneyNav
-        label="Productization command center focus"
+        label="Product Home focus"
         value={value}
         items={items}
         onChange={onSelect}
@@ -75,10 +75,10 @@ export function LaunchpadDetailNavigation({
   return (
     <WorkspaceBreadcrumbs
       items={[
-        { label: 'Command Center', onClick: onOpenHub },
+        { label: 'Product Home', onClick: onOpenHub },
         { label: currentLabel },
       ]}
-      backLabel="Command center hub"
+      backLabel="Product Home"
       onBack={onOpenHub}
     />
   );
@@ -96,11 +96,11 @@ export function LaunchpadAiNextActionPanel({
     <Surface>
       <SectionTitle title="AI Next Best Action" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
       <Typography variant="h4">
-        {draftServices ? 'Review the start plan' : hasProducts ? 'Choose the product to continue' : 'Create a product profile'}
+        {draftServices ? 'Review the product plan' : hasProducts ? 'Choose the product to continue' : 'Create a product profile'}
       </Typography>
       <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
         {draftServices
-          ? 'Your start plan already has services. Add matching delivery talent or start the workspace when the scope is clear.'
+          ? 'Your product plan already has services. Add matching delivery talent or start the workspace when the scope is clear.'
           : hasProducts
             ? 'Open the right Product Home first, then continue to its action plan, findings, services, or share route.'
             : 'A product profile gives the platform enough context to recommend services, teams, and workspace milestones.'}

@@ -41,7 +41,7 @@ export const useProjectStartPlanActions = ({
     mutationFn: (payload: CartUpdatePayload) => putJson<ProductizationCart, CartUpdatePayload>('/productization-cart/current', payload),
     onSuccess: async () => {
       setCreatedWorkspace(null);
-      setNotice('Start plan product updated.');
+      setNotice('Product plan product updated.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -49,7 +49,7 @@ export const useProjectStartPlanActions = ({
   const removeService = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
     onSuccess: async () => {
-      setNotice('Service removed from the start plan.');
+      setNotice('Service removed from the product plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -57,7 +57,7 @@ export const useProjectStartPlanActions = ({
   const removeTalent = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/talent/${itemId}`),
     onSuccess: async () => {
-      setNotice('Team or expert removed from the start plan.');
+      setNotice('Team or expert removed from the product plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -65,7 +65,7 @@ export const useProjectStartPlanActions = ({
   const addRecommendedService = useMutation({
     mutationFn: (payload: { serviceModuleId: string; notes: string }) => postJson<ProductizationCart, { serviceModuleId: string; notes: string }>('/productization-cart/services', payload),
     onSuccess: async () => {
-      setNotice('Recommended service chosen for the start plan.');
+      setNotice('Recommended service chosen for the product plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -82,10 +82,10 @@ export const useProjectStartPlanActions = ({
   const convertCart = useMutation({
     mutationFn: () =>
       postJson<ProductizationCartConvertResponse, CartConvertPayload>('/productization-cart/convert', {
-        projectName: projectName || `${currentCart?.productProfile?.name || 'Product'} productization workspace`,
+        projectName: projectName || `${currentCart?.productProfile?.name || 'Product'} product workspace`,
       }),
     onSuccess: async (result) => {
-      setNotice('Workspace created. Your approved plan became service milestones, participants, and a project workspace.');
+      setNotice('Workspace created. Your approved plan became service milestones, participants, and a product workspace.');
       setCreatedWorkspace(result.workspace);
       setProjectName('');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });

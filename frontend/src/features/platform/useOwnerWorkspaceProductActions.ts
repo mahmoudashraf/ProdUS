@@ -123,38 +123,38 @@ export function useOwnerWorkspaceProductActions({
   const addServiceToCart = useMutation({
     mutationFn: (payload: CartServicePayload) => postJson<ProductizationCart, CartServicePayload>('/productization-cart/services', payload),
     onSuccess: async () => {
-      setCartNotice('Service added to the start plan.');
+      setCartNotice('Service added to the product plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const removeServiceFromCart = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
     onSuccess: async () => {
-      setCartNotice('Service removed from the start plan.');
+      setCartNotice('Service removed from the product plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const addTalentToCart = useMutation({
     mutationFn: (payload: CartTalentPayload) => postJson<ProductizationCart, CartTalentPayload>('/productization-cart/talent', payload),
     onSuccess: async () => {
-      setCartNotice('Delivery talent added to the start plan.');
+      setCartNotice('Delivery talent added to the product plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const removeTalentFromCart = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/talent/${itemId}`),
     onSuccess: async () => {
-      setCartNotice('Delivery talent removed from the start plan.');
+      setCartNotice('Delivery talent removed from the product plan.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const convertCart = useMutation({
     mutationFn: () =>
       postJson<ProductizationCartConvertResponse, CartConvertPayload>('/productization-cart/convert', {
-        projectName: projectName || `${selectedProduct?.name || 'Product'} productization workspace`,
+        projectName: projectName || `${selectedProduct?.name || 'Product'} product workspace`,
       }),
     onSuccess: async (result) => {
-      setCartNotice('Project workspace created. Open the workspace to manage milestones, evidence, and participants.');
+      setCartNotice('Product workspace created. Open the workspace to manage milestones, evidence, and participants.');
       setSelectedPackageId(result.packageInstance.id);
       setProjectName('');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });

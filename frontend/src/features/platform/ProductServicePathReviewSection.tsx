@@ -25,7 +25,7 @@ export function ProductServicePathReviewSection({
   return (
     <ProductOnboardingReviewSection
       title="Service path"
-      subtitle="Choose the services that should seed the start plan before creating the product."
+      subtitle="Choose the services that should seed the product plan before creating the product."
     >
       <Stack spacing={1}>
         <AiServicePlanReview

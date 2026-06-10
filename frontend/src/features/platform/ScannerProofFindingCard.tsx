@@ -141,7 +141,7 @@ export default function ScannerProofFindingCard({
               >
                 {recommendedModule.ownerOutcome ||
                   recommendedModule.description ||
-                  'Choose this service for tracked remediation in the Project Start Plan.'}
+                  'Choose this service for tracked remediation in the Product Plan.'}
               </Typography>
             </Box>
             <Button

@@ -63,7 +63,7 @@ public class ScannerStorageGovernanceService {
         ProductProfile product = productRepository.findById(request.productId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
         ProjectWorkspace workspace = request.workspaceId() == null ? null : workspaceRepository.findById(request.workspaceId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project workspace not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product workspace not found"));
         requireProductRead(actor, product, workspace);
         if (!storageProperties.isExportEnabled()) {
             throw new IllegalStateException("Scanner evidence exports are disabled");

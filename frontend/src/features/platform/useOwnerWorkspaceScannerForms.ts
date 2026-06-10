@@ -41,7 +41,7 @@ export function useOwnerWorkspaceScannerForms(scannerSummary: ProductScannerSumm
     containerImageRef: '',
     authorizationConfirmed: false,
     runtimeAuthorizationConfirmed: false,
-    reason: 'Owner authorized scanner execution for productization readiness.',
+    reason: 'Owner authorized scanner execution for product readiness.',
   });
   const [scannerUploadForm, setScannerUploadForm] = useState<ScannerUploadForm>({
     sourceId: '',
@@ -71,7 +71,7 @@ export function useOwnerWorkspaceScannerForms(scannerSummary: ProductScannerSumm
   const [scheduleForm, setScheduleForm] = useState<ScannerScheduleForm>({
     intervalDays: '7',
     nextRunAt: '',
-    reason: 'Scheduled evidence refresh for productization readiness.',
+    reason: 'Scheduled evidence refresh for product readiness.',
   });
 
   useEffect(() => {

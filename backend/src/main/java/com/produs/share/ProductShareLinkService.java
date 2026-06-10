@@ -34,14 +34,14 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
-import static com.produs.share.ProductShareDtos.LockedShareSection;
-import static com.produs.share.ProductShareDtos.ProductShareLinkRequest;
-import static com.produs.share.ProductShareDtos.ProductShareLinkResponse;
-import static com.produs.share.ProductShareDtos.PublicLaunchStatus;
-import static com.produs.share.ProductShareDtos.PublicProductShareResponse;
-import static com.produs.share.ProductShareDtos.PublicSelectedService;
-import static com.produs.share.ProductShareDtos.PublicShareSummary;
-import static com.produs.share.ProductShareDtos.PublicViewerAction;
+import com.produs.share.ProductShareDtos.LockedShareSection;
+import com.produs.share.ProductShareDtos.ProductShareLinkRequest;
+import com.produs.share.ProductShareDtos.ProductShareLinkResponse;
+import com.produs.share.ProductShareDtos.PublicLaunchStatus;
+import com.produs.share.ProductShareDtos.PublicProductShareResponse;
+import com.produs.share.ProductShareDtos.PublicSelectedService;
+import com.produs.share.ProductShareDtos.PublicShareSummary;
+import com.produs.share.ProductShareDtos.PublicViewerAction;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
@@ -294,7 +294,7 @@ public class ProductShareLinkService {
                 })
                 .orElse(new PublicShareSummary(
                         "Team status",
-                        "No Project Start Plan team status is available yet.",
+                        "No Product Plan team status is available yet.",
                         List.of("Delivery participation remains private until the owner shares it."),
                         0
                 ));

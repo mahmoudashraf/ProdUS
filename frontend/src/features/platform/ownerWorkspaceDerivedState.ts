@@ -244,8 +244,8 @@ export const buildOwnerActionGroups = ({
     accent: appleColors.purple,
     items: weekItems.slice(0, 3).map((item) => ({
       title: String(item),
-      detail: 'Turn this into planned productization work with a clear owner.',
-      action: 'Add or confirm the service in the project start plan.',
+      detail: 'Turn this into planned product work with a clear owner.',
+      action: 'Add or confirm the service in the product plan.',
     })),
   },
   {

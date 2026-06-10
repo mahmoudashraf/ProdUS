@@ -52,10 +52,10 @@ export default function ServicePlanStartPage() {
     <>
       <PageHeader
         title="Start a Service Plan"
-        description="Choose a clear starting point: approve the start plan into a workspace, or generate a service plan from a submitted product brief."
+        description="Choose a clear starting point: approve the product plan into a workspace, or generate a service plan from a submitted product brief."
         action={
           <Button component={NextLink} href="/dashboard" variant="outlined" sx={{ minHeight: 42 }}>
-            Back to command center
+            Back to Product Home
           </Button>
         }
       />
@@ -64,9 +64,9 @@ export default function ServicePlanStartPage() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
         <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
           <Stack spacing={2}>
-            <SectionTitle title="Use Start Plan" action={<PlaylistAddCheckOutlined sx={{ color: appleColors.purple }} />} />
+            <SectionTitle title="Use Product Plan" action={<PlaylistAddCheckOutlined sx={{ color: appleColors.purple }} />} />
             <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-              Best when the owner has already selected lifecycle services, teams, or solo experts. Starting the workspace creates the service plan, milestones, participants, and shortlist records together.
+              Best when the owner has already selected lifecycle services, teams, or solo experts. Approving the product plan creates the service plan, milestones, participants, and shortlist records together.
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <PastelChip label={cart.data?.productProfile?.name || 'No product selected'} accent={appleColors.purple} />
@@ -74,7 +74,7 @@ export default function ServicePlanStartPage() {
               <PastelChip label={`${draftTalent} teams / experts`} accent={appleColors.green} bg="#e7f8ee" />
             </Stack>
             <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 44 }}>
-              Open Project Start Plan
+              Open Planning
             </Button>
           </Stack>
         </Surface>
@@ -120,7 +120,7 @@ export default function ServicePlanStartPage() {
             )}
             {createdPlan && (
               <Alert severity="success" sx={{ borderRadius: 1 }}>
-                Created {createdPlan.name}. Open the Plan Library to review modules and matching teams.
+                Created {createdPlan.name}. Open Service Plans to review modules and matching teams.
               </Alert>
             )}
           </Stack>

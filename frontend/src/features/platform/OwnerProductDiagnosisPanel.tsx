@@ -196,7 +196,7 @@ export default function OwnerProductDiagnosisPanel({
         <StudioAssistantCard
           title="Ask AI About This Diagnosis"
           description="Translate the diagnosis into practical fixes, tradeoffs, and the next owner decision."
-          prompt={`Do not call tools for this answer. Explain the productization diagnosis for ${product.name} using these visible facts directly. ${diagnosisPromptFacts} Focus on the ship-readiness score, priority fixes, recommended lifecycle services, scanner signals, and the next owner decision. Do not certify production readiness; call out where human review is needed.`}
+          prompt={`Do not call tools for this answer. Explain the product readiness diagnosis for ${product.name} using these visible facts directly. ${diagnosisPromptFacts} Focus on the ship-readiness score, priority fixes, recommended lifecycle services, scanner signals, and the next owner decision. Do not certify production readiness; call out where human review is needed.`}
           conversationId={`studio-diagnosis-${product.id}`}
           context={assistantContext}
           {...assistantActions}

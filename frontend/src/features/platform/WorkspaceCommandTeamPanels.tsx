@@ -134,7 +134,7 @@ export default function WorkspaceCommandTeamPanels({
             { label: 'Team And Risks', onClick: onOpenHub },
             { label: teamViewLabel[view] },
           ]}
-          backLabel="Team hub"
+          backLabel="Team home"
           onBack={onOpenHub}
         />
       )}
@@ -148,7 +148,7 @@ export default function WorkspaceCommandTeamPanels({
         />
       ) : (
         <OwnerWorkspaceJourneyNav
-          label="Team and risk command"
+          label="Team and risks"
           value={null}
           items={items}
           onChange={onViewChange}

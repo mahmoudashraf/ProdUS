@@ -36,7 +36,7 @@ export const formatDate = (value?: string) => {
 };
 
 export const messageFor = (name: string) =>
-  `I saw ${name} on ProdUS Network and would like to discuss service fit, availability, and a scoped collaboration path for productization work.`;
+  `I saw ${name} on ProdUS Network and would like to discuss service fit, availability, and a scoped collaboration path for product work.`;
 
 export type ActionVariant = NonNullable<ButtonProps['variant']>;
 export type ActionColor = NonNullable<ButtonProps['color']>;

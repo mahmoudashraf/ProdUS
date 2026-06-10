@@ -62,7 +62,7 @@ export function AiServicePlanReview({
               AI selected lifecycle services
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Included services are persisted when you create the project.
+              Included services are saved when you create the product.
             </Typography>
           </Box>
           <DotLabel

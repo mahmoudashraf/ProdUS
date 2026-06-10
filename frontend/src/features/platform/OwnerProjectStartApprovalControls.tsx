@@ -36,10 +36,10 @@ export default function OwnerProjectStartApprovalControls({
       <Divider />
       <TextField
         size="small"
-        label="Project workspace name"
+        label="Product workspace name"
         value={projectName}
         onChange={(event) => onProjectNameChange(event.target.value)}
-        placeholder={product ? `${product.name} productization workspace` : 'Productization workspace'}
+        placeholder={product ? `${product.name} product workspace` : 'Product workspace'}
       />
 
       <Button
@@ -49,10 +49,10 @@ export default function OwnerProjectStartApprovalControls({
         onClick={onConvert}
         sx={{ minHeight: 44 }}
       >
-        {isConverting ? 'Creating...' : 'Approve Plan And Start Workspace'}
+        {isConverting ? 'Creating...' : 'Approve product plan'}
       </Button>
       {!product && <DotLabel label="Select a product before starting" color={appleColors.amber} />}
-      {product && !serviceCount && <DotLabel label="Choose at least one productization service" color={appleColors.amber} />}
+      {product && !serviceCount && <DotLabel label="Choose at least one service" color={appleColors.amber} />}
       {product && serviceCount > 0 && blockers > 0 && (
         <DotLabel
           label={`Choose these services first: ${missingServiceNames}`}
@@ -61,7 +61,7 @@ export default function OwnerProjectStartApprovalControls({
       )}
       {hasWorkspace && (
         <Button component={NextLink} href="/workspaces" variant="outlined" endIcon={<OpenInNewOutlined />} sx={{ minHeight: 42 }}>
-          Open Project Workspace
+          Open product workspace
         </Button>
       )}
     </>

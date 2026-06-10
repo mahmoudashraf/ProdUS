@@ -41,7 +41,7 @@ export default function CatalogPage() {
   const startPlanHref = canUseStartPlan ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login';
   const startPlanServicesHref = canUseStartPlan ? `${PROJECT_START_PLAN_HREF}?step=services` : startPlanHref;
   const startPlanReadinessHref = canUseStartPlan ? `${PROJECT_START_PLAN_HREF}?step=readiness` : startPlanHref;
-  const startPlanActionLabel = canUseStartPlan ? 'Project Start Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
+  const startPlanActionLabel = canUseStartPlan ? 'Product Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
   const aiProductSetupHref = isLoggedIn ? '/products/new?step=setup&from=service-catalog&ai=1' : '/login';
 
   const categories = useQuery({
@@ -82,7 +82,7 @@ export default function CatalogPage() {
           '/productization-cart/current',
           {
             productProfileId: selectedProductId,
-            title: `${productName} Project Start Plan`,
+            title: `${productName} Product Plan`,
             businessGoal: selectedProduct.data?.summary || `Plan ${payload.moduleName} for ${productName}.`,
           }
         );

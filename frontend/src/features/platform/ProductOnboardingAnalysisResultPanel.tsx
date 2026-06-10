@@ -134,7 +134,7 @@ export default function ProductOnboardingAnalysisResultPanel({
             />
             <Alert severity={analysis.aiApplied ? 'success' : 'info'}>
               {analysis.aiApplied
-                ? 'AI analysis is ready. Review the generated attributes, then create the productization project through the action flow.'
+                ? 'AI analysis is ready. Review the generated attributes, then create the product through the action flow.'
                 : 'Analysis used deterministic fallback because AI did not return the expected strict JSON contract.'}
             </Alert>
             <ProductOnboardingAiReviewContent

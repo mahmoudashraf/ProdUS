@@ -200,10 +200,10 @@ export function ServicePlanDetailNavigation({
   return (
     <WorkspaceBreadcrumbs
       items={[
-        { label: 'Plan Library', onClick: onOpenHub },
+        { label: 'Service Plans', onClick: onOpenHub },
         { label: currentView ? servicePlanViewLabel[currentView] : 'Plan Home' },
       ]}
-      backLabel="Plan library"
+      backLabel="Service Plans"
       onBack={onOpenHub}
     />
   );
@@ -218,7 +218,7 @@ export function ServicePlanInternalRouteActions({
 }) {
   return (
     <WorkspaceCommandSubrouteActions
-      ariaLabel="Plan library internal pages"
+      ariaLabel="Service Plans internal pages"
       currentValue={currentView}
       items={servicePlanRouteItems}
       onChange={onChange}

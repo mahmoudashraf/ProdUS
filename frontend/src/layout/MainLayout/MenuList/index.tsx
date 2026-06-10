@@ -189,7 +189,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
         },
         {
           id: 'product-start-plan',
-          title: 'Project Start Plan',
+          title: 'Planning',
           type: 'item',
           url: '/owner/project-cart',
           icon: IconPackage,

@@ -115,7 +115,7 @@ public class ProductizationEngineService {
         diagnosis.setAccessSignals(request.accessSignals());
         diagnosis.setSummary(firstNonBlank(
                 request.summary(),
-                "Deterministic productization diagnosis for " + product.getName() + ". Findings are based on owner-provided product context, access signals, and catalog rules. No AI execution was performed."
+                "Deterministic product diagnosis for " + product.getName() + ". Findings are based on owner-provided product context, access signals, and catalog rules. No AI execution was performed."
         ));
         diagnosis.setReadinessScore(readinessScore(product, combinedSignal));
         diagnosis.setAiReady(true);
@@ -1429,7 +1429,7 @@ public class ProductizationEngineService {
         diagnosis.setSummary(firstNonBlank(
                 summary,
                 scannerFindings.isEmpty()
-                        ? "No active scanner findings are currently blocking productization. Keep scheduled evidence refresh enabled before launch decisions."
+                        ? "No active scanner findings are currently blocking launch. Keep scheduled evidence refresh enabled before launch decisions."
                         : (manualRefresh
                                 ? "Scanner findings were refreshed against the current production-readiness catalog."
                                 : "Scanner findings were mapped automatically to production-readiness areas, evidence needs, and catalog services.")
@@ -1653,7 +1653,7 @@ public class ProductizationEngineService {
             addSeed(seeds, "monitoring", "cloud.monitoring_setup", "Monitoring and alerting gap", "Production paths need monitoring, alert ownership, and incident visibility.", ProductFinding.FindingSeverity.HIGH, "Owner context mentioned monitoring, alerts, logs, or observability.");
         }
         if (contains(text, "database", "data", "schema", "migration", "query")) {
-            addSeed(seeds, "database", "db.review", "Database readiness risk", "Schema, migration, data integrity, and query behavior need review before productization.", ProductFinding.FindingSeverity.MEDIUM, "Owner context mentioned data or database concerns.");
+            addSeed(seeds, "database", "db.review", "Database readiness risk", "Schema, migration, data integrity, and query behavior need review before launch.", ProductFinding.FindingSeverity.MEDIUM, "Owner context mentioned data or database concerns.");
         }
         if (contains(text, "payment", "billing", "subscription", "checkout")) {
             addSeed(seeds, "payments", "launch.payment_setup", "Payment launch readiness", "Payment, billing, and subscription flows need implementation and verification evidence.", ProductFinding.FindingSeverity.HIGH, "Owner context mentioned payment or revenue workflows.");

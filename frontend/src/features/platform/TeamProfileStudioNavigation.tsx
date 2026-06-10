@@ -137,7 +137,7 @@ export function TeamProfileStudioInternalHeader({
           { label: 'Profile studio', onClick: onOpenHub },
           { label: studioTitleByView[activeView] },
         ]}
-        backLabel="Studio hub"
+        backLabel="Studio home"
         onBack={onOpenHub}
       />
     </Box>

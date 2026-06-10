@@ -16,7 +16,7 @@ import Logo from '@/components/ui-component/Logo';
 const services = [
   {
     title: 'Diagnose',
-    description: 'Turn prototype state, codebase risk, dependencies, and business goals into a concrete productization brief.',
+    description: 'Turn prototype state, codebase risk, dependencies, and business goals into a concrete product brief.',
     icon: <AutoAwesomeOutlined />,
     color: '#625cff',
   },
@@ -91,7 +91,7 @@ export default function LandingPage() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.95fr 1.05fr' }, gap: { xs: 4, lg: 7 }, alignItems: 'center' }}>
           <Stack spacing={3}>
             <Box sx={{ display: 'inline-flex', alignSelf: 'flex-start', px: 1.25, py: 0.75, borderRadius: 1, bgcolor: '#eeedff', color: '#5147ff', fontWeight: 900, fontSize: 12, letterSpacing: 0 }}>
-              AI-governed productization platform
+              AI-guided product launch platform
             </Box>
             <Typography component="h1" sx={{ fontSize: { xs: 44, md: 74 }, lineHeight: 0.96, fontWeight: 900, letterSpacing: 0 }}>
               Turn prototypes into products.
@@ -101,7 +101,7 @@ export default function LandingPage() {
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <Button component={NextLink} href={isLoggedIn ? '/dashboard' : '/catalog'} size="large" variant="contained">
-                {isLoggedIn ? `Open ${user?.role === 'PRODUCT_OWNER' ? 'Productization' : 'Dashboard'}` : 'Explore Services'}
+                {isLoggedIn ? `Open ${user?.role === 'PRODUCT_OWNER' ? 'Product Home' : 'Dashboard'}` : 'Explore Services'}
               </Button>
               <Button component={NextLink} href="/teams" size="large" variant="outlined">
                 Browse Teams
@@ -149,7 +149,7 @@ export default function LandingPage() {
 
         <Box sx={{ mt: { xs: 6, md: 9 }, p: { xs: 2, md: 3 }, borderRadius: 2, bgcolor: '#fff', border: '1px solid #dbe4f0', boxShadow: '0 24px 70px rgba(15,23,42,0.08)' }}>
           <Typography align="center" variant="h2">How ProdOps Network Works</Typography>
-          <Typography align="center" color="text.secondary" sx={{ mt: 1, mb: 3 }}>Structured productization with AI governance, verified specialists, and concrete delivery evidence.</Typography>
+          <Typography align="center" color="text.secondary" sx={{ mt: 1, mb: 3 }}>Structured product planning with AI guidance, verified specialists, and concrete delivery evidence.</Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
             {services.map((service, index) => (
               <Box key={service.title} sx={{ p: 2.5, border: '1px solid #e4eaf5', borderRadius: 1, background: `linear-gradient(180deg, ${service.color}14, #fff)` }}>

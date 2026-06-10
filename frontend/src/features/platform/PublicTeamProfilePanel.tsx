@@ -72,10 +72,10 @@ export default function PublicTeamProfilePanel({
         }}
         sx={{ minHeight: 44, minWidth: 180 }}
       >
-        {!isLoggedIn ? 'Sign in to attach team' : canUseProjectCart ? (inPlan ? 'In Start Plan' : 'Attach team to plan') : 'Open dashboard'}
+        {!isLoggedIn ? 'Sign in to attach team' : canUseProjectCart ? (inPlan ? 'In Product Plan' : 'Attach team to plan') : 'Open dashboard'}
       </Button>
       <Button component={NextLink} href={canUseProjectCart ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login'} variant="outlined" sx={{ minHeight: 44, minWidth: 170 }}>
-        {canUseProjectCart ? 'Project Start Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
+        {canUseProjectCart ? 'Product Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start'}
       </Button>
     </Stack>
   );
@@ -84,7 +84,7 @@ export default function PublicTeamProfilePanel({
     <Stack spacing={2.5}>
       <PageHeader
         title="Team Profile"
-        description="Evaluate whether this delivery team belongs in the project start plan."
+        description="Evaluate whether this delivery team belongs in the product plan."
       />
 
       {!hasActiveView ? (

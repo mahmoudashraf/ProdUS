@@ -56,7 +56,7 @@ export function TeamCard({
             <StatusChip label={team.verificationStatus} />
           </Stack>
           <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
-            {team.headline || team.description || 'Verified productization team.'}
+            {team.headline || team.description || 'Verified product team.'}
           </Typography>
         </Box>
         <TagRow value={team.capabilitiesSummary || team.description} />
@@ -114,7 +114,7 @@ export function ExpertCard({
         <Box>
           <Typography variant="h3">{expert.displayName}</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
-            {expert.headline || 'Independent productization expert.'}
+            {expert.headline || 'Independent product expert.'}
           </Typography>
         </Box>
         <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>

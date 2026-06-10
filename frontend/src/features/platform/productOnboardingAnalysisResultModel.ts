@@ -79,16 +79,16 @@ export function buildProductOnboardingAnalysisResultModel({
       state: brief.trim() ? 'ready' : 'blocked',
     },
     {
-      title: 'AI project analysis',
+      title: 'AI product analysis',
       detail: analysis.aiApplied
-        ? `LoomAI returned structured project attributes${analysis.intent.analysisProviderRequestId ? ` with trace ${analysis.intent.analysisProviderRequestId}.` : '.'}`
+        ? `LoomAI returned structured product attributes${analysis.intent.analysisProviderRequestId ? ` with trace ${analysis.intent.analysisProviderRequestId}.` : '.'}`
         : `Fallback analysis is available${analysis.fallbackReason ? `: ${analysis.fallbackReason}` : '.'}`,
       state: analysis.aiApplied ? 'ready' : 'attention',
     },
     {
       title: 'AI opportunities',
       detail: analysis.aiOpportunityReport
-        ? `${compactCount(aiOpportunityCount, 'AI use case')} found and added to project creation context.`
+        ? `${compactCount(aiOpportunityCount, 'AI use case')} found and added to product creation context.`
         : 'AI opportunities were requested, but no opportunity report was returned.',
       state: analysis.aiOpportunityReport ? 'ready' : 'attention',
     },
@@ -107,8 +107,8 @@ export function buildProductOnboardingAnalysisResultModel({
           ? `${compactCount(openedDocumentCount, 'document')} opened by AI through temporary URL; ${compactCount(notUsedDocumentCount, 'document')} not used.`
           : `${compactCount(analysis.aiSharedDocuments.length, 'selected document')} received temporary AI access. LoomAI did not return per-file usage evidence.`
         : documents.length
-          ? `${compactCount(documents.length, 'private attachment')} will stay with the project; ${compactCount(selectedDocumentCount, 'file')} ${selectedDocumentCount === 1 ? 'is' : 'are'} shared with AI temporarily.`
-          : 'No documents attached. You can still create the project from the conversation and links.',
+          ? `${compactCount(documents.length, 'private attachment')} will stay with the product; ${compactCount(selectedDocumentCount, 'file')} ${selectedDocumentCount === 1 ? 'is' : 'are'} shared with AI temporarily.`
+          : 'No documents attached. You can still create the product from the conversation and links.',
       state:
         documents.length > 0 && selectedDocumentCount === 0
           ? 'attention'
@@ -131,7 +131,7 @@ export function buildProductOnboardingAnalysisResultModel({
     {
       title: 'AI validation notes',
       detail: missingEvidence.length
-        ? `${compactCount(missingEvidence.length, 'proof gap')} found. The project can be created, but these should become follow-up tasks.`
+        ? `${compactCount(missingEvidence.length, 'proof gap')} found. The product can be created, but these should become follow-up tasks.`
         : assumptions.length
           ? `${compactCount(assumptions.length, 'assumption')} captured for owner review. No missing evidence was flagged for creation.`
           : 'AI did not flag missing evidence for the creation step.',

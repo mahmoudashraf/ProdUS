@@ -104,7 +104,7 @@ export default function LaunchReadinessReportPanel({
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
             <MetricTile label="Ready signals" value={report.readyItems.length} detail="Supported by current context" accent={appleColors.green} icon={<CheckCircleOutlineOutlined />} />
             <MetricTile label="Risk items" value={report.riskItems.length} detail="Review before widening usage" accent={report.riskItems.length ? appleColors.red : appleColors.green} icon={<ErrorOutlineOutlined />} />
-            <MetricTile label="Selected services" value={report.selectedServices.length} detail="Productization work in scope" accent={appleColors.purple} icon={<RocketLaunchOutlined />} />
+            <MetricTile label="Selected services" value={report.selectedServices.length} detail="Delivery work in scope" accent={appleColors.purple} icon={<RocketLaunchOutlined />} />
             <MetricTile label="Proof gaps" value={report.proofMissing.length} detail="Evidence still needed" accent={report.proofMissing.length ? appleColors.amber : appleColors.green} icon={<FactCheckOutlined />} />
           </Box>
 
@@ -114,7 +114,7 @@ export default function LaunchReadinessReportPanel({
               <Box>
                 <Typography variant="caption" color="text.secondary">Next owner decision</Typography>
                 <Typography sx={{ mt: 0.35, fontWeight: 900, lineHeight: 1.55 }}>
-                  {report.nextOwnerDecision || 'Decide the next practical productization move from the latest diagnosis.'}
+                  {report.nextOwnerDecision || 'Decide the next practical product move from the latest diagnosis.'}
                 </Typography>
               </Box>
             </Stack>
@@ -136,7 +136,7 @@ export default function LaunchReadinessReportPanel({
           )}
         </Stack>
       ) : (
-        <EmptyState label="No report generated yet. Generate one after project analysis, scanner mapping, or workspace evidence changes." />
+        <EmptyState label="No report generated yet. Generate one after product analysis, scanner mapping, or workspace evidence changes." />
       )}
     </Surface>
   );

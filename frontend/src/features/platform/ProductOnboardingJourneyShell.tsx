@@ -80,7 +80,7 @@ export function ProductCreationStartingPointPanel({
       : 'Started from the service catalog';
   const detail = fromAiCatalog
     ? 'Use AI-assisted setup to explain the product, identify useful AI support, and choose only the services the owner approves.'
-    : 'ProdUS will attach the product you create to this Project Start Plan. Review or change the product context before creation.';
+    : 'ProdUS will attach the product you create to this Product Plan. Review or change the product context before creation.';
 
   return (
     <Surface sx={{ background: '#fbfdff' }}>
@@ -120,7 +120,7 @@ export function ProductCreationStartingPointPanel({
             Review product fields
           </Button>
           <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 40 }}>
-            View Start Plan
+            View Product Plan
           </Button>
         </Stack>
       </Stack>
@@ -137,7 +137,7 @@ export function ProductCreationManualIntro({
     <Surface sx={{ boxShadow: 'none', background: '#fff' }}>
       <SectionTitle title="Create The Product Context" action={<Inventory2Outlined sx={{ color: appleColors.purple }} />} />
       <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-        Fill the owner-visible product profile. After creation, ProdUS opens the product workspace and preserves any services already chosen for the Project Start Plan.
+        Fill the owner-visible product profile. After creation, ProdUS opens the product workspace and preserves any services already chosen for the Product Plan.
       </Typography>
       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
         <PastelChip label={selectedServiceCount ? `${selectedServiceCount} selected services` : 'No selected services yet'} accent={selectedServiceCount ? appleColors.green : appleColors.amber} bg={selectedServiceCount ? '#e7f8ee' : '#fff4dc'} />
@@ -223,7 +223,7 @@ export function ProductCreationCartSnapshot({
               <Box>
                 <Typography sx={{ fontWeight: 900 }}>{item.serviceModule.name}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.5 }}>
-                  {item.notes || item.serviceModule.ownerOutcome || item.serviceModule.description || 'Selected for the Project Start Plan.'}
+                  {item.notes || item.serviceModule.ownerOutcome || item.serviceModule.description || 'Selected for the Product Plan.'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                   {formatLabel(item.serviceModule.category?.name || 'service')}

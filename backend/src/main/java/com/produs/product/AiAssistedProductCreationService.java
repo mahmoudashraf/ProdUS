@@ -85,7 +85,7 @@ public class AiAssistedProductCreationService {
             String apiBaseUrl
     ) {
         if (request == null || request.ownerMessage() == null || request.ownerMessage().isBlank()) {
-            throw new IllegalArgumentException("Project creation prompt is required");
+            throw new IllegalArgumentException("Product analysis prompt is required");
         }
 
         String consentToken = createToken("pcint");
@@ -93,7 +93,7 @@ public class AiAssistedProductCreationService {
                 startAnalysis(owner, request, files, aiSharedFileIndexes, apiBaseUrl, consentToken)
         );
         if (start == null) {
-            throw new IllegalStateException("Project creation analysis could not be started");
+            throw new IllegalStateException("Product analysis could not be started");
         }
 
         AnalysisMode analysisMode = request.analysisModeOrDefault();
@@ -147,7 +147,7 @@ public class AiAssistedProductCreationService {
                 completeAnalysis(start.intentId(), fieldsForCompletion, finalAssistant, start.temporaryAccess().size())
         );
         if (intent == null) {
-            throw new IllegalStateException("Project creation analysis could not be completed");
+            throw new IllegalStateException("Product analysis could not be completed");
         }
 
         return new AiAssistedProductAnalysisResponse(
@@ -229,7 +229,7 @@ public class AiAssistedProductCreationService {
             int temporaryAccessCount
     ) {
         ProductCreationIntent intent = intentRepository.findById(intentId)
-                .orElseThrow(() -> new IllegalArgumentException("Project creation intent not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Product creation intent not found"));
         applyAnalysis(intent, fields, assistant, temporaryAccessCount);
         intent.setStatus(ProductCreationIntent.Status.READY_FOR_ACTION);
         return intentRepository.save(intent);
@@ -258,13 +258,13 @@ public class AiAssistedProductCreationService {
     @Transactional
     public ProductCreationActionResponse createFromAction(ProductCreationActionRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("Project creation action payload is required");
+            throw new IllegalArgumentException("Product creation action payload is required");
         }
         if (request.creationIntentId() == null) {
-            throw new IllegalArgumentException("Project creation intent id is required");
+            throw new IllegalArgumentException("Product creation intent id is required");
         }
         ProductCreationIntent intent = intentRepository.findById(request.creationIntentId())
-                .orElseThrow(() -> new IllegalArgumentException("Project creation intent not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Product creation intent not found"));
         validateActionRequest(intent, request);
 
         if (intent.getProductProfile() != null && intent.getStatus() == ProductCreationIntent.Status.CREATED) {
@@ -337,7 +337,7 @@ public class AiAssistedProductCreationService {
                 "PRODUCT_PROFILE",
                 saved.getId(),
                 AuditEvent.RiskLevel.MEDIUM,
-                "AI project creation action executed via ProdUS runtime action; intent=%s idempotencyKey=%s providerRequestId=%s serviceRecommendations=%d cartServices=%d scannerRecommendations=%d readinessTasks=%d scanSource=%s"
+                "AI product creation action executed via ProdUS runtime action; intent=%s idempotencyKey=%s providerRequestId=%s serviceRecommendations=%d cartServices=%d scannerRecommendations=%d readinessTasks=%d scanSource=%s"
                         .formatted(intent.getId(), intent.getIdempotencyKey(), nullToEmpty(saved.getAiProviderRequestId()), serviceRecommendationCount, cartServiceItemCount, scannerRecommendationCount, readinessTaskCount, scanSourceId == null ? "" : scanSourceId)
         );
 
@@ -347,10 +347,10 @@ public class AiAssistedProductCreationService {
     @Transactional
     public ProductCreationActionResponse createFromActionForOwner(User owner, ProductCreationActionRequest request) {
         if (request == null || request.creationIntentId() == null) {
-            throw new IllegalArgumentException("Project creation action payload is required");
+            throw new IllegalArgumentException("Product creation action payload is required");
         }
         ProductCreationIntent intent = intentRepository.findById(request.creationIntentId())
-                .orElseThrow(() -> new IllegalArgumentException("Project creation intent not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Product creation intent not found"));
         if (owner.getRole() != User.UserRole.ADMIN && !intent.getOwner().getId().equals(owner.getId())) {
             throw projectCreationActionRejected(
                     "AI_CREATION_INTENT_OWNER_MISMATCH",
@@ -542,7 +542,7 @@ public class AiAssistedProductCreationService {
             error.put("status", "FAILED");
             error.put("errors", List.of(Map.of(
                     "code", "PROJECT_CREATION_ACTION_REJECTED",
-                    "message", exception.getMessage() == null ? "Project creation action rejected" : exception.getMessage()
+                    "message", exception.getMessage() == null ? "Product creation action rejected" : exception.getMessage()
             )));
             return error;
         }
@@ -561,7 +561,7 @@ public class AiAssistedProductCreationService {
         if (intent.getStatus() != ProductCreationIntent.Status.READY_FOR_ACTION) {
             throw projectCreationActionRejected(
                     "AI_CREATION_INTENT_NOT_READY",
-                    "This AI creation request is not ready yet. Re-run analysis before creating the project."
+                    "This AI creation request is not ready yet. Re-run analysis before creating the product."
             );
         }
         if (intent.getExpiresAt() == null || intent.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -589,13 +589,13 @@ public class AiAssistedProductCreationService {
             );
         }
         if (request.productName() == null || request.productName().isBlank()) {
-            throw new IllegalArgumentException("Product name is required for AI project creation action");
+            throw new IllegalArgumentException("Product name is required for AI product creation action");
         }
         if (request.summary() == null || request.summary().isBlank()) {
-            throw new IllegalArgumentException("Product summary is required for AI project creation action");
+            throw new IllegalArgumentException("Product summary is required for AI product creation action");
         }
         parseStage(request.businessStage())
-                .orElseThrow(() -> new IllegalArgumentException("Business stage is required for AI project creation action"));
+                .orElseThrow(() -> new IllegalArgumentException("Business stage is required for AI product creation action"));
         validateAttachmentOwnership(intent, request.sourceAttachmentIds());
         validateAttachmentOwnership(intent, request.aiAccessibleAttachmentIds());
         validateSelectedDocumentUsage(intent, request);
@@ -956,7 +956,7 @@ public class AiAssistedProductCreationService {
             recommendation.setProductProfile(product);
             recommendation.setScannerFocusArea(focusArea);
             recommendation.setSource("AI_PROJECT_ANALYSIS");
-            recommendation.setReason("Created from owner-approved AI project analysis.");
+            recommendation.setReason("Created from owner-approved AI product analysis.");
             recommendation.setRecommendedChecksJson(writeStringList(List.of(focusArea)));
             recommendation.setStatus(ProductScannerRecommendation.Status.SUGGESTED);
             recommendation.setCreatedByAi(true);
@@ -971,7 +971,7 @@ public class AiAssistedProductCreationService {
                 .map(value -> trim(value, 255))
                 .filter(value -> !value.isBlank())
                 .limit(6)
-                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Readiness goal recommended by AI project analysis.", "readinessGoals", "HIGH")));
+                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Readiness goal recommended by AI product analysis.", "readinessGoals", "HIGH")));
         listOrEmpty(request.suggestedNextSteps()).stream()
                 .map(value -> trim(value, 255))
                 .filter(value -> !value.isBlank())
@@ -981,7 +981,7 @@ public class AiAssistedProductCreationService {
                 .map(value -> trim(value, 255))
                 .filter(value -> !value.isBlank())
                 .limit(6)
-                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Evidence gap captured during AI project analysis.", "missingEvidence", "HIGH")));
+                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Evidence gap captured during AI product analysis.", "missingEvidence", "HIGH")));
 
         List<ReadinessTaskSeed> uniqueSeeds = seeds.stream()
                 .filter(seed -> hasText(seed.title()))
@@ -1032,7 +1032,7 @@ public class AiAssistedProductCreationService {
         source.setExternalRepositoryFullName(repositoryFullName.isBlank() ? null : repositoryFullName);
         source.setDefaultBranch("main");
         source.setAuthorizationStatus(ScanSource.AuthorizationStatus.AUTHORIZED);
-        source.setScopeNote("Owner-approved repository captured during AI project creation. Connect the provider app if private repository access is required; this source is ready for governed scanner setup.");
+        source.setScopeNote("Owner-approved repository captured during AI product creation. Connect the provider app if private repository access is required; this source is ready for governed scanner setup.");
         source.setCreatedBy(product.getOwner());
         return scanSourceRepository.save(source).getId();
     }
@@ -1291,7 +1291,7 @@ public class AiAssistedProductCreationService {
                 firstNonBlank(aiFields.riskProfile(), ownerProvidedFields.riskProfile()),
                 firstNonBlank(
                         aiFields.aiCreationSummary(),
-                        "LoomAI analyzed the owner intake and produced the initial project attributes. ProdUS completed any missing required fields from owner-provided inputs."
+                        "LoomAI analyzed the owner intake and produced the initial product attributes. ProdUS completed any missing required fields from owner-provided inputs."
                 ),
                 mergeList(aiFields.coreCapabilities(), ownerProvidedFields.coreCapabilities()),
                 mergeList(aiFields.businessOutcomes(), ownerProvidedFields.businessOutcomes()),
@@ -1969,25 +1969,25 @@ public class AiAssistedProductCreationService {
                 request.productUrl(),
                 request.repositoryUrl(),
                 request.knownRisks(),
-                "Analysis prepared from owner-approved AI project intake. LoomAI response was unavailable or did not return the strict project analysis JSON contract.",
+                "Analysis prepared from owner-approved AI product intake. LoomAI response was unavailable or did not return the strict product analysis JSON contract.",
                 List.of(),
                 List.of(),
-                List.of("Run product diagnosis, scanner evidence collection, and service selection after project creation."),
+                List.of("Run product diagnosis, scanner evidence collection, and service selection after product creation."),
                 recommendedServices,
                 serviceModules,
                 List.of(),
                 scannerFocusAreas,
-                List.of("Create the productization workspace and run the first diagnosis."),
+                List.of("Create the product workspace and run the first diagnosis."),
                 deterministicSourceInsights(request),
                 List.of("ProdUS used owner-provided intake because AI analysis was unavailable."),
-                List.of("Run diagnosis and scanner evidence collection after project creation."),
+                List.of("Run diagnosis and scanner evidence collection after product creation."),
                 List.of()
         );
     }
 
     private ProductCreationFields aiOpportunityOnlyFields(AiAssistedProductCreationRequest request) {
         return new ProductCreationFields(
-                firstNonBlank(request.productName(), firstLine(request.ownerMessage()), "AI opportunity project " + LocalDateTime.now().toLocalDate()),
+                firstNonBlank(request.productName(), firstLine(request.ownerMessage()), "AI opportunity product " + LocalDateTime.now().toLocalDate()),
                 trim(request.ownerMessage(), TEXT_LIMIT),
                 trim(request.ownerMessage(), TEXT_LIMIT),
                 "",
@@ -1997,17 +1997,17 @@ public class AiAssistedProductCreationService {
                 request.productUrl(),
                 request.repositoryUrl(),
                 request.knownRisks(),
-                "AI opportunities analysis will focus on useful LoomAI integration points and the implementation overview. Project-readiness diagnosis was not requested for this run.",
+                "AI opportunities analysis will focus on useful LoomAI integration points and the implementation overview. Product-readiness diagnosis was not requested for this run.",
                 List.of("AI opportunity assessment"),
-                List.of("Clear owner decision on whether LoomAI integration belongs in this productization scope."),
-                List.of("Decide if LoomAI-backed assistance should be implemented as part of the productization project."),
+                List.of("Clear owner decision on whether LoomAI integration belongs in this product scope."),
+                List.of("Decide if LoomAI-backed assistance should be implemented as part of the product plan."),
                 List.of(),
                 List.of(),
                 List.of(),
                 List.of(),
-                List.of("Review the AI opportunity map and choose whether to create the project with LoomAI integration services selected."),
+                List.of("Review the AI opportunity map and choose whether to create the product with LoomAI integration services selected."),
                 deterministicSourceInsights(request),
-                List.of("Owner selected AI opportunities only; full project-readiness analysis was intentionally skipped."),
+                List.of("Owner selected AI opportunities only; full product-readiness analysis was intentionally skipped."),
                 List.of(),
                 List.of()
         );
@@ -2390,13 +2390,13 @@ public class AiAssistedProductCreationService {
                         "Production-readiness copilot",
                         "Owner and reviewer questions during diagnosis, scanner review, and service planning.",
                         "Owners can understand blockers, tradeoffs, and next decisions without reading every technical artifact.",
-                        "Shortens productization discovery and makes readiness decisions easier to defend.",
+                        "Shortens product discovery and makes readiness decisions easier to defend.",
                         "loomai_embedded_assistant_ui",
                         "Embedded AI assistant UI powered by LoomAI runtime orchestration.",
                         "EMBEDDED_ASSISTANT_WITH_PRIVATE_RUNTIME",
                         "MUST",
                         0.74,
-                        List.of("Owner requested AI-supported productization.", hasText(request.repositoryUrl()) ? "Repository URL provided" : "Owner brief provided"),
+                        List.of("Owner requested AI-supported product planning.", hasText(request.repositoryUrl()) ? "Repository URL provided" : "Owner brief provided"),
                         aiIntegrationServiceSeeds()
                 ),
                 new AiOpportunityUseCase(
@@ -2418,11 +2418,11 @@ public class AiAssistedProductCreationService {
                         "Owners can adjust the service plan before committing to delivery.",
                         "Reduces blocked project starts and unclear scope.",
                         "loomai_structured_outputs",
-                        "Structured LoomAI recommendations that can become validated project creation data.",
+                        "Structured LoomAI recommendations that can become validated product creation data.",
                         "STRUCTURED_RECOMMENDATION_OUTPUT",
                         "SHOULD",
                         0.66,
-                        List.of("ProdUS catalog service recommendations are available in the project analysis."),
+                        List.of("ProdUS catalog service recommendations are available in the product analysis."),
                         aiIntegrationServiceSeeds()
                 )
         );
@@ -2431,7 +2431,7 @@ public class AiAssistedProductCreationService {
                 .toList();
         return new AiOpportunityReport(
                 response != null && response.success() ? "READY" : "FALLBACK_READY",
-                "AI opportunities were prepared for the owner-approved project creation path. LoomAI is the recommended AI integration service; implementation remains a catalog-backed service delivered by a LoomAI partner team or solo expert.",
+                "AI opportunities were prepared for the owner-approved product creation path. LoomAI is the recommended AI integration service; implementation remains a catalog-backed service delivered by a LoomAI partner team or solo expert.",
                 0.72,
                 response == null ? 0.64 : Math.max(0.5, response.confidence()),
                 "ProdUS should use AI where it improves diagnosis, explanation, scanner interpretation, and service planning. Team creation, participant access, and ownership decisions remain explicit owner actions.",
@@ -2440,7 +2440,7 @@ public class AiAssistedProductCreationService {
                 modules,
                 List.of("AI-assisted scanner finding summaries", "AI-assisted service selection rationale"),
                 List.of("Review AI opportunities with the owner before implementation scope is finalized.", "Select a LoomAI partner service if the owner wants AI integration implemented."),
-                mergeList(fields.sourceInsights(), List.of("AI opportunity analysis used the owner intake and project analysis context.")),
+                mergeList(fields.sourceInsights(), List.of("AI opportunity analysis used the owner intake and product analysis context.")),
                 List.of("LoomAI integration should be implemented through backend-mediated private runtime calls, not browser secrets."),
                 List.of(),
                 response == null ? "PRODUS_DETERMINISTIC" : response.provider(),
@@ -2470,7 +2470,7 @@ public class AiAssistedProductCreationService {
 
     private List<ServiceModuleRecommendation> aiIntegrationServiceSeeds() {
         List<DeterministicServiceSeed> seeds = List.of(
-                new DeterministicServiceSeed("ai.loomai_opportunity_assessment", "MUST", "Owner requested AI-supported productization analysis.", "AI opportunity map with useful integration points and boundaries."),
+                new DeterministicServiceSeed("ai.loomai_opportunity_assessment", "MUST", "Owner requested AI-supported product analysis.", "AI opportunity map with useful integration points and boundaries."),
                 new DeterministicServiceSeed("ai.loomai_integration_implementation", "SHOULD", "LoomAI is the recommended ProdUS AI integration service.", "Backend-mediated LoomAI integration is implemented safely with owner-visible outcomes.")
         );
         List<ServiceModuleRecommendation> recommendations = new ArrayList<>();
@@ -2555,17 +2555,17 @@ public class AiAssistedProductCreationService {
 
         List<DeterministicServiceSeed> seeds = new ArrayList<>();
         addDeterministicSeed(seeds, "validation.product_readiness", "MUST",
-                "Owner asked for a production-readiness productization project.",
+                "Owner asked for production readiness.",
                 "Evidence-backed product diagnosis and service sequencing.");
         if (hasRepo) {
             addDeterministicSeed(seeds, "validation.codebase", "MUST",
-                    "Repository URL was provided during project creation.",
+                    "Repository URL was provided during product creation.",
                     "Codebase risks are visible before delivery teams scope implementation.");
             addDeterministicSeed(seeds, "security.secrets_scan", asksSecurity ? "MUST" : "SHOULD",
-                    "Repository-backed productization should check for exposed credentials and unsafe configuration.",
+                    "Repository-backed product readiness should check for exposed credentials and unsafe configuration.",
                     "Secret exposure risk is surfaced before production access is granted.");
             addDeterministicSeed(seeds, "security.dependency_review", "SHOULD",
-                    "Repository-backed productization should inspect dependency and supply-chain risk.",
+                    "Repository-backed product readiness should inspect dependency and supply-chain risk.",
                     "Dependency risk is visible and mapped to patch or acceptance decisions.");
         }
         if (asksDeployment || hasRepo) {
@@ -2589,10 +2589,10 @@ public class AiAssistedProductCreationService {
         if (asksDatabase) {
             addDeterministicSeed(seeds, "db.review", "SHOULD",
                     "The owner input or repository context references database or data readiness.",
-                    "Schema, migration, integrity, and query risks are reviewed before productization.");
+                    "Schema, migration, integrity, and query risks are reviewed before launch.");
         }
         addDeterministicSeed(seeds, "launch.readiness_review", "SHOULD",
-                "Production-level productization should end with an owner-readable launch decision.",
+                "Production-level product work should end with an owner-readable launch decision.",
                 "Launch-critical blockers, evidence, and approvals are visible.");
 
         List<ServiceModuleRecommendation> recommendations = new ArrayList<>();
@@ -2776,7 +2776,7 @@ public class AiAssistedProductCreationService {
                             : "LoomAI did not return the required owner-safe evidence for this file.";
                 }
                 if ("NOT_USED".equals(status) && reason.isBlank()) {
-                    reason = "LoomAI did not use this file for the project creation analysis.";
+                    reason = "LoomAI did not use this file for the product creation analysis.";
                 }
                 result.add(new DocumentUsageEvidence(
                         trim(documentId, NAME_LIMIT),
