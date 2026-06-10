@@ -2259,24 +2259,13 @@ public class LoomAIIntegrationService {
 
     private String aiOpportunityPrompt(AiOpportunityAssistantRequest request, Map<String, Object> context) {
         return """
-                You are a business AI opportunity analyst for a nontechnical product owner.
+                Analyze AI opportunities for a startup product owner.
+                The owner wants business-perspective ideas: where this product could use AI to help users, improve decisions, explain information, reduce repeated work, or guide workflows.
+                Treat the owner brief and product summary as enough evidence to produce a REVIEW-quality opportunity map. Do not ask a question.
                 This is analysis only. Do not create, update, approve, invite, bill, or call tools.
-                This request is in scope when it asks where a product could use AI to create user value, save owner time, improve decisions, explain information, or guide a workflow.
-                The owner brief, product summary, product analysis, public-link facts, and selected-file metadata are valid evidence. Never ask a clarification question.
-                If evidence is thin, still return the best REVIEW-quality opportunity map with assumptions and missingEvidence.
-                Do not return OUT_OF_SCOPE, ERROR, CLARIFICATION_REQUIRED, NEED_MORE_CONTEXT, or markdown.
+                Do not depend on a ProdUS service catalog, data sync, vector store, or private knowledge base.
 
-                Goal: identify practical AI opportunities for this specific product from a business and user-journey perspective.
-                Think about the product's users, workflows, decisions, data, repeated questions, documents, operational bottlenecks, trust needs, and places where LoomAI could become a useful assistant or automation layer.
-                For each opportunity, explain what the user would do, what value they get, why it matters to the business, and how LoomAI could support it.
-
-                Do not limit opportunities to ProdUS internals. Scanner, launch-readiness, service-plan, and evidence support are relevant only when they fit this product.
-                Do not depend on the ProdUS service catalog or knowledge sync to identify opportunities. Service mapping can happen later after the owner accepts useful ideas.
-                Leave recommendedServices and recommendedServiceModules empty unless the product analysis itself clearly names a matching service.
-                Prefer LoomAI capability codes from loomaiCapabilitySnapshot when they clearly fit. If none fit, use an empty code or custom:<short-label> and explain the gap.
-
-                Do not answer with markdown, prose outside JSON, code fences, comments, or a clarification question.
-                Return only this strict JSON object:
+                Return only JSON:
                 {
                   "status": "READY|REVIEW",
                   "summary": "owner-ready one or two sentence answer",
@@ -2292,20 +2281,14 @@ public class LoomAIIntegrationService {
                   "assumptions": [],
                   "missingEvidence": []
                 }
-                useCases items: title, workflow, userValue, businessValue, loomaiCapabilityCode, loomaiCapability, integrationPattern, priority, confidence, evidenceBasis, recommendedServiceModules.
-                recommendedServiceModules items: moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
-                priority must be MUST, SHOULD, COULD, or LATER. confidence and opportunityScore must be numbers from 0 to 1.
-                Return 2-5 useCases when the owner brief or product summary describes a real product. Use REVIEW status for lower confidence instead of returning no opportunities.
+                Prefer useCases as objects with: title, workflow, userValue, businessValue, loomaiCapabilityCode, loomaiCapability, integrationPattern, priority, confidence, evidenceBasis, recommendedServiceModules.
+                If you cannot provide full objects, use concise strings in useCases. ProdUS can still show those real AI ideas for owner review.
+                Return 2-5 useCases when the owner brief or product summary describes a real product. Use REVIEW for lower confidence instead of returning no opportunities.
+                Leave recommendedServiceModules empty unless a concrete implementation service is obvious from the product analysis.
 
                 Owner brief:
                 %s
                 Product summary:
-                %s
-                Scanner summary:
-                %s
-                Evidence summary:
-                %s
-                LoomAI capability snapshot:
                 %s
                 Selected document summaries:
                 %s
@@ -2314,9 +2297,6 @@ public class LoomAIIntegrationService {
                 """.formatted(
                 safeText(request.ownerMessage(), 4_000),
                 writeJson(context.get("productSummary")),
-                writeJson(context.get("scannerSummary")),
-                writeJson(context.get("evidenceSummary")),
-                writeJson(context.get("loomaiCapabilitySnapshot")),
                 projectCreationDocumentPromptSection(request.documents()),
                 writeJson(context.get("projectAnalysis"))
         );
