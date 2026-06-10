@@ -1537,13 +1537,42 @@ public class LoomAIIntegrationService {
                 request.knownRisks(),
                 request.documents()
         );
-        Map<String, Object> context = projectCreationContext(user, projectRequest);
+        List<Map<String, Object>> publicLinkInsights = publicLinkInsights(projectRequest);
+        Map<String, Object> context = new LinkedHashMap<>();
         context.put("contextVersion", "produs-ai-opportunities-v1");
+        context.put("contextBoundary", "owner-authorized-product-facts-public-links-and-catalog-snapshot");
         context.put("pageType", "owner-ai-opportunity-analysis");
         context.put("pagePosition", "product_ai_opportunities");
         context.put("assistantIntent", "identify-owner-useful-ai-opportunities");
         context.put("actionProfile", "loomai-productization-ai-opportunity-analysis");
+        context.put("toolUsePolicy", "analysis-only-from-owner-input-public-link-insights-repo-signal-summary-and-catalog-snapshot");
+        context.put("completionPolicy", Map.of(
+                "cleanSuccessWhen", "owner intent plus product name, repository URL, product URL, tech stack, or product analysis exists",
+                "clarificationPolicy", "do-not-ask-clarifying-questions-for-optional-gaps; use REVIEW status, assumptions, and missingEvidence",
+                "minimumUsefulOutput", "status, summary, source insights, and either specific use cases or REVIEW with evidence gaps"
+        ));
+        context.put("availableActionGroups", List.of("read-only-catalog-grounding"));
         context.put("runtimeActionPolicy", "analysis-only-no-mutations-no-confirmed-actions");
+        context.put("actorRole", user.getRole().name());
+        context.put("ownerBrief", safeText(request.ownerMessage(), 4_000));
+        context.put("productId", request.productId() == null ? "" : request.productId().toString());
+        context.put("businessStageHint", safeText(request.businessStage(), FIELD_LIMIT));
+        context.put("techStackHint", safeText(request.techStack(), SUMMARY_LIMIT));
+        context.put("productUrlAvailable", !blank(request.productUrl()));
+        context.put("repositoryUrlAvailable", !blank(request.repositoryUrl()));
+        context.put("knownRisks", safeText(request.knownRisks(), SUMMARY_LIMIT));
+        context.put("publicLinkInsights", publicLinkInsights);
+        context.put("repoSignalSnapshot", projectCreationRepoSignalSnapshot(projectRequest, publicLinkInsights));
+        context.put("serviceCatalogSnapshot", projectCreationServiceCatalogSnapshot(projectRequest, publicLinkInsights));
+        context.put("documents", request.documents() == null ? List.of() : request.documents().stream()
+                .map(document -> Map.of(
+                        "documentId", safeText(document.documentId(), FIELD_LIMIT),
+                        "fileName", safeText(document.fileName(), FIELD_LIMIT),
+                        "contentType", safeText(document.contentType(), FIELD_LIMIT),
+                        "contentStatus", safeText(document.contentStatus(), FIELD_LIMIT),
+                        "selectedForThisRun", true
+                ))
+                .toList());
         context.put("recommendedAiService", "LoomAI");
         context.put("aiServicePolicy", Map.of(
                 "recommendedProvider", "LoomAI",
@@ -2121,40 +2150,49 @@ public class LoomAIIntegrationService {
 
     private String aiOpportunityPrompt(AiOpportunityAssistantRequest request, Map<String, Object> context) {
         return """
-                You are ProdUS AI opportunity analyst for a product owner.
-                This is a standalone analysis request, not a mutation. Do not create products, workspaces, packages, teams, invitations, or participants.
-                The owner asked ProdUS to analyze a product for launch readiness. Use the owner brief, product analysis, public-link insights, selected temporary documents, and service catalog snapshot.
-                Identify where AI creates practical product value for this specific product.
-                LoomAI is the only recommended AI integration service. Other AI providers may be mentioned only as existing stack context, not as recommended services.
-                Focus only on ProdUS core value areas: product diagnosis, readiness explanation, scanner finding summaries, service/package recommendation support, milestone/evidence readiness, and owner decision support.
-                In owner-facing prose, say "product" instead of "project" unless you are explicitly referring to a delivery workspace after approval.
+                You are ProdUS AI opportunity analyst for a nontechnical product owner.
+                This is analysis only. Do not create, update, approve, invite, bill, or call tools.
+                The owner already provided enough context to return a result. Never ask a clarification question.
+                If evidence is weak, return status REVIEW with empty useCases and explain the missing evidence.
+
+                Goal: identify practical LoomAI opportunities for this specific product.
+                Focus only on product diagnosis, launch-readiness explanation, scanner finding summaries, service-plan support, milestone/evidence readiness, and owner decision support.
                 Do not recommend AI for team invitations, team creation, access grants, participant management, billing decisions, or owner approvals.
-                Treat loomaiCapabilitySnapshot as LoomAI provider capabilities that could be implemented in the owner's product, not as ProdUS internal feature names.
-                Prefer LoomAI capabilities from context.loomaiCapabilitySnapshot.capabilities when they clearly fit. Return loomaiCapabilityCode exactly as an official listed code when available, and loomaiCapability as the matching capability name or concise owner-facing label.
-                If no listed LoomAI capability clearly fits, leave loomaiCapabilityCode blank or use custom:<short-label>, then explain the gap in missingEvidence or sourceInsights. Do not invent official LoomAI codes.
-                Respect each capability's notFor boundaries, and use implementationPattern to make the recommendation concrete.
-                Recommend catalog services only from context.serviceCatalogSnapshot.candidateModules. Use moduleCode exactly as provided. If AI integration services are listed, prefer them for implementation work.
-                Use owner input and product analysis as primary context. Use selected documents if they were available through temporaryAccessUrl and cite owner-safe evidence in sourceInsights.
+
+                Use only the owner brief, public-link facts, repo/scanner summary, product analysis, selected document summaries, LoomAI capability snapshot, and service catalog snapshot below.
+                Recommend catalog services only from serviceCatalogSnapshot.candidateModules and copy moduleCode exactly.
+                Prefer official LoomAI capability codes from loomaiCapabilitySnapshot when they clearly fit. If none fit, use an empty code or custom:<short-label> and explain the gap.
+
                 Do not answer with markdown, prose outside JSON, code fences, comments, or a clarification question.
-                Return a useful owner-ready JSON object even when evidence is partial. Put uncertainty in assumptions and missingEvidence instead of failing the contract.
-                Make the recommendations specific to this product. Avoid generic AI opportunities that could apply to any SaaS, marketplace, CRM, or dashboard.
-                Return only a strict JSON object with fields:
-                status, summary, opportunityScore, confidence, strategicRationale, useCases, recommendedServices, recommendedServiceModules, scannerFocusAreas, suggestedNextSteps, sourceInsights, assumptions, missingEvidence.
-                useCases must be an array of objects with:
-                title, workflow, userValue, businessValue, loomaiCapabilityCode, loomaiCapability, integrationPattern, priority, confidence, evidenceBasis, recommendedServiceModules.
-                priority must be MUST, SHOULD, COULD, or LATER. confidence and opportunityScore must be 0..1.
-                recommendedServiceModules must be an array of catalog-backed objects with moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
-                Make this useful for product creation: the returned service modules can be persisted after owner approval.
-                If no strong AI opportunity exists, return status REVIEW with an empty useCases array and explain why in missingEvidence. Do not invent weak opportunities.
+                Return only this strict JSON object:
+                {
+                  "status": "READY|REVIEW",
+                  "summary": "owner-ready one or two sentence answer",
+                  "opportunityScore": 0.0,
+                  "confidence": 0.0,
+                  "strategicRationale": "why AI helps or why it should wait",
+                  "useCases": [],
+                  "recommendedServices": [],
+                  "recommendedServiceModules": [],
+                  "scannerFocusAreas": [],
+                  "suggestedNextSteps": [],
+                  "sourceInsights": [],
+                  "assumptions": [],
+                  "missingEvidence": []
+                }
+                useCases items: title, workflow, userValue, businessValue, loomaiCapabilityCode, loomaiCapability, integrationPattern, priority, confidence, evidenceBasis, recommendedServiceModules.
+                recommendedServiceModules items: moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
+                priority must be MUST, SHOULD, COULD, or LATER. confidence and opportunityScore must be numbers from 0 to 1.
+
                 Owner brief:
                 %s
-                Public link insights:
+                Public-link facts:
                 %s
-                Repo and scanner fact snapshot:
+                Repo/scanner summary:
                 %s
                 LoomAI capability snapshot:
                 %s
-                Owner-selected documents:
+                Selected document summaries:
                 %s
                 Product analysis:
                 %s
