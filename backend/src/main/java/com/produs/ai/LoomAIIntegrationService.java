@@ -3987,6 +3987,12 @@ public class LoomAIIntegrationService {
         if (!values.isArray() || values.isEmpty()) {
             values = firstArray(body, "failures");
         }
+        if (!values.isArray() || values.isEmpty()) {
+            values = firstArray(body, "results");
+        }
+        if (!values.isArray() || values.isEmpty()) {
+            values = firstArray(body, "operationResults");
+        }
         return jsonList(values);
     }
 
