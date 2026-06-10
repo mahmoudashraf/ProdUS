@@ -84,6 +84,21 @@ export default function OwnerServicesRecommendationPanel({
     .map((item) => `${item.serviceModule.name}${item.serviceModule.stableCode ? ` (${item.serviceModule.stableCode})` : ''}`)
     .join(', ') || 'none';
   const mappedServiceSummary = mappedServiceNames.join(', ') || 'none';
+  const serviceSelectorPrompt = `
+Draft a short owner decision note for ${product?.name || 'the selected product'} from the facts below.
+This is not a knowledge-base search. Do not retrieve, search, or ask for a domain. Use only these supplied page facts.
+Visible service choices: ${availableServiceNames}.
+Services already in the product plan: ${selectedServiceNames}.
+Services mapped from scanner/readiness evidence: ${mappedServiceSummary}.
+Current launch blockers: ${blockerCount}; improvements: ${improvementCount}.
+Product plan facts: ${cartStartPromptFacts}
+Give the owner three clear sections:
+1. Add now: the required service gaps or blocker work to add before delivery can start.
+2. Keep or revisit: selected services that still make sense, and why.
+3. Defer: work that can wait until the blockers are resolved.
+Explain each decision in practical startup/MVP language, naming the blocker, scanner proof, or product-plan gap it addresses.
+If a required service is missing from the visible choices, say it is a product-plan gap instead of inventing a new service.
+`.trim();
 
   return (
     <Surface>
@@ -105,7 +120,7 @@ export default function OwnerServicesRecommendationPanel({
         <StudioAssistantCard
           title="AI Service Selector"
           description="Narrow the work that belongs in the product plan, using the verdict, scanner proof, current cart, and dependencies."
-          prompt={`Recommend the most relevant ProdUS lifecycle services for ${product?.name || 'the selected product'} using the visible service catalog and product readiness facts. Available visible service choices: ${availableServiceNames}. Services already in the product plan: ${selectedServiceNames}. Services mapped from scanner/readiness evidence: ${mappedServiceSummary}. Current launch blockers: ${blockerCount}; improvements: ${improvementCount}. Use these visible product plan facts directly: ${cartStartPromptFacts} Give the owner a short ranked recommendation: 1) add now, 2) keep or revisit existing plan items, 3) defer. Explain why each recommended service matters, what evidence or blocker it addresses, and which missing service is required before delivery starts. Avoid proposing services outside the visible catalog unless you clearly label them as a future catalog gap.`}
+          prompt={serviceSelectorPrompt}
           conversationId={`studio-services-${product?.id || 'none'}`}
           context={assistantContext}
           disabled={!product}
