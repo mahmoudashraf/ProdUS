@@ -192,6 +192,56 @@ class AiAssistedProductCreationServiceTest {
     }
 
     @Test
+    void keepsConciseTextOpportunitiesFromSuccessfulLoomAiResult() throws Exception {
+        AiAssistedProductCreationService service = service();
+        LoomAIIntegrationService.AssistantQueryResponse response = new LoomAIIntegrationService.AssistantQueryResponse(
+                "LOOMAI",
+                "thinker",
+                true,
+                "INFORMATION_PROVIDED",
+                """
+                        {
+                          "status": "REVIEW",
+                          "summary": "Business AI opportunities are available for owner review.",
+                          "useCases": [
+                            "Explain launch blockers in owner language",
+                            "Suggest the next service plan from current evidence"
+                          ],
+                          "suggestedNextSteps": ["Review the opportunities with the product owner"]
+                        }
+                        """,
+                "",
+                "conversation-1",
+                0.6,
+                List.of(),
+                List.of(),
+                List.of(),
+                "",
+                "rag-test"
+        );
+
+        Method parser = AiAssistedProductCreationService.class
+                .getDeclaredMethod("parseAiOpportunityReport", LoomAIIntegrationService.AssistantQueryResponse.class);
+        parser.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        Optional<AiAssistedProductCreationService.AiOpportunityReport> report =
+                (Optional<AiAssistedProductCreationService.AiOpportunityReport>) parser.invoke(service, response);
+
+        assertThat(report).isPresent();
+        assertThat(report.orElseThrow().live()).isTrue();
+        assertThat(report.orElseThrow().useCases())
+                .extracting(AiAssistedProductCreationService.AiOpportunityUseCase::title)
+                .containsExactly(
+                        "Explain launch blockers in owner language",
+                        "Suggest the next service plan from current evidence"
+                );
+        assertThat(report.orElseThrow().useCases())
+                .extracting(AiAssistedProductCreationService.AiOpportunityUseCase::priority)
+                .containsExactly("COULD", "COULD");
+    }
+
+    @Test
     void actionRequestParsesDocumentUsageForCreationGuard() {
         AiAssistedProductCreationService.ProductCreationActionRequest request =
                 AiAssistedProductCreationService.ProductCreationActionRequest.from(Map.of(

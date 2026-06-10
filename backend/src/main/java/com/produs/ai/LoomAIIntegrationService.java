@@ -1540,16 +1540,16 @@ public class LoomAIIntegrationService {
         List<Map<String, Object>> publicLinkInsights = publicLinkInsights(projectRequest);
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("contextVersion", "produs-ai-opportunities-v1");
-        context.put("contextBoundary", "owner-authorized-product-facts-public-links-and-catalog-snapshot");
+        context.put("contextBoundary", "owner-authorized-product-facts-public-links-selected-files-and-optional-catalog-mapping");
         context.put("pageType", "owner-ai-opportunity-analysis");
         context.put("pagePosition", "product_ai_opportunities");
         context.put("assistantIntent", "identify-owner-useful-ai-opportunities");
         context.put("actionProfile", "loomai-productization-explain-only");
-        context.put("toolUsePolicy", "answer-from-owner-brief-product-summary-scanner-summary-and-service-catalog-context");
+        context.put("toolUsePolicy", "answer-from-owner-brief-product-summary-business-goals-public-links-and-selected-file-metadata");
         context.put("completionPolicy", Map.of(
-                "cleanSuccessWhen", "owner intent plus product name, repository URL, product URL, tech stack, or product analysis exists",
+                "cleanSuccessWhen", "owner intent plus product name, repository URL, product URL, tech stack, selected files, or product analysis exists",
                 "clarificationPolicy", "do-not-ask-clarifying-questions-for-optional-gaps; use REVIEW status, assumptions, and missingEvidence",
-                "minimumUsefulOutput", "status, summary, source insights, and either specific use cases or REVIEW with evidence gaps"
+                "minimumUsefulOutput", "status, summary, source insights, and business-facing AI use cases with LoomAI integration fit"
         ));
         context.put("availableActionGroups", List.of());
         context.put("runtimeActionPolicy", "analysis-only-no-mutations-no-confirmed-actions");
@@ -1579,7 +1579,7 @@ public class LoomAIIntegrationService {
         context.put("recommendedAiService", "LoomAI");
         context.put("aiServicePolicy", Map.of(
                 "recommendedProvider", "LoomAI",
-                "scope", "product/scanner/service-plan assistance",
+                "scope", "business-facing product AI assistance, owner decision support, knowledge answers, file understanding, workflow guidance, and safe action support",
                 "excludedFlows", List.of("account access changes", "billing decisions", "unapproved write actions"),
                 "implementationPath", "backend-mediated private runtime with ProdUS authorization"
         ));
@@ -1604,7 +1604,7 @@ public class LoomAIIntegrationService {
                 ),
                 "useCaseFields", List.of("title", "workflow", "userValue", "businessValue", "loomaiCapabilityCode", "loomaiCapability", "integrationPattern", "priority", "confidence", "evidenceBasis", "recommendedServiceModules"),
                 "capabilityRule", "Prefer loomaiCapabilityCode values from loomaiCapabilitySnapshot.capabilities when they clearly fit. If none fit, leave loomaiCapabilityCode blank or use custom:<short-label> and explain the gap in missingEvidence/sourceInsights. Do not invent official LoomAI codes.",
-                "catalogRule", "recommendedServiceModules must use moduleCode values from serviceCatalogSnapshot.candidateModules only"
+                "catalogRule", "recommendedServiceModules is optional and must use moduleCode values from serviceCatalogSnapshot.candidateModules only"
         ));
         return context;
     }
@@ -2256,17 +2256,19 @@ public class LoomAIIntegrationService {
 
     private String aiOpportunityPrompt(AiOpportunityAssistantRequest request, Map<String, Object> context) {
         return """
-                You are ProdUS AI opportunity analyst for a nontechnical product owner.
+                You are a business AI opportunity analyst for a nontechnical product owner.
                 This is analysis only. Do not create, update, approve, invite, bill, or call tools.
-                This request is in scope when it asks how AI could help a founder understand or improve a product.
-                The owner brief and product analysis are valid evidence. Never ask a clarification question.
-                If evidence is weak, return status REVIEW with empty useCases and explain the missing evidence.
+                This request is in scope when it asks where a product could use AI to create user value, save owner time, improve decisions, explain information, or guide a workflow.
+                The owner brief, product summary, product analysis, public-link facts, and selected-file metadata are valid evidence. Never ask a clarification question.
+                If evidence is thin, still return the best REVIEW-quality opportunity map with assumptions and missingEvidence.
                 Do not return OUT_OF_SCOPE, ERROR, CLARIFICATION_REQUIRED, NEED_MORE_CONTEXT, or markdown.
 
-                Goal: identify practical LoomAI opportunities for this specific product.
-                Focus only on product diagnosis, launch-readiness explanation, scanner finding summaries, service-plan support, evidence readiness, and owner decision support.
+                Goal: identify practical AI opportunities for this specific product from a business and user-journey perspective.
+                Think about the product's users, workflows, decisions, data, repeated questions, documents, operational bottlenecks, trust needs, and places where LoomAI could become a useful assistant or automation layer.
+                For each opportunity, explain what the user would do, what value they get, why it matters to the business, and how LoomAI could support it.
 
-                Use only the owner brief, product summary, scanner summary, evidence summary, selected document summaries, LoomAI capability snapshot, and service catalog snapshot below.
+                Do not limit opportunities to ProdUS internals. Scanner, launch-readiness, service-plan, and evidence support are relevant only when they fit this product.
+                Use the service catalog only as an optional implementation mapping after the business opportunity is clear.
                 Recommend catalog services only from serviceCatalogSnapshot.candidateModules and copy moduleCode exactly. Leave service arrays empty if no candidate clearly fits.
                 Prefer LoomAI capability codes from loomaiCapabilitySnapshot when they clearly fit. If none fit, use an empty code or custom:<short-label> and explain the gap.
 
@@ -2290,6 +2292,7 @@ public class LoomAIIntegrationService {
                 useCases items: title, workflow, userValue, businessValue, loomaiCapabilityCode, loomaiCapability, integrationPattern, priority, confidence, evidenceBasis, recommendedServiceModules.
                 recommendedServiceModules items: moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
                 priority must be MUST, SHOULD, COULD, or LATER. confidence and opportunityScore must be numbers from 0 to 1.
+                Return 2-5 useCases when the owner brief or product summary describes a real product. Use REVIEW status for lower confidence instead of returning no opportunities.
 
                 Owner brief:
                 %s

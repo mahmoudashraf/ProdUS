@@ -2544,6 +2544,25 @@ public class AiAssistedProductCreationService {
             }
             List<AiOpportunityUseCase> result = new ArrayList<>();
             value.forEach(item -> {
+                if (item.isTextual()) {
+                    String title = trim(item.asText(), NAME_LIMIT);
+                    if (!title.isBlank()) {
+                        result.add(new AiOpportunityUseCase(
+                                title,
+                                "",
+                                title,
+                                "",
+                                "",
+                                "",
+                                "",
+                                "COULD",
+                                0.5,
+                                List.of("LoomAI returned this opportunity as a concise AI-generated item."),
+                                List.of()
+                        ));
+                    }
+                    return;
+                }
                 if (!item.isObject()) {
                     return;
                 }
