@@ -27,6 +27,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -163,7 +164,10 @@ class LoomAIIntegrationControllerTest {
                                 }
                                 """.formatted(product.getId())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.suggestions[0]").value(containsString("finding")));
+                .andExpect(jsonPath("$.provider").value("PRODUS_FALLBACK"))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.suggestions", empty()))
+                .andExpect(jsonPath("$.fallbackReason").value("LOOMAI_DISABLED"));
     }
 
     @Test

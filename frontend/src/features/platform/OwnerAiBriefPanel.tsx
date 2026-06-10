@@ -30,6 +30,9 @@ export default function OwnerAiBriefPanel({
   const live = Boolean(mode && mode !== 'FALLBACK');
   const visibleSuggestions = suggestions.slice(0, 3);
   const hasAskedAi = Boolean(mode || fallbackReason || suggestions.length);
+  const statusLabel = mode ? (live ? 'LoomAI live' : 'AI unavailable') : 'Ask AI';
+  const statusAccent = live ? appleColors.purple : mode ? appleColors.amber : appleColors.blue;
+  const statusBg = live ? '#f1efff' : mode ? '#fff4dc' : '#eaf3ff';
 
   return (
     <Surface>
@@ -38,8 +41,9 @@ export default function OwnerAiBriefPanel({
         action={
           <Stack direction="row" spacing={1} alignItems="center">
             <PastelChip
-              label={mode ? (live ? 'LoomAI live' : 'AI fallback') : 'Ask AI'}
-              accent={live ? appleColors.purple : appleColors.blue}
+              label={statusLabel}
+              accent={statusAccent}
+              bg={statusBg}
             />
             <Button
               size="small"

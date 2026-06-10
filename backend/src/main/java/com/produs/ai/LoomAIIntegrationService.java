@@ -392,7 +392,7 @@ public class LoomAIIntegrationService {
     public AssistantSuggestionsResponse suggestions(User user, AssistantSuggestionsRequest request) {
         Map<String, Object> context = safeContext(user, request == null ? null : request.context());
         if (!isConfigured()) {
-            return fallbackSuggestions("LOOMAI_DISABLED", context);
+            return fallbackSuggestions("LOOMAI_DISABLED");
         }
         try {
             ProviderJsonResponse response = postJson(
@@ -430,7 +430,7 @@ public class LoomAIIntegrationService {
             log.warn("loomai_assistant_suggestions_fallback reason={} detail={}",
                     exception.getClass().getSimpleName(),
                     safeExceptionDetail(exception));
-            return fallbackSuggestions("LOOMAI_UNAVAILABLE", context);
+            return fallbackSuggestions("LOOMAI_UNAVAILABLE");
         }
     }
 
@@ -4030,7 +4030,7 @@ public class LoomAIIntegrationService {
                 List.of(),
                 List.of(),
                 List.of(),
-                defaultSuggestionText(context),
+                List.of(),
                 Map.of(),
                 Map.of(),
                 List.of(),
@@ -4042,19 +4042,8 @@ public class LoomAIIntegrationService {
         );
     }
 
-    private AssistantSuggestionsResponse fallbackSuggestions(String reason, Map<String, Object> context) {
-        return new AssistantSuggestionsResponse("PRODUS_FALLBACK", "FALLBACK", false, defaultSuggestionText(context), reason, null);
-    }
-
-    private List<String> defaultSuggestionText(Map<String, Object> context) {
-        String pageType = String.valueOf(context.getOrDefault("pageType", "product"));
-        if (pageType.toLowerCase().contains("workspace")) {
-            return List.of("Review missing milestone evidence", "Summarize blocked delivery items", "List scanner findings that affect handoff");
-        }
-        if (pageType.toLowerCase().contains("scanner") || context.containsKey("findingId")) {
-            return List.of("Explain this finding with evidence basis", "Map finding to lifecycle services", "Show what evidence is missing before review");
-        }
-        return List.of("Explain product readiness", "Recommend lifecycle services from evidence", "Prepare the next package action");
+    private AssistantSuggestionsResponse fallbackSuggestions(String reason) {
+        return new AssistantSuggestionsResponse("PRODUS_FALLBACK", "FALLBACK", false, List.of(), reason, null);
     }
 
     private List<Map<String, Object>> jsonList(JsonNode node) {

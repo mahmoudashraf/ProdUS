@@ -179,6 +179,9 @@ export default function PlatformAssistantCard({
 
   const result = assistantQuery.data;
   const isLive = Boolean(result && result.provider === 'LOOMAI' && result.mode !== 'FALLBACK');
+  const resultStatusLabel = isLive ? 'LoomAI live' : 'AI unavailable';
+  const resultStatusAccent = isLive ? appleColors.purple : appleColors.amber;
+  const resultStatusBg = isLive ? '#f1efff' : '#fff4dc';
   const pendingDisabledReason = pendingAction ? actionDisabledReason?.(pendingAction) || (!onConfirmAction ? 'Review only on this surface.' : '') : '';
 
   return (
@@ -191,7 +194,7 @@ export default function PlatformAssistantCard({
           <Box>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap alignItems="center">
               <Typography variant={compact ? 'body2' : 'h4'} sx={{ fontWeight: 900 }}>{title}</Typography>
-              {result && <PastelChip label={isLive ? 'LoomAI live' : 'ProdUS fallback'} accent={isLive ? appleColors.purple : appleColors.blue} />}
+              {result && <PastelChip label={resultStatusLabel} accent={resultStatusAccent} bg={resultStatusBg} />}
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>{description}</Typography>
           </Box>
@@ -204,6 +207,11 @@ export default function PlatformAssistantCard({
       {assistantQuery.isError && <Alert severity="warning" sx={{ mt: 1.25, borderRadius: 1 }}>The assistant could not answer this request.</Alert>}
       {result && (
         <Box sx={{ mt: 1.25, p: 1.25, borderRadius: 1, bgcolor: '#fbfdff', border: '1px solid', borderColor: appleColors.line }}>
+          {!isLive && (
+            <Alert severity="warning" sx={{ mb: 1.25, borderRadius: 1 }}>
+              LoomAI did not return a live answer for this request. The message below is the backend fallback state, not a generated AI recommendation.
+            </Alert>
+          )}
           <MarkdownAnswer text={answerText(result)} />
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
             {typeof result.confidence === 'number' && <PastelChip label={`${Math.round(result.confidence * 100)}% confidence`} accent={accent} />}

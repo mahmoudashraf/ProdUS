@@ -117,6 +117,9 @@ export default function StudioAssistantCard({
 
   const result = assistantQuery.data;
   const isLive = Boolean(result && result.provider === 'LOOMAI' && result.mode !== 'FALLBACK');
+  const resultStatusLabel = isLive ? 'LoomAI live' : 'AI unavailable';
+  const resultStatusAccent = isLive ? appleColors.purple : appleColors.amber;
+  const resultStatusBg = isLive ? '#f1efff' : '#fff4dc';
   const actionDisabled = pendingAction
     ? actionDisabledReason?.(pendingAction) || (!onConfirmAction ? 'This proposed action is displayed for review only.' : '')
     : '';
@@ -155,9 +158,9 @@ export default function StudioAssistantCard({
               </Typography>
               {result && (
                 <PastelChip
-                  label={isLive ? 'LoomAI live' : 'ProdUS fallback'}
-                  accent={isLive ? appleColors.purple : appleColors.blue}
-                  bg={isLive ? '#f1efff' : '#eaf3ff'}
+                  label={resultStatusLabel}
+                  accent={resultStatusAccent}
+                  bg={resultStatusBg}
                 />
               )}
             </Stack>
@@ -195,6 +198,11 @@ export default function StudioAssistantCard({
 
       {result && (
         <Box sx={{ mt: 1.25, p: 1.25, borderRadius: 1, bgcolor: '#fbfdff', border: '1px solid', borderColor: appleColors.line }}>
+          {!isLive && (
+            <Alert severity="warning" sx={{ mb: 1.25, borderRadius: 1 }}>
+              LoomAI did not return a live answer for this request. The message below is the backend fallback state, not a generated AI recommendation.
+            </Alert>
+          )}
           <AssistantMarkdownRenderer text={assistantAnswerText(result)} />
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
             {typeof result.confidence === 'number' && (

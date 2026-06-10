@@ -4,7 +4,6 @@ import NextLink from 'next/link';
 import { useState } from 'react';
 import {
   ArrowForward,
-  AutoAwesomeOutlined,
   ChatBubbleOutline,
   ExploreOutlined,
   GroupsOutlined,
@@ -100,12 +99,12 @@ export function NetworkDashboardPage() {
         <Surface sx={{ bgcolor: '#f8f7ff' }}>
           <Stack spacing={1.5}>
             <Stack direction="row" spacing={1} alignItems="center">
-              <AutoAwesomeOutlined sx={{ color: appleColors.purple }} />
-              <Typography variant="h3">AI suggestion</Typography>
+              <ExploreOutlined sx={{ color: appleColors.purple }} />
+              <Typography variant="h3">Formation signal</Typography>
             </Stack>
             <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
               {isTeamLead
-                ? 'Recent service demand suggests adding frontend and documentation coverage before accepting larger Studio packages.'
+                ? 'Recent service demand points to frontend and documentation coverage before accepting larger Studio packages.'
                 : 'Your backend and launch profile complements frontend-heavy teams. Apply to a team opening or publish a focused formation post.'}
             </Typography>
             <Button component={NextLink} href="/expert-network/formation" endIcon={<ArrowForward />} sx={{ alignSelf: 'flex-start' }}>
