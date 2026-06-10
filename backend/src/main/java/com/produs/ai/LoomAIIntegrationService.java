@@ -2304,43 +2304,27 @@ public class LoomAIIntegrationService {
 
     private String loomAIOverviewPrompt(LoomAIOverviewAssistantRequest request, Map<String, Object> context) {
         return """
-                You are the ProdUS LoomAI integration advisor.
-                Explain how LoomAI can support this specific product after the AI opportunity analysis.
+                Explain how LoomAI could support this product's AI opportunities.
                 This is a one-time owner-facing overview, not an implementation mutation.
-                LoomAI is the recommended AI integration service for ProdUS. Make the answer specific, practical, and bounded.
-                Use the product analysis, AI opportunity report, public-link insights, selected documents, and ProdUS service catalog snapshot.
-                Treat loomaiCapabilitySnapshot as LoomAI provider capabilities that could be enabled in the owner's product.
-                Use context.loomaiCapabilitySnapshot to explain official capabilities when they fit. If the product needs something outside the listed taxonomy, describe it as a gap or custom need, not as an official LoomAI capability.
-                Recommend only catalog service module codes present in context.serviceCatalogSnapshot.candidateModules.
+                Use the product analysis and AI opportunity report. Do not depend on ProdUS catalog data, vector sync, or private knowledge-base retrieval.
+                Keep the advice practical for a startup/MVP owner: what to start with, which LoomAI-style capabilities matter, what implementation steps come first, and what the owner must decide.
+                If evidence is thin, use risks and ownerDecisions instead of asking a question.
                 Do not answer with markdown, prose outside JSON, code fences, comments, or a clarification question.
-                Return a useful bounded overview even when the opportunity report has no accepted use cases. In that case, say what evidence is missing before implementation.
-                Return only a strict JSON object with fields:
+                Return only JSON with fields:
                 summary, recommendedStartingPoint, capabilities, implementationSteps, ownerDecisions, risks, sourceInsights, recommendedServiceModules.
                 capabilities, implementationSteps, ownerDecisions, risks, and sourceInsights must be arrays of concise strings.
-                recommendedServiceModules must be catalog-backed objects with moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
+                recommendedServiceModules can be empty.
                 Keep the advice production-safe: backend-only secrets, browser calls only to ProdUS backend, owner confirmation for any future write action, and no document indexing for temporary product-intake attachments.
                 Owner brief:
                 %s
-                Public link insights:
-                %s
-                Repo and scanner fact snapshot:
-                %s
                 AI opportunity report:
-                %s
-                LoomAI capability snapshot:
                 %s
                 Product analysis:
                 %s
-                Service catalog snapshot:
-                %s
                 """.formatted(
                 safeText(request.ownerMessage(), 4_000),
-                projectCreationPublicLinkPromptSection(context.get("publicLinkInsights")),
-                writeJson(context.get("repoSignalSnapshot")),
                 writeJson(context.get("aiOpportunityReport")),
-                writeJson(context.get("loomaiCapabilitySnapshot")),
-                writeJson(context.get("projectAnalysis")),
-                writeJson(context.get("serviceCatalogSnapshot"))
+                writeJson(context.get("projectAnalysis"))
         );
     }
 
