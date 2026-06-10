@@ -12,6 +12,7 @@ import {
   appleColors,
   formatLabel,
 } from './PlatformComponents';
+import { ownerFacingAiText } from './ownerProductAiOpportunityModel';
 import type {
   AiAssistedProductAnalysisResponse,
   AiOpportunityUseCase,
@@ -59,6 +60,8 @@ export default function OwnerProductLoomAiIntegrationHome({
     : context?.suggestedNextSteps ?? [];
   const hasContext = !!context?.hasAcceptedContext;
   const hasLoomAiRead = !!latestOverview || hasContext;
+  const overviewSummary = ownerFacingAiText(overview?.summary);
+  const recommendedStartingPoint = ownerFacingAiText(overview?.recommendedStartingPoint);
 
   return (
     <Stack spacing={2}>
@@ -75,7 +78,7 @@ export default function OwnerProductLoomAiIntegrationHome({
               />
             </Stack>
             <Typography color="text.secondary" sx={{ maxWidth: 860, lineHeight: 1.65 }}>
-              {overview?.summary
+              {overviewSummary
                 || context?.aiCreationSummary
                 || product.aiCreationSummary
                 || 'See how LoomAI should support the selected AI opportunities, which capabilities are worth building, and what the owner must decide before implementation.'}
@@ -103,9 +106,9 @@ export default function OwnerProductLoomAiIntegrationHome({
         <Stack spacing={1.25}>
           <Typography variant="h4">Recommended starting point</Typography>
           <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
-            {overview?.recommendedStartingPoint
+            {recommendedStartingPoint
               || (hasLoomAiRead
-                ? 'Use the accepted opportunities below to choose the first LoomAI capability to implement.'
+                ? 'Saved LoomAI fit needs a fresh analysis to replace an older provider diagnostic.'
                 : 'Accept an AI opportunity refresh before choosing a LoomAI starting point.')}
           </Typography>
         </Stack>

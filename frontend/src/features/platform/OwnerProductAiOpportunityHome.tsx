@@ -14,6 +14,7 @@ import {
   aiOpportunityResultStatusLabel,
   collectAiServiceRecommendations,
   hasLiveAiOpportunityResult,
+  ownerFacingAiText,
   selectableNextSteps,
   selectableScannerFocus,
 } from './ownerProductAiOpportunityModel';
@@ -85,6 +86,9 @@ export default function OwnerProductAiOpportunityHome({
       ? newNextSteps
       : acceptedNextSteps;
   const loomAiStateLabel = latestLoomAiOverview ? 'New AI result' : hasContext ? 'Saved with opportunities' : 'Needs analysis';
+  const loomAiOwnerSummary =
+    ownerFacingAiText(activeLoomAiOverview?.recommendedStartingPoint) ||
+    ownerFacingAiText(activeLoomAiOverview?.summary);
 
   return (
     <Stack spacing={2}>
@@ -248,9 +252,10 @@ export default function OwnerProductAiOpportunityHome({
                 />
               </Stack>
               <Typography color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
-                {activeLoomAiOverview?.recommendedStartingPoint ||
-                  activeLoomAiOverview?.summary ||
-                  'Recommended fit, decisions, and delivery path will appear inside the AI opportunities result.'}
+                {loomAiOwnerSummary ||
+                  (hasContext
+                    ? 'Saved LoomAI fit needs a fresh analysis to replace an older provider diagnostic.'
+                    : 'Recommended fit, decisions, and delivery path will appear inside the AI opportunities result.')}
               </Typography>
             </Box>
             <CompactList

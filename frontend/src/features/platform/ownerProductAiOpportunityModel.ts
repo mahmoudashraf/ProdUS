@@ -26,6 +26,29 @@ export const serviceRecommendationKey = (recommendation: ServiceModuleRecommenda
 
 const cleanList = (values?: string[]) => (values ?? []).map(value => value.trim()).filter(Boolean);
 
+export function ownerFacingAiText(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  const looksLikeStructuredDiagnostic =
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'));
+  if (looksLikeStructuredDiagnostic) {
+    try {
+      JSON.parse(trimmed);
+      return undefined;
+    } catch {
+      // Keep non-JSON prose that happens to use braces.
+    }
+  }
+  if (
+    /provider response|configured ai provider|required documentusage|temporary document|transient file inputs/i
+      .test(trimmed)
+  ) {
+    return undefined;
+  }
+  return trimmed;
+}
+
 export const hasLiveAiOpportunityResult = (
   analysis: AiAssistedProductAnalysisResponse | null | undefined
 ) => Boolean(analysis?.aiOpportunityReport?.live || analysis?.loomaiIntegrationOverview?.live);
