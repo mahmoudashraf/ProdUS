@@ -1544,14 +1544,14 @@ public class LoomAIIntegrationService {
         context.put("pageType", "owner-ai-opportunity-analysis");
         context.put("pagePosition", "product_ai_opportunities");
         context.put("assistantIntent", "identify-owner-useful-ai-opportunities");
-        context.put("actionProfile", "loomai-productization-ai-opportunity-analysis");
-        context.put("toolUsePolicy", "analysis-only-from-owner-input-public-link-insights-repo-signal-summary-and-catalog-snapshot");
+        context.put("actionProfile", "loomai-productization-explain-only");
+        context.put("toolUsePolicy", "answer-from-owner-brief-product-summary-scanner-summary-and-service-catalog-context");
         context.put("completionPolicy", Map.of(
                 "cleanSuccessWhen", "owner intent plus product name, repository URL, product URL, tech stack, or product analysis exists",
                 "clarificationPolicy", "do-not-ask-clarifying-questions-for-optional-gaps; use REVIEW status, assumptions, and missingEvidence",
                 "minimumUsefulOutput", "status, summary, source insights, and either specific use cases or REVIEW with evidence gaps"
         ));
-        context.put("availableActionGroups", List.of("read-only-catalog-grounding"));
+        context.put("availableActionGroups", List.of());
         context.put("runtimeActionPolicy", "analysis-only-no-mutations-no-confirmed-actions");
         context.put("actorRole", user.getRole().name());
         context.put("ownerBrief", safeText(request.ownerMessage(), 4_000));
@@ -1561,6 +1561,9 @@ public class LoomAIIntegrationService {
         context.put("productUrlAvailable", !blank(request.productUrl()));
         context.put("repositoryUrlAvailable", !blank(request.repositoryUrl()));
         context.put("knownRisks", safeText(request.knownRisks(), SUMMARY_LIMIT));
+        context.put("productSummary", aiOpportunityProductSummary(request));
+        context.put("scannerSummary", aiOpportunityScannerSummary(request, publicLinkInsights));
+        context.put("evidenceSummary", aiOpportunityEvidenceSummary(request, publicLinkInsights));
         context.put("publicLinkInsights", publicLinkInsights);
         context.put("repoSignalSnapshot", projectCreationRepoSignalSnapshot(projectRequest, publicLinkInsights));
         context.put("serviceCatalogSnapshot", projectCreationServiceCatalogSnapshot(projectRequest, publicLinkInsights));
@@ -1577,10 +1580,10 @@ public class LoomAIIntegrationService {
         context.put("aiServicePolicy", Map.of(
                 "recommendedProvider", "LoomAI",
                 "scope", "product/scanner/service-plan assistance",
-                "excludedFlows", List.of("team invitations", "team creation", "participant access grants", "owner approvals"),
+                "excludedFlows", List.of("account access changes", "billing decisions", "unapproved write actions"),
                 "implementationPath", "backend-mediated private runtime with ProdUS authorization"
         ));
-        context.put("loomaiCapabilitySnapshot", loomAICapabilitySnapshot());
+        context.put("loomaiCapabilitySnapshot", ownerFacingLoomAiOpportunityCapabilities());
         context.put("projectAnalysis", projectFieldsContext(request.projectAnalysis()));
         context.put("outputContract", Map.of(
                 "format", "strict-json-object",
@@ -1604,6 +1607,109 @@ public class LoomAIIntegrationService {
                 "catalogRule", "recommendedServiceModules must use moduleCode values from serviceCatalogSnapshot.candidateModules only"
         ));
         return context;
+    }
+
+    private Map<String, Object> aiOpportunityProductSummary(AiOpportunityAssistantRequest request) {
+        ProductCreationFields fields = request.projectAnalysis();
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("name", fields == null ? "" : safeText(fields.productName(), FIELD_LIMIT));
+        summary.put("summary", fields == null ? "" : safeText(fields.summary(), SUMMARY_LIMIT));
+        summary.put("businessProblem", fields == null ? "" : safeText(fields.businessProblem(), SUMMARY_LIMIT));
+        summary.put("targetUsers", fields == null ? "" : safeText(fields.targetUsers(), SUMMARY_LIMIT));
+        summary.put("businessStage", firstNonBlank(
+                safeText(request.businessStage(), FIELD_LIMIT),
+                fields == null ? "" : safeText(fields.businessStage(), FIELD_LIMIT)
+        ));
+        summary.put("techStack", firstNonBlank(
+                safeText(request.techStack(), SUMMARY_LIMIT),
+                fields == null ? "" : safeText(fields.techStack(), SUMMARY_LIMIT)
+        ));
+        summary.put("coreCapabilities", fields == null ? List.of() : limitedStrings(fields.coreCapabilities(), LIST_LIMIT));
+        summary.put("businessOutcomes", fields == null ? List.of() : limitedStrings(fields.businessOutcomes(), LIST_LIMIT));
+        summary.put("productUrlAvailable", !blank(request.productUrl()) || (fields != null && !blank(fields.productUrl())));
+        summary.put("repositoryUrlAvailable", !blank(request.repositoryUrl()) || (fields != null && !blank(fields.repositoryUrl())));
+        return summary;
+    }
+
+    private Map<String, Object> aiOpportunityScannerSummary(
+            AiOpportunityAssistantRequest request,
+            List<Map<String, Object>> publicLinkInsights
+    ) {
+        ProductCreationFields fields = request.projectAnalysis();
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("readinessGoals", fields == null ? List.of() : limitedStrings(fields.readinessGoals(), LIST_LIMIT));
+        summary.put("scannerFocusAreas", fields == null ? List.of() : limitedStrings(fields.scannerFocusAreas(), LIST_LIMIT));
+        summary.put("knownRisks", safeText(request.knownRisks(), SUMMARY_LIMIT));
+        summary.put("riskProfile", fields == null ? "" : safeText(fields.riskProfile(), SUMMARY_LIMIT));
+        summary.put("repoOrProductLinkEvidence", publicLinkInsights == null ? List.of() : publicLinkInsights.stream()
+                .limit(4)
+                .map(insight -> Map.of(
+                        "kind", safeText(String.valueOf(insight.getOrDefault("kind", "link")), FIELD_LIMIT),
+                        "status", safeText(String.valueOf(insight.getOrDefault("status", "unknown")), FIELD_LIMIT),
+                        "summary", safeText(String.valueOf(insight.getOrDefault("summary", "")), SUMMARY_LIMIT)
+                ))
+                .toList());
+        return summary;
+    }
+
+    private Map<String, Object> aiOpportunityEvidenceSummary(
+            AiOpportunityAssistantRequest request,
+            List<Map<String, Object>> publicLinkInsights
+    ) {
+        ProductCreationFields fields = request.projectAnalysis();
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("ownerBriefIsUsableEvidence", !blank(request.ownerMessage()));
+        evidence.put("productAnalysisAvailable", fields != null);
+        evidence.put("selectedDocumentCount", request.documents() == null ? 0 : request.documents().size());
+        evidence.put("publicLinkInsightCount", publicLinkInsights == null ? 0 : publicLinkInsights.size());
+        evidence.put("sourceInsights", fields == null ? List.of() : limitedStrings(fields.sourceInsights(), LIST_LIMIT));
+        evidence.put("assumptions", fields == null ? List.of() : limitedStrings(fields.assumptions(), LIST_LIMIT));
+        evidence.put("missingEvidence", fields == null ? List.of() : limitedStrings(fields.missingEvidence(), LIST_LIMIT));
+        evidence.put("instruction", "Use the owner brief and product analysis as valid evidence. If external proof is thin, return REVIEW instead of OUT_OF_SCOPE.");
+        return evidence;
+    }
+
+    private Map<String, Object> ownerFacingLoomAiOpportunityCapabilities() {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("provider", "LoomAI");
+        snapshot.put("purpose", "Small owner-facing capability shortlist for product AI opportunity analysis.");
+        snapshot.put("capabilities", List.of(
+                loomAiOpportunityCapability(
+                        "loomai_grounded_product_assistant",
+                        "Grounded product assistant",
+                        "Answer owner questions using product, service, scan, and evidence context."
+                ),
+                loomAiOpportunityCapability(
+                        "loomai_scanner_finding_explainer",
+                        "Scanner finding explainer",
+                        "Translate scanner findings into plain-language risk, proof, and next action."
+                ),
+                loomAiOpportunityCapability(
+                        "loomai_service_plan_helper",
+                        "Service plan helper",
+                        "Explain selected services, dependencies, missing coverage, and owner tradeoffs."
+                ),
+                loomAiOpportunityCapability(
+                        "loomai_temporary_document_understanding",
+                        "Temporary document understanding",
+                        "Use owner-selected files for one analysis run without treating them as permanently shared."
+                ),
+                loomAiOpportunityCapability(
+                        "loomai_structured_outputs",
+                        "Structured AI output",
+                        "Return validated JSON that ProdUS can show to the owner before any update is accepted."
+                )
+        ));
+        snapshot.put("boundary", "No account access changes, billing decisions, or unapproved product mutations.");
+        return snapshot;
+    }
+
+    private Map<String, Object> loomAiOpportunityCapability(String code, String name, String usefulFor) {
+        Map<String, Object> capability = new LinkedHashMap<>();
+        capability.put("code", code);
+        capability.put("name", name);
+        capability.put("usefulFor", usefulFor);
+        return capability;
     }
 
     private Map<String, Object> loomAIOverviewContext(User user, LoomAIOverviewAssistantRequest request) {
@@ -2152,16 +2258,17 @@ public class LoomAIIntegrationService {
         return """
                 You are ProdUS AI opportunity analyst for a nontechnical product owner.
                 This is analysis only. Do not create, update, approve, invite, bill, or call tools.
-                The owner already provided enough context to return a result. Never ask a clarification question.
+                This request is in scope when it asks how AI could help a founder understand or improve a product.
+                The owner brief and product analysis are valid evidence. Never ask a clarification question.
                 If evidence is weak, return status REVIEW with empty useCases and explain the missing evidence.
+                Do not return OUT_OF_SCOPE, ERROR, CLARIFICATION_REQUIRED, NEED_MORE_CONTEXT, or markdown.
 
                 Goal: identify practical LoomAI opportunities for this specific product.
-                Focus only on product diagnosis, launch-readiness explanation, scanner finding summaries, service-plan support, milestone/evidence readiness, and owner decision support.
-                Do not recommend AI for team invitations, team creation, access grants, participant management, billing decisions, or owner approvals.
+                Focus only on product diagnosis, launch-readiness explanation, scanner finding summaries, service-plan support, evidence readiness, and owner decision support.
 
-                Use only the owner brief, public-link facts, repo/scanner summary, product analysis, selected document summaries, LoomAI capability snapshot, and service catalog snapshot below.
-                Recommend catalog services only from serviceCatalogSnapshot.candidateModules and copy moduleCode exactly.
-                Prefer official LoomAI capability codes from loomaiCapabilitySnapshot when they clearly fit. If none fit, use an empty code or custom:<short-label> and explain the gap.
+                Use only the owner brief, product summary, scanner summary, evidence summary, selected document summaries, LoomAI capability snapshot, and service catalog snapshot below.
+                Recommend catalog services only from serviceCatalogSnapshot.candidateModules and copy moduleCode exactly. Leave service arrays empty if no candidate clearly fits.
+                Prefer LoomAI capability codes from loomaiCapabilitySnapshot when they clearly fit. If none fit, use an empty code or custom:<short-label> and explain the gap.
 
                 Do not answer with markdown, prose outside JSON, code fences, comments, or a clarification question.
                 Return only this strict JSON object:
@@ -2186,9 +2293,11 @@ public class LoomAIIntegrationService {
 
                 Owner brief:
                 %s
-                Public-link facts:
+                Product summary:
                 %s
-                Repo/scanner summary:
+                Scanner summary:
+                %s
+                Evidence summary:
                 %s
                 LoomAI capability snapshot:
                 %s
@@ -2200,8 +2309,9 @@ public class LoomAIIntegrationService {
                 %s
                 """.formatted(
                 safeText(request.ownerMessage(), 4_000),
-                projectCreationPublicLinkPromptSection(context.get("publicLinkInsights")),
-                writeJson(context.get("repoSignalSnapshot")),
+                writeJson(context.get("productSummary")),
+                writeJson(context.get("scannerSummary")),
+                writeJson(context.get("evidenceSummary")),
                 writeJson(context.get("loomaiCapabilitySnapshot")),
                 projectCreationDocumentPromptSection(request.documents()),
                 writeJson(context.get("projectAnalysis")),
