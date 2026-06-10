@@ -67,14 +67,24 @@ export default function OwnerProductAiOpportunityHome({
   const newScannerFocus = latestAnalysis ? selectableScannerFocus(latestAnalysis) : [];
   const newNextSteps = latestAnalysis ? selectableNextSteps(latestAnalysis) : [];
   const latestLive = hasLiveAiOpportunityResult(latestAnalysis);
-  const loomAiCapabilities = context?.loomaiIntegrationOverview?.capabilities?.length
-    ? context.loomaiIntegrationOverview.capabilities
-    : (acceptedUseCases
+  const latestLoomAiOverview = latestAnalysis?.loomaiIntegrationOverview?.live
+    ? latestAnalysis.loomaiIntegrationOverview
+    : undefined;
+  const activeLoomAiOverview = latestLoomAiOverview || context?.loomaiIntegrationOverview;
+  const activeLoomAiUseCases = latestAnalysis?.aiOpportunityReport?.live
+    ? (latestAnalysis.aiOpportunityReport.useCases ?? [])
+    : acceptedUseCases;
+  const loomAiCapabilities = activeLoomAiOverview?.capabilities?.length
+    ? activeLoomAiOverview.capabilities
+    : (activeLoomAiUseCases
         .map(useCase => useCase.loomaiCapability || useCase.loomaiCapabilityCode)
         .filter(Boolean) as string[]);
-  const loomAiDecisions = context?.loomaiIntegrationOverview?.ownerDecisions?.length
-    ? context.loomaiIntegrationOverview.ownerDecisions
-    : acceptedNextSteps;
+  const loomAiDecisions = activeLoomAiOverview?.ownerDecisions?.length
+    ? activeLoomAiOverview.ownerDecisions
+    : latestLoomAiOverview
+      ? newNextSteps
+      : acceptedNextSteps;
+  const loomAiStateLabel = latestLoomAiOverview ? 'New LoomAI read' : hasContext ? 'Saved with opportunities' : 'Needs analysis';
 
   return (
     <Stack spacing={2}>
@@ -228,13 +238,21 @@ export default function OwnerProductAiOpportunityHome({
 
         <Surface>
           <Stack spacing={1.5}>
-            <SectionHeading
-              title="LoomAI integration"
-              subtitle={
-                context?.loomaiIntegrationOverview?.recommendedStartingPoint ||
-                'Recommended fit, decisions, and delivery path.'
-              }
-            />
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Typography variant="h4">LoomAI integration fit</Typography>
+                <PastelChip
+                  label={loomAiStateLabel}
+                  accent={latestLoomAiOverview ? appleColors.green : hasContext ? appleColors.cyan : appleColors.amber}
+                  bg={latestLoomAiOverview ? '#e7f8ee' : hasContext ? '#e4f9fd' : '#fff4dc'}
+                />
+              </Stack>
+              <Typography color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
+                {activeLoomAiOverview?.recommendedStartingPoint ||
+                  activeLoomAiOverview?.summary ||
+                  'Recommended fit, decisions, and delivery path will appear with the AI opportunities result.'}
+              </Typography>
+            </Box>
             <CompactList
               title="Capabilities"
               items={listOrFallback(loomAiCapabilities, 'No accepted LoomAI capabilities yet.')}

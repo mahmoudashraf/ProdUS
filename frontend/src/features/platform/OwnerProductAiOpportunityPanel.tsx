@@ -157,6 +157,7 @@ export default function OwnerProductAiOpportunityPanel({
       ) : view === 'loomai' ? (
         <OwnerProductLoomAiIntegrationHome
           context={aiOpportunityContext.data}
+          latestAnalysis={analysis}
           product={product}
           onOpportunityHome={() => openAiView('opportunities')}
           onRefresh={() => openAiView('refresh')}

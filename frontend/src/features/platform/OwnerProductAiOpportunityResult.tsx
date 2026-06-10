@@ -186,17 +186,24 @@ export default function OwnerProductAiOpportunityResult({
         </Stack>
       </Surface>
 
-      {focus === 'loomai' && overview && (
+      {overview?.live && (
         <Surface>
           <Stack spacing={1.5}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               <PsychologyOutlined sx={{ color: appleColors.cyan }} />
-              <Typography variant="h4">Recommended LoomAI start</Typography>
+              <Typography variant="h4">
+                {focus === 'loomai' ? 'Recommended LoomAI start' : 'LoomAI integration fit'}
+              </Typography>
               <DotLabel
-                label={overview.live ? 'LoomAI live' : 'AI result failed'}
-                color={overview.live ? appleColors.green : appleColors.red}
+                label="Live LoomAI result"
+                color={appleColors.green}
               />
             </Stack>
+            {focus !== 'loomai' && overview.summary && (
+              <Typography color="text.secondary" sx={{ lineHeight: 1.6, maxWidth: 860 }}>
+                {overview.summary}
+              </Typography>
+            )}
             {overview.recommendedStartingPoint && (
               <Box
                 sx={{ p: 1.5, borderRadius: 1, bgcolor: '#f5fcff', border: '1px solid #d9f3f8' }}

@@ -13,6 +13,7 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import type {
+  AiAssistedProductAnalysisResponse,
   AiOpportunityUseCase,
   ProductAiOpportunityContextResponse,
   ProductProfile,
@@ -20,6 +21,7 @@ import type {
 
 interface OwnerProductLoomAiIntegrationHomeProps {
   context: ProductAiOpportunityContextResponse | undefined;
+  latestAnalysis: AiAssistedProductAnalysisResponse | null;
   onOpportunityHome: () => void;
   onRefresh: () => void;
   product: ProductProfile;
@@ -33,12 +35,19 @@ const shortChipLabel = (item: string) =>
 
 export default function OwnerProductLoomAiIntegrationHome({
   context,
+  latestAnalysis,
   onOpportunityHome,
   onRefresh,
   product,
 }: OwnerProductLoomAiIntegrationHomeProps) {
-  const useCases = context?.aiOpportunityReport?.useCases ?? [];
-  const overview = context?.loomaiIntegrationOverview;
+  const latestOverview = latestAnalysis?.loomaiIntegrationOverview?.live
+    ? latestAnalysis.loomaiIntegrationOverview
+    : undefined;
+  const latestUseCases = latestAnalysis?.aiOpportunityReport?.live
+    ? (latestAnalysis.aiOpportunityReport.useCases ?? [])
+    : [];
+  const useCases = latestUseCases.length ? latestUseCases : (context?.aiOpportunityReport?.useCases ?? []);
+  const overview = latestOverview || context?.loomaiIntegrationOverview;
   const capabilities = overview?.capabilities?.length
     ? overview.capabilities
     : cleanList(useCases.map((useCase) => useCase.loomaiCapability || useCase.loomaiCapabilityCode));
@@ -49,6 +58,7 @@ export default function OwnerProductLoomAiIntegrationHome({
     ? overview.ownerDecisions
     : context?.suggestedNextSteps ?? [];
   const hasContext = !!context?.hasAcceptedContext;
+  const hasLoomAiRead = !!latestOverview || hasContext;
 
   return (
     <Stack spacing={2}>
@@ -59,9 +69,9 @@ export default function OwnerProductLoomAiIntegrationHome({
               <PsychologyOutlined sx={{ color: appleColors.cyan }} />
               <Typography variant="h3">LoomAI integration home</Typography>
               <PastelChip
-                label={hasContext ? 'Product-specific' : 'Needs accepted analysis'}
-                accent={hasContext ? appleColors.green : appleColors.amber}
-                bg={hasContext ? '#e7f8ee' : '#fff4dc'}
+                label={latestOverview ? 'New AI result' : hasContext ? 'Product-specific' : 'Needs analysis'}
+                accent={latestOverview || hasContext ? appleColors.green : appleColors.amber}
+                bg={latestOverview || hasContext ? '#e7f8ee' : '#fff4dc'}
               />
             </Stack>
             <Typography color="text.secondary" sx={{ maxWidth: 860, lineHeight: 1.65 }}>
@@ -94,7 +104,7 @@ export default function OwnerProductLoomAiIntegrationHome({
           <Typography variant="h4">Recommended starting point</Typography>
           <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
             {overview?.recommendedStartingPoint
-              || (hasContext
+              || (hasLoomAiRead
                 ? 'Use the accepted opportunities below to choose the first LoomAI capability to implement.'
                 : 'Accept an AI opportunity refresh before choosing a LoomAI starting point.')}
           </Typography>
