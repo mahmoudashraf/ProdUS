@@ -5,6 +5,7 @@ import { AutoAwesomeOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, Stack, Typography } from '@mui/material';
 import { useMutation } from '@tanstack/react-query';
 import { postJson } from './api';
+import { groundedAssistantPrompt } from './assistantPromptGuards';
 import { AssistantContext, AssistantQueryResponse } from './types';
 import { PastelChip, appleColors, formatLabel } from './PlatformComponents';
 
@@ -163,7 +164,7 @@ export default function PlatformAssistantCard({
         context: AssistantContext;
       }>('/ai/assistant/query-once', {
         conversationId,
-        query: prompt,
+        query: groundedAssistantPrompt(prompt),
         mode: 'thinker',
         position: 'productization',
         context,

@@ -17,6 +17,7 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import { postJson } from './api';
 import AssistantMarkdownRenderer from './AssistantMarkdownRenderer';
+import { groundedAssistantPrompt } from './assistantPromptGuards';
 import { PastelChip, appleColors, formatLabel } from './PlatformComponents';
 import type { AssistantQueryResponse } from './types';
 
@@ -98,7 +99,7 @@ export default function StudioAssistantCard({
         context: StudioAssistantContext;
       }>('/ai/assistant/query-once', {
         conversationId,
-        query: prompt,
+        query: groundedAssistantPrompt(prompt),
         mode: 'thinker',
         position: 'productization',
         context,
