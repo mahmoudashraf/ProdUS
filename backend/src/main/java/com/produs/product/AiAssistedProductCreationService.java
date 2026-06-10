@@ -2100,24 +2100,36 @@ public class AiAssistedProductCreationService {
             AnalysisStart start,
             ProductCreationFields projectFields
     ) {
+        AiOpportunityAssistantRequest assistantRequest = new AiOpportunityAssistantRequest(
+                start.intentId(),
+                request.ownerMessage(),
+                request.businessStage() == null ? "" : request.businessStage().name(),
+                request.techStack(),
+                request.productUrl(),
+                request.repositoryUrl(),
+                request.knownRisks(),
+                start.documentReferences(),
+                projectFields
+        );
         AssistantQueryResponse opportunitiesAssistant = null;
-        AiOpportunityReport report;
-        try {
-            opportunitiesAssistant = loomAIIntegrationService.aiOpportunities(owner, new AiOpportunityAssistantRequest(
-                    start.intentId(),
-                    request.ownerMessage(),
-                    request.businessStage() == null ? "" : request.businessStage().name(),
-                    request.techStack(),
-                    request.productUrl(),
-                    request.repositoryUrl(),
-                    request.knownRisks(),
-                    start.documentReferences(),
-                    projectFields
-            ));
-            AssistantQueryResponse parsedOpportunitiesAssistant = opportunitiesAssistant;
-            report = parseAiOpportunityReport(parsedOpportunitiesAssistant)
-                    .orElseGet(() -> deterministicAiOpportunityReport(request, projectFields, parsedOpportunitiesAssistant));
-        } catch (RuntimeException exception) {
+        AiOpportunityReport report = null;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            try {
+                opportunitiesAssistant = loomAIIntegrationService.aiOpportunities(owner, assistantRequest);
+                Optional<AiOpportunityReport> parsed = parseAiOpportunityReport(opportunitiesAssistant);
+                if (parsed.isPresent()) {
+                    report = parsed.orElseThrow();
+                }
+                if (!shouldRetryAiOpportunityAnalysis(opportunitiesAssistant, report, attempt)) {
+                    break;
+                }
+            } catch (RuntimeException exception) {
+                if (attempt >= 1) {
+                    break;
+                }
+            }
+        }
+        if (report == null) {
             report = deterministicAiOpportunityReport(request, projectFields, opportunitiesAssistant);
         }
 
@@ -2558,6 +2570,28 @@ public class AiAssistedProductCreationService {
                 firstNonBlank(report.providerRequestId(), response == null ? "" : response.providerRequestId()),
                 true
         );
+    }
+
+    private boolean shouldRetryAiOpportunityAnalysis(
+            AssistantQueryResponse response,
+            AiOpportunityReport report,
+            int attempt
+    ) {
+        if (attempt >= 1) {
+            return false;
+        }
+        if (report != null && report.live() && !listOrEmpty(report.useCases()).isEmpty()) {
+            return false;
+        }
+        String reason = aiFailureReason(response, "");
+        String normalized = normalizeCapabilityText(reason);
+        return normalized.contains("unavailable")
+                || normalized.contains("timeout")
+                || normalized.contains("timed out")
+                || normalized.contains("transport")
+                || normalized.contains("rate")
+                || normalized.contains("temporary")
+                || normalized.contains("unusable structured output");
     }
 
     private String aiFailureReason(AssistantQueryResponse response, String fallback) {

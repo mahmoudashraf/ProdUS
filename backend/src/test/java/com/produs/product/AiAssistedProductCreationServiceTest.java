@@ -315,6 +315,54 @@ class AiAssistedProductCreationServiceTest {
     }
 
     @Test
+    void retriesAiOpportunityAnalysisOnceForTransientProviderFailure() throws Exception {
+        AiAssistedProductCreationService service = service();
+        LoomAIIntegrationService.AssistantQueryResponse transientFailure = new LoomAIIntegrationService.AssistantQueryResponse(
+                "LOOMAI",
+                "ERROR",
+                false,
+                "LOOMAI_UNAVAILABLE",
+                "",
+                "The provider is temporarily unavailable.",
+                "conversation-1",
+                0.0,
+                List.of(),
+                List.of(),
+                List.of(),
+                "LOOMAI_UNAVAILABLE",
+                "opportunity-trace-1"
+        );
+        LoomAIIntegrationService.AssistantQueryResponse liveSuccess = new LoomAIIntegrationService.AssistantQueryResponse(
+                "LOOMAI",
+                "LIVE",
+                true,
+                "INFORMATION_PROVIDED",
+                "{}",
+                "Live opportunities returned.",
+                "conversation-2",
+                0.8,
+                List.of(),
+                List.of(),
+                List.of(),
+                "",
+                "opportunity-trace-2"
+        );
+
+        Method retryMethod = AiAssistedProductCreationService.class
+                .getDeclaredMethod(
+                        "shouldRetryAiOpportunityAnalysis",
+                        LoomAIIntegrationService.AssistantQueryResponse.class,
+                        AiAssistedProductCreationService.AiOpportunityReport.class,
+                        int.class
+                );
+        retryMethod.setAccessible(true);
+
+        assertThat((Boolean) retryMethod.invoke(service, transientFailure, null, 0)).isTrue();
+        assertThat((Boolean) retryMethod.invoke(service, transientFailure, null, 1)).isFalse();
+        assertThat((Boolean) retryMethod.invoke(service, liveSuccess, null, 0)).isFalse();
+    }
+
+    @Test
     void actionRequestParsesDocumentUsageForCreationGuard() {
         AiAssistedProductCreationService.ProductCreationActionRequest request =
                 AiAssistedProductCreationService.ProductCreationActionRequest.from(Map.of(
