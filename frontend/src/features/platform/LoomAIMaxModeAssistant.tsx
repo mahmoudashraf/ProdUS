@@ -98,7 +98,7 @@ export function LoomAIMaxModeAssistant({
               'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
           },
           host: {
-            experience: 'produs-productization-workspace',
+            experience: 'default',
             assistantLabel: 'ProdUS AI',
             launcherLabel: 'Ask ProdUS AI',
             launcherAriaLabel: 'Ask ProdUS AI about this page',
@@ -121,10 +121,11 @@ export function LoomAIMaxModeAssistant({
             requestContextProvider: () => widgetContext,
             starterPrompts: starterPrompts.map(prompt => ({
               label: prompt,
-              message: prompt,
+              query: prompt,
               mode,
               position,
             })),
+            starterSuggestions: starterPrompts,
           },
         });
         const sendMessage = window.MaxMode?.sendMessage?.bind(window.MaxMode);
