@@ -36,7 +36,7 @@ public class LoomAIProperties {
     private String assertionScopes = "chat:query,chat:suggestions,chat:conversations";
     private String defaultMode = "thinker";
     private String defaultPosition = "productization";
-    private int timeoutMs = 2500;
+    private int timeoutMs = 30_000;
     private String assistantSessionPath = "/api/public/chat/session";
     private String assistantQueryPath = "/api/chat/me/query";
     private String assistantQueryOncePath = "/api/chat/me/query-once";

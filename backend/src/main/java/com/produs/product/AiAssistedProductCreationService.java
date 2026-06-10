@@ -2121,6 +2121,10 @@ public class AiAssistedProductCreationService {
             report = deterministicAiOpportunityReport(request, projectFields, opportunitiesAssistant);
         }
 
+        if (!report.live()) {
+            return new AiOpportunityBundle(report, skippedLoomAIOverview(report));
+        }
+
         AssistantQueryResponse overviewAssistant = null;
         LoomAIIntegrationOverview overview;
         try {
@@ -2144,6 +2148,25 @@ public class AiAssistedProductCreationService {
             overview = deterministicLoomAIOverview(report, overviewAssistant);
         }
         return new AiOpportunityBundle(report, overview);
+    }
+
+    private LoomAIIntegrationOverview skippedLoomAIOverview(AiOpportunityReport report) {
+        return new LoomAIIntegrationOverview(
+                "LoomAI integration overview was skipped because the AI opportunity result was not usable.",
+                "Refresh the AI opportunity analysis with clearer product context before selecting LoomAI implementation work.",
+                List.of(),
+                List.of(),
+                List.of("Review why the live AI opportunity result failed before accepting any AI integration scope."),
+                List.of("Do not accept AI integration work from this failed run."),
+                mergeList(
+                        report == null ? List.of() : report.sourceInsights(),
+                        List.of("LoomAI integration overview skipped because the AI opportunity result was not live.")
+                ),
+                List.of(),
+                "PRODUS_AI_RESULT",
+                report == null ? "" : firstNonBlank(report.providerRequestId()),
+                false
+        );
     }
 
     private ProductCreationFields mergeAiOpportunityAnalysis(
