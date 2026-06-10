@@ -49,7 +49,6 @@ export default function OwnerServicesRecommendationPanel({
   improvementCount,
   mappedServiceNames,
   ownerRisks,
-  cartStartPromptFacts,
   assistantContext,
   assistantActions,
   isAddingService,
@@ -84,20 +83,30 @@ export default function OwnerServicesRecommendationPanel({
     .map((item) => `${item.serviceModule.name}${item.serviceModule.stableCode ? ` (${item.serviceModule.stableCode})` : ''}`)
     .join(', ') || 'none';
   const mappedServiceSummary = mappedServiceNames.join(', ') || 'none';
+  const startGaps = assistantContext.startReadiness?.gaps || [];
+  const blockerGapSummary = startGaps
+    .filter((gap) => gap.severity === 'BLOCKER')
+    .map((gap) => `${gap.title}${gap.serviceModuleCode ? ` (${gap.serviceModuleCode})` : ''}: ${gap.description || 'needs owner review'}`)
+    .join('; ') || 'none';
+  const recommendedGapSummary = startGaps
+    .filter((gap) => gap.severity !== 'BLOCKER')
+    .map((gap) => `${gap.title}${gap.serviceModuleCode ? ` (${gap.serviceModuleCode})` : ''}: ${gap.description || 'can follow blockers'}`)
+    .join('; ') || 'none';
   const serviceSelectorPrompt = `
-Draft a short owner decision note for ${product?.name || 'the selected product'} from the facts below.
-This is not a knowledge-base search. Do not retrieve, search, or ask for a domain. Use only these supplied page facts.
-Visible service choices: ${availableServiceNames}.
-Services already in the product plan: ${selectedServiceNames}.
-Services mapped from scanner/readiness evidence: ${mappedServiceSummary}.
-Current launch blockers: ${blockerCount}; improvements: ${improvementCount}.
-Product plan facts: ${cartStartPromptFacts}
-Give the owner three clear sections:
-1. Add now: the required service gaps or blocker work to add before delivery can start.
-2. Keep or revisit: selected services that still make sense, and why.
-3. Defer: work that can wait until the blockers are resolved.
-Explain each decision in practical startup/MVP language, naming the blocker, scanner proof, or product-plan gap it addresses.
-If a required service is missing from the visible choices, say it is a product-plan gap instead of inventing a new service.
+Write a short review-only owner decision note for ${product?.name || 'the selected product'}.
+Do not create a product, prepare an action, or ask for action parameters.
+Use only these page facts:
+Service choices on screen: ${availableServiceNames}.
+Already selected work: ${selectedServiceNames}.
+Scanner/readiness mapped work: ${mappedServiceSummary}.
+Launch blockers: ${blockerCount}; improvements: ${improvementCount}.
+Required gaps before delivery starts: ${blockerGapSummary}.
+Later recommended gaps: ${recommendedGapSummary}.
+Return exactly three plain sections:
+Add now: the blocker work or missing required services to handle first.
+Keep or revisit: selected services that still help and why.
+Defer: work that can wait until blockers are resolved.
+Use practical startup/MVP language and mention the blocker, scanner proof, or plan gap behind each decision.
 `.trim();
 
   return (

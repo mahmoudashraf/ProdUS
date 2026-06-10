@@ -166,7 +166,7 @@ export default function PlatformAssistantCard({
         conversationId,
         query: groundedAssistantPrompt(prompt),
         mode: 'thinker',
-        position: 'productization',
+        position: 'page-helper',
         context,
       }),
   });

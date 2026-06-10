@@ -101,7 +101,7 @@ export default function StudioAssistantCard({
         conversationId,
         query: groundedAssistantPrompt(prompt),
         mode: 'thinker',
-        position: 'productization',
+        position: 'page-helper',
         context,
       }),
   });
