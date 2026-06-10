@@ -84,7 +84,7 @@ export default function OwnerWorkspaceAiChatDock({
         bottom: { md: 84, xl: 92 },
         width: { md: 340, xl: 360 },
         display: { xs: 'none', md: 'block' },
-        zIndex: theme => theme.zIndex.modal - 2,
+        zIndex: theme => theme.zIndex.drawer - 1,
         pointerEvents: 'auto',
       }}
     >
