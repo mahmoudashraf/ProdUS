@@ -1,11 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import {
-  AutoAwesomeOutlined,
-  CheckCircleOutlineOutlined,
-  SaveOutlined,
-} from '@mui/icons-material';
+import { AutoAwesomeOutlined, CheckCircleOutlineOutlined, SaveOutlined } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -19,19 +15,21 @@ import {
 } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { postFormData, putJson } from './api';
-import {
-  PastelChip,
-  Surface,
-  appleColors,
-  formatLabel,
-} from './PlatformComponents';
+import { PastelChip, Surface, appleColors, formatLabel } from './PlatformComponents';
 import type {
   AiAssistedProductAnalysisResponse,
   ProductCreationFields,
   ProductProfile,
 } from './types';
 
-type ProductProfileField = 'name' | 'summary' | 'businessStage' | 'techStack' | 'productUrl' | 'repositoryUrl' | 'riskProfile';
+type ProductProfileField =
+  | 'name'
+  | 'summary'
+  | 'businessStage'
+  | 'techStack'
+  | 'productUrl'
+  | 'repositoryUrl'
+  | 'riskProfile';
 
 interface ProductProfileUpdatePayload {
   name: string;
@@ -63,14 +61,20 @@ const fieldOrder: ProductProfileField[] = [
   'riskProfile',
 ];
 
-const businessStageValues: ProductProfile['businessStage'][] = ['IDEA', 'PROTOTYPE', 'VALIDATED', 'LIVE', 'SCALING'];
+const businessStageValues: ProductProfile['businessStage'][] = [
+  'IDEA',
+  'PROTOTYPE',
+  'VALIDATED',
+  'LIVE',
+  'SCALING',
+];
 
 const textValue = (value?: string | null) => (value || '').trim();
 
 const toBusinessStage = (value: string): ProductProfile['businessStage'] | null => {
   const normalized = value.trim().toUpperCase();
   return businessStageValues.includes(normalized as ProductProfile['businessStage'])
-    ? normalized as ProductProfile['businessStage']
+    ? (normalized as ProductProfile['businessStage'])
     : null;
 };
 
@@ -95,7 +99,7 @@ const suggestedFieldValue = (analysis: ProductCreationFields, field: ProductProf
 };
 
 const changedFields = (product: ProductProfile, analysis: ProductCreationFields) =>
-  fieldOrder.filter((field) => {
+  fieldOrder.filter(field => {
     const suggested = textValue(suggestedFieldValue(analysis, field));
     if (!suggested) return false;
     return suggested !== textValue(currentFieldValue(product, field));
@@ -118,7 +122,7 @@ export default function OwnerProductAiRefreshPanel({ product }: { product: Produ
         { timeoutMs: 360000 }
       );
     },
-    onSuccess: (response) => {
+    onSuccess: response => {
       setAnalysis(response);
       setSelectedFields(changedFields(product, response.analysis));
     },
@@ -126,17 +130,23 @@ export default function OwnerProductAiRefreshPanel({ product }: { product: Produ
 
   const suggestions = useMemo(() => {
     if (!analysis) return [];
-    return fieldOrder.map((field) => ({
-      field,
-      current: currentFieldValue(product, field),
-      suggested: suggestedFieldValue(analysis.analysis, field),
-      changed: textValue(currentFieldValue(product, field)) !== textValue(suggestedFieldValue(analysis.analysis, field)),
-    })).filter((item) => textValue(item.suggested));
+    return fieldOrder
+      .map(field => ({
+        field,
+        current: currentFieldValue(product, field),
+        suggested: suggestedFieldValue(analysis.analysis, field),
+        changed:
+          textValue(currentFieldValue(product, field)) !==
+          textValue(suggestedFieldValue(analysis.analysis, field)),
+      }))
+      .filter(item => textValue(item.suggested));
   }, [analysis, product]);
 
   useEffect(() => {
     if (!analysis) return;
-    setSelectedFields((current) => current.filter((field) => suggestions.some((item) => item.field === field)));
+    setSelectedFields(current =>
+      current.filter(field => suggestions.some(item => item.field === field))
+    );
   }, [analysis, suggestions]);
 
   const updateProduct = useMutation({
@@ -144,50 +154,69 @@ export default function OwnerProductAiRefreshPanel({ product }: { product: Produ
       if (!analysis) {
         throw new Error('Run the product brief refresh first.');
       }
-      const nextValues = fieldOrder.reduce<ProductProfileUpdatePayload>((payload, field) => {
-        if (!selectedFields.includes(field)) return payload;
-        const suggested = suggestedFieldValue(analysis.analysis, field);
-        if (!textValue(suggested)) return payload;
-        if (field === 'businessStage') {
-          const businessStage = toBusinessStage(suggested);
-          return businessStage ? { ...payload, businessStage } : payload;
+      const nextValues = fieldOrder.reduce<ProductProfileUpdatePayload>(
+        (payload, field) => {
+          if (!selectedFields.includes(field)) return payload;
+          const suggested = suggestedFieldValue(analysis.analysis, field);
+          if (!textValue(suggested)) return payload;
+          if (field === 'businessStage') {
+            const businessStage = toBusinessStage(suggested);
+            return businessStage ? { ...payload, businessStage } : payload;
+          }
+          return { ...payload, [field]: suggested };
+        },
+        {
+          name: product.name,
+          summary: product.summary || '',
+          businessStage: product.businessStage,
+          techStack: product.techStack || '',
+          productUrl: product.productUrl || '',
+          repositoryUrl: product.repositoryUrl || '',
+          riskProfile: product.riskProfile || '',
         }
-        return { ...payload, [field]: suggested };
-      }, {
-        name: product.name,
-        summary: product.summary || '',
-        businessStage: product.businessStage,
-        techStack: product.techStack || '',
-        productUrl: product.productUrl || '',
-        repositoryUrl: product.repositoryUrl || '',
-        riskProfile: product.riskProfile || '',
-      });
+      );
 
       if (!nextValues.name.trim()) {
         nextValues.name = product.name;
       }
-      return putJson<ProductProfile, ProductProfileUpdatePayload>(`/products/${product.id}`, nextValues);
+      return putJson<ProductProfile, ProductProfileUpdatePayload>(
+        `/products/${product.id}`,
+        nextValues
+      );
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['products'] });
       await queryClient.invalidateQueries({ queryKey: ['repo-signals', product.id] });
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', product.id, 'diagnoses'] });
-      await queryClient.invalidateQueries({ queryKey: ['productization-engine', product.id, 'ship-confidence'] });
+      await queryClient.invalidateQueries({
+        queryKey: ['productization-engine', product.id, 'diagnoses'],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['productization-engine', product.id, 'ship-confidence'],
+      });
     },
   });
 
   const aiBadge = analysis?.aiApplied
     ? { label: 'LoomAI analysis', accent: appleColors.green, bg: '#e7f8ee' }
-    : { label: 'Fallback analysis', accent: appleColors.amber, bg: '#fff4dc' };
+    : { label: 'AI failed - fallback used', accent: appleColors.amber, bg: '#fff4dc' };
 
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fbfdff 100%)' }}>
       <Stack spacing={2.25}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) auto' }, gap: 2, alignItems: 'start' }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) auto' },
+            gap: 2,
+            alignItems: 'start',
+          }}
+        >
           <Box>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               <Typography variant="h3">Refresh product brief</Typography>
-              {analysis && <PastelChip label={aiBadge.label} accent={aiBadge.accent} bg={aiBadge.bg} />}
+              {analysis && (
+                <PastelChip label={aiBadge.label} accent={aiBadge.accent} bg={aiBadge.bg} />
+              )}
             </Stack>
             <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 760, lineHeight: 1.65 }}>
               Rerun analysis for {product.name}, then choose which suggested profile fields to save.
@@ -207,7 +236,7 @@ export default function OwnerProductAiRefreshPanel({ product }: { product: Produ
         <TextField
           label="Owner note"
           value={ownerNote}
-          onChange={(event) => setOwnerNote(event.target.value)}
+          onChange={event => setOwnerNote(event.target.value)}
           minRows={3}
           multiline
           placeholder="Example: make the name clearer for a startup founder, include the latest repo status, or focus on launch blockers."
@@ -216,90 +245,134 @@ export default function OwnerProductAiRefreshPanel({ product }: { product: Produ
 
         {analyzeProduct.error && (
           <Alert severity="error">
-            {analyzeProduct.error instanceof Error ? analyzeProduct.error.message : 'AI refresh failed.'}
+            {analyzeProduct.error instanceof Error
+              ? analyzeProduct.error.message
+              : 'AI refresh failed.'}
           </Alert>
         )}
 
         {analysis && (
           <>
             <Divider />
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 320px' }, gap: 2 }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 320px' },
+                gap: 2,
+              }}
+            >
               <Stack spacing={1.25}>
-                {suggestions.length ? suggestions.map((item) => {
-                  const selected = selectedFields.includes(item.field);
-                  return (
-                    <Box
-                      key={item.field}
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)' },
-                        gap: 1.25,
-                        p: 1.5,
-                        borderRadius: 1,
-                        border: '1px solid',
-                        borderColor: selected ? appleColors.blue : appleColors.line,
-                        bgcolor: selected ? '#f5fbff' : '#fff',
-                      }}
-                    >
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={selected}
-                            disabled={!item.changed}
-                            onChange={(event) => {
-                              setSelectedFields((current) => event.target.checked
-                                ? [...new Set([...current, item.field])]
-                                : current.filter((field) => field !== item.field)
-                              );
-                            }}
+                {suggestions.length ? (
+                  suggestions.map(item => {
+                    const selected = selectedFields.includes(item.field);
+                    return (
+                      <Box
+                        key={item.field}
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)' },
+                          gap: 1.25,
+                          p: 1.5,
+                          borderRadius: 1,
+                          border: '1px solid',
+                          borderColor: selected ? appleColors.blue : appleColors.line,
+                          bgcolor: selected ? '#f5fbff' : '#fff',
+                        }}
+                      >
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={selected}
+                              disabled={!item.changed}
+                              onChange={event => {
+                                setSelectedFields(current =>
+                                  event.target.checked
+                                    ? [...new Set([...current, item.field])]
+                                    : current.filter(field => field !== item.field)
+                                );
+                              }}
+                            />
+                          }
+                          label={
+                            <Stack spacing={0.35}>
+                              <Typography variant="body2" sx={{ fontWeight: 950 }}>
+                                {fieldLabels[item.field]}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {item.changed ? 'Suggested update' : 'Already current'}
+                              </Typography>
+                            </Stack>
+                          }
+                          sx={{ alignItems: 'flex-start', m: 0 }}
+                        />
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                            gap: 1,
+                          }}
+                        >
+                          <FieldValue title="Current" value={item.current} field={item.field} />
+                          <FieldValue
+                            title="Suggested"
+                            value={item.suggested}
+                            field={item.field}
+                            highlight={item.changed}
                           />
-                        }
-                        label={
-                          <Stack spacing={0.35}>
-                            <Typography variant="body2" sx={{ fontWeight: 950 }}>
-                              {fieldLabels[item.field]}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {item.changed ? 'Suggested update' : 'Already current'}
-                            </Typography>
-                          </Stack>
-                        }
-                        sx={{ alignItems: 'flex-start', m: 0 }}
-                      />
-                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1 }}>
-                        <FieldValue title="Current" value={item.current} field={item.field} />
-                        <FieldValue title="Suggested" value={item.suggested} field={item.field} highlight={item.changed} />
+                        </Box>
                       </Box>
-                    </Box>
-                  );
-                }) : (
-                  <Alert severity="info">The refresh did not return product profile fields to apply.</Alert>
+                    );
+                  })
+                ) : (
+                  <Alert severity="info">
+                    The refresh did not return product profile fields to apply.
+                  </Alert>
                 )}
               </Stack>
 
               <Stack spacing={1.25}>
-                <Box sx={{ p: 1.5, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fff' }}>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    border: '1px solid',
+                    borderColor: appleColors.line,
+                    borderRadius: 1,
+                    bgcolor: '#fff',
+                  }}
+                >
                   <Typography variant="caption" color="text.secondary">
                     Analysis status
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 0.75, lineHeight: 1.6, fontWeight: 850 }}>
                     {analysis.aiApplied
                       ? 'Live AI contributed to this refresh.'
-                      : 'ProdUS used deterministic fallback because live AI was unavailable or did not return usable structured fields.'}
+                      : 'LoomAI failed or did not return usable structured fields. ProdUS is showing owner input and deterministic rules instead of fake AI output.'}
                   </Typography>
                   {analysis.fallbackReason && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75, overflowWrap: 'anywhere' }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: 'block', mt: 0.75, overflowWrap: 'anywhere' }}
+                    >
                       {analysis.fallbackReason}
                     </Typography>
                   )}
                 </Box>
 
-                <Box sx={{ p: 1.5, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fff' }}>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    border: '1px solid',
+                    borderColor: appleColors.line,
+                    borderRadius: 1,
+                    bgcolor: '#fff',
+                  }}
+                >
                   <Typography variant="caption" color="text.secondary">
                     Evidence from analysis
                   </Typography>
                   <Stack spacing={0.75} sx={{ mt: 1 }}>
-                    {(analysis.analysis.sourceInsights || []).slice(0, 4).map((insight) => (
+                    {(analysis.analysis.sourceInsights || []).slice(0, 4).map(insight => (
                       <Typography key={insight} variant="body2" sx={{ lineHeight: 1.5 }}>
                         {insight}
                       </Typography>
@@ -314,7 +387,9 @@ export default function OwnerProductAiRefreshPanel({ product }: { product: Produ
 
                 <Button
                   variant="contained"
-                  startIcon={updateProduct.isSuccess ? <CheckCircleOutlineOutlined /> : <SaveOutlined />}
+                  startIcon={
+                    updateProduct.isSuccess ? <CheckCircleOutlineOutlined /> : <SaveOutlined />
+                  }
                   onClick={() => updateProduct.mutate()}
                   disabled={!selectedFields.length || updateProduct.isPending}
                   sx={{ minHeight: 44, whiteSpace: 'normal' }}
@@ -327,7 +402,9 @@ export default function OwnerProductAiRefreshPanel({ product }: { product: Produ
                 </Button>
                 {updateProduct.error && (
                   <Alert severity="error">
-                    {updateProduct.error instanceof Error ? updateProduct.error.message : 'Product update failed.'}
+                    {updateProduct.error instanceof Error
+                      ? updateProduct.error.message
+                      : 'Product update failed.'}
                   </Alert>
                 )}
               </Stack>
@@ -363,7 +440,15 @@ function FieldValue({
       <Typography variant="caption" color="text.secondary">
         {title}
       </Typography>
-      <Typography variant="body2" sx={{ mt: 0.5, lineHeight: 1.45, fontWeight: highlight ? 900 : 750, overflowWrap: 'anywhere' }}>
+      <Typography
+        variant="body2"
+        sx={{
+          mt: 0.5,
+          lineHeight: 1.45,
+          fontWeight: highlight ? 900 : 750,
+          overflowWrap: 'anywhere',
+        }}
+      >
         {display}
       </Typography>
     </Box>

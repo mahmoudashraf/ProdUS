@@ -271,6 +271,7 @@ public class AiAssistedProductCreationService {
             return actionResponse(intent, intent.getProductProfile(), null, false);
         }
 
+        boolean liveAiResult = hasLiveAiResult(request);
         ProductProfile product = new ProductProfile();
         product.setOwner(intent.getOwner());
         product.setName(firstNonBlank(trim(request.productName(), NAME_LIMIT), intent.getProductName(), initialName(intent)));
@@ -282,8 +283,8 @@ public class AiAssistedProductCreationService {
         product.setRepositoryUrl(firstNonBlank(trim(request.repositoryUrl(), 500), intent.getRepositoryUrl()));
         product.setRiskProfile(firstNonBlank(trim(request.riskProfile(), TEXT_LIMIT), intent.getRiskProfile()));
         product.setCreationMode(ProductProfile.CreationMode.AI_ASSISTED);
-        product.setCreatedByAi(true);
-        product.setAiProviderRequestId(firstNonBlank(request.analysisProviderRequestId(), intent.getAnalysisProviderRequestId()));
+        product.setCreatedByAi(liveAiResult);
+        product.setAiProviderRequestId(liveAiResult ? firstNonBlank(request.analysisProviderRequestId(), intent.getAnalysisProviderRequestId()) : "");
         product.setAiCreationSummary(firstNonBlank(enrichedActionCreationSummary(request), intent.getAiCreationSummary()));
 
         List<ProductProjectAttachment> attachments = attachmentRepository.findByCreationIntentIdOrderByCreatedAtDesc(intent.getId());
@@ -304,16 +305,16 @@ public class AiAssistedProductCreationService {
             attachmentRepository.save(attachment);
         }
 
-        ProductProjectIntelligence intelligence = persistProjectIntelligence(intent, saved, request);
-        int serviceRecommendationCount = persistServiceRecommendations(saved, request.recommendedServiceModules());
+        ProductProjectIntelligence intelligence = persistProjectIntelligence(intent, saved, request, liveAiResult);
+        int serviceRecommendationCount = persistServiceRecommendations(saved, request.recommendedServiceModules(), liveAiResult);
         int cartServiceItemCount = productizationCartService.seedAiAssistedServices(
                 intent.getOwner(),
                 saved,
                 firstNonBlank(request.projectDescription(), request.summary(), request.aiCreationSummary()),
                 request.recommendedServiceModules()
         );
-        int scannerRecommendationCount = persistScannerRecommendations(saved, request.scannerFocusAreas());
-        int readinessTaskCount = persistReadinessTasks(saved, request);
+        int scannerRecommendationCount = persistScannerRecommendations(saved, request.scannerFocusAreas(), liveAiResult);
+        int readinessTaskCount = persistReadinessTasks(saved, request, liveAiResult);
         UUID scanSourceId = seedRepositoryScanSource(saved, request);
 
         intent.setProductProfile(saved);
@@ -382,6 +383,12 @@ public class AiAssistedProductCreationService {
                     "Refresh AI opportunities before accepting opportunity updates."
             );
         }
+        if (!hasLiveAiOpportunityResult(request)) {
+            throw projectCreationActionRejected(
+                    "AI_OPPORTUNITY_LIVE_RESULT_REQUIRED",
+                    "LoomAI did not return a usable AI opportunity result. Review the failed result, adjust the context, and refresh again before accepting product updates."
+            );
+        }
         ProductCreationActionRequest actionRequest = request.toActionRequest(product);
         validateAttachmentOwnership(intent, actionRequest.sourceAttachmentIds());
         validateAttachmentOwnership(intent, actionRequest.aiAccessibleAttachmentIds());
@@ -408,13 +415,13 @@ public class AiAssistedProductCreationService {
             attachmentRepository.save(attachment);
         }
 
-        ProductProjectIntelligence intelligence = persistAiOpportunityIntelligence(intent, saved, actionRequest);
+        ProductProjectIntelligence intelligence = persistAiOpportunityIntelligence(intent, saved, actionRequest, true);
         serviceRecommendationRepository.deleteByProductProfileIdAndCreatedByAiTrue(saved.getId());
         scannerRecommendationRepository.deleteByProductProfileIdAndCreatedByAiTrue(saved.getId());
         readinessTaskRepository.deleteByProductProfileIdAndCreatedByAiTrue(saved.getId());
-        int serviceRecommendationCount = persistServiceRecommendations(saved, actionRequest.recommendedServiceModules());
-        int scannerRecommendationCount = persistScannerRecommendations(saved, actionRequest.scannerFocusAreas());
-        int readinessTaskCount = persistReadinessTasks(saved, actionRequest);
+        int serviceRecommendationCount = persistServiceRecommendations(saved, actionRequest.recommendedServiceModules(), true);
+        int scannerRecommendationCount = persistScannerRecommendations(saved, actionRequest.scannerFocusAreas(), true);
+        int readinessTaskCount = persistReadinessTasks(saved, actionRequest, true);
         int acceptedNextStepCount = listOrEmpty(actionRequest.suggestedNextSteps()).size();
 
         intent.setStatus(ProductCreationIntent.Status.CREATED);
@@ -646,6 +653,31 @@ public class AiAssistedProductCreationService {
         return intent;
     }
 
+    private boolean hasLiveAiOpportunityResult(ProductAiOpportunityAcceptanceRequest request) {
+        return request != null
+                && ((request.aiOpportunityReport() != null && request.aiOpportunityReport().live())
+                || (request.loomaiIntegrationOverview() != null && request.loomaiIntegrationOverview().live()));
+    }
+
+    private boolean hasLiveAiResult(ProductCreationActionRequest request) {
+        if (request == null) {
+            return false;
+        }
+        if ((request.aiOpportunityReport() != null && request.aiOpportunityReport().live())
+                || (request.loomaiIntegrationOverview() != null && request.loomaiIntegrationOverview().live())) {
+            return true;
+        }
+        if (!hasText(request.analysisProviderRequestId())) {
+            return false;
+        }
+        String summary = normalizeText(firstNonBlank(request.aiCreationSummary(), request.summary(), request.projectDescription()));
+        return !(summary.contains("fallback")
+                || summary.contains("unavailable")
+                || summary.contains("did not return")
+                || summary.contains("unusable")
+                || summary.contains("owner provided intake because ai analysis was unavailable"));
+    }
+
     private void validateAttachmentOwnership(ProductCreationIntent intent, List<UUID> attachmentIds) {
         if (attachmentIds == null || attachmentIds.isEmpty()) {
             return;
@@ -873,41 +905,44 @@ public class AiAssistedProductCreationService {
     private ProductProjectIntelligence persistProjectIntelligence(
             ProductCreationIntent intent,
             ProductProfile product,
-            ProductCreationActionRequest request
+            ProductCreationActionRequest request,
+            boolean liveAiResult
     ) {
         ProductProjectIntelligence intelligence = new ProductProjectIntelligence();
         intelligence.setProductProfile(product);
         intelligence.setCreationIntent(intent);
-        intelligence.setAnalysisProvider("LOOMAI");
-        intelligence.setAnalysisProviderRequestId(firstNonBlank(request.analysisProviderRequestId(), intent.getAnalysisProviderRequestId()));
+        intelligence.setAnalysisProvider(liveAiResult ? "LOOMAI" : "PRODUS_FALLBACK");
+        intelligence.setAnalysisProviderRequestId(liveAiResult ? firstNonBlank(request.analysisProviderRequestId(), intent.getAnalysisProviderRequestId()) : "");
         intelligence.setAnalysisSchemaVersion("produs-project-analysis-v1");
         intelligence.setAnalysisJson(writeAnalysisJson(request));
         intelligence.setOwnerApprovedAt(LocalDateTime.now());
-        intelligence.setCreatedByAi(true);
+        intelligence.setCreatedByAi(liveAiResult);
         return intelligenceRepository.save(intelligence);
     }
 
     private ProductProjectIntelligence persistAiOpportunityIntelligence(
             ProductCreationIntent intent,
             ProductProfile product,
-            ProductCreationActionRequest request
+            ProductCreationActionRequest request,
+            boolean liveAiResult
     ) {
         ProductProjectIntelligence intelligence = intelligenceRepository.findByProductProfileId(product.getId())
                 .orElseGet(ProductProjectIntelligence::new);
         intelligence.setProductProfile(product);
         intelligence.setCreationIntent(intent);
-        intelligence.setAnalysisProvider("LOOMAI");
-        intelligence.setAnalysisProviderRequestId(firstNonBlank(request.analysisProviderRequestId(), intent.getAnalysisProviderRequestId()));
+        intelligence.setAnalysisProvider(liveAiResult ? "LOOMAI" : "PRODUS_FALLBACK");
+        intelligence.setAnalysisProviderRequestId(liveAiResult ? firstNonBlank(request.analysisProviderRequestId(), intent.getAnalysisProviderRequestId()) : "");
         intelligence.setAnalysisSchemaVersion("produs-ai-opportunity-refresh-v1");
         intelligence.setAnalysisJson(writeAnalysisJson(request));
         intelligence.setOwnerApprovedAt(LocalDateTime.now());
-        intelligence.setCreatedByAi(true);
+        intelligence.setCreatedByAi(liveAiResult);
         return intelligenceRepository.save(intelligence);
     }
 
     private int persistServiceRecommendations(
             ProductProfile product,
-            List<ServiceModuleRecommendation> recommendations
+            List<ServiceModuleRecommendation> recommendations,
+            boolean liveAiResult
     ) {
         List<ServiceModuleRecommendation> selected = listOrEmpty(recommendations).stream()
                 .filter(recommendation -> recommendation != null && recommendation.acceptedOrDefault())
@@ -937,14 +972,14 @@ public class AiAssistedProductCreationService {
             entity.setEvidenceBasisJson(writeStringList(recommendation.evidenceBasis()));
             entity.setConfidence(normalizeConfidence(recommendation.confidence()));
             entity.setStatus(ProductServiceRecommendation.Status.RECOMMENDED);
-            entity.setCreatedByAi(true);
+            entity.setCreatedByAi(liveAiResult);
             serviceRecommendationRepository.save(entity);
             created++;
         }
         return created;
     }
 
-    private int persistScannerRecommendations(ProductProfile product, List<String> scannerFocusAreas) {
+    private int persistScannerRecommendations(ProductProfile product, List<String> scannerFocusAreas, boolean liveAiResult) {
         List<String> focusAreas = listOrEmpty(scannerFocusAreas).stream()
                 .map(value -> trim(value, 255))
                 .filter(value -> !value.isBlank())
@@ -955,33 +990,36 @@ public class AiAssistedProductCreationService {
             ProductScannerRecommendation recommendation = new ProductScannerRecommendation();
             recommendation.setProductProfile(product);
             recommendation.setScannerFocusArea(focusArea);
-            recommendation.setSource("AI_PROJECT_ANALYSIS");
-            recommendation.setReason("Created from owner-approved AI product analysis.");
+            recommendation.setSource(liveAiResult ? "AI_PROJECT_ANALYSIS" : "PRODUCT_ANALYSIS_FALLBACK");
+            recommendation.setReason(liveAiResult
+                    ? "Created from owner-approved AI product analysis."
+                    : "Created from owner-approved fallback product analysis after live AI output was unavailable or unusable.");
             recommendation.setRecommendedChecksJson(writeStringList(List.of(focusArea)));
             recommendation.setStatus(ProductScannerRecommendation.Status.SUGGESTED);
-            recommendation.setCreatedByAi(true);
+            recommendation.setCreatedByAi(liveAiResult);
             scannerRecommendationRepository.save(recommendation);
         }
         return focusAreas.size();
     }
 
-    private int persistReadinessTasks(ProductProfile product, ProductCreationActionRequest request) {
+    private int persistReadinessTasks(ProductProfile product, ProductCreationActionRequest request, boolean liveAiResult) {
+        String sourceLabel = liveAiResult ? "AI product analysis" : "fallback product analysis";
         List<ReadinessTaskSeed> seeds = new ArrayList<>();
         listOrEmpty(request.readinessGoals()).stream()
                 .map(value -> trim(value, 255))
                 .filter(value -> !value.isBlank())
                 .limit(6)
-                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Readiness goal recommended by AI product analysis.", "readinessGoals", "HIGH")));
+                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Readiness goal recommended by " + sourceLabel + ".", "readinessGoals", "HIGH")));
         listOrEmpty(request.suggestedNextSteps()).stream()
                 .map(value -> trim(value, 255))
                 .filter(value -> !value.isBlank())
                 .limit(6)
-                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Suggested next step from owner-approved AI analysis.", "suggestedNextSteps", "MEDIUM")));
+                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Suggested next step from owner-approved " + sourceLabel + ".", "suggestedNextSteps", "MEDIUM")));
         listOrEmpty(request.missingEvidence()).stream()
                 .map(value -> trim(value, 255))
                 .filter(value -> !value.isBlank())
                 .limit(6)
-                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Evidence gap captured during AI product analysis.", "missingEvidence", "HIGH")));
+                .forEach(value -> seeds.add(new ReadinessTaskSeed(value, "Evidence gap captured during " + sourceLabel + ".", "missingEvidence", "HIGH")));
 
         List<ReadinessTaskSeed> uniqueSeeds = seeds.stream()
                 .filter(seed -> hasText(seed.title()))
@@ -1000,11 +1038,11 @@ public class AiAssistedProductCreationService {
             task.setProductProfile(product);
             task.setTitle(seed.title());
             task.setDescription(seed.description());
-            task.setSource("AI_PROJECT_ANALYSIS");
+            task.setSource(liveAiResult ? "AI_PROJECT_ANALYSIS" : "PRODUCT_ANALYSIS_FALLBACK");
             task.setSourceAnalysisField(seed.sourceAnalysisField());
             task.setPriority(seed.priority());
             task.setStatus(ProductReadinessTask.Status.OPEN);
-            task.setCreatedByAi(true);
+            task.setCreatedByAi(liveAiResult);
             readinessTaskRepository.save(task);
         }
         return uniqueSeeds.size();
@@ -1969,7 +2007,7 @@ public class AiAssistedProductCreationService {
                 request.productUrl(),
                 request.repositoryUrl(),
                 request.knownRisks(),
-                "Analysis prepared from owner-approved AI product intake. LoomAI response was unavailable or did not return the strict product analysis JSON contract.",
+                "Owner/rules fallback prepared because LoomAI was unavailable or did not return the strict product analysis JSON contract.",
                 List.of(),
                 List.of(),
                 List.of("Run product diagnosis, scanner evidence collection, and service selection after product creation."),
@@ -2136,10 +2174,9 @@ public class AiAssistedProductCreationService {
                 report.sourceInsights(),
                 overview == null ? List.of() : overview.sourceInsights()
         );
-        List<String> readinessGoals = mergeList(
-                fields.readinessGoals(),
-                List.of("Review AI opportunity fit before implementation scope is finalized.")
-        );
+        List<String> readinessGoals = report.live()
+                ? mergeList(fields.readinessGoals(), List.of("Review AI opportunity fit before implementation scope is finalized."))
+                : fields.readinessGoals();
         List<String> scannerFocusAreas = mergeList(
                 fields.scannerFocusAreas(),
                 report.scannerFocusAreas()
@@ -2385,67 +2422,28 @@ public class AiAssistedProductCreationService {
             ProductCreationFields fields,
             AssistantQueryResponse response
     ) {
-        List<AiOpportunityUseCase> useCases = List.of(
-                new AiOpportunityUseCase(
-                        "Production-readiness copilot",
-                        "Owner and reviewer questions during diagnosis, scanner review, and service planning.",
-                        "Owners can understand blockers, tradeoffs, and next decisions without reading every technical artifact.",
-                        "Shortens product discovery and makes readiness decisions easier to defend.",
-                        "loomai_embedded_assistant_ui",
-                        "Embedded AI assistant UI powered by LoomAI runtime orchestration.",
-                        "EMBEDDED_ASSISTANT_WITH_PRIVATE_RUNTIME",
-                        "MUST",
-                        0.74,
-                        List.of("Owner requested AI-supported product planning.", hasText(request.repositoryUrl()) ? "Repository URL provided" : "Owner brief provided"),
-                        aiIntegrationServiceSeeds()
-                ),
-                new AiOpportunityUseCase(
-                        "Scanner finding explainer",
-                        "Summarize findings, severity, evidence, and likely remediation service path.",
-                        "Owners see what a finding means and which lifecycle service should handle it.",
-                        "Improves conversion from diagnosis to scoped work.",
-                        "loomai_tool_mcp_orchestration",
-                        "LoomAI tool orchestration over authorized scan, finding, evidence, and catalog data.",
-                        "READ_ONLY_TOOL_GROUNDED_ANALYSIS",
-                        "SHOULD",
-                        0.68,
-                        List.of("ProdUS supports scanner findings and evidence records."),
-                        aiIntegrationServiceSeeds()
-                ),
-                new AiOpportunityUseCase(
-                        "Service-plan advisor",
-                        "Explain selected catalog services, dependencies, and missing coverage before workspace creation.",
-                        "Owners can adjust the service plan before committing to delivery.",
-                        "Reduces blocked project starts and unclear scope.",
-                        "loomai_structured_outputs",
-                        "Structured LoomAI recommendations that can become validated product creation data.",
-                        "STRUCTURED_RECOMMENDATION_OUTPUT",
-                        "SHOULD",
-                        0.66,
-                        List.of("ProdUS catalog service recommendations are available in the product analysis."),
-                        aiIntegrationServiceSeeds()
-                )
-        );
-        List<ServiceModuleRecommendation> modules = useCases.stream()
-                .flatMap(useCase -> useCase.recommendedServiceModules().stream())
-                .toList();
+        String reason = aiFailureReason(response, "LOOMAI_UNUSABLE_STRUCTURED_OUTPUT");
+        String summary = "LoomAI did not return a usable AI opportunity result. ProdUS did not create fallback opportunity cards; rerun the analysis with clearer context or selected files.";
         return new AiOpportunityReport(
-                response != null && response.success() ? "READY" : "FALLBACK_READY",
-                "AI opportunities were prepared for the owner-approved product creation path. LoomAI is the recommended AI integration service; implementation remains a catalog-backed service delivered by a LoomAI partner team or solo expert.",
-                0.72,
-                response == null ? 0.64 : Math.max(0.5, response.confidence()),
-                "ProdUS should use AI where it improves diagnosis, explanation, scanner interpretation, and service planning. Team creation, participant access, and ownership decisions remain explicit owner actions.",
-                useCases,
-                modules.stream().map(ServiceModuleRecommendation::moduleName).filter(value -> !value.isBlank()).distinct().toList(),
-                modules,
-                List.of("AI-assisted scanner finding summaries", "AI-assisted service selection rationale"),
-                List.of("Review AI opportunities with the owner before implementation scope is finalized.", "Select a LoomAI partner service if the owner wants AI integration implemented."),
-                mergeList(fields.sourceInsights(), List.of("AI opportunity analysis used the owner intake and product analysis context.")),
-                List.of("LoomAI integration should be implemented through backend-mediated private runtime calls, not browser secrets."),
+                "FAILED",
+                summary,
+                0.0,
+                0.0,
+                "No AI opportunity recommendation was accepted from this run because the live AI result was unavailable, failed, or did not match the strict JSON contract.",
                 List.of(),
-                response == null ? "PRODUS_DETERMINISTIC" : response.provider(),
-                response == null ? "" : response.providerRequestId(),
-                response != null && response.success()
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of("Rerun LoomAI opportunity analysis after adding a clearer owner note, product URL, repository URL, or selected files."),
+                mergeList(
+                        fields.sourceInsights(),
+                        List.of("AI opportunity result failed: " + reason)
+                ),
+                List.of("Live LoomAI opportunity output was not usable for product updates."),
+                List.of(reason),
+                response == null ? "PRODUS_AI_RESULT" : firstNonBlank(response.provider(), "LOOMAI"),
+                response == null ? "" : firstNonBlank(response.providerRequestId()),
+                false
         );
     }
 
@@ -2453,18 +2451,35 @@ public class AiAssistedProductCreationService {
             AiOpportunityReport report,
             AssistantQueryResponse response
     ) {
+        String reason = aiFailureReason(response, "LOOMAI_OVERVIEW_UNUSABLE_STRUCTURED_OUTPUT");
         return new LoomAIIntegrationOverview(
-                "LoomAI can support ProdUS by answering owner questions, explaining readiness evidence, summarizing scanner findings, and helping turn catalog recommendations into an understandable service path.",
-                "Start with backend-mediated thinker-mode assistance for product diagnosis and scanner/service-plan explanation. Add confirmed write actions only after owner review gates are explicit.",
-                List.of("Private runtime chat", "Read-only ProdUS MCP actions", "Managed safe-knowledge retrieval", "Confirmed runtime action flow"),
-                List.of("Keep browser calls pointed only at ProdUS backend.", "Send product and scanner context through authorized backend enrichment.", "Use LoomAI partners for implementation service delivery.", "Audit confirmed actions separately from analysis chat."),
-                List.of("Which product surfaces need AI first?", "Which service modules should be implemented by a LoomAI partner?", "Which documents and evidence can be shared temporarily with AI?"),
-                List.of("Do not expose secrets or browser runtime keys.", "Do not allow AI to select teams, invite participants, or grant access without owner confirmation."),
-                report == null ? List.of() : report.sourceInsights(),
-                aiIntegrationServiceSeeds(),
-                response == null ? "PRODUS_DETERMINISTIC" : response.provider(),
-                response == null ? "" : response.providerRequestId(),
-                response != null && response.success()
+                "LoomAI did not return a usable integration overview for this run. ProdUS did not replace it with a template recommendation.",
+                "Refresh the AI opportunity analysis with clearer product context before selecting LoomAI implementation work.",
+                List.of(),
+                List.of(),
+                List.of("Review why the live AI result failed before accepting any AI integration scope."),
+                List.of("Do not accept AI integration work from this failed run."),
+                mergeList(
+                        report == null ? List.of() : report.sourceInsights(),
+                        List.of("LoomAI integration overview failed: " + reason)
+                ),
+                List.of(),
+                response == null ? "PRODUS_AI_RESULT" : firstNonBlank(response.provider(), "LOOMAI"),
+                response == null ? "" : firstNonBlank(response.providerRequestId()),
+                false
+        );
+    }
+
+    private String aiFailureReason(AssistantQueryResponse response, String fallback) {
+        if (response == null) {
+            return fallback;
+        }
+        return firstNonBlank(
+                response.fallbackReason(),
+                response.errorCode(),
+                response.reason(),
+                response.type(),
+                response.success() ? "LOOMAI_UNPARSEABLE_RESPONSE" : fallback
         );
     }
 

@@ -9,13 +9,14 @@ import {
   RuleOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
+import { PastelChip, Surface, appleColors, formatLabel } from './PlatformComponents';
 import {
-  PastelChip,
-  Surface,
-  appleColors,
-  formatLabel,
-} from './PlatformComponents';
-import { collectAiServiceRecommendations, selectableNextSteps, selectableScannerFocus } from './ownerProductAiOpportunityModel';
+  aiOpportunityResultStatusLabel,
+  collectAiServiceRecommendations,
+  hasLiveAiOpportunityResult,
+  selectableNextSteps,
+  selectableScannerFocus,
+} from './ownerProductAiOpportunityModel';
 import type { ReactNode } from 'react';
 import type {
   AiAssistedProductAnalysisResponse,
@@ -65,11 +66,12 @@ export default function OwnerProductAiOpportunityHome({
   const newServices = latestAnalysis ? collectAiServiceRecommendations(latestAnalysis) : [];
   const newScannerFocus = latestAnalysis ? selectableScannerFocus(latestAnalysis) : [];
   const newNextSteps = latestAnalysis ? selectableNextSteps(latestAnalysis) : [];
+  const latestLive = hasLiveAiOpportunityResult(latestAnalysis);
   const loomAiCapabilities = context?.loomaiIntegrationOverview?.capabilities?.length
     ? context.loomaiIntegrationOverview.capabilities
-    : acceptedUseCases
-      .map((useCase) => useCase.loomaiCapability || useCase.loomaiCapabilityCode)
-      .filter(Boolean) as string[];
+    : (acceptedUseCases
+        .map(useCase => useCase.loomaiCapability || useCase.loomaiCapabilityCode)
+        .filter(Boolean) as string[]);
   const loomAiDecisions = context?.loomaiIntegrationOverview?.ownerDecisions?.length
     ? context.loomaiIntegrationOverview.ownerDecisions
     : acceptedNextSteps;
@@ -77,7 +79,12 @@ export default function OwnerProductAiOpportunityHome({
   return (
     <Stack spacing={2}>
       <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fbff 100%)' }}>
-        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ lg: 'flex-start' }}>
+        <Stack
+          direction={{ xs: 'column', lg: 'row' }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ lg: 'flex-start' }}
+        >
           <Stack spacing={1.75} sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               <PsychologyOutlined sx={{ color: appleColors.purple }} />
@@ -90,40 +97,109 @@ export default function OwnerProductAiOpportunityHome({
             </Stack>
             <Typography color="text.secondary" sx={{ maxWidth: 860, lineHeight: 1.65 }}>
               {hasContext
-                ? context?.aiCreationSummary || context?.aiOpportunityReport?.summary || product.aiCreationSummary || 'These are the AI opportunities currently saved for this product.'
+                ? context?.aiCreationSummary ||
+                  context?.aiOpportunityReport?.summary ||
+                  product.aiCreationSummary ||
+                  'These are the AI opportunities currently saved for this product.'
                 : 'No AI opportunity context has been accepted for this product yet. Refresh analysis, review the result, then accept only what should shape the product plan.'}
             </Typography>
           </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row', lg: 'column' }} spacing={1} sx={{ minWidth: { lg: 220 } }}>
-            <Button variant="contained" startIcon={<AutoAwesomeOutlined />} onClick={onRefresh} sx={{ minHeight: 44, whiteSpace: 'normal' }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row', lg: 'column' }}
+            spacing={1}
+            sx={{ minWidth: { lg: 220 } }}
+          >
+            <Button
+              variant="contained"
+              startIcon={<AutoAwesomeOutlined />}
+              onClick={onRefresh}
+              sx={{ minHeight: 44, whiteSpace: 'normal' }}
+            >
               Refresh analysis
             </Button>
-            <Button variant="outlined" endIcon={<ArrowForwardOutlined />} onClick={onViewLoomAi} sx={{ minHeight: 44, whiteSpace: 'normal' }}>
+            <Button
+              variant="outlined"
+              endIcon={<ArrowForwardOutlined />}
+              onClick={onViewLoomAi}
+              sx={{ minHeight: 44, whiteSpace: 'normal' }}
+            >
               LoomAI integration
             </Button>
           </Stack>
         </Stack>
         <Box sx={{ mt: 1.75 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
-            <HomeMetric icon={<AutoAwesomeOutlined />} label="Accepted opportunities" value={acceptedUseCases.length} detail={hasContext ? 'Saved to this product' : 'Waiting for owner approval'} accent={appleColors.purple} />
-            <HomeMetric icon={<CheckCircleOutlineOutlined />} label="Services shaped" value={acceptedServices.length} detail="Catalog-backed modules" accent={appleColors.green} />
-            <HomeMetric icon={<RuleOutlined />} label="Scanner focus" value={acceptedScannerFocus.length} detail="Areas AI says to watch" accent={appleColors.amber} />
-            <HomeMetric icon={<CloudDoneOutlined />} label="AI files used" value={context?.aiSourceAttachmentCount ?? product.aiSourceAttachmentCount ?? 0} detail={dateLabel(context?.ownerApprovedAt)} accent={appleColors.cyan} />
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                lg: 'repeat(4, minmax(0, 1fr))',
+              },
+              gap: 1,
+            }}
+          >
+            <HomeMetric
+              icon={<AutoAwesomeOutlined />}
+              label="Accepted opportunities"
+              value={acceptedUseCases.length}
+              detail={hasContext ? 'Saved to this product' : 'Waiting for owner approval'}
+              accent={appleColors.purple}
+            />
+            <HomeMetric
+              icon={<CheckCircleOutlineOutlined />}
+              label="Services shaped"
+              value={acceptedServices.length}
+              detail="Catalog-backed modules"
+              accent={appleColors.green}
+            />
+            <HomeMetric
+              icon={<RuleOutlined />}
+              label="Scanner focus"
+              value={acceptedScannerFocus.length}
+              detail="Areas AI says to watch"
+              accent={appleColors.amber}
+            />
+            <HomeMetric
+              icon={<CloudDoneOutlined />}
+              label="AI files used"
+              value={context?.aiSourceAttachmentCount ?? product.aiSourceAttachmentCount ?? 0}
+              detail={dateLabel(context?.ownerApprovedAt)}
+              accent={appleColors.cyan}
+            />
           </Box>
         </Box>
       </Surface>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.15fr) minmax(320px, 0.85fr)' }, gap: 2 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.15fr) minmax(320px, 0.85fr)' },
+          gap: 2,
+        }}
+      >
         <Surface>
           <Stack spacing={1.5}>
-            <SectionHeading title="Current accepted opportunities" subtitle={hasContext ? 'What the product is already using from AI analysis.' : 'Nothing accepted yet.'} />
+            <SectionHeading
+              title="Current accepted opportunities"
+              subtitle={
+                hasContext
+                  ? 'What the product is already using from AI analysis.'
+                  : 'Nothing accepted yet.'
+              }
+            />
             {hasContext && acceptedUseCases.length ? (
               <Box sx={{ display: 'grid', gap: 1 }}>
                 {acceptedUseCases.slice(0, 4).map((useCase, index) => (
                   <HomeListItem
                     key={`${useCase.title || 'opportunity'}-${index}`}
                     title={useCase.title || `Opportunity ${index + 1}`}
-                    detail={useCase.userValue || useCase.businessValue || useCase.workflow || 'Saved product-specific AI opportunity.'}
+                    detail={
+                      useCase.userValue ||
+                      useCase.businessValue ||
+                      useCase.workflow ||
+                      'Saved product-specific AI opportunity.'
+                    }
                     meta={[
                       useCase.priority ? formatLabel(useCase.priority) : 'Saved',
                       useCase.loomaiCapability || useCase.loomaiCapabilityCode || '',
@@ -132,9 +208,18 @@ export default function OwnerProductAiOpportunityHome({
                 ))}
               </Box>
             ) : (
-              <Box sx={{ p: 1.5, border: '1px dashed', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#f8fafc' }}>
+              <Box
+                sx={{
+                  p: 1.5,
+                  border: '1px dashed',
+                  borderColor: appleColors.line,
+                  borderRadius: 1,
+                  bgcolor: '#f8fafc',
+                }}
+              >
                 <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                  After the owner accepts an AI opportunity result, the saved opportunities will appear here.
+                  After the owner accepts an AI opportunity result, the saved opportunities will
+                  appear here.
                 </Typography>
               </Box>
             )}
@@ -143,68 +228,158 @@ export default function OwnerProductAiOpportunityHome({
 
         <Surface>
           <Stack spacing={1.5}>
-            <SectionHeading title="LoomAI integration" subtitle={context?.loomaiIntegrationOverview?.recommendedStartingPoint || 'Recommended fit, decisions, and delivery path.'} />
+            <SectionHeading
+              title="LoomAI integration"
+              subtitle={
+                context?.loomaiIntegrationOverview?.recommendedStartingPoint ||
+                'Recommended fit, decisions, and delivery path.'
+              }
+            />
             <CompactList
               title="Capabilities"
               items={listOrFallback(loomAiCapabilities, 'No accepted LoomAI capabilities yet.')}
             />
             <CompactList
               title="Owner decisions"
-              items={listOrFallback(loomAiDecisions, 'Accept an analysis result to see the owner decisions.')}
+              items={listOrFallback(
+                loomAiDecisions,
+                'Accept an analysis result to see the owner decisions.'
+              )}
             />
           </Stack>
         </Surface>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' },
+          gap: 2,
+        }}
+      >
         <Surface>
           <Stack spacing={1.5}>
-            <SectionHeading title="Services and scanner focus" subtitle="How the accepted AI context affects the work plan." />
+            <SectionHeading
+              title="Services and scanner focus"
+              subtitle="How the accepted AI context affects the work plan."
+            />
             <CompactList
               title="Services"
-              items={acceptedServices.length
-                ? acceptedServices.slice(0, 5).map((service) => service.moduleName || service.moduleCode)
-                : ['No AI-shaped services accepted yet.']}
+              items={
+                acceptedServices.length
+                  ? acceptedServices
+                      .slice(0, 5)
+                      .map(service => service.moduleName || service.moduleCode)
+                  : ['No AI-shaped services accepted yet.']
+              }
             />
             <CompactList
               title="Scanner focus"
-              items={acceptedScannerFocus.length ? acceptedScannerFocus : ['No AI scanner focus accepted yet.']}
+              items={
+                acceptedScannerFocus.length
+                  ? acceptedScannerFocus
+                  : ['No AI scanner focus accepted yet.']
+              }
             />
           </Stack>
         </Surface>
 
         <Surface>
           <Stack spacing={1.5}>
-            <SectionHeading title="Next owner steps" subtitle="The accepted path this product should follow next." />
+            <SectionHeading
+              title="Next owner steps"
+              subtitle="The accepted path this product should follow next."
+            />
             <CompactList
               title="Do next"
-              items={acceptedNextSteps.length ? acceptedNextSteps : ['Accept a refresh result to create AI-backed next steps.']}
+              items={
+                acceptedNextSteps.length
+                  ? acceptedNextSteps
+                  : ['Accept a refresh result to create AI-backed next steps.']
+              }
             />
           </Stack>
         </Surface>
       </Box>
 
-      <Surface sx={{ borderColor: latestAnalysis ? `${appleColors.purple}55` : appleColors.line, background: latestAnalysis ? '#fbfaff' : '#fff' }}>
+      <Surface
+        sx={{
+          borderColor: latestAnalysis ? `${appleColors.purple}55` : appleColors.line,
+          background: latestAnalysis ? '#fbfaff' : '#fff',
+        }}
+      >
         <Stack spacing={1.25}>
           <SectionHeading
-            title={latestAnalysis ? 'New analysis result waiting' : 'Refresh analysis'}
-            subtitle={latestAnalysis
-              ? 'Open the refresh view to review and accept only the items that should update this product.'
-              : 'Use the refresh view when the repo, pitch, customer insight, or LoomAI integration idea changes.'}
+            title={
+              latestAnalysis
+                ? latestLive
+                  ? 'New AI result waiting'
+                  : 'Latest AI result failed'
+                : 'Refresh analysis'
+            }
+            subtitle={
+              latestAnalysis
+                ? latestLive
+                  ? 'Open the refresh view to review and accept only the items that should update this product.'
+                  : 'Open the refresh view to see the failed AI result and rerun with clearer context.'
+                : 'Use the refresh view when the repo, pitch, customer insight, or LoomAI integration idea changes.'
+            }
           />
+          {latestAnalysis && (
+            <PastelChip
+              label={aiOpportunityResultStatusLabel(latestAnalysis)}
+              accent={latestLive ? appleColors.green : appleColors.red}
+              bg={latestLive ? '#e7f8ee' : '#ffecef'}
+            />
+          )}
           {latestAnalysis ? (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
-              <HomeMetric icon={<AutoAwesomeOutlined />} label="New opportunities" value={newUseCases.length} detail="Found in latest refresh" accent={appleColors.purple} />
-              <HomeMetric icon={<CheckCircleOutlineOutlined />} label="New services" value={newServices.length} detail="Suggested modules" accent={appleColors.green} />
-              <HomeMetric icon={<RuleOutlined />} label="New focus areas" value={newScannerFocus.length} detail={`${newNextSteps.length} next steps`} accent={appleColors.amber} />
-              <HomeMetric icon={<CloudDoneOutlined />} label="Selected to save" value={selectedItemCount} detail="Owner-approved changes" accent={appleColors.cyan} />
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, minmax(0, 1fr))' },
+                gap: 1,
+              }}
+            >
+              <HomeMetric
+                icon={<AutoAwesomeOutlined />}
+                label="New opportunities"
+                value={newUseCases.length}
+                detail="Found in latest refresh"
+                accent={appleColors.purple}
+              />
+              <HomeMetric
+                icon={<CheckCircleOutlineOutlined />}
+                label="New services"
+                value={newServices.length}
+                detail="Suggested modules"
+                accent={appleColors.green}
+              />
+              <HomeMetric
+                icon={<RuleOutlined />}
+                label="New focus areas"
+                value={newScannerFocus.length}
+                detail={`${newNextSteps.length} next steps`}
+                accent={appleColors.amber}
+              />
+              <HomeMetric
+                icon={<CloudDoneOutlined />}
+                label="Selected to save"
+                value={selectedItemCount}
+                detail="Owner-approved changes"
+                accent={appleColors.cyan}
+              />
             </Box>
           ) : (
             <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
               No new refresh result is waiting. Open refresh analysis when you want a new proposal.
             </Typography>
           )}
-          <Button variant="outlined" endIcon={<ArrowForwardOutlined />} onClick={onRefresh} sx={{ alignSelf: 'flex-start', minHeight: 40 }}>
+          <Button
+            variant="outlined"
+            endIcon={<ArrowForwardOutlined />}
+            onClick={onRefresh}
+            sx={{ alignSelf: 'flex-start', minHeight: 40 }}
+          >
             Open refresh analysis
           </Button>
         </Stack>
@@ -227,7 +402,16 @@ function HomeMetric({
   value: number;
 }) {
   return (
-    <Box sx={{ p: 1.4, border: '1px solid', borderColor: `${accent}2f`, borderRadius: 1, bgcolor: '#fff', minHeight: 112 }}>
+    <Box
+      sx={{
+        p: 1.4,
+        border: '1px solid',
+        borderColor: `${accent}2f`,
+        borderRadius: 1,
+        bgcolor: '#fff',
+        minHeight: 112,
+      }}
+    >
       <Stack spacing={1}>
         <Stack direction="row" spacing={1} alignItems="center">
           <Box sx={{ color: accent, display: 'grid', placeItems: 'center' }}>{icon}</Box>
@@ -259,7 +443,16 @@ function SectionHeading({ title, subtitle }: { title: string; subtitle: string }
 
 function HomeListItem({ detail, meta, title }: { detail: string; meta: string[]; title: string }) {
   return (
-    <Box sx={{ p: 1.35, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fff', minWidth: 0 }}>
+    <Box
+      sx={{
+        p: 1.35,
+        border: '1px solid',
+        borderColor: appleColors.line,
+        borderRadius: 1,
+        bgcolor: '#fff',
+        minWidth: 0,
+      }}
+    >
       <Stack spacing={0.75} sx={{ minWidth: 0 }}>
         <Typography variant="body2" sx={{ fontWeight: 950, overflowWrap: 'anywhere' }}>
           {title}
@@ -269,8 +462,13 @@ function HomeListItem({ detail, meta, title }: { detail: string; meta: string[];
         </Typography>
         {meta.length > 0 && (
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ minWidth: 0 }}>
-            {meta.map((item) => (
-              <PastelChip key={item} label={shortChipLabel(item)} accent={appleColors.purple} bg="#f1efff" />
+            {meta.map(item => (
+              <PastelChip
+                key={item}
+                label={shortChipLabel(item)}
+                accent={appleColors.purple}
+                bg="#f1efff"
+              />
             ))}
           </Stack>
         )}
@@ -287,7 +485,12 @@ function CompactList({ items, title }: { items: string[]; title: string }) {
       </Typography>
       <Box component="ul" sx={{ m: 0, pl: 2.2 }}>
         {items.slice(0, 6).map((item, index) => (
-          <Typography key={`${item}-${index}`} component="li" variant="body2" sx={{ mb: 0.65, lineHeight: 1.5 }}>
+          <Typography
+            key={`${item}-${index}`}
+            component="li"
+            variant="body2"
+            sx={{ mb: 0.65, lineHeight: 1.5 }}
+          >
             {item}
           </Typography>
         ))}

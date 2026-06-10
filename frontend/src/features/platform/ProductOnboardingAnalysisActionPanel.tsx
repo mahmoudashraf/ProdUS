@@ -79,7 +79,12 @@ export default function ProductOnboardingAnalysisActionPanel({
     : '';
   const actionErrorCode = actionError ? errorCodeFromUnknown(actionError) : '';
   const blockedValidationCount = validationItems.filter(item => item.state === 'blocked').length;
-  const attentionValidationCount = validationItems.filter(item => item.state === 'attention').length;
+  const attentionValidationCount = validationItems.filter(
+    item => item.state === 'attention'
+  ).length;
+  const liveAiOpportunityResult = Boolean(
+    analysis.aiOpportunityReport?.live || analysis.loomaiIntegrationOverview?.live
+  );
 
   return (
     <Box
@@ -128,7 +133,11 @@ export default function ProductOnboardingAnalysisActionPanel({
                 ? 'Resolve required fields before creating'
                 : 'Review the highlighted evidence before creating'}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45, lineHeight: 1.45 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: 'block', mt: 0.45, lineHeight: 1.45 }}
+          >
             {blockedValidationCount
               ? `${blockedValidationCount} required check${blockedValidationCount === 1 ? '' : 's'} still need owner input.`
               : attentionValidationCount
@@ -138,7 +147,10 @@ export default function ProductOnboardingAnalysisActionPanel({
         </Box>
         <Divider />
         <Stack spacing={0.8}>
-          <DotLabel label={`${privateAttachmentCount} private attachments`} color={appleColors.blue} />
+          <DotLabel
+            label={`${privateAttachmentCount} private attachments`}
+            color={appleColors.blue}
+          />
           <DotLabel
             label={`${selectedDocumentCount} temporary AI shares`}
             color={selectedDocumentCount ? appleColors.purple : appleColors.muted}
@@ -160,18 +172,22 @@ export default function ProductOnboardingAnalysisActionPanel({
           />
           <DotLabel
             label={
-              analysis.aiOpportunityReport
+              liveAiOpportunityResult
                 ? `${aiOpportunityCount} AI opportunities`
-                : fullAnalysisMode
-                  ? 'Full analysis + AI'
-                  : 'AI integration only'
+                : analysis.aiOpportunityReport || analysis.loomaiIntegrationOverview
+                  ? 'AI opportunities failed'
+                  : fullAnalysisMode
+                    ? 'Full analysis + AI'
+                    : 'AI integration only'
             }
             color={
-              analysis.aiOpportunityReport
+              liveAiOpportunityResult
                 ? appleColors.green
-                : fullAnalysisMode
-                  ? appleColors.purple
-                  : appleColors.cyan
+                : analysis.aiOpportunityReport || analysis.loomaiIntegrationOverview
+                  ? appleColors.red
+                  : fullAnalysisMode
+                    ? appleColors.purple
+                    : appleColors.cyan
             }
           />
         </Stack>
@@ -227,9 +243,9 @@ export default function ProductOnboardingAnalysisActionPanel({
           sx={{ minHeight: 48 }}
         >
           {isCreating
-            ? 'Creating project...'
+            ? 'Creating product...'
             : canCreate
-              ? 'Create Project with AI Action'
+              ? 'Create product'
               : 'Resolve Validation First'}
         </Button>
       </Stack>

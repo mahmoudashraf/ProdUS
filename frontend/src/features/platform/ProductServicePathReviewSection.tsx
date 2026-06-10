@@ -4,19 +4,20 @@ import { Box, Stack, Typography } from '@mui/material';
 import { ProductOnboardingReviewSection } from './ProductOnboardingReviewSection';
 import { AiServicePlanReview } from './ProductOnboardingServiceReviewPanels';
 import { appleColors } from './PlatformComponents';
-import type {
-  AiAssistedProductAnalysisResponse,
-  ServiceModuleRecommendation,
-} from './types';
+import type { AiAssistedProductAnalysisResponse, ServiceModuleRecommendation } from './types';
 
 export function ProductServicePathReviewSection({
   missingCatalogCoverage,
+  productAnalysisLive,
   reviewedServiceRecommendations,
   selectedServiceCodes,
   onMoveServiceRecommendation,
   onToggleServiceRecommendation,
 }: {
-  missingCatalogCoverage: NonNullable<AiAssistedProductAnalysisResponse['analysis']['missingCatalogCoverage']>;
+  missingCatalogCoverage: NonNullable<
+    AiAssistedProductAnalysisResponse['analysis']['missingCatalogCoverage']
+  >;
+  productAnalysisLive: boolean;
   reviewedServiceRecommendations: ServiceModuleRecommendation[];
   selectedServiceCodes: string[];
   onMoveServiceRecommendation: (moduleCode: string, direction: -1 | 1) => void;
@@ -30,6 +31,11 @@ export function ProductServicePathReviewSection({
       <Stack spacing={1}>
         <AiServicePlanReview
           recommendations={reviewedServiceRecommendations}
+          sourceLabel={
+            productAnalysisLive
+              ? 'AI selected lifecycle services'
+              : 'Owner/rules lifecycle services'
+          }
           selectedCodes={selectedServiceCodes}
           onToggle={onToggleServiceRecommendation}
           onMove={onMoveServiceRecommendation}

@@ -41,7 +41,16 @@ export function buildProductCreationActionPayload({
   const effectiveRecommendations = reviewedServiceRecommendations.length
     ? reviewedServiceRecommendations
     : analysisRecommendations;
-  const effectiveSelectedCodes = selectedRecommendationCodes(effectiveRecommendations, selectedServiceCodes);
+  const effectiveSelectedCodes = selectedRecommendationCodes(
+    effectiveRecommendations,
+    selectedServiceCodes
+  );
+  const liveAiOpportunityReport = aiAnalysis.aiOpportunityReport?.live
+    ? aiAnalysis.aiOpportunityReport
+    : undefined;
+  const liveLoomaiIntegrationOverview = aiAnalysis.loomaiIntegrationOverview?.live
+    ? aiAnalysis.loomaiIntegrationOverview
+    : undefined;
 
   return {
     ...aiAnalysis.runtimeActionPayload,
@@ -49,7 +58,9 @@ export function buildProductCreationActionPayload({
     creationIntentId: aiAnalysis.intent.id,
     consentToken: aiAnalysis.intent.consentToken,
     idempotencyKey: aiAnalysis.intent.idempotencyKey,
-    analysisProviderRequestId: aiAnalysis.intent.analysisProviderRequestId,
+    analysisProviderRequestId: aiAnalysis.aiApplied
+      ? aiAnalysis.intent.analysisProviderRequestId
+      : '',
     productName: profile.name || aiAnalysis.analysis.productName,
     summary: profile.summary || aiAnalysis.analysis.summary,
     businessStage: profile.businessStage || aiAnalysis.analysis.businessStage,
@@ -77,8 +88,8 @@ export function buildProductCreationActionPayload({
     assumptions: aiAnalysis.analysis.assumptions,
     missingEvidence: aiAnalysis.analysis.missingEvidence,
     documentUsage: aiAnalysis.analysis.documentUsage ?? [],
-    aiOpportunityReport: aiAnalysis.aiOpportunityReport,
-    loomaiIntegrationOverview: aiAnalysis.loomaiIntegrationOverview,
+    aiOpportunityReport: liveAiOpportunityReport,
+    loomaiIntegrationOverview: liveLoomaiIntegrationOverview,
   };
 }
 
@@ -103,7 +114,9 @@ export function buildProductAnalysisChatContext({
       assistantIntent: 'project-analysis-follow-up-chat',
       actionProfile: 'loomai-productization-read',
       productCreationIntentId: aiAnalysis?.intent.id,
-      analysisProviderRequestId: aiAnalysis?.intent.analysisProviderRequestId,
+      analysisProviderRequestId: aiAnalysis?.aiApplied
+        ? aiAnalysis.intent.analysisProviderRequestId
+        : '',
       productName: profile.name || analysis?.productName,
       businessStage: profile.businessStage || analysis?.businessStage,
       summary: profile.summary || analysis?.summary,
@@ -118,15 +131,17 @@ export function buildProductAnalysisChatContext({
       businessOutcomes: cleanList(analysis?.businessOutcomes),
       readinessGoals: cleanList(analysis?.readinessGoals),
       recommendedServices: cleanList(analysis?.recommendedServices),
-      recommendedServiceModules: reviewedServiceRecommendations.slice(0, 8).map((recommendation, index) => ({
-        moduleCode: recommendation.moduleCode,
-        moduleName: recommendation.moduleName,
-        categorySlug: recommendation.categorySlug,
-        priority: recommendation.priority,
-        sequence: index + 1,
-        includedByOwner: selectedServiceCodes.includes(recommendation.moduleCode),
-        reason: recommendation.reason,
-      })),
+      recommendedServiceModules: reviewedServiceRecommendations
+        .slice(0, 8)
+        .map((recommendation, index) => ({
+          moduleCode: recommendation.moduleCode,
+          moduleName: recommendation.moduleName,
+          categorySlug: recommendation.categorySlug,
+          priority: recommendation.priority,
+          sequence: index + 1,
+          includedByOwner: selectedServiceCodes.includes(recommendation.moduleCode),
+          reason: recommendation.reason,
+        })),
       missingCatalogCoverage: (analysis?.missingCatalogCoverage ?? []).slice(0, 5),
       scannerFocusAreas: cleanList(analysis?.scannerFocusAreas),
       suggestedNextSteps: cleanList(analysis?.suggestedNextSteps),
@@ -156,14 +171,18 @@ export function buildProductAnalysisChatContext({
             summary: aiAnalysis.loomaiIntegrationOverview.summary,
             recommendedStartingPoint: aiAnalysis.loomaiIntegrationOverview.recommendedStartingPoint,
             capabilities: cleanList(aiAnalysis.loomaiIntegrationOverview.capabilities),
-            implementationSteps: cleanList(aiAnalysis.loomaiIntegrationOverview.implementationSteps),
+            implementationSteps: cleanList(
+              aiAnalysis.loomaiIntegrationOverview.implementationSteps
+            ),
             ownerDecisions: cleanList(aiAnalysis.loomaiIntegrationOverview.ownerDecisions),
             risks: cleanList(aiAnalysis.loomaiIntegrationOverview.risks),
           }
         : undefined,
       documentUsage: cleanList(
         analysis?.documentUsage?.map(item => {
-          const evidence = item.evidence?.length ? ` Evidence: ${item.evidence.slice(0, 2).join('; ')}` : '';
+          const evidence = item.evidence?.length
+            ? ` Evidence: ${item.evidence.slice(0, 2).join('; ')}`
+            : '';
           const reason = item.reason ? ` Reason: ${item.reason}` : '';
           return `${item.fileName}: ${item.status} via ${item.accessMethod}.${evidence}${reason}`;
         })

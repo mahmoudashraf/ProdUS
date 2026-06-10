@@ -1,20 +1,10 @@
 'use client';
 
-import {
-  ArrowDownwardOutlined,
-  ArrowUpwardOutlined,
-} from '@mui/icons-material';
+import { ArrowDownwardOutlined, ArrowUpwardOutlined } from '@mui/icons-material';
 import { Box, Button, Checkbox, Stack, Typography } from '@mui/material';
 import { AiReviewList } from './ProductOnboardingReviewCards';
-import {
-  DotLabel,
-  appleColors,
-  formatLabel,
-} from './PlatformComponents';
-import type {
-  LoomAIIntegrationOverview,
-  ServiceModuleRecommendation,
-} from './types';
+import { DotLabel, appleColors, formatLabel } from './PlatformComponents';
+import type { LoomAIIntegrationOverview, ServiceModuleRecommendation } from './types';
 
 const servicePriorityColor = (priority?: string) => {
   const normalized = (priority ?? '').toUpperCase();
@@ -26,11 +16,13 @@ const servicePriorityColor = (priority?: string) => {
 
 export function AiServicePlanReview({
   recommendations,
+  sourceLabel,
   selectedCodes,
   onToggle,
   onMove,
 }: {
   recommendations: ServiceModuleRecommendation[];
+  sourceLabel: string;
   selectedCodes: string[];
   onToggle: (moduleCode: string) => void;
   onMove: (moduleCode: string, direction: -1 | 1) => void;
@@ -38,7 +30,7 @@ export function AiServicePlanReview({
   if (!recommendations.length) {
     return (
       <AiReviewList
-        title="AI selected lifecycle services"
+        title={sourceLabel}
         items={[]}
         empty="No catalog-backed services returned."
         accent={appleColors.amber}
@@ -59,7 +51,7 @@ export function AiServicePlanReview({
         <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
           <Box>
             <Typography variant="body2" sx={{ fontWeight: 950 }}>
-              AI selected lifecycle services
+              {sourceLabel}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Included services are saved when you create the product.
@@ -106,7 +98,10 @@ export function AiServicePlanReview({
                       <Stack direction="row" spacing={0.6} sx={{ flexWrap: 'wrap', mt: 0.5 }}>
                         <DotLabel label={moduleCode} color={accent} />
                         {recommendation.categorySlug && (
-                          <DotLabel label={formatLabel(recommendation.categorySlug)} color={appleColors.cyan} />
+                          <DotLabel
+                            label={formatLabel(recommendation.categorySlug)}
+                            color={appleColors.cyan}
+                          />
                         )}
                         <DotLabel label={recommendation.priority || 'SHOULD'} color={accent} />
                       </Stack>
@@ -138,7 +133,10 @@ export function AiServicePlanReview({
                     </Typography>
                   )}
                   {recommendation.expectedOutcome && (
-                    <Typography variant="caption" sx={{ color: appleColors.green, fontWeight: 800 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: appleColors.green, fontWeight: 800 }}
+                    >
                       {recommendation.expectedOutcome}
                     </Typography>
                   )}
@@ -181,10 +179,14 @@ export function LoomAIOverviewPanel({
               LoomAI implementation path
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-              {overview.summary || 'LoomAI can support diagnosis, service planning, scanner summaries, and owner decisions.'}
+              {overview.summary ||
+                'LoomAI can support diagnosis, service planning, scanner summaries, and owner decisions.'}
             </Typography>
           </Box>
-          <DotLabel label={overview.live ? 'LoomAI live' : 'Prepared'} color={overview.live ? appleColors.green : appleColors.amber} />
+          <DotLabel
+            label={overview.live ? 'LoomAI live' : 'AI result failed'}
+            color={overview.live ? appleColors.green : appleColors.red}
+          />
         </Stack>
         {overview.recommendedStartingPoint && (
           <Box sx={{ p: 1, borderRadius: 1, bgcolor: '#fff', border: '1px solid #d9f3f8' }}>
@@ -203,9 +205,24 @@ export function LoomAIOverviewPanel({
             gap: 1,
           }}
         >
-          <AiReviewList title="Capabilities" items={overview.capabilities ?? []} empty="No capabilities returned." accent={appleColors.purple} />
-          <AiReviewList title="Implementation steps" items={overview.implementationSteps ?? []} empty="No implementation steps returned." accent={appleColors.green} />
-          <AiReviewList title="Owner decisions" items={overview.ownerDecisions ?? []} empty="No owner decisions returned." accent={appleColors.amber} />
+          <AiReviewList
+            title="Capabilities"
+            items={overview.capabilities ?? []}
+            empty="No capabilities returned."
+            accent={appleColors.purple}
+          />
+          <AiReviewList
+            title="Implementation steps"
+            items={overview.implementationSteps ?? []}
+            empty="No implementation steps returned."
+            accent={appleColors.green}
+          />
+          <AiReviewList
+            title="Owner decisions"
+            items={overview.ownerDecisions ?? []}
+            empty="No owner decisions returned."
+            accent={appleColors.amber}
+          />
         </Box>
       </Stack>
     </Box>

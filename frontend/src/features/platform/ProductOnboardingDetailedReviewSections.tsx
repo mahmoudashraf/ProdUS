@@ -13,6 +13,7 @@ export default function ProductOnboardingDetailedReviewSections({
   analysis,
   documentUsageMissing,
   missingCatalogCoverage,
+  productAnalysisLive,
   projectAttributes,
   reviewedServiceRecommendations,
   selectedServiceCodes,
@@ -21,7 +22,10 @@ export default function ProductOnboardingDetailedReviewSections({
 }: {
   analysis: AiAssistedProductAnalysisResponse;
   documentUsageMissing: boolean;
-  missingCatalogCoverage: NonNullable<AiAssistedProductAnalysisResponse['analysis']['missingCatalogCoverage']>;
+  missingCatalogCoverage: NonNullable<
+    AiAssistedProductAnalysisResponse['analysis']['missingCatalogCoverage']
+  >;
+  productAnalysisLive: boolean;
   projectAttributes: ProductOnboardingAttributeItem[];
   reviewedServiceRecommendations: ServiceModuleRecommendation[];
   selectedServiceCodes: string[];
@@ -36,6 +40,7 @@ export default function ProductOnboardingDetailedReviewSections({
       />
       <ProductServicePathReviewSection
         missingCatalogCoverage={missingCatalogCoverage}
+        productAnalysisLive={productAnalysisLive}
         reviewedServiceRecommendations={reviewedServiceRecommendations}
         selectedServiceCodes={selectedServiceCodes}
         onMoveServiceRecommendation={onMoveServiceRecommendation}

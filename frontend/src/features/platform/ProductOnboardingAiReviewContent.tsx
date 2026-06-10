@@ -4,7 +4,10 @@ import { Box, Stack, Typography } from '@mui/material';
 import { DotLabel, appleColors, formatLabel } from './PlatformComponents';
 import ProductOnboardingUnderstandingSummary from './ProductOnboardingUnderstandingSummary';
 import ProductOnboardingDetailedReviewSections from './ProductOnboardingDetailedReviewSections';
-import type { ProductOnboardingAttributeItem, ProductOnboardingProfileDraft } from './ProductOnboardingAnalysisTypes';
+import type {
+  ProductOnboardingAttributeItem,
+  ProductOnboardingProfileDraft,
+} from './ProductOnboardingAnalysisTypes';
 import type { AiAssistedProductAnalysisResponse, ServiceModuleRecommendation } from './types';
 
 export default function ProductOnboardingAiReviewContent({
@@ -26,73 +29,77 @@ export default function ProductOnboardingAiReviewContent({
   const documentUsageMissing =
     Boolean(analysis.aiSharedDocuments.length) && documentUsage.length === 0;
   const missingCatalogCoverage = analysis.analysis.missingCatalogCoverage ?? [];
+  const productAnalysisLive = analysis.aiApplied && !analysis.fallbackReason;
+  const liveSource = productAnalysisLive ? 'AI' : 'Owner/rules';
+  const fieldSource = (hasValue: boolean, fallbackSource = 'Needs input') =>
+    hasValue ? liveSource : fallbackSource;
   const projectAttributes: ProductOnboardingAttributeItem[] = [
     {
       label: 'Product name',
       value: analysis.analysis.productName,
-      source: 'AI',
+      source: fieldSource(Boolean(analysis.analysis.productName), 'Owner'),
       accent: appleColors.purple,
     },
     {
       label: 'Business stage',
       value: formatLabel(analysis.analysis.businessStage || profile.businessStage),
-      source: analysis.analysis.businessStage ? 'AI' : 'Owner',
+      source: fieldSource(Boolean(analysis.analysis.businessStage), 'Owner'),
       accent: appleColors.amber,
     },
     {
       label: 'Outcome summary',
       value: analysis.analysis.summary,
-      source: 'AI',
+      source: fieldSource(Boolean(analysis.analysis.summary), 'Owner/rules'),
       accent: appleColors.blue,
       wide: true,
     },
     {
       label: 'Project understanding',
       value: analysis.analysis.projectDescription,
-      source: analysis.analysis.projectDescription ? 'AI' : 'Needs input',
+      source: fieldSource(Boolean(analysis.analysis.projectDescription)),
       accent: appleColors.purple,
       wide: true,
     },
     {
       label: 'Business problem',
       value: analysis.analysis.businessProblem,
-      source: analysis.analysis.businessProblem ? 'AI' : 'Needs input',
+      source: fieldSource(Boolean(analysis.analysis.businessProblem)),
       accent: appleColors.amber,
     },
     {
       label: 'Target users',
       value: analysis.analysis.targetUsers,
-      source: analysis.analysis.targetUsers ? 'AI' : 'Needs input',
+      source: fieldSource(Boolean(analysis.analysis.targetUsers)),
       accent: appleColors.cyan,
     },
     {
       label: 'Tech stack',
       value: analysis.analysis.techStack || profile.techStack,
-      source: analysis.analysis.techStack ? 'AI' : 'Owner',
+      source: fieldSource(Boolean(analysis.analysis.techStack), 'Owner'),
       accent: appleColors.cyan,
     },
     {
       label: 'Repository',
       value: analysis.analysis.repositoryUrl || profile.repositoryUrl,
-      source: analysis.analysis.repositoryUrl ? 'AI' : 'Owner',
+      source: fieldSource(Boolean(analysis.analysis.repositoryUrl), 'Owner'),
       accent: appleColors.green,
     },
     {
       label: 'Product URL',
       value: analysis.analysis.productUrl || profile.productUrl,
-      source: analysis.analysis.productUrl ? 'AI' : 'Owner',
+      source: fieldSource(Boolean(analysis.analysis.productUrl), 'Owner'),
       accent: appleColors.blue,
     },
     {
       label: 'Known rough edges',
       value: analysis.analysis.riskProfile || profile.riskProfile,
-      source: analysis.analysis.riskProfile ? 'AI' : 'Owner',
+      source: fieldSource(Boolean(analysis.analysis.riskProfile), 'Owner'),
       accent: appleColors.red,
     },
     {
       label: 'AI creation summary',
       value: analysis.analysis.aiCreationSummary,
-      source: 'AI',
+      source: productAnalysisLive ? 'AI' : 'Owner/rules',
       accent: appleColors.purple,
       wide: true,
     },
@@ -118,8 +125,8 @@ export default function ProductOnboardingAiReviewContent({
             AI understanding review
           </Typography>
           <DotLabel
-            label={analysis.intent.analysisProviderRequestId ? 'LoomAI analyzed' : 'Fallback analysis'}
-            color={analysis.intent.analysisProviderRequestId ? appleColors.green : appleColors.amber}
+            label={productAnalysisLive ? 'LoomAI analyzed' : 'AI failed - owner/rules used'}
+            color={productAnalysisLive ? appleColors.green : appleColors.amber}
           />
         </Stack>
         <ProductOnboardingUnderstandingSummary
@@ -132,6 +139,7 @@ export default function ProductOnboardingAiReviewContent({
           analysis={analysis}
           documentUsageMissing={documentUsageMissing}
           missingCatalogCoverage={missingCatalogCoverage}
+          productAnalysisLive={productAnalysisLive}
           projectAttributes={projectAttributes}
           reviewedServiceRecommendations={reviewedServiceRecommendations}
           selectedServiceCodes={selectedServiceCodes}

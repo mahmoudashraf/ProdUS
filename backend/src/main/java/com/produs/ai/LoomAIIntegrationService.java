@@ -2135,6 +2135,9 @@ public class LoomAIIntegrationService {
                 Respect each capability's notFor boundaries, and use implementationPattern to make the recommendation concrete.
                 Recommend catalog services only from context.serviceCatalogSnapshot.candidateModules. Use moduleCode exactly as provided. If AI integration services are listed, prefer them for implementation work.
                 Use owner input and product analysis as primary context. Use selected documents if they were available through temporaryAccessUrl and cite owner-safe evidence in sourceInsights.
+                Do not answer with markdown, prose outside JSON, code fences, comments, or a clarification question.
+                Return a useful owner-ready JSON object even when evidence is partial. Put uncertainty in assumptions and missingEvidence instead of failing the contract.
+                Make the recommendations specific to this product. Avoid generic AI opportunities that could apply to any SaaS, marketplace, CRM, or dashboard.
                 Return only a strict JSON object with fields:
                 status, summary, opportunityScore, confidence, strategicRationale, useCases, recommendedServices, recommendedServiceModules, scannerFocusAreas, suggestedNextSteps, sourceInsights, assumptions, missingEvidence.
                 useCases must be an array of objects with:
@@ -2142,6 +2145,13 @@ public class LoomAIIntegrationService {
                 priority must be MUST, SHOULD, COULD, or LATER. confidence and opportunityScore must be 0..1.
                 recommendedServiceModules must be an array of catalog-backed objects with moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
                 Make this useful for product creation: the returned service modules can be persisted after owner approval.
+                If no strong AI opportunity exists, return status REVIEW with an empty useCases array and explain why in missingEvidence. Do not invent weak opportunities.
+                Owner brief:
+                %s
+                Public link insights:
+                %s
+                Repo and scanner fact snapshot:
+                %s
                 LoomAI capability snapshot:
                 %s
                 Owner-selected documents:
@@ -2151,6 +2161,9 @@ public class LoomAIIntegrationService {
                 Service catalog snapshot:
                 %s
                 """.formatted(
+                safeText(request.ownerMessage(), 4_000),
+                projectCreationPublicLinkPromptSection(context.get("publicLinkInsights")),
+                writeJson(context.get("repoSignalSnapshot")),
                 writeJson(context.get("loomaiCapabilitySnapshot")),
                 projectCreationDocumentPromptSection(request.documents()),
                 writeJson(context.get("projectAnalysis")),
@@ -2168,11 +2181,19 @@ public class LoomAIIntegrationService {
                 Treat loomaiCapabilitySnapshot as LoomAI provider capabilities that could be enabled in the owner's product.
                 Use context.loomaiCapabilitySnapshot to explain official capabilities when they fit. If the product needs something outside the listed taxonomy, describe it as a gap or custom need, not as an official LoomAI capability.
                 Recommend only catalog service module codes present in context.serviceCatalogSnapshot.candidateModules.
+                Do not answer with markdown, prose outside JSON, code fences, comments, or a clarification question.
+                Return a useful bounded overview even when the opportunity report has no accepted use cases. In that case, say what evidence is missing before implementation.
                 Return only a strict JSON object with fields:
                 summary, recommendedStartingPoint, capabilities, implementationSteps, ownerDecisions, risks, sourceInsights, recommendedServiceModules.
                 capabilities, implementationSteps, ownerDecisions, risks, and sourceInsights must be arrays of concise strings.
                 recommendedServiceModules must be catalog-backed objects with moduleCode, moduleName, categorySlug, priority, sequence, reason, evidenceBasis, expectedOutcome, confidence.
                 Keep the advice production-safe: backend-only secrets, browser calls only to ProdUS backend, owner confirmation for any future write action, and no document indexing for temporary product-intake attachments.
+                Owner brief:
+                %s
+                Public link insights:
+                %s
+                Repo and scanner fact snapshot:
+                %s
                 AI opportunity report:
                 %s
                 LoomAI capability snapshot:
@@ -2182,6 +2203,9 @@ public class LoomAIIntegrationService {
                 Service catalog snapshot:
                 %s
                 """.formatted(
+                safeText(request.ownerMessage(), 4_000),
+                projectCreationPublicLinkPromptSection(context.get("publicLinkInsights")),
+                writeJson(context.get("repoSignalSnapshot")),
                 writeJson(context.get("aiOpportunityReport")),
                 writeJson(context.get("loomaiCapabilitySnapshot")),
                 writeJson(context.get("projectAnalysis")),
@@ -2199,6 +2223,7 @@ public class LoomAIIntegrationService {
                 Do not return CLARIFICATION_REQUIRED, a clarification question, or a "needs more input" answer just because optional fields are missing.
                 Optional gaps belong in assumptions or missingEvidence. Use explicit assumptions for uncertain details and keep moving.
                 Only ask for clarification when there is no owner intent, no product name, no repository/product URL, and no usable selected document.
+                Do not answer with markdown, prose outside JSON, code fences, comments, or action metadata.
                 In successful intake analysis, set the response posture as information-provided/complete and put all useful data in the strict JSON object.
                 The result is used to create the initial ProductProfile, seed owner review notes, suggest a first service path, and define scanner focus areas.
                 Be concrete and useful. Avoid generic statements such as "results pending owner review" when owner input, public links, or selected documents contain usable product facts.
@@ -2247,6 +2272,8 @@ public class LoomAIIntegrationService {
                 - projectDescription, businessProblem, targetUsers, stack, recommendedServiceModules, scannerFocusAreas, suggestedNextSteps, and sourceInsights should be filled when owner input, public links, repository facts, or selected documents provide enough evidence.
                 - recommendedServiceModules should include 3-6 catalog modules when a repository URL or production-readiness goal exists.
                 - If stack is inferred from public links or documents, state it in stack and cite the source in sourceInsights or assumptions.
+                Owner brief:
+                %s
                 Optional product URL: %s
                 Optional repository URL: %s
                 Optional tech stack hint: %s
@@ -2260,6 +2287,7 @@ public class LoomAIIntegrationService {
                 Owner-selected documents:
                 %s
                 """.formatted(
+                safeText(request.ownerMessage(), 4_000),
                 blank(request.productUrl()) ? "not provided" : request.productUrl(),
                 blank(request.repositoryUrl()) ? "not provided" : request.repositoryUrl(),
                 safeText(request.techStack(), SUMMARY_LIMIT),

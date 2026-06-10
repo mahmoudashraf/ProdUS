@@ -1,14 +1,11 @@
 'use client';
 
-import {
-  ArrowBackOutlined,
-  AutoAwesomeOutlined,
-  SaveOutlined,
-} from '@mui/icons-material';
+import { ArrowBackOutlined, AutoAwesomeOutlined, SaveOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import OwnerProductAiOpportunityControls from './OwnerProductAiOpportunityControls';
 import OwnerProductAiOpportunityResult from './OwnerProductAiOpportunityResult';
 import { PastelChip, Surface, appleColors } from './PlatformComponents';
+import { hasLiveAiOpportunityResult } from './ownerProductAiOpportunityModel';
 import type {
   AiAssistedProductAnalysisResponse,
   ProductAiOpportunityAcceptanceResponse,
@@ -66,16 +63,26 @@ export default function OwnerProductAiOpportunityRefreshView({
 }: OwnerProductAiOpportunityRefreshViewProps) {
   const acceptedUseCases = context?.aiOpportunityReport?.useCases?.length ?? 0;
   const analyzeErrorMessage = analyzeError
-    ? analyzeError instanceof Error ? analyzeError.message : 'AI opportunity refresh failed.'
+    ? analyzeError instanceof Error
+      ? analyzeError.message
+      : 'AI opportunity refresh failed.'
     : null;
   const acceptErrorMessage = acceptError
-    ? acceptError instanceof Error ? acceptError.message : 'AI opportunity acceptance failed.'
+    ? acceptError instanceof Error
+      ? acceptError.message
+      : 'AI opportunity acceptance failed.'
     : null;
+  const hasLiveResult = hasLiveAiOpportunityResult(analysis);
 
   return (
     <Stack spacing={2}>
       <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fbff 100%)' }}>
-        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ lg: 'flex-start' }}>
+        <Stack
+          direction={{ xs: 'column', lg: 'row' }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ lg: 'flex-start' }}
+        >
           <Stack spacing={1.25} sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               <AutoAwesomeOutlined sx={{ color: appleColors.blue }} />
@@ -83,17 +90,28 @@ export default function OwnerProductAiOpportunityRefreshView({
               <PastelChip label={product.name} accent={appleColors.purple} bg="#f1efff" />
             </Stack>
             <Typography color="text.secondary" sx={{ maxWidth: 860, lineHeight: 1.65 }}>
-              Add new context, let AI propose updates, then accept only the opportunities, LoomAI choices, services, scanner focus, and next steps that should update this product.
+              Add new context, let AI propose updates, then accept only the opportunities, LoomAI
+              choices, services, scanner focus, and next steps that should update this product.
             </Typography>
           </Stack>
-          <Button variant="outlined" startIcon={<ArrowBackOutlined />} onClick={onBackHome} sx={{ minHeight: 44, whiteSpace: 'normal' }}>
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackOutlined />}
+            onClick={onBackHome}
+            sx={{ minHeight: 44, whiteSpace: 'normal' }}
+          >
             Opportunity home
           </Button>
         </Stack>
       </Surface>
 
       <Surface>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ md: 'center' }}>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={1.5}
+          justifyContent="space-between"
+          alignItems={{ md: 'center' }}
+        >
           <Box>
             <Typography variant="h4">Current saved AI context</Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
@@ -103,9 +121,21 @@ export default function OwnerProductAiOpportunityRefreshView({
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <PastelChip label={`${acceptedUseCases} saved`} accent={acceptedUseCases ? appleColors.green : appleColors.amber} bg={acceptedUseCases ? '#e7f8ee' : '#fff4dc'} />
-            <PastelChip label={`${context?.recommendedServiceModules.length ?? 0} services`} accent={appleColors.green} bg="#e7f8ee" />
-            <PastelChip label={`${context?.scannerFocusAreas.length ?? 0} scanner focus`} accent={appleColors.amber} bg="#fff4dc" />
+            <PastelChip
+              label={`${acceptedUseCases} saved`}
+              accent={acceptedUseCases ? appleColors.green : appleColors.amber}
+              bg={acceptedUseCases ? '#e7f8ee' : '#fff4dc'}
+            />
+            <PastelChip
+              label={`${context?.recommendedServiceModules.length ?? 0} services`}
+              accent={appleColors.green}
+              bg="#e7f8ee"
+            />
+            <PastelChip
+              label={`${context?.scannerFocusAreas.length ?? 0} scanner focus`}
+              accent={appleColors.amber}
+              bg="#fff4dc"
+            />
           </Stack>
         </Stack>
       </Surface>
@@ -121,11 +151,7 @@ export default function OwnerProductAiOpportunityRefreshView({
         onToggleSharedFile={onToggleSharedFile}
       />
 
-      {analyzeErrorMessage && (
-        <Alert severity="error">
-          {analyzeErrorMessage}
-        </Alert>
-      )}
+      {analyzeErrorMessage && <Alert severity="error">{analyzeErrorMessage}</Alert>}
 
       <OwnerProductAiOpportunityResult
         analysis={analysis}
@@ -135,29 +161,35 @@ export default function OwnerProductAiOpportunityRefreshView({
         onSelectionChange={onSelectionChange}
       />
 
-      {acceptErrorMessage && (
-        <Alert severity="error">
-          {acceptErrorMessage}
-        </Alert>
-      )}
+      {acceptErrorMessage && <Alert severity="error">{acceptErrorMessage}</Alert>}
 
       {acceptedResult && (
         <Alert severity="success" data-testid="ai-opportunity-accepted">
-          Saved {acceptedResult.acceptedUseCases} opportunities, {acceptedResult.acceptedServiceRecommendations} services, {acceptedResult.acceptedScannerFocusAreas} scanner focus areas, and {acceptedResult.acceptedNextSteps} next steps for {acceptedResult.product.name}.
+          Saved {acceptedResult.acceptedUseCases} opportunities,{' '}
+          {acceptedResult.acceptedServiceRecommendations} services,{' '}
+          {acceptedResult.acceptedScannerFocusAreas} scanner focus areas, and{' '}
+          {acceptedResult.acceptedNextSteps} next steps for {acceptedResult.product.name}.
         </Alert>
       )}
 
       <Surface sx={{ background: '#fff' }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }} justifyContent="space-between">
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={1.5}
+          alignItems={{ md: 'center' }}
+          justifyContent="space-between"
+        >
           <Typography color="text.secondary" sx={{ lineHeight: 1.55 }}>
-            {selectedItemCount} selected item{selectedItemCount === 1 ? '' : 's'} will update the product's accepted AI opportunity context.
+            {analysis && !hasLiveResult
+              ? 'This AI refresh failed or returned unusable structured output, so no product updates can be accepted from it.'
+              : `${selectedItemCount} selected item${selectedItemCount === 1 ? '' : 's'} will update the product's accepted AI opportunity context.`}
           </Typography>
           <Button
             data-testid="accept-ai-opportunity-selection"
             variant="contained"
             startIcon={<SaveOutlined />}
             onClick={onAccept}
-            disabled={!analysis || !selectedItemCount || accepting}
+            disabled={!analysis || !hasLiveResult || !selectedItemCount || accepting}
             sx={{ minHeight: 44, whiteSpace: 'normal' }}
           >
             {accepting ? 'Saving...' : 'Accept selected'}

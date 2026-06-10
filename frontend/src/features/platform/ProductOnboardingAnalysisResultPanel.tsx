@@ -90,6 +90,7 @@ export default function ProductOnboardingAnalysisResultPanel({
     reviewedServiceRecommendations,
     selectedServiceCodes,
   });
+  const productAnalysisLive = analysis.aiApplied && !analysis.fallbackReason;
 
   return (
     <Surface
@@ -103,8 +104,8 @@ export default function ProductOnboardingAnalysisResultPanel({
           title="Here's what ProdUS understood"
           action={
             <DotLabel
-              label={analysis.intent.analysisProviderRequestId ? 'LoomAI analyzed' : 'Fallback analysis'}
-              color={analysis.intent.analysisProviderRequestId ? appleColors.green : appleColors.amber}
+              label={productAnalysisLive ? 'LoomAI analyzed' : 'AI failed - owner/rules used'}
+              color={productAnalysisLive ? appleColors.green : appleColors.amber}
             />
           }
         />
@@ -132,10 +133,10 @@ export default function ProductOnboardingAnalysisResultPanel({
               onRepositoryUrlChange={onRepositoryUrlChange}
               onToggleDocument={onToggleDocument}
             />
-            <Alert severity={analysis.aiApplied ? 'success' : 'info'}>
-              {analysis.aiApplied
+            <Alert severity={productAnalysisLive ? 'success' : 'info'}>
+              {productAnalysisLive
                 ? 'AI analysis is ready. Review the generated attributes, then create the product through the action flow.'
-                : 'Analysis used deterministic fallback because AI did not return the expected strict JSON contract.'}
+                : 'LoomAI did not return usable structured product analysis. ProdUS is showing owner input and deterministic checks instead of fake AI output.'}
             </Alert>
             <ProductOnboardingAiReviewContent
               analysis={analysis}

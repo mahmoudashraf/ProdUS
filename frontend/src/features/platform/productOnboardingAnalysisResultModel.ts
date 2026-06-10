@@ -54,12 +54,8 @@ export function buildProductOnboardingAnalysisResultModel({
   const sharedDocumentCount = analysis.aiSharedDocuments.length;
   const documentProofRequired = analysis.blockUnprovenAiDocumentUsage === true;
   const documentProofGap =
-    sharedDocumentCount > 0
-    && (
-      documentUsageMissing
-      || notUsedDocumentCount > 0
-      || openedDocumentCount < sharedDocumentCount
-    );
+    sharedDocumentCount > 0 &&
+    (documentUsageMissing || notUsedDocumentCount > 0 || openedDocumentCount < sharedDocumentCount);
   const documentProofBlocked = documentProofRequired && documentProofGap;
   const productNameReady = profile.name.trim().length > 0;
   const productSummaryReady = profile.summary.trim().length > 0;
@@ -67,6 +63,10 @@ export function buildProductOnboardingAnalysisResultModel({
   const assumptions = analysis.analysis.assumptions ?? [];
   const selectedServiceCount = selectedServiceCodes.length;
   const aiOpportunityCount = analysis.aiOpportunityReport?.useCases?.length ?? 0;
+  const liveAiOpportunityResult = Boolean(
+    analysis.aiOpportunityReport?.live || analysis.loomaiIntegrationOverview?.live
+  );
+  const productAnalysisLive = analysis.aiApplied && !analysis.fallbackReason;
   const fullAnalysisMode = analysisMode === 'FULL_WITH_AI_OPPORTUNITIES';
   const canCreateWithAi =
     productNameReady && productSummaryReady && !documentProofBlocked && !aiBusy;
@@ -80,17 +80,19 @@ export function buildProductOnboardingAnalysisResultModel({
     },
     {
       title: 'AI product analysis',
-      detail: analysis.aiApplied
+      detail: productAnalysisLive
         ? `LoomAI returned structured product attributes${analysis.intent.analysisProviderRequestId ? ` with trace ${analysis.intent.analysisProviderRequestId}.` : '.'}`
-        : `Fallback analysis is available${analysis.fallbackReason ? `: ${analysis.fallbackReason}` : '.'}`,
-      state: analysis.aiApplied ? 'ready' : 'attention',
+        : `LoomAI did not return usable structured product analysis. Owner input and deterministic checks are shown instead${analysis.fallbackReason ? `: ${analysis.fallbackReason}` : '.'}`,
+      state: productAnalysisLive ? 'ready' : 'attention',
     },
     {
       title: 'AI opportunities',
-      detail: analysis.aiOpportunityReport
+      detail: liveAiOpportunityResult
         ? `${compactCount(aiOpportunityCount, 'AI use case')} found and added to product creation context.`
-        : 'AI opportunities were requested, but no opportunity report was returned.',
-      state: analysis.aiOpportunityReport ? 'ready' : 'attention',
+        : analysis.aiOpportunityReport
+          ? `LoomAI opportunity analysis failed or returned unusable structured output${analysis.aiOpportunityReport.missingEvidence?.length ? `: ${analysis.aiOpportunityReport.missingEvidence[0]}` : '.'}`
+          : 'AI opportunities were requested, but no opportunity report was returned.',
+      state: liveAiOpportunityResult ? 'ready' : 'attention',
     },
     {
       title: 'Required creation fields',
@@ -121,12 +123,10 @@ export function buildProductOnboardingAnalysisResultModel({
     {
       title: 'Service plan seed',
       detail: reviewedServiceRecommendations.length
-        ? `${compactCount(selectedServiceCount, 'catalog service')} selected for persistence from ${compactCount(reviewedServiceRecommendations.length, 'AI recommendation')}.`
+        ? `${compactCount(selectedServiceCount, 'catalog service')} selected for persistence from ${compactCount(reviewedServiceRecommendations.length, productAnalysisLive ? 'AI recommendation' : 'owner/rules recommendation')}.`
         : 'No catalog-backed service module was returned. You can still create and add services later.',
       state:
-        reviewedServiceRecommendations.length && selectedServiceCount === 0
-          ? 'attention'
-          : 'ready',
+        reviewedServiceRecommendations.length && selectedServiceCount === 0 ? 'attention' : 'ready',
     },
     {
       title: 'AI validation notes',
@@ -134,7 +134,9 @@ export function buildProductOnboardingAnalysisResultModel({
         ? `${compactCount(missingEvidence.length, 'proof gap')} found. The product can be created, but these should become follow-up tasks.`
         : assumptions.length
           ? `${compactCount(assumptions.length, 'assumption')} captured for owner review. No missing evidence was flagged for creation.`
-          : 'AI did not flag missing evidence for the creation step.',
+          : productAnalysisLive
+            ? 'AI did not flag missing evidence for the creation step.'
+            : 'No missing evidence was flagged by the owner/rules fallback.',
       state: missingEvidence.length ? 'attention' : 'ready',
     },
     {
