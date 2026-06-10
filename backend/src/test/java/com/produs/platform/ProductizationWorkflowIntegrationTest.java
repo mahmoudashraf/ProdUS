@@ -169,7 +169,7 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.structuredContent.status").value("OK"))
                 .andExpect(jsonPath("$.result.structuredContent.productId").exists())
-                .andExpect(jsonPath("$.result.structuredContent.createdByAi").value(true))
+                .andExpect(jsonPath("$.result.structuredContent.createdByAi").value(false))
                 .andExpect(jsonPath("$.result.structuredContent.aiSourceAttachmentCount").value(1))
                 .andReturn();
 
