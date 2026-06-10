@@ -95,7 +95,7 @@ export default function ProjectStartReadinessPanel({
                   <StatusChip label={gap.severity} color={gap.severity === 'BLOCKER' ? 'error' : 'warning'} />
                 </Stack>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
-                  {gap.description || 'Recommended before this workspace starts.'}
+                  {gap.description || 'Recommended before delivery starts.'}
                 </Typography>
               </Box>
               {gap.serviceModule ? (

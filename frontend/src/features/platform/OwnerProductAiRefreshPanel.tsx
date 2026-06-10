@@ -200,7 +200,7 @@ export default function OwnerProductAiRefreshPanel({ product }: { product: Produ
             disabled={analyzeProduct.isPending}
             sx={{ minHeight: 42, whiteSpace: 'normal' }}
           >
-            {analyzeProduct.isPending ? 'Refreshing...' : 'Run AI refresh'}
+            {analyzeProduct.isPending ? 'Refreshing...' : 'Refresh brief'}
           </Button>
         </Box>
 

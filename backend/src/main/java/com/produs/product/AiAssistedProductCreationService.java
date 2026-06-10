@@ -379,7 +379,7 @@ public class AiAssistedProductCreationService {
         if (request.analysisModeOrDefault() != AnalysisMode.AI_OPPORTUNITIES) {
             throw projectCreationActionRejected(
                     "AI_OPPORTUNITY_MODE_REQUIRED",
-                    "Re-run the dedicated AI opportunity scan before accepting opportunity updates."
+                    "Refresh AI opportunities before accepting opportunity updates."
             );
         }
         ProductCreationActionRequest actionRequest = request.toActionRequest(product);
@@ -616,7 +616,7 @@ public class AiAssistedProductCreationService {
         if (intent.getStatus() != ProductCreationIntent.Status.READY_FOR_ACTION) {
             throw projectCreationActionRejected(
                     "AI_OPPORTUNITY_INTENT_NOT_READY",
-                    "This AI opportunity analysis is not ready. Re-run the AI opportunity scan."
+                    "This AI opportunity analysis is not ready. Refresh AI opportunities again."
             );
         }
         if (intent.getExpiresAt() == null || intent.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -624,7 +624,7 @@ public class AiAssistedProductCreationService {
             intentRepository.save(intent);
             throw projectCreationActionRejected(
                     "AI_OPPORTUNITY_INTENT_EXPIRED",
-                    "This AI opportunity analysis expired. Re-run the AI opportunity scan."
+                    "This AI opportunity analysis expired. Refresh AI opportunities again."
             );
         }
         if (request.consentToken() == null || request.consentToken().isBlank()

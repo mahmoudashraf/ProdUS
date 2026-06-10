@@ -50,7 +50,7 @@ export default function OwnerProductAiOpportunityControls({
             </Typography>
           </Box>
           <Button
-            data-testid="run-ai-opportunity-scan"
+            data-testid="refresh-ai-opportunities"
             variant="contained"
             startIcon={<AutoAwesomeOutlined />}
             onClick={onRun}

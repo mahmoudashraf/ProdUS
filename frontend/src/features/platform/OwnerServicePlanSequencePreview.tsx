@@ -36,7 +36,7 @@ export default function OwnerServicePlanSequencePreview({
         <Box>
           <Typography sx={{ fontWeight: 950 }}>Delivery preview</Typography>
           <Typography variant="body2" color="text.secondary">
-            The first services the owner should approve before workspace start.
+            The first services the owner should approve before delivery starts.
           </Typography>
         </Box>
         <PastelChip label={`${acceptedCount}/${packageModules.length || 0} accepted`} accent={appleColors.green} bg="#e7f8ee" />

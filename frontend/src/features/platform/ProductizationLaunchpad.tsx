@@ -81,7 +81,7 @@ export default function ProductizationLaunchpad() {
     <>
       <PageHeader
         title="Home"
-        description="Your owner Product Home: portfolio metrics, selected products, draft product plan, and active workspaces in one place."
+        description="Your owner Home: portfolio metrics, selected products, draft product plan, and active workspaces in one place."
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44, minWidth: 150 }}>

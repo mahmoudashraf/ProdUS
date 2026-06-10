@@ -78,7 +78,7 @@ export default function OwnerProductAiOpportunityPanel({
 
   const acceptSelection = useMutation({
     mutationFn: async () => {
-      if (!analysis) throw new Error('Run the AI opportunity scan first.');
+      if (!analysis) throw new Error('Refresh AI opportunities first.');
       return postJson<ProductAiOpportunityAcceptanceResponse, Record<string, unknown>>(
         `/products/${product.id}/ai-opportunities/accept`,
         buildAiOpportunityAcceptancePayload(analysis, selection)

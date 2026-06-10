@@ -56,7 +56,7 @@ export function LaunchpadFocusPanel({
     <Surface>
       <SectionTitle title="Choose Focus" action={<PastelChip label="One path at a time" accent={appleColors.purple} />} />
       <OwnerWorkspaceJourneyNav
-        label="Product Home focus"
+        label="Home focus"
         value={value}
         items={items}
         onChange={onSelect}
@@ -75,10 +75,10 @@ export function LaunchpadDetailNavigation({
   return (
     <WorkspaceBreadcrumbs
       items={[
-        { label: 'Product Home', onClick: onOpenHub },
+        { label: 'Home', onClick: onOpenHub },
         { label: currentLabel },
       ]}
-      backLabel="Product Home"
+      backLabel="Home"
       onBack={onOpenHub}
     />
   );

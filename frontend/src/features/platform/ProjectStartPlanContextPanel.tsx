@@ -146,7 +146,7 @@ export default function ProjectStartPlanContextPanel({
               {displayName}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.6, lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              {product?.summary || 'This plan collects the services, people, and handoff decisions needed before a workspace starts.'}
+              {product?.summary || 'This plan collects the services, people, and handoff decisions needed before delivery starts.'}
             </Typography>
             {product && !hasPlaceholderProduct && (
               <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
