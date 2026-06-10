@@ -2457,7 +2457,7 @@ public class AiAssistedProductCreationService {
                 "LoomAI can support ProdUS by answering owner questions, explaining readiness evidence, summarizing scanner findings, and helping turn catalog recommendations into an understandable service path.",
                 "Start with backend-mediated thinker-mode assistance for product diagnosis and scanner/service-plan explanation. Add confirmed write actions only after owner review gates are explicit.",
                 List.of("Private runtime chat", "Read-only ProdUS MCP actions", "Managed safe-knowledge retrieval", "Confirmed runtime action flow"),
-                List.of("Keep browser calls pointed only at ProdUS backend.", "Send product/project/scanner context through authorized backend enrichment.", "Use LoomAI partners for implementation service delivery.", "Audit confirmed actions separately from analysis chat."),
+                List.of("Keep browser calls pointed only at ProdUS backend.", "Send product and scanner context through authorized backend enrichment.", "Use LoomAI partners for implementation service delivery.", "Audit confirmed actions separately from analysis chat."),
                 List.of("Which product surfaces need AI first?", "Which service modules should be implemented by a LoomAI partner?", "Which documents and evidence can be shared temporarily with AI?"),
                 List.of("Do not expose secrets or browser runtime keys.", "Do not allow AI to select teams, invite participants, or grant access without owner confirmation."),
                 report == null ? List.of() : report.sourceInsights(),
