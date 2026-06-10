@@ -28,6 +28,9 @@ interface OwnerProductLoomAiIntegrationHomeProps {
 const cleanList = (items: Array<string | undefined>) =>
   Array.from(new Set(items.map((item) => item?.trim()).filter(Boolean))) as string[];
 
+const shortChipLabel = (item: string) =>
+  item.length > 44 ? `${item.slice(0, 41).trim()}...` : item;
+
 export default function OwnerProductLoomAiIntegrationHome({
   context,
   onOpportunityHome,
@@ -195,17 +198,17 @@ function UseCaseRow({ index, useCase }: { index: number; useCase: AiOpportunityU
   ].filter(Boolean);
 
   return (
-    <Box sx={{ p: 1.35, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fff' }}>
-      <Stack spacing={0.75}>
+    <Box sx={{ p: 1.35, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fff', minWidth: 0 }}>
+      <Stack spacing={0.75} sx={{ minWidth: 0 }}>
         <Typography variant="body2" sx={{ fontWeight: 950, lineHeight: 1.35 }}>
           {useCase.title || `Opportunity ${index + 1}`}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
           {useCase.userValue || useCase.businessValue || useCase.workflow || 'Accepted LoomAI-linked opportunity.'}
         </Typography>
-        <Stack direction="row" spacing={0.7} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={0.7} flexWrap="wrap" useFlexGap sx={{ minWidth: 0 }}>
           {tags.map((tag) => (
-            <PastelChip key={tag} label={tag} accent={appleColors.cyan} bg="#e4f9fd" />
+            <PastelChip key={tag} label={shortChipLabel(tag)} accent={appleColors.cyan} bg="#e4f9fd" />
           ))}
         </Stack>
       </Stack>

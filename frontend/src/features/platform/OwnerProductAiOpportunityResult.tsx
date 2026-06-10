@@ -45,6 +45,9 @@ interface OwnerProductAiOpportunityResultProps {
 const toggleValue = (values: string[], value: string, checked: boolean) =>
   checked ? [...new Set([...values, value])] : values.filter((item) => item !== value);
 
+const shortChipLabel = (item: string) =>
+  item.length > 44 ? `${item.slice(0, 41).trim()}...` : item;
+
 export default function OwnerProductAiOpportunityResult({
   analysis,
   focus,
@@ -54,7 +57,7 @@ export default function OwnerProductAiOpportunityResult({
 }: OwnerProductAiOpportunityResultProps) {
   if (!analysis) {
     return (
-      <EmptyState label="Run the AI opportunity scan to review product-specific ideas, LoomAI fit, service modules, scanner focus, and next owner steps." />
+      <EmptyState label="Refresh analysis to review product-specific ideas, LoomAI fit, service modules, scanner focus, and next owner steps." />
     );
   }
 
@@ -281,7 +284,7 @@ function SelectableSection({
                       </Typography>
                       <Stack direction="row" spacing={0.6} flexWrap="wrap" useFlexGap>
                         {item.meta.slice(0, 3).map((value) => (
-                          <PastelChip key={value} label={value} accent={appleColors.purple} bg="#f1efff" />
+                          <PastelChip key={value} label={shortChipLabel(value)} accent={appleColors.purple} bg="#f1efff" />
                         ))}
                       </Stack>
                     </Stack>

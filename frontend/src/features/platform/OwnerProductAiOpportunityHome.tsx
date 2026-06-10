@@ -45,6 +45,9 @@ const dateLabel = (value?: string) => {
 const listOrFallback = (items: string[] | undefined, fallback: string) =>
   items && items.length ? items : [fallback];
 
+const shortChipLabel = (item: string) =>
+  item.length > 44 ? `${item.slice(0, 41).trim()}...` : item;
+
 export default function OwnerProductAiOpportunityHome({
   context,
   latestAnalysis,
@@ -256,8 +259,8 @@ function SectionHeading({ title, subtitle }: { title: string; subtitle: string }
 
 function HomeListItem({ detail, meta, title }: { detail: string; meta: string[]; title: string }) {
   return (
-    <Box sx={{ p: 1.35, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fff' }}>
-      <Stack spacing={0.75}>
+    <Box sx={{ p: 1.35, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fff', minWidth: 0 }}>
+      <Stack spacing={0.75} sx={{ minWidth: 0 }}>
         <Typography variant="body2" sx={{ fontWeight: 950, overflowWrap: 'anywhere' }}>
           {title}
         </Typography>
@@ -265,9 +268,9 @@ function HomeListItem({ detail, meta, title }: { detail: string; meta: string[];
           {detail}
         </Typography>
         {meta.length > 0 && (
-          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ minWidth: 0 }}>
             {meta.map((item) => (
-              <PastelChip key={item} label={item} accent={appleColors.purple} bg="#f1efff" />
+              <PastelChip key={item} label={shortChipLabel(item)} accent={appleColors.purple} bg="#f1efff" />
             ))}
           </Stack>
         )}
