@@ -1540,7 +1540,7 @@ public class LoomAIIntegrationService {
         List<Map<String, Object>> publicLinkInsights = publicLinkInsights(projectRequest);
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("contextVersion", "produs-ai-opportunities-v1");
-        context.put("contextBoundary", "owner-authorized-product-facts-public-links-selected-files-and-optional-catalog-mapping");
+        context.put("contextBoundary", "owner-authorized-product-facts-public-links-selected-files-and-loomai-capability-fit");
         context.put("pageType", "owner-ai-opportunity-analysis");
         context.put("pagePosition", "product_ai_opportunities");
         context.put("assistantIntent", "identify-owner-useful-ai-opportunities");
@@ -1566,7 +1566,10 @@ public class LoomAIIntegrationService {
         context.put("evidenceSummary", aiOpportunityEvidenceSummary(request, publicLinkInsights));
         context.put("publicLinkInsights", publicLinkInsights);
         context.put("repoSignalSnapshot", projectCreationRepoSignalSnapshot(projectRequest, publicLinkInsights));
-        context.put("serviceCatalogSnapshot", projectCreationServiceCatalogSnapshot(projectRequest, publicLinkInsights));
+        context.put("serviceCatalogSnapshot", Map.of(
+                "mappingPolicy", "not-required-for-business-ai-opportunity-analysis",
+                "candidateModules", List.of()
+        ));
         context.put("documents", request.documents() == null ? List.of() : request.documents().stream()
                 .map(document -> Map.of(
                         "documentId", safeText(document.documentId(), FIELD_LIMIT),
@@ -1604,7 +1607,7 @@ public class LoomAIIntegrationService {
                 ),
                 "useCaseFields", List.of("title", "workflow", "userValue", "businessValue", "loomaiCapabilityCode", "loomaiCapability", "integrationPattern", "priority", "confidence", "evidenceBasis", "recommendedServiceModules"),
                 "capabilityRule", "Prefer loomaiCapabilityCode values from loomaiCapabilitySnapshot.capabilities when they clearly fit. If none fit, leave loomaiCapabilityCode blank or use custom:<short-label> and explain the gap in missingEvidence/sourceInsights. Do not invent official LoomAI codes.",
-                "catalogRule", "recommendedServiceModules is optional and must use moduleCode values from serviceCatalogSnapshot.candidateModules only"
+                "catalogRule", "recommendedServiceModules is optional. Leave it empty when no explicit catalog candidate modules are provided."
         ));
         return context;
     }
@@ -2268,8 +2271,8 @@ public class LoomAIIntegrationService {
                 For each opportunity, explain what the user would do, what value they get, why it matters to the business, and how LoomAI could support it.
 
                 Do not limit opportunities to ProdUS internals. Scanner, launch-readiness, service-plan, and evidence support are relevant only when they fit this product.
-                Use the service catalog only as an optional implementation mapping after the business opportunity is clear.
-                Recommend catalog services only from serviceCatalogSnapshot.candidateModules and copy moduleCode exactly. Leave service arrays empty if no candidate clearly fits.
+                Do not depend on the ProdUS service catalog or knowledge sync to identify opportunities. Service mapping can happen later after the owner accepts useful ideas.
+                Leave recommendedServices and recommendedServiceModules empty unless the product analysis itself clearly names a matching service.
                 Prefer LoomAI capability codes from loomaiCapabilitySnapshot when they clearly fit. If none fit, use an empty code or custom:<short-label> and explain the gap.
 
                 Do not answer with markdown, prose outside JSON, code fences, comments, or a clarification question.
@@ -2308,8 +2311,6 @@ public class LoomAIIntegrationService {
                 %s
                 Product analysis:
                 %s
-                Service catalog snapshot:
-                %s
                 """.formatted(
                 safeText(request.ownerMessage(), 4_000),
                 writeJson(context.get("productSummary")),
@@ -2317,8 +2318,7 @@ public class LoomAIIntegrationService {
                 writeJson(context.get("evidenceSummary")),
                 writeJson(context.get("loomaiCapabilitySnapshot")),
                 projectCreationDocumentPromptSection(request.documents()),
-                writeJson(context.get("projectAnalysis")),
-                writeJson(context.get("serviceCatalogSnapshot"))
+                writeJson(context.get("projectAnalysis"))
         );
     }
 
