@@ -370,10 +370,20 @@ export default function OwnerProductizationWorkspace({
         totalChecks={scanToolOptions.length}
         onSeePlan={() => launchStatus.blockerCount ? openActionView('plan') : openServicesView('recommend')}
         onViewProof={() => openFindingsView('technical')}
-        showReadinessReveal={isProductHome}
+        showReadinessReveal={false}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 340px' }, gap: 2.5, minWidth: 0 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: 'minmax(0, 1fr)',
+            lg: isProductHome ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 340px',
+          },
+          gap: 2.5,
+          minWidth: 0,
+        }}
+      >
         <Stack spacing={2.5} sx={{ minWidth: 0 }}>
           <OwnerProductizationWorkspaceLead
             currentAreaLabel={currentAreaLabel}
@@ -567,57 +577,59 @@ export default function OwnerProductizationWorkspace({
           />
         </Stack>
 
-        <OwnerWorkspaceSideRailHost
-          activeSuggestions={assistantSuggestions.data?.suggestions || []}
-          assistantActions={assistantActionProps}
-          assistantContext={assistantContext}
-          blockedMilestoneCount={blockedMilestones}
-          blockingGaps={cartBlockingGaps}
-          blockingRecommendationNames={cartBlockingRecommendations.map((item) => item.recommendedModule.name)}
-          blockers={cartBlockers}
-          buildTargetRequirementId={buildTargetRequirementId}
-          canStartWorkspace={canStartProjectWorkspace}
-          cart={cart.data}
-          deliveryMilestones={milestones.data || []}
-          fallbackReason={assistantSuggestions.data?.fallbackReason}
-          hasServicePlan={!!selectedPackage}
-          hasStartWorkspace={!!(selectedWorkspace || cart.data?.convertedWorkspace)}
-          hasWorkspace={!!selectedWorkspace}
-          isAddingService={addServiceToCart.isPending}
-          isBuildingPlan={buildPackage.isPending}
-          isConverting={convertCart.isPending}
-          isFetchingSuggestions={assistantSuggestions.isFetching}
-          isRemovingService={removeServiceFromCart.isPending}
-          isRemovingTalent={removeTalentFromCart.isPending}
-          launchStatus={launchStatus}
-          latestCompletedTools={latestCompletedTools}
-          mode={assistantSuggestions.data?.mode}
-          notice={cartNotice}
-          product={selectedProduct}
-          productSupport={productSupport}
-          projectName={projectName}
-          proposals={productProposals}
-          recommendationRationale={recommendations.data?.[0]?.rationale}
-          scannerSummary={scannerSummary.data}
-          selectedMilestone={selectedMilestone}
-          servicesView={servicesView}
-          topRecommendedServiceName={topRecommendedServiceName}
-          workspace={selectedWorkspace}
-          workspaceDetailOpen={workspaceDetailOpen}
-          workspaceTab={workspaceTab}
-          onAddGapService={(serviceModule, notes) => addServiceToCart.mutate({ serviceModuleId: serviceModule.id, notes })}
-          onBuildPlan={(requirementId) => buildPackage.mutate(requirementId)}
-          onCloseNotice={() => setCartNotice('')}
-          onConvert={() => convertCart.mutate()}
-          onOpenActionPlan={() => openActionView('plan')}
-          onOpenFindingsEvidence={() => openFindingsView('evidence')}
-          onOpenServicesRecommend={() => openServicesView('recommend')}
-          onOpenTimeline={() => setTimelineOpen(true)}
-          onProjectNameChange={setProjectName}
-          onRefreshSuggestions={() => assistantSuggestions.refetch()}
-          onRemoveService={(itemId) => removeServiceFromCart.mutate(itemId)}
-          onRemoveTalent={(itemId) => removeTalentFromCart.mutate(itemId)}
-        />
+        {!isProductHome && (
+          <OwnerWorkspaceSideRailHost
+            activeSuggestions={assistantSuggestions.data?.suggestions || []}
+            assistantActions={assistantActionProps}
+            assistantContext={assistantContext}
+            blockedMilestoneCount={blockedMilestones}
+            blockingGaps={cartBlockingGaps}
+            blockingRecommendationNames={cartBlockingRecommendations.map((item) => item.recommendedModule.name)}
+            blockers={cartBlockers}
+            buildTargetRequirementId={buildTargetRequirementId}
+            canStartWorkspace={canStartProjectWorkspace}
+            cart={cart.data}
+            deliveryMilestones={milestones.data || []}
+            fallbackReason={assistantSuggestions.data?.fallbackReason}
+            hasServicePlan={!!selectedPackage}
+            hasStartWorkspace={!!(selectedWorkspace || cart.data?.convertedWorkspace)}
+            hasWorkspace={!!selectedWorkspace}
+            isAddingService={addServiceToCart.isPending}
+            isBuildingPlan={buildPackage.isPending}
+            isConverting={convertCart.isPending}
+            isFetchingSuggestions={assistantSuggestions.isFetching}
+            isRemovingService={removeServiceFromCart.isPending}
+            isRemovingTalent={removeTalentFromCart.isPending}
+            launchStatus={launchStatus}
+            latestCompletedTools={latestCompletedTools}
+            mode={assistantSuggestions.data?.mode}
+            notice={cartNotice}
+            product={selectedProduct}
+            productSupport={productSupport}
+            projectName={projectName}
+            proposals={productProposals}
+            recommendationRationale={recommendations.data?.[0]?.rationale}
+            scannerSummary={scannerSummary.data}
+            selectedMilestone={selectedMilestone}
+            servicesView={servicesView}
+            topRecommendedServiceName={topRecommendedServiceName}
+            workspace={selectedWorkspace}
+            workspaceDetailOpen={workspaceDetailOpen}
+            workspaceTab={workspaceTab}
+            onAddGapService={(serviceModule, notes) => addServiceToCart.mutate({ serviceModuleId: serviceModule.id, notes })}
+            onBuildPlan={(requirementId) => buildPackage.mutate(requirementId)}
+            onCloseNotice={() => setCartNotice('')}
+            onConvert={() => convertCart.mutate()}
+            onOpenActionPlan={() => openActionView('plan')}
+            onOpenFindingsEvidence={() => openFindingsView('evidence')}
+            onOpenServicesRecommend={() => openServicesView('recommend')}
+            onOpenTimeline={() => setTimelineOpen(true)}
+            onProjectNameChange={setProjectName}
+            onRefreshSuggestions={() => assistantSuggestions.refetch()}
+            onRemoveService={(itemId) => removeServiceFromCart.mutate(itemId)}
+            onRemoveTalent={(itemId) => removeTalentFromCart.mutate(itemId)}
+          />
+        )}
       </Box>
       <OwnerProductizationWorkspaceOverlays
         findingReview={{
