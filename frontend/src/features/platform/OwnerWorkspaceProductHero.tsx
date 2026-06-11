@@ -6,7 +6,6 @@ import {
   AutoAwesomeOutlined,
   EditOutlined,
   Inventory2Outlined,
-  PsychologyOutlined,
   RocketLaunchOutlined,
   ShieldOutlined,
 } from '@mui/icons-material';
@@ -18,6 +17,7 @@ import {
   appleColors,
   formatLabel,
 } from './PlatformComponents';
+import OwnerWorkspaceAiOpportunityHeroHook from './OwnerWorkspaceAiOpportunityHeroHook';
 import { ownerCategoryFromSignal, ownerProofLine, type OwnerLaunchStatus } from './ownerWorkspaceModel';
 import { severityAccent } from './ownerFindingPresentation';
 import type { ProductProfile } from './types';
@@ -109,6 +109,9 @@ export default function OwnerWorkspaceProductHero({
           </Box>
         </Stack>
       </Stack>
+      <OwnerWorkspaceAiOpportunityHeroHook
+        onOpen={onOpenAiOpportunities}
+      />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)' }, gap: 1.5, mt: 2.25 }}>
         <Box sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: `${launchStatus.accent}35`, bgcolor: '#fff' }}>
           <Typography variant="caption" color="text.secondary">
@@ -167,15 +170,7 @@ export default function OwnerWorkspaceProductHero({
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 900 }}>
           Product shortcuts
         </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' }, gap: 1.25 }}>
-          <ProductShortcut
-            icon={<PsychologyOutlined />}
-            title="AI opportunities"
-            detail="See accepted AI ideas, LoomAI fit, and rerun analysis with owner approval."
-            actionLabel="Open"
-            accent={appleColors.purple}
-            onClick={onOpenAiOpportunities}
-          />
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1.25 }}>
           <ProductShortcut
             icon={<EditOutlined />}
             title="Edit profile"
