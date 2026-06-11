@@ -7,7 +7,7 @@ import { WorkspaceTab } from './ownerWorkspaceModel';
 export type OverviewJourneyView = 'decision' | 'profile' | 'progress' | 'refresh';
 export type ActionJourneyView = 'plan' | 'diagnosis';
 export type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
-export type ServicesJourneyView = 'recommend' | 'plan' | 'team';
+export type ServicesJourneyView = 'recommend' | 'browse' | 'plan' | 'team';
 export type AiJourneyView = 'opportunities' | 'refresh' | 'loomai';
 export type ShareJourneyView = 'create' | 'links' | 'preview';
 
@@ -15,7 +15,7 @@ export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
   overview: ['decision', 'profile', 'progress', 'refresh'],
   actions: ['plan', 'diagnosis'],
   findings: ['risks', 'evidence', 'technical'],
-  services: ['recommend', 'plan', 'team'],
+  services: ['recommend', 'browse', 'plan', 'team'],
   ai: ['opportunities', 'refresh'],
   share: ['create', 'links', 'preview'],
 };
@@ -133,9 +133,16 @@ export const buildOwnerWorkspaceJourneyItems = ({
     {
       value: 'recommend',
       label: 'Recommended service',
-      detail: 'Pick the work that answers the launch verdict.',
+      detail: 'Start with the service work that answers the launch verdict.',
       accent: appleColors.purple,
       meta: <PastelChip label={`${serviceFamilyCount} families`} accent={appleColors.purple} />,
+    },
+    {
+      value: 'browse',
+      label: 'Browse services',
+      detail: 'Use AI help, priority services, and catalog depth only when scope needs adjustment.',
+      accent: appleColors.cyan,
+      meta: <PastelChip label="Optional depth" accent={appleColors.cyan} bg="#e4f9fd" />,
     },
     {
       value: 'plan',

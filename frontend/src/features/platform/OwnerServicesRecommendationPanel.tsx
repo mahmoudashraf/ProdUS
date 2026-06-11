@@ -1,7 +1,9 @@
 'use client';
 
 import type { ComponentProps } from 'react';
-import { Box } from '@mui/material';
+import NextLink from 'next/link';
+import { ArrowForwardOutlined } from '@mui/icons-material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { Surface, appleColors } from './PlatformComponents';
 import StudioAssistantCard, { type StudioAssistantContext } from './StudioAssistantCard';
 import OwnerServiceCatalogFamiliesPanel from './OwnerServiceCatalogFamiliesPanel';
@@ -19,6 +21,7 @@ type AssistantActionProps = Pick<ComponentProps<typeof StudioAssistantCard>, 'on
 export type OwnerServiceRiskSummary = OwnerServiceDecisionRisk;
 
 interface OwnerServicesRecommendationPanelProps {
+  mode?: 'decision' | 'browse';
   product?: ProductProfile | undefined;
   categories: ServiceCategory[];
   catalogModules: ServiceModule[];
@@ -39,6 +42,7 @@ interface OwnerServicesRecommendationPanelProps {
 }
 
 export default function OwnerServicesRecommendationPanel({
+  mode = 'decision',
   product,
   categories,
   catalogModules,
@@ -110,6 +114,87 @@ Defer: work that can wait until blockers are resolved.
 Use practical startup/MVP language and mention the blocker, scanner proof, or plan gap behind each decision.
 When indexed safe knowledge is used, cite the matching source titles or stable codes in the response and return source basis metadata.
 `.trim();
+  const productHref = product ? `/products/${product.id}` : '#';
+
+  if (mode === 'browse') {
+    return (
+      <Surface>
+        <Box
+          sx={{
+            mb: 1.5,
+            p: 1.5,
+            borderRadius: 1,
+            border: '1px solid',
+            borderColor: '#bae6fd',
+            bgcolor: '#f5fdff',
+          }}
+        >
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ md: 'center' }}>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="h3">Browse only when scope needs adjustment</Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.55, lineHeight: 1.6, maxWidth: 760 }}>
+                The recommended-service page gives the default fix path. Use this page to ask AI for service fit, add or remove proof-linked services, or inspect catalog families.
+              </Typography>
+            </Box>
+            <Button
+              component={NextLink}
+              href={`${productHref}?tab=services&view=plan`}
+              variant="outlined"
+              endIcon={<ArrowForwardOutlined />}
+              disabled={!product}
+              sx={{ minHeight: 42, alignSelf: { xs: 'flex-start', md: 'center' } }}
+            >
+              Open service plan
+            </Button>
+          </Stack>
+        </Box>
+
+        <Box sx={{ mb: 1.5 }}>
+          <StudioAssistantCard
+            title="AI Service Selector"
+            description="Narrow the work that belongs in the product plan, using the verdict, scanner proof, current cart, and dependencies."
+            prompt={serviceSelectorPrompt}
+            conversationId={`studio-services-${product?.id || 'none'}`}
+            context={{
+              ...assistantContext,
+              vectorSpace: 'service-module',
+              vectorSpaces: ['service-module', 'service-dependency', 'package-template'],
+            }}
+            disabled={!product}
+            {...assistantActions}
+            accent={appleColors.cyan}
+            cta="Ask AI"
+          />
+        </Box>
+
+        <OwnerServicePriorityList
+          product={product}
+          services={priorityServices}
+          recommendedServiceIds={recommendedServiceIds}
+          mappedServiceNames={mappedServiceNames}
+          cartServiceItems={cartServiceItems}
+          isAddingService={isAddingService}
+          isRemovingService={isRemovingService}
+          onAddService={onAddService}
+          onRemoveService={onRemoveService}
+        />
+
+        <OwnerServiceCatalogFamiliesPanel
+          product={product}
+          categories={categories}
+          catalogModules={catalogModules}
+          recommendedServiceIds={recommendedServiceIds}
+          cartServiceItems={cartServiceItems}
+          cartServiceIds={cartServiceIds}
+          mappedServiceNames={mappedServiceNames}
+          isAddingService={isAddingService}
+          isRemovingService={isRemovingService}
+          onAddService={onAddService}
+          onRemoveService={onRemoveService}
+        />
+      </Surface>
+    );
+  }
 
   return (
     <Surface>
@@ -127,49 +212,69 @@ When indexed safe knowledge is used, cite the matching source titles or stable c
         onAddPrimaryService={onAddService}
       />
 
-      <Box sx={{ mb: 1.5 }}>
-        <StudioAssistantCard
-          title="AI Service Selector"
-          description="Narrow the work that belongs in the product plan, using the verdict, scanner proof, current cart, and dependencies."
-          prompt={serviceSelectorPrompt}
-          conversationId={`studio-services-${product?.id || 'none'}`}
-          context={{
-            ...assistantContext,
-            vectorSpace: 'service-module',
-            vectorSpaces: ['service-module', 'service-dependency', 'package-template'],
-          }}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1.25 }}>
+        <ServiceRouteCard
+          title="Adjust the service scope"
+          detail="Use AI help, priority services, and catalog families only if the recommended path needs changes."
+          cta="Browse services"
+          href={`${productHref}?tab=services&view=browse`}
           disabled={!product}
-          {...assistantActions}
           accent={appleColors.cyan}
-          cta="Recommend Services"
+        />
+        <ServiceRouteCard
+          title="Review the product plan"
+          detail="See selected services, missing required work, and the approval path before a delivery workspace starts."
+          cta="Open service plan"
+          href={`${productHref}?tab=services&view=plan`}
+          disabled={!product}
+          accent={appleColors.purple}
         />
       </Box>
-
-      <OwnerServicePriorityList
-        product={product}
-        services={priorityServices}
-        recommendedServiceIds={recommendedServiceIds}
-        mappedServiceNames={mappedServiceNames}
-        cartServiceItems={cartServiceItems}
-        isAddingService={isAddingService}
-        isRemovingService={isRemovingService}
-        onAddService={onAddService}
-        onRemoveService={onRemoveService}
-      />
-
-      <OwnerServiceCatalogFamiliesPanel
-        product={product}
-        categories={categories}
-        catalogModules={catalogModules}
-        recommendedServiceIds={recommendedServiceIds}
-        cartServiceItems={cartServiceItems}
-        cartServiceIds={cartServiceIds}
-        mappedServiceNames={mappedServiceNames}
-        isAddingService={isAddingService}
-        isRemovingService={isRemovingService}
-        onAddService={onAddService}
-        onRemoveService={onRemoveService}
-      />
     </Surface>
+  );
+}
+
+function ServiceRouteCard({
+  accent,
+  cta,
+  detail,
+  disabled,
+  href,
+  title,
+}: {
+  accent: string;
+  cta: string;
+  detail: string;
+  disabled?: boolean;
+  href: string;
+  title: string;
+}) {
+  return (
+    <Box
+      sx={{
+        p: 1.35,
+        borderRadius: 1,
+        border: '1px solid',
+        borderColor: `${accent}35`,
+        bgcolor: '#fff',
+        minWidth: 0,
+      }}
+    >
+      <Typography sx={{ fontWeight: 950 }}>{title}</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.55, lineHeight: 1.55 }}>
+        {detail}
+      </Typography>
+      <Button
+        component={NextLink}
+        href={href}
+        variant="outlined"
+        size="small"
+        disabled={Boolean(disabled)}
+        endIcon={<ArrowForwardOutlined />}
+        sx={{ mt: 1, minHeight: 34, color: accent, borderColor: `${accent}42`, '&:hover': { borderColor: accent, bgcolor: `${accent}08` } }}
+      >
+        {cta}
+      </Button>
+    </Box>
   );
 }

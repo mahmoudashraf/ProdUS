@@ -35,5 +35,9 @@ export default function OwnerWorkspaceServicesPane({
     return <OwnerTeamMatchPanel {...team} />;
   }
 
-  return <OwnerServicesRecommendationPanel {...recommend} />;
+  if (view === 'browse') {
+    return <OwnerServicesRecommendationPanel {...recommend} mode="browse" />;
+  }
+
+  return <OwnerServicesRecommendationPanel {...recommend} mode="decision" />;
 }
