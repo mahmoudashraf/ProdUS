@@ -335,11 +335,14 @@ ProdUS should treat the LoomAI UI integration as a small set of backend-mediated
 
 6. Optional generic Max Mode companion dock.
 
-   If ProdUS later wants the generic LoomAI widget to render the always-on input itself instead of the custom `OwnerWorkspaceFixedChatDock`, initialize `LoomAIMaxModeAssistant` with `companionDock=true` and `showLauncher=false`.
+   LoomAI's generic full-width bottom chat input is named `CompanionDock` in the Max Mode widget source. This is different from ProdUS's current custom `OwnerWorkspaceFixedChatDock`.
+
+   If ProdUS later wants the generic LoomAI widget to render the always-on input itself instead of the custom bottom-right dock, initialize `LoomAIMaxModeAssistant` with `companionDock=true` and `showLauncher=false`.
 
    Expected behavior:
 
-   - The generic companion dock starts minimized.
+   - The generic `CompanionDock` renders fixed at the bottom center of the page and spans nearly the full viewport width.
+   - It starts minimized.
    - It expands on input focus or owner interaction.
    - The `MAX` control opens full Max Mode.
    - It uses the same backend-mediated route set and request context rules above.
@@ -351,6 +354,7 @@ ProdUS has enough integration information in this handover when each of these is
 
 - Product workspace always-on fixed input: `OwnerWorkspaceAiChatDock` + `OwnerWorkspaceFixedChatDock`.
 - Full workspace Max Mode: hidden `LoomAIMaxModeAssistant` opened by the fixed dock.
+- Optional LoomAI-provided full-width bottom input: `CompanionDock`, enabled through `companionDock=true` and `showLauncher=false`.
 - Product analysis Max Mode panel: `ProductAnalysisChatPanel`.
 - One-time helper cards: `PlatformAssistantCard` and `StudioAssistantCard`.
 - Suggestions route: `/api/ai/assistant/suggestions`.
@@ -433,6 +437,13 @@ frontend/src/features/platform/StudioAssistantCard.tsx
 frontend/src/app/api/loomai/max-mode-widget/route.ts
 backend/src/main/java/com/produs/ai/LoomAIIntegrationController.java
 backend/src/main/java/com/produs/ai/LoomAIIntegrationService.java
+```
+
+LoomAI widget source references for the optional full-width bottom input:
+
+```text
+max-mode-widget/src/components/CompanionDock.tsx
+max-mode-widget/src/entries/WidgetShell.tsx
 ```
 
 The key integration rule remains: **UI calls ProdUS backend only; ProdUS backend discovers assignment, signs private runtime assertions, and calls LoomAI runtime.**
