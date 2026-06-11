@@ -8,7 +8,7 @@ import {
   QueryState,
 } from './PlatformComponents';
 import OwnerWorkspaceProductHero from './OwnerWorkspaceProductHero';
-import OwnerWorkspaceNavigationPanel from './OwnerWorkspaceNavigationPanel';
+import OwnerWorkspaceNavigationPanel, { ProductAreaNavigation } from './OwnerWorkspaceNavigationPanel';
 import OwnerWorkspaceInternalPageHeader from './OwnerWorkspaceInternalPageHeader';
 import OwnerWorkspaceSelectedProductBar from './OwnerWorkspaceSelectedProductBar';
 import { OwnerReadinessVerdictReveal } from './OwnerJourneyCards';
@@ -124,6 +124,11 @@ export function OwnerProductizationWorkspaceLead({
 
   return (
     <>
+      <ProductAreaNavigation
+        workspaceTab={workspaceTab}
+        onAreaChange={onAreaChange}
+      />
+
       {product && isProductHome ? (
         <OwnerWorkspaceProductHero
           product={product}
@@ -154,6 +159,7 @@ export function OwnerProductizationWorkspaceLead({
         currentDetailLabel={currentDetailLabel}
         currentJourneyItems={currentJourneyItems}
         productName={product?.name}
+        showProductAreaNavigation={false}
         workspaceDetailOpen={!isProductHome && workspaceDetailOpen}
         workspaceTab={workspaceTab}
         onAreaChange={onAreaChange}

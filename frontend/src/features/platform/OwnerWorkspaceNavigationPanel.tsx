@@ -11,6 +11,7 @@ export default function OwnerWorkspaceNavigationPanel({
   currentDetailLabel,
   currentJourneyItems,
   productName,
+  showProductAreaNavigation = true,
   workspaceDetailOpen,
   workspaceTab,
   onAreaChange,
@@ -21,6 +22,7 @@ export default function OwnerWorkspaceNavigationPanel({
   currentDetailLabel: string;
   currentJourneyItems: JourneyStepItem<string>[];
   productName?: string | undefined;
+  showProductAreaNavigation?: boolean | undefined;
   workspaceDetailOpen: boolean;
   workspaceTab: WorkspaceTab;
   onAreaChange: (tab: WorkspaceTab) => void;
@@ -35,10 +37,12 @@ export default function OwnerWorkspaceNavigationPanel({
 
   return (
     <>
-      <ProductAreaNavigation
-        workspaceTab={workspaceTab}
-        onAreaChange={onAreaChange}
-      />
+      {showProductAreaNavigation && (
+        <ProductAreaNavigation
+          workspaceTab={workspaceTab}
+          onAreaChange={onAreaChange}
+        />
+      )}
 
       {productName && (
         workspaceDetailOpen ? (
@@ -62,7 +66,7 @@ export default function OwnerWorkspaceNavigationPanel({
   );
 }
 
-function ProductAreaNavigation({
+export function ProductAreaNavigation({
   workspaceTab,
   onAreaChange,
 }: {
