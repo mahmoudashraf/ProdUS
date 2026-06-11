@@ -1356,6 +1356,47 @@ Status:
   - Gitleaks, OSV, Semgrep, Trivy FS, Checkov, Syft, Grype, Trivy Image, Lighthouse, and ZAP Baseline all reported `COMPLETED`.
   - All normalized findings were mapped for tools with nonzero findings.
 
+### Completed: Product Home Mobile Navigation Order
+
+Problem:
+
+- Product Home mobile showed product-area navigation before the owner reached the product decision surface.
+- After adding the AI Opportunities hero hook, the first mobile viewport still risked feeling like a menu before a decision.
+- Moving navigation too far down made it less discoverable because Product Home also contains lower utility shortcuts and evidence cards.
+
+Solution:
+
+- Kept internal product pages navigation-first, so focused spokes still have a clear way to switch/back.
+- Moved Product Home navigation into the product hero after the core owner decision block:
+  - product context,
+  - AI Opportunities hook,
+  - launch decision/status reason,
+  - top risks,
+  - then `More product areas`.
+- Added an inline navigation variant so Product Home does not render a floating card inside the hero.
+
+Status:
+
+- Implemented in code commit `32d627e` (`Refine mobile product home navigation`).
+- Deployed to Coolify frontend staging with deployment `spu850m3o09ixbqkobw4qwm5`.
+- Deployed commit confirmed by Coolify: `32d627e05d862872e040f906a0560d5971eb3034`.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run build`
+  - `npm --prefix frontend run type-check`
+- Focused local and live verification passed with `tmp/live-verification/2026-06-11/930-product-home-navigation-order-review.js`.
+- Live screenshots:
+  - `tmp/live-verification/2026-06-11/930-product-home-hero-before-navigation-live-32d627e.png`
+  - `tmp/live-verification/2026-06-11/932-mobile-product-home-hero-before-navigation-live-32d627e.png`
+  - `tmp/live-verification/2026-06-11/933-mobile-product-internal-navigation-before-header-live-32d627e.png`
+- Ordering proof:
+  - Product Home mobile hero starts before navigation: hero `y=983`, navigation `y=1708`.
+  - Internal AI Opportunities mobile keeps navigation before internal header: navigation `y=385`, header `y=633`.
+- Scanner sanity for product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237` remained healthy:
+  - 10/10 tool coverage rows completed.
+  - 73 total findings, 73 open, 14 high, 28 medium, 1 low, 30 info.
+  - ZAP Baseline reported `COMPLETED` with 10 normalized and 10 mapped findings.
+
 ## Implementation Loop
 
 For each slice:
