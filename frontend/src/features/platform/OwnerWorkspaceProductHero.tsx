@@ -49,6 +49,7 @@ interface OwnerWorkspaceProductHeroProps {
   onViewProof: () => void;
   onExportReport: () => void;
   onOpenAiOpportunities: () => void;
+  navigationSlot?: ReactNode | undefined;
   isExporting?: boolean;
 }
 
@@ -63,6 +64,7 @@ export default function OwnerWorkspaceProductHero({
   onViewProof,
   onExportReport,
   onOpenAiOpportunities,
+  navigationSlot,
   isExporting,
 }: OwnerWorkspaceProductHeroProps) {
   return (
@@ -166,6 +168,7 @@ export default function OwnerWorkspaceProductHero({
           </Stack>
         </Box>
       </Box>
+      {navigationSlot}
       <Box sx={{ mt: 1.5 }}>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 900 }}>
           Product shortcuts

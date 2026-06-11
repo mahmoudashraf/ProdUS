@@ -121,13 +121,18 @@ export function OwnerProductizationWorkspaceLead({
   const internalDescription = workspaceDetailOpen
     ? currentDetailText
     : `Choose the next ${currentAreaLabel.toLowerCase()} view for ${product?.name || 'this product'}.`;
+  const areaNavigation = (
+    <ProductAreaNavigation
+      label={isProductHome ? 'More product areas' : 'Product navigation'}
+      variant={isProductHome ? 'inline' : 'surface'}
+      workspaceTab={workspaceTab}
+      onAreaChange={onAreaChange}
+    />
+  );
 
   return (
     <>
-      <ProductAreaNavigation
-        workspaceTab={workspaceTab}
-        onAreaChange={onAreaChange}
-      />
+      {!isProductHome && areaNavigation}
 
       {product && isProductHome ? (
         <OwnerWorkspaceProductHero
@@ -141,6 +146,7 @@ export function OwnerProductizationWorkspaceLead({
           onViewProof={onViewProof}
           onExportReport={onExportReport}
           onOpenAiOpportunities={onOpenAiOpportunities}
+          navigationSlot={areaNavigation}
           isExporting={Boolean(isExporting)}
         />
       ) : product ? (
