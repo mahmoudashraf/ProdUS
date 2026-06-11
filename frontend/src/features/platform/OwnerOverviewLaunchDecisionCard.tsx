@@ -54,12 +54,12 @@ export default function OwnerOverviewLaunchDecisionCard({
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
             <MetricTile label="Blockers" value={launchStatus.blockerCount} detail="Must fix before launch" accent={launchStatus.blockerCount ? appleColors.red : appleColors.green} icon={<BugReportOutlined />} />
             <MetricTile label="Improvements" value={launchStatus.improvementCount} detail="Can be scheduled" accent={launchStatus.improvementCount ? appleColors.amber : appleColors.green} icon={<FactCheckOutlined />} />
-            <MetricTile label="Evidence checks" value={`${latestCompletedTools}/${totalScanTools}`} detail="Completed scanner tools" accent={latestCompletedTools === totalScanTools ? appleColors.green : appleColors.amber} icon={<ShieldOutlined />} />
+            <MetricTile label="Proof checks" value={`${latestCompletedTools}/${totalScanTools}`} detail="Completed scanner tools" accent={latestCompletedTools === totalScanTools ? appleColors.green : appleColors.amber} icon={<ShieldOutlined />} />
           </Box>
         </Stack>
         <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: '#fbfdff' }}>
           <Typography variant="caption" color="text.secondary">Primary next step</Typography>
-          <Typography variant="h4" sx={{ mt: 0.5 }}>{launchStatus.blockerCount ? 'Fix launch blockers' : topRecommendedServiceName ? 'Confirm launch plan' : 'Add evidence'}</Typography>
+          <Typography variant="h4" sx={{ mt: 0.5 }}>{launchStatus.blockerCount ? 'Fix launch blockers' : topRecommendedServiceName ? 'Confirm launch plan' : 'Add proof'}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
             {topRecommendedServiceName
               ? `${topRecommendedServiceName} should carry the highest-priority action so the service plan follows the verdict.`

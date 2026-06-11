@@ -37,7 +37,7 @@ export function AiDocumentUsageList({
       <Stack spacing={1}>
         <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
           <Typography variant="caption" sx={{ fontWeight: 900 }}>
-            Document use evidence
+            File use proof
           </Typography>
           <DotLabel label={`${usage.length} reported`} color={appleColors.purple} />
         </Stack>
@@ -80,7 +80,7 @@ export function AiDocumentUsageList({
                     </Stack>
                   ) : (
                     <Typography variant="caption" color="text.secondary">
-                      {item.reason || 'LoomAI did not return owner-safe file evidence.'}
+                      {item.reason || 'LoomAI did not return owner-safe file proof.'}
                     </Typography>
                   )}
                   {item.reason && evidence.length > 0 && (

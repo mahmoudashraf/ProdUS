@@ -37,7 +37,7 @@ export default function ScannerProofFindingDecisionList({
 }: ScannerProofFindingDecisionListProps) {
   if (!findings.length) {
     return (
-      <EmptyState label="No normalized findings yet. Run a governed scan or upload SARIF, JSON, JUnit, or CI log evidence." />
+      <EmptyState label="No scan risks yet. Run scanner checks or upload SARIF, JSON, JUnit, or CI log proof." />
     );
   }
 
@@ -72,7 +72,7 @@ export default function ScannerProofFindingDecisionList({
       {hiddenFindingCount > 0 && (
         <Box sx={{ p: 1.25, border: '1px dashed', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#f8fafc' }}>
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-            {hiddenFindingCount} more normalized findings remain available in stored scanner proof and exports.
+            {hiddenFindingCount} more scan risks remain available in saved proof and exports.
           </Typography>
         </Box>
       )}

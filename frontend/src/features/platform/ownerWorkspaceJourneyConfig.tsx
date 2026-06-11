@@ -123,22 +123,22 @@ export const buildOwnerWorkspaceJourneyItems = ({
   findingsJourneyItems: [
     {
       value: 'risks',
-      label: 'Owner risks',
-      detail: 'Plain-language launch risks before raw scanner detail.',
+      label: 'Risks to fix',
+      detail: 'Plain-language blockers and improvements from scanner results.',
       accent: appleColors.amber,
       meta: <PastelChip label={`${topOwnerRiskCount} risks`} accent={topOwnerRiskCount ? appleColors.amber : appleColors.green} bg={topOwnerRiskCount ? '#fff4dc' : '#e7f8ee'} />,
     },
     {
       value: 'evidence',
-      label: 'Stored proof',
-      detail: 'Authorized sources, evidence exports, and repo readout.',
+      label: 'Proof library',
+      detail: 'Authorized sources, stored evidence, exports, and repo readout.',
       accent: appleColors.cyan,
       meta: <PastelChip label={`${storedProofCount} proof`} accent={appleColors.cyan} bg="#e4f9fd" />,
     },
     {
       value: 'technical',
-      label: 'Technical proof',
-      detail: 'Scanner operations, fix path, decisions, and reruns.',
+      label: 'Run scanners',
+      detail: 'Run checks, review scanner suite status, map fixes, and rerun scans.',
       accent: appleColors.green,
       meta: <PastelChip label={`${scannerFindingCount} findings`} accent={scannerOpenFindingCount ? appleColors.amber : appleColors.green} bg={scannerOpenFindingCount ? '#fff4dc' : '#e7f8ee'} />,
     },

@@ -82,7 +82,7 @@ export default function OwnerProductAiOpportunitySelectionSections({
       <SelectableSection
         icon={<CheckCircleOutlineOutlined sx={{ color: appleColors.green }} />}
         title="Services to update"
-        empty="No catalog-backed service modules were returned."
+        empty="No matching services were returned."
         items={serviceRecommendations.map(recommendation => {
           const key = serviceRecommendationKey(recommendation);
           return {
@@ -117,11 +117,11 @@ export default function OwnerProductAiOpportunitySelectionSections({
         }}
       >
         <SelectableTextList
-          title="Scanner focus"
+          title="Checks to watch"
           icon={<RuleOutlined sx={{ color: appleColors.amber }} />}
           items={scannerFocus}
           selected={selection.scannerFocus}
-          empty="No scanner focus areas were returned."
+          empty="No launch check focus areas were returned."
           onChange={(value, checked) =>
             onSelectionChange({
               ...selection,

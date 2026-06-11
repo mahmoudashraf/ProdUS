@@ -23,18 +23,18 @@ import {
 import type { PackageInstance } from './types';
 
 const servicePlanViewLabel: Record<ServicePlanBuilderView, string> = {
-  summary: 'Plan Summary',
+  summary: 'Plan summary',
   services: 'Services',
-  milestones: 'Milestones',
-  team: 'Team Match',
+  milestones: 'Steps',
+  team: 'Team fit',
   commercial: 'Handoff',
 };
 
 const servicePlanRouteItems: WorkspaceCommandSubrouteItem<ServicePlanBuilderView>[] = [
-  { value: 'summary', label: 'Plan Summary', accent: appleColors.purple },
+  { value: 'summary', label: 'Plan summary', accent: appleColors.purple },
   { value: 'services', label: 'Services', accent: appleColors.blue },
-  { value: 'milestones', label: 'Milestones', accent: appleColors.amber },
-  { value: 'team', label: 'Team Match', accent: appleColors.cyan },
+  { value: 'milestones', label: 'Steps', accent: appleColors.amber },
+  { value: 'team', label: 'Team fit', accent: appleColors.cyan },
   { value: 'commercial', label: 'Handoff', accent: appleColors.green },
 ];
 
@@ -90,7 +90,7 @@ export function ServicePlanHeroPanel({
 
         <Surface sx={{ boxShadow: '0 18px 60px rgba(24, 119, 242, 0.12)' }}>
           <Stack spacing={2}>
-            <SectionTitle title="Plan Snapshot" action={<FactCheckOutlined sx={{ color: accent }} />} />
+            <SectionTitle title="Plan snapshot" action={<FactCheckOutlined sx={{ color: accent }} />} />
             <Stack direction="row" spacing={2} alignItems="center">
               <ProgressRing value={score || 58} size={88} color={accent} label="/100" />
               <Box>
@@ -142,7 +142,7 @@ export function ServicePlanJourneyPanel({
   const items: JourneyStepItem<ServicePlanBuilderView>[] = [
     {
       value: 'summary',
-      label: 'Plan Summary',
+      label: 'Plan summary',
       detail: 'Owner answer, warnings, and readiness context.',
       accent: appleColors.purple,
       meta: <PastelChip label="Start here" accent={appleColors.purple} bg="#f1efff" />,
@@ -156,14 +156,14 @@ export function ServicePlanJourneyPanel({
     },
     {
       value: 'milestones',
-      label: 'Milestones',
+      label: 'Steps',
       detail: 'Timeline path and step order for delivery.',
       accent: appleColors.amber,
       meta: <PastelChip label={`${moduleCount} steps`} accent={appleColors.amber} bg="#fff4dc" />,
     },
     {
       value: 'team',
-      label: 'Team Match',
+      label: 'Team fit',
       detail: 'Who can deliver this plan and why.',
       accent: appleColors.cyan,
       meta: <PastelChip label={`${teamMatchCount}`} accent={appleColors.cyan} bg="#e4f9fd" />,
@@ -179,7 +179,7 @@ export function ServicePlanJourneyPanel({
 
   return (
     <Surface>
-      <SectionTitle title="Choose Focus" action={<PastelChip label="Plan sections" accent={appleColors.purple} />} />
+      <SectionTitle title="Choose what to review" action={<PastelChip label="Plan pages" accent={appleColors.purple} />} />
       <OwnerWorkspaceJourneyNav
         label="Service plan builder focus"
         value={value ?? null}

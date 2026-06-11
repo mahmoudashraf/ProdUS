@@ -86,9 +86,9 @@ export default function WorkspaceProofMilestonesPanel({
   return (
     <>
       <Surface>
-        <SectionTitle title="Milestones" action={selectedMilestone && <PastelChip label={`Selected: ${selectedMilestone.title}`} accent={statusAccent(selectedMilestone.status)} />} />
+        <SectionTitle title="Workspace steps" action={selectedMilestone && <PastelChip label={`Selected: ${selectedMilestone.title}`} accent={statusAccent(selectedMilestone.status)} />} />
         <Box component="form" onSubmit={milestoneForm.handleSubmit(onCreateMilestone)} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 1fr) 170px auto' }, gap: 1, mb: 2 }}>
-          <TextField size="small" label="New milestone" value={milestoneForm.values.title} onChange={(event) => milestoneForm.setValue('title', event.target.value)} />
+          <TextField size="small" label="New step" value={milestoneForm.values.title} onChange={(event) => milestoneForm.setValue('title', event.target.value)} />
           <TextField size="small" type="date" label="Due" value={milestoneForm.values.dueDate || ''} onChange={(event) => milestoneForm.setValue('dueDate', event.target.value || null)} InputLabelProps={{ shrink: true }} />
           <Button type="submit" variant="outlined" disabled={!milestoneForm.values.title || isCreatingMilestone}>Add</Button>
         </Box>
@@ -116,7 +116,7 @@ export default function WorkspaceProofMilestonesPanel({
                     {milestoneRisk && (
                       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                         <PastelChip
-                          label={`${milestoneRisk.scannerFindingCount} scanner ${milestoneRisk.scannerFindingCount === 1 ? 'finding' : 'findings'}`}
+                          label={`${milestoneRisk.scannerFindingCount} scan ${milestoneRisk.scannerFindingCount === 1 ? 'risk' : 'risks'}`}
                           accent={severityAccent(milestoneRisk.highestSeverity)}
                           bg={milestoneRisk.highestSeverity === 'CRITICAL' || milestoneRisk.highestSeverity === 'HIGH' ? '#fff1f1' : '#fff4dc'}
                         />
@@ -141,14 +141,14 @@ export default function WorkspaceProofMilestonesPanel({
             })}
           </Box>
         ) : (
-          <EmptyState label="No milestones yet. Add the first production milestone for this workspace." />
+          <EmptyState label="No workspace steps yet. Add the first launch step for this workspace." />
         )}
       </Surface>
 
       <Surface>
-        <SectionTitle title={selectedMilestone ? `${selectedMilestone.title} Deliverables` : 'Deliverables'} />
+        <SectionTitle title={selectedMilestone ? `${selectedMilestone.title} outputs` : 'Outputs'} />
         <Box component="form" onSubmit={deliverableForm.handleSubmit(onCreateDeliverable)} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(240px, 1fr) auto' }, gap: 1, mb: 2 }}>
-          <TextField size="small" label="New deliverable" value={deliverableForm.values.title} onChange={(event) => deliverableForm.setValue('title', event.target.value)} />
+          <TextField size="small" label="New output" value={deliverableForm.values.title} onChange={(event) => deliverableForm.setValue('title', event.target.value)} />
           <Button type="submit" variant="outlined" disabled={!selectedMilestone?.id || !deliverableForm.values.title || isCreatingDeliverable}>Add</Button>
         </Box>
         <Stack spacing={1.5}>
@@ -166,7 +166,7 @@ export default function WorkspaceProofMilestonesPanel({
               </Box>
             ))
           ) : (
-            <EmptyState label={selectedMilestone ? 'No deliverables yet. Add evidence-backed outputs for this milestone.' : 'Select a milestone to see deliverables.'} />
+            <EmptyState label={selectedMilestone ? 'No outputs yet. Add proof-backed outputs for this step.' : 'Select a workspace step to see outputs.'} />
           )}
         </Stack>
       </Surface>

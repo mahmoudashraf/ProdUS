@@ -129,7 +129,7 @@ export default function PackagesPage() {
     <>
       <PageHeader
         title="Service Plans"
-        description="Review generated delivery plans after a Product Plan or product brief becomes a scoped delivery path."
+        description="Review generated delivery plans after Planning or a product brief becomes a scoped delivery path."
       />
       <QueryState
         isLoading={packages.isLoading || requirements.isLoading || teams.isLoading || workspaces.isLoading || contracts.isLoading || invoices.isLoading}

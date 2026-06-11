@@ -106,7 +106,7 @@ export function LaunchpadActiveWorkspacesPanel({
         </Stack>
       ) : (
         <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-          Workspaces appear after the owner approves a product plan into a delivery workspace.
+          Workspaces appear after the owner approves Planning into a delivery workspace.
         </Typography>
       )}
     </Surface>

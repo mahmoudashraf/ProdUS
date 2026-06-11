@@ -46,7 +46,7 @@ export default function OwnerProductAiOpportunityLoomAiFit({
           }}
         >
           <SimpleList title="Capabilities" items={overview.capabilities ?? []} />
-          <SimpleList title="Implementation steps" items={overview.implementationSteps ?? []} />
+          <SimpleList title="Starting steps" items={overview.implementationSteps ?? []} />
           <SimpleList title="Owner decisions" items={overview.ownerDecisions ?? report?.suggestedNextSteps ?? []} />
         </Box>
       </Stack>

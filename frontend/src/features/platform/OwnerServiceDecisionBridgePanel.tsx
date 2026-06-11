@@ -54,7 +54,7 @@ export default function OwnerServiceDecisionBridgePanel({
     : improvementCount
       ? `Launchable with ${improvementCount} improvement${improvementCount === 1 ? '' : 's'} to schedule`
       : 'Clear enough to keep moving';
-  const primaryActionLabel = primaryServiceInPlan ? 'Already in product plan' : 'Add to product plan';
+  const primaryActionLabel = primaryServiceInPlan ? 'Already in Planning' : 'Add to Planning';
 
   return (
     <>
@@ -114,7 +114,7 @@ export default function OwnerServiceDecisionBridgePanel({
           </Stack>
           <Stack spacing={1} sx={{ minWidth: { lg: 226 } }}>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <PastelChip label={`${cartServiceCount} in plan`} accent={appleColors.purple} />
+              <PastelChip label={`${cartServiceCount} in Planning`} accent={appleColors.purple} />
               <PastelChip label={`${mappedServiceCount} from proof`} accent={appleColors.cyan} bg="#e4f9fd" />
               <PastelChip
                 label={blockerCount ? `${blockerCount} blockers` : 'No blockers'}

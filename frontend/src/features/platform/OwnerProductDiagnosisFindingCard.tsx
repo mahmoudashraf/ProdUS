@@ -80,7 +80,7 @@ export default function OwnerProductDiagnosisFindingCard({
           onClick={() => onChooseService(recommendedModule)}
           sx={{ mt: 1.25, minHeight: 36, whiteSpace: 'normal' }}
         >
-          {serviceInPlan ? 'Service already in plan' : 'Choose service for plan'}
+          {serviceInPlan ? 'Service already in Planning' : 'Choose service for Planning'}
         </Button>
       )}
     </Box>

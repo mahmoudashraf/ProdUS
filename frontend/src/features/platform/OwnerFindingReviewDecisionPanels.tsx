@@ -39,7 +39,7 @@ export function OwnerFindingDecisionPanel({
           label="Decision note"
           value={decisionReason}
           onChange={(event) => onDecisionReasonChange(event.target.value)}
-          placeholder="Evidence reviewed, fix merged, compensating control..."
+          placeholder="Proof reviewed, fix merged, risk accepted with reason..."
         />
         <TextField
           size="small"
@@ -52,13 +52,13 @@ export function OwnerFindingDecisionPanel({
       </Box>
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
         <Button size="small" variant="outlined" disabled={!canResolve || isUpdatingStatus} onClick={() => onRecordDecision('RESOLVED')}>
-          Mark Resolved
+          Mark resolved
         </Button>
         <Button size="small" variant="outlined" disabled={!canAcceptRisk || isUpdatingStatus} onClick={() => onRecordDecision('ACCEPTED_RISK')}>
-          Accept Risk
+          Accept risk
         </Button>
         <Button size="small" variant="outlined" disabled={!canResolve || isUpdatingStatus} onClick={() => onRecordDecision('FALSE_POSITIVE')}>
-          False Positive
+          False positive
         </Button>
       </Stack>
     </Box>
@@ -76,7 +76,7 @@ export function OwnerFindingLinkedEvidencePanel({
 }) {
   return (
     <Box sx={{ p: 1.25, borderRadius: 1, bgcolor: '#fff', border: '1px solid', borderColor: appleColors.line }}>
-      <SectionTitle title="Linked Evidence" action={<PastelChip label={`${evidence.length}`} accent={appleColors.cyan} bg="#e4f9fd" />} />
+      <SectionTitle title="Linked proof" action={<PastelChip label={`${evidence.length}`} accent={appleColors.cyan} bg="#e4f9fd" />} />
       {evidence.length ? (
         <Stack spacing={0.75}>
           {evidence.slice(0, 4).map((item) => (
@@ -96,14 +96,14 @@ export function OwnerFindingLinkedEvidencePanel({
                 onClick={() => onOpenEvidence(item)}
                 sx={{ minHeight: 34, minWidth: 112 }}
               >
-                Open Evidence
+                Open proof
               </Button>
             </Stack>
           ))}
         </Stack>
       ) : (
         <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
-          No dedicated evidence item is linked to this finding yet.
+          No dedicated proof item is linked to this risk yet.
         </Typography>
       )}
     </Box>

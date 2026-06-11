@@ -72,12 +72,12 @@ export default function WorkspaceAcceptanceReviewPanel({
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)' }}>
       <SectionTitle
-        title="Acceptance And Evidence Review"
+        title="Acceptance checklist"
         action={<PastelChip label={`${passedCriteriaCount}/${totalCriteriaCount || 0} passed`} accent={allCriteriaPassed ? appleColors.green : appleColors.amber} bg={allCriteriaPassed ? '#e7f8ee' : '#fff4dc'} />}
       />
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" sx={{ mb: 1.5 }}>
         <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6, maxWidth: 720 }}>
-          Generate acceptance criteria from the service plan, attach or verify required evidence, record checks, and make owner review decisions from one place.
+          Turn the service plan into clear approval checks, attach proof, and decide what can move forward.
         </Typography>
         <Button
           variant="outlined"
@@ -102,7 +102,7 @@ export default function WorkspaceAcceptanceReviewPanel({
                       {criterion.serviceName && <PastelChip label={criterion.serviceName} accent={appleColors.cyan} bg="#e4f9fd" />}
                     </Stack>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
-                      {criterion.description || 'Acceptance criterion requires owner-visible evidence before approval.'}
+                      {criterion.description || 'This approval check needs owner-visible proof before it can pass.'}
                     </Typography>
                   </Box>
                   <StatusChip label={criterion.status} color={criterion.status === 'PASSED' ? 'success' : criterion.status === 'FAILED' ? 'error' : 'default'} />
@@ -111,7 +111,7 @@ export default function WorkspaceAcceptanceReviewPanel({
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 250px' }, gap: 1.25, mt: 1.25 }}>
                   <Stack spacing={0.75}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
-                      Required evidence
+                      Required proof
                     </Typography>
                     {criterion.evidenceRequirements.map((requirement) => (
                       <Box key={requirement.id} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) auto' }, gap: 1, alignItems: 'center', border: '1px solid', borderColor: '#e5edf7', borderRadius: 1, p: 1 }}>
@@ -125,7 +125,7 @@ export default function WorkspaceAcceptanceReviewPanel({
                           <Button
                             size="small"
                             variant={requirement.status === 'ATTACHED' ? 'contained' : 'outlined'}
-                            onClick={() => onUpdateEvidenceRequirement(requirement.id, { status: 'ATTACHED', evidenceReference: requirement.evidenceReference || 'Workspace evidence attached' })}
+                            onClick={() => onUpdateEvidenceRequirement(requirement.id, { status: 'ATTACHED', evidenceReference: requirement.evidenceReference || 'Workspace proof attached' })}
                             disabled={isUpdatingEvidenceRequirement}
                             sx={{ minHeight: 32 }}
                           >
@@ -134,7 +134,7 @@ export default function WorkspaceAcceptanceReviewPanel({
                           <Button
                             size="small"
                             variant={requirement.status === 'VERIFIED' ? 'contained' : 'outlined'}
-                            onClick={() => onUpdateEvidenceRequirement(requirement.id, { status: 'VERIFIED', evidenceReference: requirement.evidenceReference || 'Verified workspace evidence' })}
+                            onClick={() => onUpdateEvidenceRequirement(requirement.id, { status: 'VERIFIED', evidenceReference: requirement.evidenceReference || 'Verified workspace proof' })}
                             disabled={isUpdatingEvidenceRequirement}
                             sx={{ minHeight: 32 }}
                           >
@@ -164,7 +164,7 @@ export default function WorkspaceAcceptanceReviewPanel({
                         checkType: 'manual-evidence-review',
                         provider: 'ProdUS Workspace',
                         status: hasMissingRequired ? 'WARNING' : 'PASSED',
-                        summary: hasMissingRequired ? 'Evidence review found missing required proof.' : 'Evidence review passed with available proof.',
+                        summary: hasMissingRequired ? 'Proof review found missing required proof.' : 'Proof review passed with available proof.',
                       })}
                       disabled={isCreatingCheck}
                       sx={{ minHeight: 38 }}
@@ -174,7 +174,7 @@ export default function WorkspaceAcceptanceReviewPanel({
                     <Button
                       variant="contained"
                       color="success"
-                      onClick={() => onReviewCriterion(criterion.id, { decision: 'APPROVE', note: 'Evidence is acceptable for this milestone criterion.' })}
+                      onClick={() => onReviewCriterion(criterion.id, { decision: 'APPROVE', note: 'Proof is acceptable for this milestone check.' })}
                       disabled={hasMissingRequired || isReviewingCriterion}
                       sx={{ minHeight: 38 }}
                     >
@@ -183,7 +183,7 @@ export default function WorkspaceAcceptanceReviewPanel({
                     <Button
                       variant="outlined"
                       color="warning"
-                      onClick={() => onReviewCriterion(criterion.id, { decision: 'REQUEST_CHANGES', note: 'Additional evidence or remediation is required before approval.' })}
+                      onClick={() => onReviewCriterion(criterion.id, { decision: 'REQUEST_CHANGES', note: 'More proof or fix work is required before approval.' })}
                       disabled={isReviewingCriterion}
                       sx={{ minHeight: 38 }}
                     >

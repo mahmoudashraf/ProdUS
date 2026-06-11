@@ -211,7 +211,7 @@ export function PublicTalentContextPanel({
             {activeCount} {publicTalentViews.find((item) => item.value === activeView)?.title.toLowerCase() || 'options'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Compare fit, then move useful talent into a governed product plan.
+            Compare fit, then move useful talent into Planning.
           </Typography>
         </Box>
         <Box sx={{ minWidth: 0 }}>
@@ -321,7 +321,7 @@ export function PublicTalentCta({ isLoggedIn }: { isLoggedIn: boolean }) {
           <Box>
             <Typography variant="h4">Ready to turn discovery into a governed workspace?</Typography>
             <Typography color="text.secondary">
-              Sign in to create a product brief, save teams and experts to a product plan, and approve it into a product workspace.
+              Sign in to create a product brief, save teams and experts to Planning, and approve it into a product workspace.
             </Typography>
           </Box>
         </Stack>

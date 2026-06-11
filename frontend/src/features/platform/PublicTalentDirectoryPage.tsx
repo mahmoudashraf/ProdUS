@@ -41,7 +41,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
   const { isLoggedIn, user } = useAuth();
   const canUseProjectCart = user?.role === UserRole.PRODUCT_OWNER;
   const cartHref = canUseProjectCart ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login';
-  const cartActionLabel = canUseProjectCart ? 'Product Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
+  const cartActionLabel = canUseProjectCart ? 'Planning' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
   const teams = useQuery({ queryKey: ['public-teams'], queryFn: () => getJson<Team[]>('/teams') });
   const experts = useQuery({ queryKey: ['public-expert-profiles'], queryFn: () => getJson<ExpertProfile[]>('/expert-profiles') });
   const categories = useQuery({ queryKey: ['public-catalog-categories'], queryFn: () => getJson<ServiceCategory[]>('/catalog/categories') });
@@ -117,7 +117,7 @@ export default function PublicTalentDirectoryPage({ view = 'directory' }: { view
         : 'Verified Team Network'
     : 'Delivery Talent Network';
   const pageDescription = hasActiveView
-    ? 'Move through one discovery path at a time, then save the right delivery help into a product plan.'
+    ? 'Move through one discovery path at a time, then save the right delivery help into Planning.'
     : 'Find the delivery help that belongs in a startup-owner launch plan: verified teams, focused experts, and the service workstreams they can execute.';
 
   return (

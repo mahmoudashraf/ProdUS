@@ -25,7 +25,7 @@ export function ServicePlanServicesPanel({
     <Stack spacing={2.5}>
       {isFetching && <LinearProgress sx={{ borderRadius: 999 }} />}
       <Surface>
-        <SectionTitle title="Selected Services" action={<PastelChip label={`${modules.length} included`} accent={appleColors.green} bg="#e7f8ee" />} />
+        <SectionTitle title="Selected services" action={<PastelChip label={`${modules.length} included`} accent={appleColors.green} bg="#e7f8ee" />} />
         {modules.length ? (
           <Stack spacing={0}>
             {modules.map((module, index) => {
@@ -70,7 +70,7 @@ export function ServicePlanServicesPanel({
             })}
           </Stack>
         ) : (
-          <EmptyState label="No service modules are attached to this service plan yet." />
+          <EmptyState label="No services are attached to this service plan yet." />
         )}
       </Surface>
     </Stack>
@@ -85,7 +85,7 @@ export function ServicePlanMilestonesPanel({
   return (
     <Stack spacing={2.5}>
       <Surface>
-        <SectionTitle title="Milestone Path" />
+        <SectionTitle title="Plan steps" />
         {modules.length ? (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: `repeat(${Math.min(4, Math.max(1, modules.length))}, minmax(0, 1fr))` }, gap: 1.5 }}>
             {modules.map((module, index) => {
@@ -102,7 +102,7 @@ export function ServicePlanMilestonesPanel({
             })}
           </Box>
         ) : (
-          <EmptyState label="Milestones appear after services are attached to the plan." />
+          <EmptyState label="Steps appear after services are attached to the plan." />
         )}
       </Surface>
     </Stack>
@@ -118,7 +118,7 @@ export function ServicePlanTeamMatchPanel({
 }) {
   return (
     <Surface>
-      <SectionTitle title="Matched Teams" action={<PastelChip label={`${teamRecommendations.length} matches`} accent={appleColors.cyan} bg="#e4f9fd" />} />
+      <SectionTitle title="Team fit" action={<PastelChip label={`${teamRecommendations.length} matches`} accent={appleColors.cyan} bg="#e4f9fd" />} />
       {isFetching && <LinearProgress sx={{ mb: 2, borderRadius: 999 }} />}
       {teamRecommendations.length ? (
         <Stack spacing={1.5}>

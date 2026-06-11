@@ -61,17 +61,17 @@ export default function WorkspaceScannerFixPathPanel({
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               <ShieldOutlined sx={{ color: blockerCount ? appleColors.red : appleColors.cyan }} />
-              <Typography variant="h3" sx={{ fontSize: { xs: 22, md: 26 } }}>Scanner Fix Path</Typography>
+              <Typography variant="h3" sx={{ fontSize: { xs: 22, md: 26 } }}>Workspace fix path</Typography>
               <PastelChip label={readinessStatus} accent={blockerCount ? appleColors.red : appleColors.green} bg={blockerCount ? '#fff1f1' : '#e7f8ee'} />
             </Stack>
             <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6, maxWidth: 760 }}>
-              Scanner findings become clear fixes, suggested services, and proof tasks. This is stored and deterministic; AI explanation only runs when you ask for it.
+              Scan risks become clear fixes, suggested services, and proof tasks. The result is stored; AI only explains it when you ask.
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
-              <PastelChip label={`${mappedFindingCount} mapped`} accent={appleColors.green} bg="#e7f8ee" />
+              <PastelChip label={`${mappedFindingCount} linked to services`} accent={appleColors.green} bg="#e7f8ee" />
               <PastelChip label={`${blockerCount} priority fixes`} accent={blockerCount ? appleColors.red : appleColors.green} bg={blockerCount ? '#fff1f1' : '#e7f8ee'} />
               <PastelChip label={`${missingEvidenceCount} proof gaps`} accent={missingEvidenceCount ? appleColors.amber : appleColors.green} bg={missingEvidenceCount ? '#fff4dc' : '#e7f8ee'} />
-              <PastelChip label={`${unmappedFindingCount} unmapped`} accent={unmappedFindingCount ? appleColors.amber : appleColors.cyan} bg={unmappedFindingCount ? '#fff4dc' : '#e4f9fd'} />
+              <PastelChip label={`${unmappedFindingCount} need review`} accent={unmappedFindingCount ? appleColors.amber : appleColors.cyan} bg={unmappedFindingCount ? '#fff4dc' : '#e4f9fd'} />
             </Stack>
           </Box>
         </Stack>
@@ -83,10 +83,10 @@ export default function WorkspaceScannerFixPathPanel({
             onClick={onRefresh}
             sx={{ minHeight: 42 }}
           >
-            Refresh Fix Path
+            Refresh fix path
           </Button>
           <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.55 }}>
-            Refresh is deterministic and stored. Use the AI explainer below when you want a plain-English readout.
+            Refresh stores the latest scan-to-service map. Use the assistant below when you want the plain-English readout.
           </Typography>
         </Stack>
       </Stack>
@@ -99,7 +99,7 @@ export default function WorkspaceScannerFixPathPanel({
                 <Box sx={{ minWidth: 0 }}>
                   <Typography sx={{ fontWeight: 900 }} noWrap>{risk.milestoneTitle}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {risk.scannerFindingCount} scanner finding{risk.scannerFindingCount === 1 ? '' : 's'} · {risk.missingEvidenceCount} proof gap{risk.missingEvidenceCount === 1 ? '' : 's'}
+                    {risk.scannerFindingCount} scan risk{risk.scannerFindingCount === 1 ? '' : 's'} · {risk.missingEvidenceCount} proof gap{risk.missingEvidenceCount === 1 ? '' : 's'}
                   </Typography>
                 </Box>
                 <PastelChip label={risk.highestSeverity || 'Mapped'} accent={severityAccent(risk.highestSeverity)} bg={risk.highestSeverity === 'CRITICAL' || risk.highestSeverity === 'HIGH' ? '#fff1f1' : '#f1efff'} />
@@ -117,8 +117,8 @@ export default function WorkspaceScannerFixPathPanel({
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'center' }}>
             <Typography variant="body2" color="text.secondary">
               {scannerEvidenceCount
-                ? 'Scanner proof exists. Refresh the fix path to create mapped milestone risks and proof tasks.'
-                : 'Run or attach workspace-scoped scanner proof to build a fix path for this delivery.'}
+                ? 'Scan proof exists. Refresh the fix path to link milestone risks and proof tasks.'
+                : 'Run scanners or attach scan proof to build a fix path for this workspace.'}
             </Typography>
             <AutoAwesomeOutlined sx={{ color: appleColors.purple }} />
           </Stack>

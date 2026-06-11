@@ -72,7 +72,7 @@ export default function OwnerProjectStartPanel({
     <Box id="project-cart" sx={{ scrollMarginTop: 96 }}>
       <Surface>
         <SectionTitle
-          title="Product Plan"
+          title="Planning"
           action={<PlaylistAddCheckOutlined sx={{ color: appleColors.purple }} />}
         />
         <Stack spacing={1.5}>

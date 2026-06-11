@@ -94,7 +94,7 @@ export function AiOpportunityDiscoveryPanel({
                       label={
                         useCase.confidence
                           ? `${Math.round(useCase.confidence * 100)}% confidence`
-                          : 'Evidence grounded'
+                          : 'Proof-backed'
                       }
                       color={appleColors.green}
                     />

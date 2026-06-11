@@ -47,7 +47,7 @@ export default function ProjectStartLifecycleServicesPanel({
 
   return (
     <Surface>
-      <SectionTitle title="Lifecycle Services" action={<Button component={NextLink} href={catalogHref} variant="text" endIcon={<ArrowForwardOutlined />}>Choose service</Button>} />
+      <SectionTitle title="Selected services" action={<Button component={NextLink} href={catalogHref} variant="text" endIcon={<ArrowForwardOutlined />}>Choose service</Button>} />
       {serviceItems.length ? (
         <Stack spacing={1.25}>
           <TextField
@@ -105,7 +105,7 @@ export default function ProjectStartLifecycleServicesPanel({
                   </Typography>
                 </Box>
                 <Stack spacing={0.75} sx={{ display: { xs: 'none', md: 'flex' } }}>
-                  <DotLabel label={item.serviceModule.category?.name || 'Lifecycle service'} color={palette.accent} />
+                  <DotLabel label={item.serviceModule.category?.name || 'Selected service'} color={palette.accent} />
                   <PastelChip label={serviceMeta} accent={palette.accent} bg={palette.bg} />
                 </Stack>
                 <IconButton

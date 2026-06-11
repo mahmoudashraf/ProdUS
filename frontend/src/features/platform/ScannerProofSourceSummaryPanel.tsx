@@ -22,7 +22,7 @@ export default function ScannerProofSourceSummaryPanel({
 }: ScannerProofSourceSummaryPanelProps) {
   if (!sources.length) {
     return (
-      <EmptyState label="No scanner source exists yet. Save a source, upload CI evidence, or import a customer-owned scanner result to start the evidence chain." />
+      <EmptyState label="No scan source exists yet. Connect a source, upload CI proof, or import a scanner result to start." />
     );
   }
 
@@ -37,7 +37,7 @@ export default function ScannerProofSourceSummaryPanel({
         }
         label={
           <Typography variant="body2" color="text.secondary">
-            Delete stored scanner artifacts when disconnecting a source.
+            Also delete saved proof files when disconnecting a source.
           </Typography>
         }
       />
@@ -97,7 +97,7 @@ export default function ScannerProofSourceSummaryPanel({
             <Tooltip
               title={
                 source.authorizationStatus === 'AUTHORIZED'
-                  ? 'Disconnect this source from future scanner use'
+                  ? 'Disconnect this source from future scans'
                   : 'Only authorized sources can be disconnected'
               }
             >
@@ -110,7 +110,7 @@ export default function ScannerProofSourceSummaryPanel({
                   onClick={() => onDisconnectSource(source.id)}
                   sx={{ minHeight: 34, alignSelf: 'flex-start' }}
                 >
-                  {deleteArtifactsOnDisconnect ? 'Disconnect + Delete' : 'Disconnect'}
+                  {deleteArtifactsOnDisconnect ? 'Disconnect and delete proof' : 'Disconnect'}
                 </Button>
               </span>
             </Tooltip>

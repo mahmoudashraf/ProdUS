@@ -123,8 +123,8 @@ export function buildProductOnboardingAnalysisResultModel({
     {
       title: 'Service plan seed',
       detail: reviewedServiceRecommendations.length
-        ? `${compactCount(selectedServiceCount, 'catalog service')} selected for persistence from ${compactCount(reviewedServiceRecommendations.length, productAnalysisLive ? 'AI recommendation' : 'owner/rules recommendation')}.`
-        : 'No catalog-backed service module was returned. You can still create and add services later.',
+        ? `${compactCount(selectedServiceCount, 'service')} selected to save from ${compactCount(reviewedServiceRecommendations.length, productAnalysisLive ? 'AI recommendation' : 'owner/rules recommendation')}.`
+        : 'No matching service was returned. You can still create and add services later.',
       state:
         reviewedServiceRecommendations.length && selectedServiceCount === 0 ? 'attention' : 'ready',
     },

@@ -90,14 +90,14 @@ export default function OwnerFindingReviewDrawer({
             <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="caption" color="text.secondary">
-                  Finding review
+                  Risk review
                 </Typography>
                 <Typography variant="h4" sx={{ mt: 0.25 }}>
                   {ownerCategory}
                 </Typography>
               </Box>
               <IconButton
-                aria-label="Close finding review"
+                aria-label="Close risk review"
                 onClick={onClose}
                 sx={{ width: 38, height: 38, borderRadius: 1, border: '1px solid', borderColor: appleColors.line }}
               >

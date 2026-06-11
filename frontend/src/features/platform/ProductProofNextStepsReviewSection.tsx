@@ -19,7 +19,7 @@ export function ProductProofNextStepsReviewSection({
   return (
     <ProductOnboardingReviewSection
       title="Proof, assumptions, and next steps"
-      subtitle="Check document usage, scanner focus, source insights, assumptions, and missing evidence."
+      subtitle="Check which files were used, what launch checks matter, what AI assumed, and what proof is still missing."
     >
       <Stack spacing={1}>
         <Box
@@ -30,9 +30,9 @@ export function ProductProofNextStepsReviewSection({
           }}
         >
           <AiReviewList
-            title="Scanner focus"
+            title="Launch checks to watch"
             items={analysis.analysis.scannerFocusAreas ?? []}
-            empty="No scanner focus returned."
+            empty="No launch checks returned."
             accent={appleColors.red}
           />
           <AiReviewList
@@ -51,7 +51,7 @@ export function ProductProofNextStepsReviewSection({
         {documentUsage.length > 0 && <AiDocumentUsageList usage={documentUsage} />}
         {documentUsageMissing && (
           <Alert severity="warning" sx={{ borderRadius: 1 }}>
-            LoomAI analyzed the brief but did not return document usage evidence. Re-run analysis or
+            LoomAI analyzed the brief but did not return document-use proof. Re-run analysis or
             treat the uploaded file as not proven for this creation decision.
           </Alert>
         )}

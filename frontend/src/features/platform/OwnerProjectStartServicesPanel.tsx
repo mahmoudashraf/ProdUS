@@ -80,7 +80,7 @@ export default function OwnerProjectStartServicesPanel({
                 {remainingServiceCount} more services are included in the approved scope.
               </Typography>
               <Button component={NextLink} href={PROJECT_START_PLAN_HREF} size="small" variant="text" sx={{ mt: 0.5, minHeight: 32, px: 0 }}>
-                Open full Product Plan
+                Open Planning
               </Button>
             </Box>
           )}
@@ -126,7 +126,7 @@ export default function OwnerProjectStartServicesPanel({
                     variant="contained"
                     startIcon={<PlaylistAddCheckOutlined />}
                     disabled={isAddingService}
-                    onClick={() => onAddGapService(gap.serviceModule!, `Chosen from the product plan. ${gap.description || ''}`.trim())}
+                    onClick={() => onAddGapService(gap.serviceModule!, `Chosen from Planning. ${gap.description || ''}`.trim())}
                     sx={{ minHeight: 36 }}
                   >
                     Choose

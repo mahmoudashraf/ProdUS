@@ -53,10 +53,10 @@ export default function ProjectStartApprovalPanel({
   return (
     <Stack spacing={2.5}>
       <Surface>
-        <SectionTitle title="Approve Product Plan" action={<RocketLaunchOutlined sx={{ color: appleColors.purple }} />} />
+        <SectionTitle title="Approve Planning" action={<RocketLaunchOutlined sx={{ color: appleColors.purple }} />} />
         <Stack spacing={1.5}>
           <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-            Approve the selected services and team when they cover the must-fix launch blockers. ProdUS will turn this product plan into delivery milestones, participants, and a workspace.
+            Approve the selected services and team when they cover the must-fix launch blockers. ProdUS will turn this planning scope into delivery steps, participants, and a workspace.
           </Typography>
           <TextField
             size="small"
@@ -72,7 +72,7 @@ export default function ProjectStartApprovalPanel({
             onClick={onStartWorkspace}
             sx={{ minHeight: 46 }}
           >
-            {isStartingWorkspace ? 'Starting...' : 'Approve product plan'}
+            {isStartingWorkspace ? 'Starting...' : 'Approve planning'}
           </Button>
           {!product && <DotLabel label="Select a production product first" color={appleColors.amber} />}
           {product && !serviceCount && <DotLabel label="Choose at least one launch-hardening service" color={appleColors.amber} />}
@@ -123,7 +123,7 @@ export default function ProjectStartApprovalPanel({
               ))
             ) : (
               <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                This plan still has {blockerText}, but no automatic service recommendation is available. Review the readiness step before approving the workspace.
+                Planning still has {blockerText}, but no automatic service recommendation is available. Review the readiness step before approving the workspace.
               </Typography>
             )}
           </Stack>
@@ -134,7 +134,7 @@ export default function ProjectStartApprovalPanel({
         <SectionTitle title="What Approval Creates" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
         <Stack spacing={1.25}>
           {[
-            'Selected services become service plan modules and milestones.',
+            'Selected services become service plan steps.',
             'Teams become shortlist records and workspace participants.',
             'Solo experts become specialist participants.',
             'The product becomes the workspace context.',

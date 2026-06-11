@@ -159,7 +159,7 @@ export default function ProductOnboardingAnalysisContextEditor({
             </Box>
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 900 }}>
-                Project documents
+                Product documents
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {documents.length

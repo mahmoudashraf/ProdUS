@@ -55,9 +55,9 @@ export default function WorkspaceProofEvidencePanel({
 }: WorkspaceProofEvidencePanelProps) {
   return (
     <Surface>
-      <SectionTitle title="Workspace Evidence" action={<PastelChip label={`${proofFileCount} files`} accent={appleColors.purple} />} />
+      <SectionTitle title="Workspace proof" action={<PastelChip label={`${proofFileCount} files`} accent={appleColors.purple} />} />
       <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-        Attach workspace-level documents such as kickoff notes, architecture decisions, acceptance records, and operating handoff material.
+        Keep the notes, decisions, acceptance records, and handoff files that support this workspace.
       </Typography>
       {evidencePanel('WORKSPACE', workspaceId)}
       <Divider sx={{ my: 2 }} />
@@ -70,18 +70,18 @@ export default function WorkspaceProofEvidencePanel({
             <Stack direction="row" spacing={1} alignItems="center">
               <CloudUploadOutlined sx={{ color: appleColors.cyan }} />
               <Box>
-                <Typography sx={{ fontWeight: 900 }}>CI scanner evidence</Typography>
+                <Typography sx={{ fontWeight: 900 }}>Upload scan proof</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Normalize real scanner output against this workspace and selected milestone.
+                  Add real scanner output for this workspace and connect it to the right milestone.
                 </Typography>
               </Box>
             </Stack>
-            <PastelChip label={`${scannerEvidenceList.length} scanner evidence records`} accent={appleColors.cyan} bg="#e4f9fd" />
+            <PastelChip label={`${scannerEvidenceList.length} scan proof records`} accent={appleColors.cyan} bg="#e4f9fd" />
           </Stack>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 140px 180px' }, gap: 1 }}>
             <TextField
               size="small"
-              label="Tool"
+              label="Scanner"
               value={scannerUploadForm.toolName}
               onChange={(event) => onScannerUploadFormChange((current) => ({ ...current, toolName: event.target.value }))}
             />
@@ -113,7 +113,7 @@ export default function WorkspaceProofEvidencePanel({
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 180px' }, gap: 1 }}>
             <TextField
               size="small"
-              label="Artifact file name"
+              label="Proof file name"
               value={scannerUploadForm.artifactFileName}
               onChange={(event) => onScannerUploadFormChange((current) => ({ ...current, artifactFileName: event.target.value }))}
             />
@@ -126,7 +126,7 @@ export default function WorkspaceProofEvidencePanel({
           </Box>
           <TextField
             size="small"
-            label="Scanner payload"
+            label="Scan output"
             placeholder="Paste SARIF, JSON, JUnit XML, or scanner log output from the team CI run."
             value={scannerUploadForm.artifactPayload}
             onChange={(event) => onScannerUploadFormChange((current) => ({ ...current, artifactPayload: event.target.value }))}
@@ -141,7 +141,7 @@ export default function WorkspaceProofEvidencePanel({
             disabled={!canSubmitScannerEvidence || isUploadingScannerEvidence}
             sx={{ minHeight: 44, alignSelf: { md: 'flex-start' } }}
           >
-            Normalize Workspace Evidence
+            Save scan proof
           </Button>
           {scannerEvidenceList.length ? (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
@@ -161,7 +161,7 @@ export default function WorkspaceProofEvidencePanel({
             </Box>
           ) : (
             <Typography variant="body2" color="text.secondary">
-              No scanner evidence is attached to this workspace yet.
+              No scan proof is attached to this workspace yet.
             </Typography>
           )}
         </Stack>

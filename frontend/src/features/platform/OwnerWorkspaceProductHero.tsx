@@ -165,7 +165,7 @@ export default function OwnerWorkspaceProductHero({
               })
             ) : (
               <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
-                No launch blockers are visible from the latest stored evidence.
+                No launch blockers are visible from the latest stored proof.
               </Typography>
             )}
           </Stack>

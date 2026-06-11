@@ -128,7 +128,7 @@ export default function RepoReadoutPanel({
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #fbfdff 50%, #f7fff9 100%)' }}>
       <SectionTitle
-        title="Repo Readout"
+        title="Product source readout"
         action={
           <Stack direction="row" spacing={1} alignItems="center">
             <PastelChip label={sourceStatus} accent={accent} bg={`${accent}12`} />
@@ -146,7 +146,7 @@ export default function RepoReadoutPanel({
         }
       />
       <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65, mb: 1.5 }}>
-        ProdUS turns owner input, connected repo sources, scanner runs, and normalized findings into a compact set of facts. This does not call AI; it keeps the diagnosis grounded before service choices or workspace decisions.
+        ProdUS turns owner input, connected product sources, scanner runs, and saved risks into a compact fact sheet. This keeps launch decisions grounded before choosing services or sharing the workspace.
       </Typography>
       {(isFetching || isRefreshing) && <LinearProgress sx={{ borderRadius: 999, mb: 1.5 }} />}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.25, mb: 1.5 }}>
@@ -158,14 +158,14 @@ export default function RepoReadoutPanel({
           icon={<Inventory2Outlined />}
         />
         <MetricTile
-          label="Stack signals"
+          label="Product stack"
           value={stackValues.length}
           detail={stackValues.length ? stackValues.join(', ') : 'Not detected yet'}
           accent={stackValues.length ? appleColors.blue : appleColors.amber}
           icon={<ScienceOutlined />}
         />
         <MetricTile
-          label="Scanner proof"
+          label="Scan proof"
           value={scannerStatus?.signalValue || `${scannerSummary?.recentRuns.length || 0} runs`}
           detail={`${scannerSummary?.findings.length || 0} findings available`}
           accent={scannerStatus ? repoSignalAccent(scannerStatus) : appleColors.cyan}
@@ -174,20 +174,20 @@ export default function RepoReadoutPanel({
         <MetricTile
           label="Still unknown"
           value={unknownCount}
-          detail={unknownCount ? 'Needs evidence' : 'No gaps detected'}
+          detail={unknownCount ? 'Needs proof' : 'No gaps detected'}
           accent={unknownCount ? appleColors.amber : appleColors.green}
           icon={<InfoOutlined />}
         />
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
         <RepoSignalColumn
-          title="Detected by ProdUS"
+          title="Product facts found"
           empty="Refresh after adding a repository URL or scanner source."
           signals={summary?.detectedStack || []}
         />
         <RepoSignalColumn
-          title="Scanner-backed facts"
-          empty="Run a scanner or import CI evidence to ground this project."
+          title="Scan-backed facts"
+          empty="Run a scanner or import CI proof to support this product."
           signals={proofSignals}
         />
         <RepoSignalColumn
@@ -199,7 +199,7 @@ export default function RepoReadoutPanel({
       {!!summary?.nextActions.length && (
         <Box sx={{ mt: 1.5, p: 1.25, borderRadius: 1, border: '1px solid', borderColor: '#dbeafe', bgcolor: '#fbfdff' }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 950, mb: 0.75 }}>
-            Next proof steps
+            Next scan steps
           </Typography>
           <Stack spacing={0.65}>
             {summary.nextActions.slice(0, 4).map((action) => (

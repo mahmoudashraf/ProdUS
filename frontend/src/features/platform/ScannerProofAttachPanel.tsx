@@ -37,11 +37,11 @@ export default function ScannerProofAttachPanel({
         if (selectedProduct && scannerUploadForm.toolName.trim() && scannerUploadForm.artifactPayload.trim()) onUploadScannerEvidence();
       }}>
         <Stack spacing={1.25}>
-          <Typography sx={{ fontWeight: 900 }}>Upload CI evidence</Typography>
+          <Typography sx={{ fontWeight: 900 }}>Upload CI proof</Typography>
           <TextField
             select
             size="small"
-            label="Evidence source"
+            label="Proof source"
             value={scannerUploadForm.sourceId}
             onChange={(event) => setScannerUploadForm((current) => ({ ...current, sourceId: event.target.value }))}
           >
@@ -53,7 +53,7 @@ export default function ScannerProofAttachPanel({
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 120px' }, gap: 1 }}>
             <TextField
               size="small"
-              label="Tool"
+              label="Scanner tool"
               value={scannerUploadForm.toolName}
               onChange={(event) => setScannerUploadForm((current) => ({ ...current, toolName: event.target.value }))}
             />
@@ -78,7 +78,7 @@ export default function ScannerProofAttachPanel({
           />
           <TextField
             size="small"
-            label="Artifact file name"
+            label="Proof file name"
             value={scannerUploadForm.artifactFileName}
             onChange={(event) => setScannerUploadForm((current) => ({ ...current, artifactFileName: event.target.value }))}
           />
@@ -86,11 +86,11 @@ export default function ScannerProofAttachPanel({
             <TextField
               select
               size="small"
-              label="Attach to milestone"
+              label="Link to milestone"
               value={scannerUploadForm.milestoneId}
               onChange={(event) => setScannerUploadForm((current) => ({ ...current, milestoneId: event.target.value }))}
             >
-              <MenuItem value="">Product-level evidence</MenuItem>
+              <MenuItem value="">Product-level proof</MenuItem>
               {milestones.map((milestone) => (
                 <MenuItem key={milestone.id} value={milestone.id}>{milestone.title}</MenuItem>
               ))}
@@ -98,7 +98,7 @@ export default function ScannerProofAttachPanel({
           )}
           <TextField
             size="small"
-            label="Artifact payload"
+            label="Proof file content"
             placeholder="Paste SARIF, JSON, JUnit XML, or CI log output from a real scanner run."
             value={scannerUploadForm.artifactPayload}
             onChange={(event) => setScannerUploadForm((current) => ({ ...current, artifactPayload: event.target.value }))}
@@ -113,7 +113,7 @@ export default function ScannerProofAttachPanel({
             disabled={!selectedProduct || !scannerUploadForm.toolName.trim() || !scannerUploadForm.artifactPayload.trim() || isUploadingEvidence}
             sx={{ minHeight: 44 }}
           >
-            Normalize Evidence
+            Save proof
           </Button>
         </Stack>
       </Box>
@@ -161,7 +161,7 @@ export default function ScannerProofAttachPanel({
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 120px' }, gap: 1 }}>
             <TextField
               size="small"
-              label="Tool"
+              label="Scanner tool"
               value={externalImportForm.toolName}
               onChange={(event) => setExternalImportForm((current) => ({ ...current, toolName: event.target.value }))}
             />
@@ -188,11 +188,11 @@ export default function ScannerProofAttachPanel({
             <TextField
               select
               size="small"
-              label="Attach to milestone"
+              label="Link to milestone"
               value={externalImportForm.milestoneId}
               onChange={(event) => setExternalImportForm((current) => ({ ...current, milestoneId: event.target.value }))}
             >
-              <MenuItem value="">Product-level evidence</MenuItem>
+              <MenuItem value="">Product-level proof</MenuItem>
               {milestones.map((milestone) => (
                 <MenuItem key={milestone.id} value={milestone.id}>{milestone.title}</MenuItem>
               ))}
@@ -200,7 +200,7 @@ export default function ScannerProofAttachPanel({
           )}
           <TextField
             size="small"
-            label="Artifact payload"
+            label="Proof file content"
             placeholder="Paste a real provider JSON, SARIF, or scanner export."
             value={externalImportForm.artifactPayload}
             onChange={(event) => setExternalImportForm((current) => ({ ...current, artifactPayload: event.target.value }))}
@@ -215,7 +215,7 @@ export default function ScannerProofAttachPanel({
             disabled={!selectedProduct || !externalImportForm.toolName.trim() || !externalImportForm.artifactPayload.trim() || isImportingExternalEvidence}
             sx={{ minHeight: 44 }}
           >
-            Import Results
+            Import results
           </Button>
         </Stack>
       </Box>

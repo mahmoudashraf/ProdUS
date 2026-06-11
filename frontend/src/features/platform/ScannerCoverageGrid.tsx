@@ -42,6 +42,18 @@ const scannerCoverageStatusColor = (coverage?: ScannerToolCoverage): 'default' |
   return 'default';
 };
 
+const scannerCoverageStatusLabel = (coverage?: ScannerToolCoverage) => {
+  if (!coverage) return 'Not checked';
+  if (!coverage.enabled) return 'Off';
+  if (!coverage.executableAvailable) return 'Unavailable';
+  if (coverage.latestStatus === 'COMPLETED') return 'Complete';
+  if (coverage.latestStatus === 'FAILED') return 'Needs retry';
+  if (coverage.latestStatus === 'RUNNING') return 'Running';
+  if (coverage.latestStatus === 'QUEUED') return 'Queued';
+  if (coverage.applicable) return 'Ready';
+  return 'Needs target';
+};
+
 export default function ScannerCoverageGrid({
   tools,
   latestCoveredTools,
@@ -54,7 +66,7 @@ export default function ScannerCoverageGrid({
   return (
     <Box sx={{ mb: 2, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, p: 1.5, bgcolor: '#fff' }}>
       <SectionTitle
-        title="Scanner Suite Coverage"
+        title="Scanner suite status"
         action={
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <PastelChip
@@ -62,7 +74,7 @@ export default function ScannerCoverageGrid({
               accent={latestCoveredTools === totalTools ? appleColors.green : appleColors.amber}
               bg={latestCoveredTools === totalTools ? '#e7f8ee' : '#fff4dc'}
             />
-            <PastelChip label={`${latestMappedToolFindings} mapped findings`} accent={latestMappedToolFindings ? appleColors.purple : appleColors.muted} />
+            <PastelChip label={`${latestMappedToolFindings} risks linked`} accent={latestMappedToolFindings ? appleColors.purple : appleColors.muted} />
             {unavailableScannerTools > 0 && <PastelChip label={`${unavailableScannerTools} unavailable`} accent={appleColors.red} bg="#fff1f2" />}
           </Stack>
         }
@@ -70,7 +82,7 @@ export default function ScannerCoverageGrid({
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
         {tools.map((tool) => {
           const accent = scannerCoverageAccent(tool);
-          const statusLabel = tool.latestStatus || (!tool.enabled ? 'DISABLED' : !tool.executableAvailable ? 'UNAVAILABLE' : tool.applicable ? 'READY' : 'TARGET_NEEDED');
+          const statusLabel = scannerCoverageStatusLabel(tool);
           return (
             <Box
               key={tool.toolKey}
@@ -96,8 +108,8 @@ export default function ScannerCoverageGrid({
                   <StatusChip label={statusLabel} color={scannerCoverageStatusColor(tool)} />
                 </Stack>
                 <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                  <PastelChip label={`${tool.normalizedCount || 0} findings`} accent={tool.normalizedCount ? severityAccent('HIGH') : appleColors.green} bg={tool.normalizedCount ? '#fff1f2' : '#e7f8ee'} />
-                  <PastelChip label={`${tool.mappedFindingCount || 0} mapped`} accent={tool.mappedFindingCount ? appleColors.purple : appleColors.muted} />
+                  <PastelChip label={`${tool.normalizedCount || 0} risks`} accent={tool.normalizedCount ? severityAccent('HIGH') : appleColors.green} bg={tool.normalizedCount ? '#fff1f2' : '#e7f8ee'} />
+                  <PastelChip label={`${tool.mappedFindingCount || 0} linked`} accent={tool.mappedFindingCount ? appleColors.purple : appleColors.muted} />
                 </Stack>
                 <Typography
                   variant="caption"

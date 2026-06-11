@@ -46,7 +46,7 @@ export function LaunchpadHeroPanel({
               Turn a product idea into a delivery workspace.
             </Typography>
             <Typography color="text.secondary" sx={{ maxWidth: 680, fontSize: 17, lineHeight: 1.7 }}>
-              Keep the owner journey simple: product profile, product plan, talent shortlist, then a workspace with milestones and evidence.
+              Keep the owner journey simple: product profile, Planning, talent shortlist, then a workspace with steps and proof.
             </Typography>
           </Box>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -61,13 +61,13 @@ export function LaunchpadHeroPanel({
 
         <Surface sx={{ boxShadow: '0 18px 60px rgba(98, 92, 255, 0.12)', minWidth: 0 }}>
           <Stack spacing={2}>
-            <SectionTitle title="Current product plan" action={<PlaylistAddCheckOutlined sx={{ color: appleColors.purple }} />} />
+            <SectionTitle title="Current planning" action={<PlaylistAddCheckOutlined sx={{ color: appleColors.purple }} />} />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }} sx={{ minWidth: 0 }}>
               <ProgressRing value={clampScore((draftServices * 18) + (draftTalent * 14) + (nextProduct ? 28 : 0))} size={92} color={appleColors.purple} label="ready" />
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="h4">{currentDraftTitle}</Typography>
                 <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                  {nextProduct ? `Prepared for ${nextProduct.name}` : 'Create or select a product to make this product plan actionable.'}
+                  {nextProduct ? `Prepared for ${nextProduct.name}` : 'Create or select a product to make Planning actionable.'}
                 </Typography>
               </Box>
             </Stack>
@@ -106,7 +106,7 @@ export function LaunchpadMetricsStrip({
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2 }}>
       <MetricTile label="Products" value={productCount} detail={`${requirementCount} product briefs`} accent={appleColors.purple} icon={<Inventory2Outlined />} sparkline />
-      <MetricTile label="Product Plan" value={draftServices + draftTalent} detail={`${draftServices} services, ${draftTalent} talent`} accent={appleColors.cyan} icon={<PlaylistAddCheckOutlined />} sparkline />
+      <MetricTile label="Planning" value={draftServices + draftTalent} detail={`${draftServices} services, ${draftTalent} talent`} accent={appleColors.cyan} icon={<PlaylistAddCheckOutlined />} sparkline />
       <MetricTile label="Health" value={averageHealth ? `${averageHealth}/100` : 'New'} detail="Service plan confidence" accent={averageHealth >= 70 ? appleColors.green : appleColors.amber} icon={<FactCheckOutlined />} sparkline />
       <MetricTile label="Workspaces" value={activeWorkspaceCount} detail={`${workspaceCount} total`} accent={appleColors.green} icon={<WorkspacesOutlined />} sparkline />
     </Box>

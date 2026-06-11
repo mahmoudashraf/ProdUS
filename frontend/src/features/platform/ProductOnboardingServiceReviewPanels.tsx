@@ -32,7 +32,7 @@ export function AiServicePlanReview({
       <AiReviewList
         title={sourceLabel}
         items={[]}
-        empty="No catalog-backed services returned."
+        empty="No matching services returned."
         accent={appleColors.amber}
       />
     );
@@ -142,6 +142,9 @@ export function AiServicePlanReview({
                   )}
                   {recommendation.evidenceBasis?.length ? (
                     <Stack spacing={0.35}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>
+                        Why this service was suggested
+                      </Typography>
                       {recommendation.evidenceBasis.slice(0, 2).map(item => (
                         <DotLabel key={item} label={item} color={appleColors.purple} />
                       ))}
@@ -176,11 +179,11 @@ export function LoomAIOverviewPanel({
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
           <Box>
             <Typography variant="body2" sx={{ fontWeight: 950 }}>
-              LoomAI implementation path
+              LoomAI starting path
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
               {overview.summary ||
-                'LoomAI can support diagnosis, service planning, scanner summaries, and owner decisions.'}
+                'LoomAI can support diagnosis, service planning, scan summaries, and owner decisions.'}
             </Typography>
           </Box>
           <DotLabel
@@ -212,9 +215,9 @@ export function LoomAIOverviewPanel({
             accent={appleColors.purple}
           />
           <AiReviewList
-            title="Implementation steps"
+            title="Starting steps"
             items={overview.implementationSteps ?? []}
-            empty="No implementation steps returned."
+            empty="No starting steps returned."
             accent={appleColors.green}
           />
           <AiReviewList

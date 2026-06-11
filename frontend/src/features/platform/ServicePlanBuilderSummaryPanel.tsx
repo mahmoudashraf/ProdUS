@@ -66,7 +66,7 @@ export default function ServicePlanSummaryPanel({
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 340px' }, gap: 2.5 }}>
       <Stack spacing={2.5}>
         <Surface>
-          <SectionTitle title="Owner Decision" action={<PlaylistAddCheckOutlined sx={{ color: servicePlanStatusAccent(selectedPackage.status) }} />} />
+          <SectionTitle title="Plan decision" action={<PlaylistAddCheckOutlined sx={{ color: servicePlanStatusAccent(selectedPackage.status) }} />} />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '120px minmax(0, 1fr)' }, gap: 2, alignItems: 'center' }}>
             <ProgressRing value={score || 58} size={104} color={servicePlanStatusAccent(selectedPackage.status)} label="confidence" />
             <Stack spacing={1.25}>
@@ -74,7 +74,7 @@ export default function ServicePlanSummaryPanel({
               <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
                 {modules.length
                   ? `${modules.length} lifecycle services are sequenced before workspace handoff. Review team match next if the owner agrees with the scope.`
-                  : 'No services are attached yet. Generate a plan from a product brief or choose services from the Product Plan first.'}
+                  : 'No services are attached yet. Generate a plan from a product brief or choose services in Planning first.'}
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <PastelChip label={`${modules.length} services`} accent={appleColors.blue} bg="#eaf3ff" />
@@ -88,7 +88,7 @@ export default function ServicePlanSummaryPanel({
         <PlatformAssistantCard
           title="AI Service Plan Advisor"
           description="Ask about the service sequence, budget or timeline risk, team proof, and what should happen before workspace handoff."
-          prompt={`Review service plan "${selectedPackage.name}" for product ${selectedPackage.productProfile?.name || 'not recorded'}. Package status is ${selectedPackage.status}. Included services: ${modules.map((module) => `${module.serviceModule.name} (${module.status})`).join('; ') || 'none'}. Matched teams: ${teamRecommendations.slice(0, 4).map((recommendation) => `${recommendation.team.name} ${Math.round(recommendation.score * 100)}%`).join('; ') || 'none'}. Proposals: ${proposals.slice(0, 4).map((proposal) => `${proposal.team.name} ${proposal.status}`).join('; ') || 'none'}. Explain whether the package sequence is coherent, what dependencies or evidence gates matter, what owner should ask teams, and what should happen before workspace creation. Do not invent services outside the catalog.`}
+          prompt={`Review service plan "${selectedPackage.name}" for product ${selectedPackage.productProfile?.name || 'not recorded'}. Plan status is ${selectedPackage.status}. Included services: ${modules.map((module) => `${module.serviceModule.name} (${module.status})`).join('; ') || 'none'}. Matched teams: ${teamRecommendations.slice(0, 4).map((recommendation) => `${recommendation.team.name} ${Math.round(recommendation.score * 100)}%`).join('; ') || 'none'}. Proposals: ${proposals.slice(0, 4).map((proposal) => `${proposal.team.name} ${proposal.status}`).join('; ') || 'none'}. Explain whether the service sequence is coherent, what dependencies or proof gates matter, what the owner should ask teams, and what should happen before workspace creation. Do not invent services outside the catalog.`}
           conversationId={`packages-service-plan-${selectedPackage.id}`}
           context={{
             pageType: 'owner-package-builder',
@@ -97,7 +97,7 @@ export default function ServicePlanSummaryPanel({
             workspaceId: workspaceOptions[0]?.id,
           }}
           accent={servicePlanStatusAccent(selectedPackage.status)}
-          cta="Advise Plan"
+          cta="Advise plan"
         />
       </Stack>
 
@@ -137,7 +137,7 @@ function ServicePlanCreateFromBriefPanel({
 }) {
   return (
     <Surface>
-      <SectionTitle title="Create From Brief" action={<AutoAwesomeOutlined sx={{ color: appleColors.blue }} />} />
+      <SectionTitle title="Create from product brief" action={<AutoAwesomeOutlined sx={{ color: appleColors.blue }} />} />
       {eligibleRequirements.length ? (
         <Box component="form" onSubmit={form.handleSubmit(onBuildPackage)}>
           <Stack spacing={1.5}>
@@ -187,7 +187,7 @@ function ServicePlanWarningsPanel({
   const hasBlockedService = modules.some((module) => module.status === 'BLOCKED');
   return (
     <Surface sx={{ background: '#fffaf1' }}>
-      <SectionTitle title="Needs Attention" action={<WarningAmberOutlined sx={{ color: appleColors.amber }} />} />
+      <SectionTitle title="Needs attention" action={<WarningAmberOutlined sx={{ color: appleColors.amber }} />} />
       <Stack spacing={1.25}>
         {hasBlockedService ? (
           <DotLabel label="A service in the sequence is blocked" color={appleColors.red} />

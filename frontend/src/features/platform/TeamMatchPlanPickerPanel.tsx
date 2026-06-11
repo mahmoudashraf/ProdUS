@@ -95,7 +95,7 @@ export default function TeamMatchPlanPickerPanel({
             )}
           </Stack>
         ) : (
-          <EmptyState label="No service plans are ready for team matching yet. Create or approve a product plan first." />
+          <EmptyState label="No service plans are ready for team matching yet. Create or approve Planning first." />
         )}
       </Surface>
     </Stack>

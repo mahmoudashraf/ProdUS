@@ -33,21 +33,21 @@ export default function WorkspaceCommandJourneyNav({
   const items: JourneyStepItem<WorkspaceCommandView>[] = [
     {
       value: 'overview',
-      label: 'Delivery Answer',
-      detail: 'Ship confidence, launch report, and the safe next decision.',
+      label: 'Workspace answer',
+      detail: 'Launch confidence, current status, and the safest next decision.',
       accent: appleColors.green,
       meta: <PastelChip label={`${milestoneCount} checkpoints`} accent={appleColors.green} bg="#e7f8ee" />,
     },
     {
       value: 'proof',
-      label: 'Fixes And Proof',
-      detail: 'Scanner-mapped blockers, milestone work, deliverables, and evidence.',
+      label: 'Fixes and proof',
+      detail: 'Priority fixes, workspace steps, saved proof, and approval checks.',
       accent: priorityFixes || proofGaps ? appleColors.amber : appleColors.cyan,
       meta: <PastelChip label={`${priorityFixes + proofGaps} gaps`} accent={priorityFixes ? appleColors.red : appleColors.amber} bg={priorityFixes ? '#fff1f1' : '#fff4dc'} />,
     },
     {
       value: 'team',
-      label: 'Team And Risks',
+      label: 'Team and risks',
       detail: 'People, support requests, delivery risks, and escalation ownership.',
       accent: riskCount || supportCount ? appleColors.amber : appleColors.purple,
       meta: <PastelChip label={`${participantCount} people`} accent={appleColors.cyan} bg="#e4f9fd" />,

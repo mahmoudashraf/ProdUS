@@ -35,10 +35,10 @@ interface OwnerFindingsEvidencePanelProps {
   formatDateTime: (value?: string) => string;
 }
 
-const confidenceDots = (level?: string) => {
-  if (level === 'HIGH') return '●●●';
-  if (level === 'MEDIUM') return '●●○';
-  return '●○○';
+const confidenceLabel = (level?: string) => {
+  if (level === 'HIGH') return 'High confidence';
+  if (level === 'MEDIUM') return 'Medium confidence';
+  return 'Needs review';
 };
 
 export default function OwnerFindingsEvidencePanel({
@@ -56,10 +56,10 @@ export default function OwnerFindingsEvidencePanel({
   return (
     <Surface>
       <SectionTitle
-        title="Evidence and Stored Proof"
+        title="Proof library"
         action={
           <Button size="small" variant="outlined" startIcon={<CloudUploadOutlined />} disabled={isExporting} onClick={onExport} sx={{ minHeight: 36 }}>
-            Export
+            Export proof
           </Button>
         }
       />
@@ -73,7 +73,7 @@ export default function OwnerFindingsEvidencePanel({
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '340px minmax(0, 1fr)' }, gap: 2 }}>
         <Stack spacing={1.25}>
-          <Typography sx={{ fontWeight: 950 }}>Sources</Typography>
+          <Typography sx={{ fontWeight: 950 }}>Connected sources</Typography>
           {sources.length ? sources.map((source) => (
             <Box key={source.id} sx={{ p: 1.25, borderRadius: 1, border: '1px solid', borderColor: source.authorizationStatus === 'AUTHORIZED' ? '#c8f2da' : appleColors.line, bgcolor: '#fff' }}>
               <Stack direction="row" spacing={1} justifyContent="space-between">
@@ -81,28 +81,28 @@ export default function OwnerFindingsEvidencePanel({
                   <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{source.displayName}</Typography>
                   <Typography variant="caption" color="text.secondary" noWrap>{source.externalReference || formatLabel(source.providerType)}</Typography>
                 </Box>
-                <StatusChip label={source.authorizationStatus} color={source.authorizationStatus === 'AUTHORIZED' ? 'success' : 'warning'} />
+                <StatusChip label={formatLabel(source.authorizationStatus)} color={source.authorizationStatus === 'AUTHORIZED' ? 'success' : 'warning'} />
               </Stack>
             </Box>
           )) : (
-            <EmptyState label="No scanner source is attached yet." />
+            <EmptyState label="No source is connected yet." />
           )}
         </Stack>
         <Stack spacing={1.25}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }}>
-            <Typography sx={{ fontWeight: 950 }}>Stored Proof</Typography>
+            <Typography sx={{ fontWeight: 950 }}>Saved proof</Typography>
             <TextField
               select
               size="small"
-              label="Filter"
+              label="Show"
               value={evidenceFilter}
               onChange={(event) => onEvidenceFilterChange(event.target.value as OwnerEvidenceFilter)}
               sx={{ minWidth: { xs: '100%', sm: 180 } }}
             >
-              <MenuItem value="ALL">All evidence</MenuItem>
-              <MenuItem value="FINDINGS">Finding-linked</MenuItem>
-              <MenuItem value="MILESTONES">Milestone-linked</MenuItem>
-              <MenuItem value="REDACTED">Redacted</MenuItem>
+              <MenuItem value="ALL">All proof</MenuItem>
+              <MenuItem value="FINDINGS">Linked to risks</MenuItem>
+              <MenuItem value="MILESTONES">Linked to milestones</MenuItem>
+              <MenuItem value="REDACTED">Sensitive hidden</MenuItem>
             </TextField>
           </Stack>
           {evidence.length ? evidence.slice(0, 10).map((item) => (
@@ -111,7 +111,7 @@ export default function OwnerFindingsEvidencePanel({
                 <Box sx={{ minWidth: 0 }}>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{item.title}</Typography>
-                    <PastelChip label={confidenceDots(item.confidenceLevel)} accent={item.confidenceLevel === 'HIGH' ? appleColors.green : item.confidenceLevel === 'MEDIUM' ? appleColors.amber : appleColors.muted} />
+                    <PastelChip label={confidenceLabel(item.confidenceLevel)} accent={item.confidenceLevel === 'HIGH' ? appleColors.green : item.confidenceLevel === 'MEDIUM' ? appleColors.amber : appleColors.muted} />
                   </Stack>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45, lineHeight: 1.45 }}>
                     {scannerEvidenceText(item.summary || item.source)} · {formatDateTime(item.createdAt)}
@@ -123,7 +123,7 @@ export default function OwnerFindingsEvidencePanel({
               </Stack>
             </Box>
           )) : (
-            <EmptyState label="No stored scanner proof matches this filter." />
+            <EmptyState label="No saved proof matches this filter." />
           )}
         </Stack>
       </Box>

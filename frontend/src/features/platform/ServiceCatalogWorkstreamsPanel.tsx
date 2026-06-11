@@ -82,7 +82,7 @@ export default function ServiceWorkstreamsPanel({
     const shortName = shortModuleName(moduleName);
     if (!isLoggedIn) return `Sign in to choose ${shortName}`;
     if (!canUseProjectCart) return `Open dashboard for ${shortName}`;
-    if (inPlan) return `${shortName} in plan`;
+    if (inPlan) return `${shortName} in Planning`;
     if (selectionMode === 'product') return productName ? `Choose for ${productName}` : `Choose for product`;
     return `Start with ${shortName}`;
   };
@@ -93,7 +93,7 @@ export default function ServiceWorkstreamsPanel({
         <SectionTitle title="Workstream Choices" />
         <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
           {selectionMode === 'product'
-            ? 'Choose the workstream that belongs in this product plan. ProdUS will open the focused product services view after the choice is saved.'
+            ? 'Choose the workstream that belongs in Planning. ProdUS will open the focused product services view after the choice is saved.'
             : 'Choose one workstream to start product setup with service context already selected. The owner can edit the scope before creating the product.'}
         </Typography>
       </Surface>
@@ -160,7 +160,7 @@ export default function ServiceWorkstreamsPanel({
                       onClick={(event) => {
                         if (!canUseProjectCart) return;
                         event.preventDefault();
-                        onChooseService(module.id, module.name, `Selected from ${category.name} service catalog as the owner starting path.`);
+                        onChooseService(module.id, module.name, `Selected from ${category.name} services as the owner starting path.`);
                       }}
                       sx={{
                         justifyContent: 'flex-start',

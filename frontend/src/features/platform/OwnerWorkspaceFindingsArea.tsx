@@ -5,6 +5,7 @@ import OwnerFindingsEvidencePanel from './OwnerFindingsEvidencePanel';
 import OwnerFindingsRiskPanel from './OwnerFindingsRiskPanel';
 import OwnerWorkspaceEvidenceArea from './OwnerWorkspaceEvidenceArea';
 import OwnerWorkspaceRiskArea from './OwnerWorkspaceRiskArea';
+import OwnerWorkspaceScannersOverview from './OwnerWorkspaceScannersOverview';
 import OwnerWorkspaceTechnicalProofArea from './OwnerWorkspaceTechnicalProofArea';
 import type { OwnerTechnicalProofProps } from './OwnerTechnicalProofJourneyPanel';
 import type { StudioAssistantContext } from './StudioAssistantCard';
@@ -46,6 +47,7 @@ interface OwnerWorkspaceFindingsAreaProps {
   scannerReadiness: OwnerTechnicalProofProps['runway']['scannerReadiness'];
   scannerCounts: ScannerCounts | undefined;
   latestCoveredTools: OwnerTechnicalProofProps['runway']['latestCoveredTools'];
+  totalScanTools: number;
   latestMappedToolFindings: OwnerTechnicalProofProps['coverage']['latestMappedToolFindings'];
   unavailableScannerTools: OwnerTechnicalProofProps['coverage']['unavailableScannerTools'];
   scannerToolCoverage: OwnerTechnicalProofProps['coverage']['tools'];
@@ -96,6 +98,7 @@ export default function OwnerWorkspaceFindingsArea({
   scannerReadiness,
   scannerCounts,
   latestCoveredTools,
+  totalScanTools,
   latestMappedToolFindings,
   unavailableScannerTools,
   scannerToolCoverage,
@@ -126,7 +129,26 @@ export default function OwnerWorkspaceFindingsArea({
   onAddService,
   onRecordFindingDecision,
 }: OwnerWorkspaceFindingsAreaProps) {
-  if (!detailOpen || !selectedProduct || workspaceTab !== 'findings') return null;
+  if (!selectedProduct || workspaceTab !== 'findings') return null;
+
+  if (!detailOpen) {
+    return (
+      <OwnerWorkspaceScannersOverview
+        scannerCounts={scannerCounts}
+        scannerReadiness={scannerReadiness}
+        latestCoveredTools={latestCoveredTools}
+        totalTools={totalScanTools}
+        latestMappedToolFindings={latestMappedToolFindings}
+        scannerToolCoverage={scannerToolCoverage}
+        scannerSummary={scannerSummaryData || undefined}
+        storedProofCount={scannerOperations.filteredScannerEvidence.length}
+        isFetching={scannerSummaryFetching}
+        onOpenRisks={() => onOpenFindingsView('risks')}
+        onOpenProofLibrary={() => onOpenFindingsView('evidence')}
+        onOpenScannerTools={() => onOpenFindingsView('technical')}
+      />
+    );
+  }
 
   if (view === 'evidence') {
     return (

@@ -50,12 +50,12 @@ export default function OwnerTechnicalProofJourneyPanel({
   const items: JourneyStepItem<TechnicalProofView>[] = [
     {
       value: 'run',
-      label: 'Run Proof',
+      label: 'Run scanners',
       detail: 'Prepare the source and queue the scanner suite.',
       accent: completedTools === totalTools ? appleColors.green : appleColors.blue,
       meta: (
         <PastelChip
-          label={`${completedTools}/${totalTools} checks`}
+          label={`${completedTools}/${totalTools}`}
           accent={completedTools === totalTools ? appleColors.green : appleColors.blue}
           bg={completedTools === totalTools ? '#e7f8ee' : '#eaf3ff'}
         />
@@ -63,7 +63,7 @@ export default function OwnerTechnicalProofJourneyPanel({
     },
     {
       value: 'result',
-      label: 'Review Result',
+      label: 'Scan result',
       detail: 'Confirm scanner coverage, source health, and recent runs.',
       accent: openFindingCount ? appleColors.amber : appleColors.green,
       meta: (
@@ -77,7 +77,7 @@ export default function OwnerTechnicalProofJourneyPanel({
     {
       value: 'fix',
       label: 'Fix Path',
-      detail: 'Convert blocker proof into services and owner decisions.',
+      detail: 'Convert blockers into services and owner decisions.',
       accent: mappedServiceCount ? appleColors.purple : appleColors.amber,
       meta: (
         <PastelChip
@@ -89,8 +89,8 @@ export default function OwnerTechnicalProofJourneyPanel({
     },
     {
       value: 'stored',
-      label: 'Stored Proof',
-      detail: 'Open, export, and filter stored artifacts.',
+      label: 'Saved proof',
+      detail: 'Open, export, and filter saved proof.',
       accent: storedProofCount ? appleColors.cyan : appleColors.muted,
       meta: (
         <PastelChip
@@ -139,16 +139,16 @@ export default function OwnerTechnicalProofJourneyPanel({
       <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
         <Stack spacing={2}>
           <Box>
-            <PastelChip label="Scanner proof workspace" accent={appleColors.green} bg="#e7f8ee" />
+            <PastelChip label="Scanner tools" accent={appleColors.green} bg="#e7f8ee" />
             <Typography variant="h3" sx={{ mt: 1 }}>
-              Choose the proof task to work on
+              Choose the scanner task to work on
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5, maxWidth: 780, lineHeight: 1.65 }}>
-              Start with the scanner run, review the latest result, convert blockers into a fix path, or open stored proof. Each task opens as its own internal proof view.
+              Start with the scanner run, review the latest result, convert blockers into a fix path, or open saved proof. Each task opens as its own internal scanner view.
             </Typography>
           </Box>
           <OwnerWorkspaceJourneyNav
-            label="Technical proof journey"
+            label="Scanner tools journey"
             value={null}
             items={items}
             maxColumns={4}
@@ -163,10 +163,10 @@ export default function OwnerTechnicalProofJourneyPanel({
     <Stack spacing={2}>
       <WorkspaceBreadcrumbs
         items={[
-          { label: 'Technical proof', onClick: onOpenHub },
+          { label: 'Scanner tools', onClick: onOpenHub },
           { label: selectedItem.label },
         ]}
-        backLabel="Proof choices"
+        backLabel="Scanner choices"
         onBack={onOpenHub}
       />
       <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>

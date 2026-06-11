@@ -54,7 +54,7 @@ export default function ProductOnboardingAiReviewContent({
       wide: true,
     },
     {
-      label: 'Project understanding',
+      label: 'Product understanding',
       value: analysis.analysis.projectDescription,
       source: fieldSource(Boolean(analysis.analysis.projectDescription)),
       accent: appleColors.purple,

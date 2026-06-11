@@ -42,7 +42,7 @@ export default function OwnerActionPlanPanel({
                   <Typography variant="caption" sx={{ display: 'block', color: group.accent, fontWeight: 900, mt: 0.5 }}>{item.action}</Typography>
                   {'proof' in item && item.proof && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.4, lineHeight: 1.45 }}>
-                      Evidence: {item.proof}
+                      Proof: {item.proof}
                     </Typography>
                   )}
                   {'service' in item && item.service && (

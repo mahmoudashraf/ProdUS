@@ -152,7 +152,7 @@ When indexed safe knowledge is used, cite the matching source titles or stable c
         <Box sx={{ mb: 1.5 }}>
           <StudioAssistantCard
             title="AI Service Selector"
-            description="Narrow the work that belongs in the product plan, using the verdict, scanner proof, current cart, and dependencies."
+            description="Narrow the work that belongs in Planning, using the verdict, scanner proof, current scope, and dependencies."
             prompt={serviceSelectorPrompt}
             conversationId={`studio-services-${product?.id || 'none'}`}
             context={{
@@ -222,7 +222,7 @@ When indexed safe knowledge is used, cite the matching source titles or stable c
           accent={appleColors.cyan}
         />
         <ServiceRouteCard
-          title="Review the product plan"
+          title="Review Planning"
           detail="See selected services, missing required work, and the approval path before a delivery workspace starts."
           cta="Open service plan"
           href={`${productHref}?tab=services&view=plan`}

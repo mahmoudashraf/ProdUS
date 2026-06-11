@@ -5,7 +5,7 @@ export type WorkspaceTab = 'overview' | 'actions' | 'findings' | 'services' | 'a
 export const workspaceTabs: { value: WorkspaceTab; label: string }[] = [
   { value: 'overview', label: 'Workspace' },
   { value: 'actions', label: 'Action Plan' },
-  { value: 'findings', label: 'Findings' },
+  { value: 'findings', label: 'Scanners' },
   { value: 'services', label: 'Services' },
   { value: 'ai', label: 'AI Opportunities' },
   { value: 'share', label: 'Share' },
@@ -13,7 +13,6 @@ export const workspaceTabs: { value: WorkspaceTab; label: string }[] = [
 
 export const workspaceDefaultViewByTab: Partial<Record<WorkspaceTab, string>> = {
   actions: 'plan',
-  findings: 'risks',
   services: 'recommend',
   ai: 'opportunities',
   share: 'create',

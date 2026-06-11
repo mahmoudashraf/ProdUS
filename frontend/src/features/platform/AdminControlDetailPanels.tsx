@@ -86,7 +86,7 @@ export function AdminServicePlanPipelinePanel({
           })}
         </Stack>
       ) : (
-        <EmptyState label="No service plans yet. Create a product brief or approve the product plan to activate delivery tracking." />
+        <EmptyState label="No service plans yet. Create a product brief or approve Planning to activate delivery tracking." />
       )}
     </Surface>
   );

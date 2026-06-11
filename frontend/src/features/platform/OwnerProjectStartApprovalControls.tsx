@@ -49,7 +49,7 @@ export default function OwnerProjectStartApprovalControls({
         onClick={onConvert}
         sx={{ minHeight: 44 }}
       >
-        {isConverting ? 'Creating...' : 'Approve product plan'}
+        {isConverting ? 'Creating...' : 'Approve planning'}
       </Button>
       {!product && <DotLabel label="Select a product before starting" color={appleColors.amber} />}
       {product && !serviceCount && <DotLabel label="Choose at least one service" color={appleColors.amber} />}

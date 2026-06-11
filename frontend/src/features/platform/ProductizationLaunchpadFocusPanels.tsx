@@ -31,7 +31,7 @@ export function LaunchpadFocusPanel({
   const items: JourneyStepItem<LaunchpadJourneyValue>[] = [
     {
       value: 'plan',
-      label: 'Review Product Plan',
+      label: 'Review Planning',
       detail: 'Approve services and talent before opening a delivery workspace.',
       accent: appleColors.purple,
       meta: <PastelChip label={`${draftServices + draftTalent} selected`} accent={appleColors.purple} bg="#f1efff" />,
@@ -96,14 +96,14 @@ export function LaunchpadAiNextActionPanel({
     <Surface>
       <SectionTitle title="AI Next Best Action" action={<AutoAwesomeOutlined sx={{ color: appleColors.purple }} />} />
       <Typography variant="h4">
-        {draftServices ? 'Review the product plan' : hasProducts ? 'Choose the product to continue' : 'Create a product profile'}
+        {draftServices ? 'Review Planning' : hasProducts ? 'Choose the product to continue' : 'Create a product profile'}
       </Typography>
       <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
         {draftServices
-          ? 'Your product plan already has services. Add matching delivery talent or start the workspace when the scope is clear.'
+          ? 'Planning already has services. Add matching delivery talent or start the workspace when the scope is clear.'
           : hasProducts
-            ? 'Open the right Workspace first, then continue to its action plan, findings, services, or share route.'
-            : 'A product profile gives the platform enough context to recommend services, teams, and workspace milestones.'}
+            ? 'Open the right Workspace first, then continue to its action plan, scanners, services, or share route.'
+            : 'A product profile gives the platform enough context to recommend services, teams, and workspace steps.'}
       </Typography>
       <Button component={NextLink} href={href} variant="contained" sx={{ mt: 2, minHeight: 44 }}>
         Continue

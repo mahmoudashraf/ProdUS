@@ -58,15 +58,15 @@ export default function OwnerDeliveryWorkspacePanel({
             </Stack>
           ))}
           <StudioAssistantCard
-            title="AI Milestone Evidence"
+            title="AI milestone proof"
             description="Check what the current milestone needs before owner approval or team handoff."
-            prompt={`Do not call tools for this answer. Review milestone and evidence readiness for ${selectedMilestone?.title || workspace.name}. Visible workspace "${workspace.name}" is ${workspace.status}. Current milestone details: title "${selectedMilestone?.title || 'workspace summary'}", status "${selectedMilestone?.status || workspace.status}", due date "${selectedMilestone?.dueDate || 'not recorded'}", description "${selectedMilestone?.description || 'not recorded'}". Explain missing acceptance evidence, scanner proof, owner review risks, and the next safe decision. Do not approve the milestone automatically.`}
+            prompt={`Do not call tools for this answer. Review milestone proof readiness for ${selectedMilestone?.title || workspace.name}. Visible workspace "${workspace.name}" is ${workspace.status}. Current milestone details: title "${selectedMilestone?.title || 'workspace summary'}", status "${selectedMilestone?.status || workspace.status}", due date "${selectedMilestone?.dueDate || 'not recorded'}", description "${selectedMilestone?.description || 'not recorded'}". Explain missing acceptance proof, scanner proof, owner review risks, and the next safe decision. Do not approve the milestone automatically.`}
             conversationId={`studio-milestone-${workspace.id}-${selectedMilestone?.id || 'summary'}`}
             context={assistantContext}
             {...assistantActions}
             accent={blockedMilestoneCount ? appleColors.red : appleColors.green}
             compact
-            cta="Check Evidence"
+            cta="Check proof"
           />
           <Button
             component={NextLink}

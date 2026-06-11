@@ -118,7 +118,7 @@ export default function OwnerProductAiOpportunityHome({
                   context?.aiOpportunityReport?.summary ||
                   product.aiCreationSummary ||
                   'These are the AI opportunities currently saved for this product.'
-                : 'No AI opportunity context has been accepted for this product yet. Refresh analysis, review the result, then accept only what should shape the product plan.'}
+                : 'No AI opportunity context has been accepted for this product yet. Refresh analysis, review the result, then accept only what should shape Planning.'}
             </Typography>
           </Stack>
           <Stack
@@ -167,14 +167,14 @@ export default function OwnerProductAiOpportunityHome({
               icon={<CheckCircleOutlineOutlined />}
               label="Services shaped"
               value={acceptedServices.length}
-              detail="Catalog-backed modules"
+              detail="Saved service ideas"
               accent={appleColors.green}
             />
             <HomeMetric
               icon={<RuleOutlined />}
-              label="Focus areas"
+              label="Checks to watch"
               value={acceptedScannerFocus.length}
-              detail="Checks AI says to watch"
+              detail="Launch checks to watch"
               accent={appleColors.amber}
             />
             <HomeMetric
@@ -333,12 +333,12 @@ export default function OwnerProductAiOpportunityHome({
                 icon={<CheckCircleOutlineOutlined />}
                 label="New services"
                 value={newServices.length}
-                detail="Suggested modules"
+                detail="Suggested services"
                 accent={appleColors.green}
               />
               <HomeMetric
                 icon={<RuleOutlined />}
-                label="New focus areas"
+                label="New checks"
                 value={newScannerFocus.length}
                 detail={`${newNextSteps.length} next steps`}
                 accent={appleColors.amber}
@@ -371,13 +371,13 @@ export default function OwnerProductAiOpportunityHome({
         >
           <ActionRouteCard
             accent={appleColors.cyan}
-            detail={`${detailItemCount} saved service, focus, and owner-step item${detailItemCount === 1 ? '' : 's'} can be reviewed without crowding this home.`}
+            detail={`${detailItemCount} saved item${detailItemCount === 1 ? '' : 's'} across services, checks, and owner steps can be reviewed without crowding this home.`}
             label="Review saved details"
             onClick={onViewDetails}
           />
           <ActionRouteCard
             accent={appleColors.purple}
-            detail="Rerun AI when the product direction, customer evidence, repo, or pitch changes."
+            detail="Rerun AI when the product direction, customer proof, repo, or pitch changes."
             label="Refresh analysis"
             onClick={onRefresh}
           />

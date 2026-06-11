@@ -14,7 +14,7 @@ export function ProductAiOpportunitiesReviewSection({
   return (
     <ProductOnboardingReviewSection
       title="AI opportunities"
-      subtitle="Review optional AI integration ideas and LoomAI implementation context."
+      subtitle="Review optional AI product ideas and the LoomAI starting context."
     >
       <Stack spacing={1}>
         <AiOpportunityDiscoveryPanel report={analysis.aiOpportunityReport} />

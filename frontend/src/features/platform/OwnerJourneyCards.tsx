@@ -98,12 +98,12 @@ export function OwnerReadinessVerdictReveal({
                     {risk.impact}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.7 }}>
-                    Evidence: {risk.evidence}
+                    Proof: {risk.evidence}
                   </Typography>
                 </Box>
               )) : (
                 <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                  No launch blockers are visible from the latest stored evidence.
+                  No launch blockers are visible from the latest stored proof.
                 </Typography>
               )}
             </Stack>
@@ -118,10 +118,10 @@ export function OwnerReadinessVerdictReveal({
               See your plan
             </Button>
             <Button variant="outlined" startIcon={<ShieldOutlined />} onClick={onViewProof} sx={{ minHeight: 44 }}>
-              View technical proof
+              Go to scanners
             </Button>
             <Typography variant="caption" color="text.secondary">
-              {completedChecks} of {totalChecks} checks complete - repo and live app evidence
+              {completedChecks} of {totalChecks} checks complete - repo and live app proof
             </Typography>
           </Stack>
         </Stack>
@@ -157,14 +157,14 @@ export function OwnerLaunchReadyCelebration({
           <Box>
             <Typography variant="h2">Ready for human launch review</Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>
-              Every launch blocker visible to ProdUS is cleared and the required evidence is in place for the selected launch decision.
+              Every launch blocker visible to ProdUS is cleared and the required proof is in place for the selected launch decision.
             </Typography>
           </Box>
         </Stack>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
           <MetricTile label="Readiness" value={`${readinessScore}%`} detail="Current launch signal" accent={appleColors.green} icon={<TrendingUpOutlined />} />
           <MetricTile label="Blockers" value={blockerCount} detail="Must-fix items open" accent={appleColors.green} icon={<RocketLaunchOutlined />} />
-          <MetricTile label="Evidence checks" value={`${completedChecks}/${totalChecks}`} detail="Completed checks" accent={appleColors.green} icon={<ShieldOutlined />} />
+          <MetricTile label="Proof checks" value={`${completedChecks}/${totalChecks}`} detail="Completed checks" accent={appleColors.green} icon={<ShieldOutlined />} />
         </Box>
         {improvementCount > 0 && (
           <Typography variant="body2" color="text.secondary">
@@ -201,7 +201,7 @@ export function OwnerControlPanel({
 }) {
   return (
     <Surface>
-      <SectionTitle title="Owner Control Panel" action={<PastelChip label={status.label} accent={status.accent} bg={`${status.accent}12`} />} />
+      <SectionTitle title="Owner controls" action={<PastelChip label={status.label} accent={status.accent} bg={`${status.accent}12`} />} />
       <Stack spacing={1.25}>
         <Typography variant="h4">{status.headline}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
@@ -216,7 +216,7 @@ export function OwnerControlPanel({
             <Typography variant="body2" sx={{ fontWeight: 850 }}>{lastScanLabel}</Typography>
           </Box>
           <Box sx={{ p: 1, borderRadius: 1, bgcolor: '#fbfdff' }}>
-            <Typography variant="caption" color="text.secondary">Evidence</Typography>
+            <Typography variant="caption" color="text.secondary">Proof</Typography>
             <Typography variant="body2" sx={{ fontWeight: 850 }}>{evidenceLabel}</Typography>
           </Box>
         </Box>

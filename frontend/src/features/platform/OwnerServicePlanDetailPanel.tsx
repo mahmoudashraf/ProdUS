@@ -54,14 +54,14 @@ export default function OwnerServicePlanDetailPanel({
           />
 
           <StudioAssistantCard
-            title="AI Package Recommendation"
-            description="Validate this service plan against product goals, dependencies, delivery evidence, and team-readiness."
-            prompt={`Evaluate the service plan "${selectedPackage.name}" for ${selectedProduct?.name || 'this product'}. Use these visible product plan facts directly: ${cartStartPromptFacts} Explain whether the package sequence is appropriate, which dependencies or proof gates matter, what a team should prove, and what the owner should decide next. Keep the answer practical for an MVP or AI-built prototype owner.`}
+            title="AI service plan review"
+            description="Validate this service plan against product goals, dependencies, proof gates, and team readiness."
+            prompt={`Evaluate the service plan "${selectedPackage.name}" for ${selectedProduct?.name || 'this product'}. Use these visible Planning facts directly: ${cartStartPromptFacts} Explain whether the service sequence is appropriate, which dependencies or proof gates matter, what a team should prove, and what the owner should decide next. Keep the answer practical for an MVP or AI-built prototype owner.`}
             conversationId={`studio-package-${selectedPackage.id}`}
             context={packageAssistantContext}
             {...assistantActions}
             accent={appleColors.purple}
-            cta="Review Package"
+            cta="Review plan"
           />
 
           <OwnerServicePlanSequencePreview packageModules={packageModules} />

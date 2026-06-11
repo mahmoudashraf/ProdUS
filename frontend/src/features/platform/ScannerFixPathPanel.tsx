@@ -11,7 +11,7 @@ import {
   appleColors,
   formatLabel,
 } from './PlatformComponents';
-import { severityAccent } from './ownerFindingPresentation';
+import { ownerReadinessAreaLabel, ownerRiskSummary, severityAccent } from './ownerFindingPresentation';
 import type { ProductDiagnosis, ProductFinding, ServiceModule } from './types';
 
 interface ScannerFixPathPanelProps {
@@ -47,9 +47,9 @@ export default function ScannerFixPathPanel({
             <AutoAwesomeOutlined />
           </Box>
           <Box>
-            <Typography sx={{ fontWeight: 950 }}>Owner fix path from scanner proof</Typography>
+            <Typography sx={{ fontWeight: 950 }}>Fix path from scan risks</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-              Converts raw findings into the services, owner decisions, and proof needed before launch.
+              Turns scan risks into the services, owner decisions, and proof needed before launch.
             </Typography>
           </Box>
         </Stack>
@@ -61,9 +61,9 @@ export default function ScannerFixPathPanel({
                 accent={(diagnosis.topBlockerCount || 0) ? appleColors.red : appleColors.green}
                 bg={(diagnosis.topBlockerCount || 0) ? '#fff1f2' : '#e7f8ee'}
               />
-              <PastelChip label={`${mappedServiceNames.length} services mapped`} accent={appleColors.purple} />
+              <PastelChip label={`${mappedServiceNames.length} services suggested`} accent={appleColors.purple} />
               <PastelChip
-                label={`${diagnosis.unmappedFindingCount || 0} unmapped`}
+                label={`${diagnosis.unmappedFindingCount || 0} need review`}
                 accent={(diagnosis.unmappedFindingCount || 0) ? appleColors.amber : appleColors.green}
                 bg={(diagnosis.unmappedFindingCount || 0) ? '#fff4dc' : '#e7f8ee'}
               />
@@ -71,7 +71,7 @@ export default function ScannerFixPathPanel({
           ) : hasCompletedScannerRun ? (
             <PastelChip label="Awaiting refresh" accent={appleColors.amber} bg="#fff4dc" />
           ) : (
-            <PastelChip label="Runs after scanner" accent={appleColors.muted} />
+            <PastelChip label="Run scanners first" accent={appleColors.muted} />
           )}
           <Button
             variant={diagnosis ? 'outlined' : 'contained'}
@@ -80,7 +80,7 @@ export default function ScannerFixPathPanel({
             onClick={onRefreshMap}
             sx={{ minHeight: 40, px: 2, whiteSpace: 'nowrap' }}
           >
-            {isRefreshing ? 'Refreshing...' : 'Refresh Map'}
+            {isRefreshing ? 'Refreshing...' : 'Refresh fix path'}
           </Button>
         </Stack>
       </Stack>
@@ -96,21 +96,21 @@ export default function ScannerFixPathPanel({
                   <Box sx={{ minWidth: 0 }}>
                     <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
                       <PastelChip label={formatLabel(finding.severity)} accent={severityAccent(finding.severity)} bg={`${severityAccent(finding.severity)}12`} />
-                      {finding.readinessArea && <PastelChip label={finding.readinessArea} accent={appleColors.cyan} bg="#e4f9fd" />}
+                      {finding.readinessArea && <PastelChip label={ownerReadinessAreaLabel(finding.readinessArea)} accent={appleColors.cyan} bg="#e4f9fd" />}
                     </Stack>
                     <Typography sx={{ mt: 0.9, fontWeight: 950 }}>{finding.title}</Typography>
                   </Box>
                   <Typography variant="caption" sx={{ fontWeight: 900, color: appleColors.muted }}>
-                    {typeof finding.mappingConfidence === 'number' ? `${Math.round(finding.mappingConfidence * 100)}%` : 'Mapped'}
+                    {typeof finding.mappingConfidence === 'number' ? `${Math.round(finding.mappingConfidence * 100)}%` : 'Linked'}
                   </Typography>
                 </Stack>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.55 }}>
-                  {finding.businessRisk || finding.description}
+                  {ownerRiskSummary(finding.businessRisk, finding.description)}
                 </Typography>
                 <Box sx={{ mt: 1, p: 1, borderRadius: 1, bgcolor: '#fbfdff', border: '1px solid', borderColor: appleColors.line }}>
                   <Typography variant="caption" color="text.secondary">Proof needed</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1.5 }}>
-                    {finding.evidenceRequired || 'Owner review note and scanner rerun evidence.'}
+                    {finding.evidenceRequired || 'Owner review note and a clean scanner rerun.'}
                   </Typography>
                 </Box>
                 {recommendedModule ? (
@@ -121,15 +121,15 @@ export default function ScannerFixPathPanel({
                       variant={inCart ? 'outlined' : 'contained'}
                       disabled={inCart || isAddingService}
                       startIcon={<AddTaskOutlined />}
-                      onClick={() => onAddService(recommendedModule, 'Fix path from scanner findings')}
+                      onClick={() => onAddService(recommendedModule, 'Fix path from scanner risks')}
                       sx={{ minHeight: 34, minWidth: 128 }}
                     >
-                      {inCart ? 'In Plan' : 'Choose Service'}
+                      {inCart ? 'In plan' : 'Choose service'}
                     </Button>
                   </Stack>
                 ) : (
                   <Alert severity="warning" sx={{ mt: 1, borderRadius: 1 }}>
-                    Needs a quick review before this scanner signal can be mapped to a ProdUS service.
+                    Needs a quick review before ProdUS can suggest the right service.
                   </Alert>
                 )}
               </Box>
@@ -139,8 +139,8 @@ export default function ScannerFixPathPanel({
       ) : (
         <Alert severity="info" sx={{ mt: 1.5, borderRadius: 1 }}>
           {hasCompletedScannerRun
-            ? 'Older scanner evidence exists without a stored readiness map. Use Refresh Map once to backfill it.'
-            : 'Run a scanner first. ProdUS will store the readiness service map automatically when the scan completes.'}
+            ? 'Older scan proof exists without a saved fix path. Use Refresh fix path once to rebuild it.'
+            : 'Run scanners first. ProdUS will save the fix path automatically when the scan completes.'}
         </Alert>
       )}
     </Box>

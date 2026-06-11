@@ -383,6 +383,7 @@ export default function OwnerProductizationWorkspace({
           },
           gap: 2.5,
           minWidth: 0,
+          pb: { xs: 12, md: 14 },
         }}
       >
         <Stack spacing={2.5} sx={{ minWidth: 0 }}>
@@ -504,6 +505,7 @@ export default function OwnerProductizationWorkspace({
             selectedWorkspace={selectedWorkspace}
             technicalProofDetailOpen={technicalProofDetailOpen}
             technicalProofView={technicalProofView}
+            totalScanTools={scanToolOptions.length}
             unavailableScannerTools={unavailableScannerTools}
             view={findingsView}
             workspaceTab={workspaceTab}

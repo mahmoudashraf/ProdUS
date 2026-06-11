@@ -48,7 +48,7 @@ export default function OwnerServicePlanSummaryCard({
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
         {[
-          { label: 'Services in plan', value: String(packageModules.length), accent: appleColors.purple },
+          { label: 'Services in Planning', value: String(packageModules.length), accent: appleColors.purple },
           { label: 'Required first', value: String(requiredCount), accent: appleColors.amber },
           { label: 'Proof gates', value: String(proofGateCount || packageModules.length), accent: appleColors.green },
         ].map(item => (

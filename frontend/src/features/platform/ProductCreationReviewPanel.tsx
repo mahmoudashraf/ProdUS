@@ -49,7 +49,7 @@ export default function ProductCreationReviewPanel({
             <PastelChip label="Final owner check" accent={appleColors.purple} />
             <Typography variant="h2">Review before ProdUS creates the workspace</Typography>
             <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-              Confirm the product context and selected service path. After this, ProdUS creates the product workspace and attaches the Product Plan.
+              Confirm the product context and selected services. After this, ProdUS creates the product workspace and keeps those choices in Planning.
             </Typography>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
               <PastelChip label={formatLabel(values.businessStage)} accent={appleColors.purple} bg="#f1efff" />
@@ -82,7 +82,7 @@ export default function ProductCreationReviewPanel({
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.05fr 0.95fr' }, gap: 2.5 }}>
         <Surface>
-          <SectionTitle title="Product Context" action={<Inventory2Outlined sx={{ color: appleColors.purple }} />} />
+          <SectionTitle title="Product profile" action={<Inventory2Outlined sx={{ color: appleColors.purple }} />} />
           <Stack spacing={1.5}>
             <ReviewField label="Name" value={values.name || 'Not set'} />
             <ReviewField label="Outcome" value={values.summary || 'Not set'} />
@@ -93,7 +93,7 @@ export default function ProductCreationReviewPanel({
 
         <Stack spacing={2.5}>
           <Surface>
-            <SectionTitle title="Helpful Links" action={<LinkOutlined sx={{ color: appleColors.cyan }} />} />
+            <SectionTitle title="Helpful links" action={<LinkOutlined sx={{ color: appleColors.cyan }} />} />
             <Stack spacing={1.5}>
               <ReviewField label="Product URL" value={values.productUrl || 'Not provided yet'} />
               <ReviewField label="Repository URL" value={values.repositoryUrl || 'Not provided yet'} />
@@ -101,7 +101,7 @@ export default function ProductCreationReviewPanel({
           </Surface>
 
           <Surface>
-            <SectionTitle title="Known Risks" action={<SecurityOutlined sx={{ color: appleColors.amber }} />} />
+            <SectionTitle title="Known rough edges" action={<SecurityOutlined sx={{ color: appleColors.amber }} />} />
             <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
               {values.riskProfile || 'No known rough edges were added yet.'}
             </Typography>
@@ -111,7 +111,7 @@ export default function ProductCreationReviewPanel({
 
       <Surface>
         <SectionTitle
-          title="Selected Service Path"
+          title="Selected services"
           action={<PastelChip label={`${services.length}`} accent={services.length ? appleColors.green : appleColors.amber} bg={services.length ? '#e7f8ee' : '#fff4dc'} />}
         />
         {services.length ? (
@@ -122,7 +122,7 @@ export default function ProductCreationReviewPanel({
                   <Box sx={{ minWidth: 0 }}>
                     <Typography sx={{ fontWeight: 950 }}>{item.serviceModule.name}</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
-                      {item.notes || item.serviceModule.ownerOutcome || item.serviceModule.description || 'Selected for the Product Plan.'}
+                      {item.notes || item.serviceModule.ownerOutcome || item.serviceModule.description || 'Selected in Planning.'}
                     </Typography>
                   </Box>
                   <Button
@@ -141,7 +141,7 @@ export default function ProductCreationReviewPanel({
           </Stack>
         ) : (
           <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
-            No service path is selected. You can still create the product workspace and choose services later.
+            No services are selected yet. You can still create the product workspace and choose services later.
           </Typography>
         )}
         <Button variant="outlined" startIcon={<PlaylistAddCheckOutlined />} onClick={onChangeServices} sx={{ minHeight: 40, mt: 1.5 }}>

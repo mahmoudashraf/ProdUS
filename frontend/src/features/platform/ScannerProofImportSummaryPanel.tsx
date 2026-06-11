@@ -49,7 +49,7 @@ export default function ScannerProofImportSummaryPanel({
             />
           </Stack>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-            {importRun.importedCount} findings imported / {formatLabel(importRun.importMethod)}
+            {importRun.importedCount} risks imported / {formatLabel(importRun.importMethod)}
           </Typography>
           {importRun.externalReference && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>

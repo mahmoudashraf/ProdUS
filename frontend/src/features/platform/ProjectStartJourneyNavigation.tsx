@@ -27,11 +27,11 @@ export function ProjectStartJourneyNavigation({
     return (
       <WorkspaceBreadcrumbs
         items={[
-          { label: 'Product Plan', onClick: onOpenHub },
+          { label: 'Planning', onClick: onOpenHub },
           { label: productName },
           { label: currentDetailLabel },
         ]}
-        backLabel="Product plan"
+        backLabel="Planning"
         onBack={onOpenHub}
       />
     );
@@ -39,7 +39,7 @@ export function ProjectStartJourneyNavigation({
 
   return (
     <OwnerWorkspaceJourneyNav
-      label="Product plan"
+      label="Planning"
       value={null}
       items={items}
       onChange={onOpenDetail}

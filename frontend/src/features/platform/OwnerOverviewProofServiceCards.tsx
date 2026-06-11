@@ -24,7 +24,7 @@ export function OwnerOverviewEvidenceChecksCard({
   return (
     <Surface>
       <SectionTitle
-        title="Evidence Checks"
+        title="Proof checks"
         action={<PastelChip label={`${latestCompletedTools}/${totalScanTools} completed`} accent={latestCompletedTools === totalScanTools ? appleColors.green : appleColors.amber} bg={latestCompletedTools === totalScanTools ? '#e7f8ee' : '#fff4dc'} />}
       />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
@@ -83,7 +83,7 @@ export function OwnerOverviewTopServiceCard({
           </Button>
         </Stack>
       ) : (
-        <EmptyState label="Run or map scanner evidence to generate a service recommendation." />
+        <EmptyState label="Run or map scan proof to generate a service recommendation." />
       )}
     </Surface>
   );

@@ -28,17 +28,17 @@ export default function OwnerScannerProofOperationsPanel(props: OwnerScannerProo
   return (
     <Box id="scanner-operations" sx={{ scrollMarginTop: 96 }}>
       <SectionTitle
-        title="Proof Operations"
+        title="Scanner setup and runs"
         action={<PastelChip label="Owner workflow" accent={appleColors.cyan} bg="#e4f9fd" />}
       />
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25, lineHeight: 1.6 }}>
-        Use this area to prepare a trusted source, run or schedule proof, and attach evidence the team already has. Tool details stay available, but the decision path stays centered on launch proof.
+        Use this area to connect the product source, run scanner checks, attach proof the team already has, and keep proof fresh after product changes.
       </Typography>
 
       <ScannerProofOperationAccordion
-        title="Prepare proof source"
+        title="Connect product source"
         eyebrow="1"
-        detail="Connect the repository, runtime, CI export, or external scanner source that is authorized for this product."
+        detail="Connect the repository, live URL, CI export, or scanner result that belongs to this product."
         accent={appleColors.cyan}
         defaultExpanded
       >
@@ -46,27 +46,27 @@ export default function OwnerScannerProofOperationsPanel(props: OwnerScannerProo
       </ScannerProofOperationAccordion>
 
       <ScannerProofOperationAccordion
-        title="Run launch proof"
+        title="Run scanner checks"
         eyebrow="2"
-        detail="Queue the governed proof checks for the chosen source, or run the full repository, dependency, container, and runtime suite."
+        detail="Start the right checks for this product, or run the full repository, dependency, container, and live app suite."
         accent={appleColors.blue}
       >
         <ScannerProofRunPanel {...props} />
       </ScannerProofOperationAccordion>
 
       <ScannerProofOperationAccordion
-        title="Attach proof already collected"
+        title="Attach existing proof"
         eyebrow="3"
-        detail="Normalize CI scanner output or import external security results without making the owner read raw artifacts first."
+        detail="Paste CI scanner output or import external security results so ProdUS can turn them into owner-readable risks."
         accent={appleColors.purple}
       >
         <ScannerProofAttachPanel {...props} />
       </ScannerProofOperationAccordion>
 
       <ScannerProofOperationAccordion
-        title="Automate proof refresh"
+        title="Keep proof fresh"
         eyebrow="4"
-        detail="Set a refresh cadence or generate a CI template so the latest proof stays current after each product change."
+        detail="Set a refresh schedule or generate a CI template so scans stay current after product changes."
         accent={appleColors.amber}
       >
         <ScannerProofAutomationPanel {...props} />

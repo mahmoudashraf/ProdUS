@@ -131,7 +131,7 @@ export default function ProductOnboardingAnalysisActionPanel({
               ? 'Ready to create the product'
               : blockedValidationCount
                 ? 'Resolve required fields before creating'
-                : 'Review the highlighted evidence before creating'}
+                : 'Review the highlighted proof before creating'}
           </Typography>
           <Typography
             variant="caption"
@@ -163,11 +163,11 @@ export default function ProductOnboardingAnalysisActionPanel({
             <DotLabel label={`${notUsedDocumentCount} not used`} color={appleColors.red} />
           )}
           {documentUsageMissing && (
-            <DotLabel label="Document evidence missing" color={appleColors.red} />
+            <DotLabel label="Document proof missing" color={appleColors.red} />
           )}
           <DotLabel label="No document indexing" color={appleColors.green} />
           <DotLabel
-            label={`${selectedServiceCount} service modules selected`}
+            label={`${selectedServiceCount} services selected`}
             color={selectedServiceCount ? appleColors.green : appleColors.amber}
           />
           <DotLabel
@@ -177,8 +177,8 @@ export default function ProductOnboardingAnalysisActionPanel({
                 : analysis.aiOpportunityReport || analysis.loomaiIntegrationOverview
                   ? 'AI opportunities failed'
                   : fullAnalysisMode
-                    ? 'Full analysis + AI'
-                    : 'AI integration only'
+                    ? 'Full product analysis'
+                    : 'AI opportunities only'
             }
             color={
               liveAiOpportunityResult
@@ -218,8 +218,8 @@ export default function ProductOnboardingAnalysisActionPanel({
         {documentProofGap && (
           <Alert severity={documentProofRequired ? 'warning' : 'info'} sx={{ borderRadius: 1 }}>
             {documentProofRequired
-              ? 'LoomAI did not prove it opened every AI-shared document. Re-run analysis after document access is available, or unshare the file from AI before creating this project.'
-              : 'LoomAI did not return formal proof for every AI-shared document. Creation is still allowed; ProdUS will keep the file attached privately and store this evidence gap for follow-up.'}
+              ? 'LoomAI did not prove it opened every AI-shared document. Re-run analysis after document access is available, or unshare the file from AI before creating this product.'
+              : 'LoomAI did not return formal proof for every AI-shared document. Creation is still allowed; ProdUS will keep the file attached privately and store this proof gap for follow-up.'}
           </Alert>
         )}
         <Button
@@ -232,7 +232,7 @@ export default function ProductOnboardingAnalysisActionPanel({
         >
           {isAnalyzing
             ? 'Analyzing...'
-            : `Re-run ${fullAnalysisMode ? 'Full' : 'AI Integration'} Analysis`}
+            : `Re-run ${fullAnalysisMode ? 'full' : 'AI opportunities'} analysis`}
         </Button>
         <Button
           variant="contained"
@@ -246,7 +246,7 @@ export default function ProductOnboardingAnalysisActionPanel({
             ? 'Creating product...'
             : canCreate
               ? 'Create product'
-              : 'Resolve Validation First'}
+              : 'Resolve required checks first'}
         </Button>
       </Stack>
     </Box>

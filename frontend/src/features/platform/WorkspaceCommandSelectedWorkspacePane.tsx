@@ -26,9 +26,9 @@ interface WorkspaceCommandSelectedWorkspacePaneProps {
 }
 
 const workspaceViewLabels: Record<WorkspaceCommandView, string> = {
-  overview: 'Workspace Home',
-  proof: 'Fixes And Proof',
-  team: 'Team And Risks',
+  overview: 'Workspace',
+  proof: 'Fixes and proof',
+  team: 'Team and risks',
   handoff: 'Handoff',
 };
 
@@ -50,7 +50,7 @@ export default function WorkspaceCommandSelectedWorkspacePane({
             { label: 'Workspace home', onClick: onOpenHub },
             { label: workspaceViewLabels[view] },
           ]}
-          backLabel="Workspace home"
+          backLabel="Back to workspace"
           onBack={onOpenHub}
         />
 

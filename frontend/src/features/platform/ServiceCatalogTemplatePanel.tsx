@@ -36,7 +36,7 @@ export default function PackageTemplatesPanel({
   const actionLabel = (templateApplied: boolean) => {
     if (!isLoggedIn) return 'Sign in to use template';
     if (!canUseProjectCart) return 'Open dashboard';
-    if (templateApplied) return 'Template in plan';
+    if (templateApplied) return 'Template in Planning';
     if (selectionMode === 'product') return productName ? `Choose for ${productName}` : 'Choose for product';
     return 'Start product setup';
   };
@@ -49,7 +49,7 @@ export default function PackageTemplatesPanel({
       />
       <Typography color="text.secondary" sx={{ lineHeight: 1.65, mb: 2 }}>
         {selectionMode === 'product'
-          ? 'Choose a bundled plan for the active product. ProdUS will take you back to the product plan after selection.'
+          ? 'Choose a bundled plan for the active product. ProdUS will take you back to Planning after selection.'
           : 'Choose a bundled plan first. ProdUS will carry it into product setup so the owner can add context before creating the product.'}
       </Typography>
       {packageTemplates.length ? (

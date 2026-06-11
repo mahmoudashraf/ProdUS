@@ -64,7 +64,7 @@ export default function ScannerProofRecentRunsPanel({
               .map(
                 tool => `${tool.toolName}: ${formatLabel(tool.status)} / ${tool.normalizedCount}`
               )
-              .join(' / ') || 'No tool runs'}
+              .join(' / ') || 'No check results'}
           </Typography>
           {run.failureSummary && (
             <Typography
@@ -95,7 +95,7 @@ export default function ScannerProofRecentRunsPanel({
                 disabled={!!activeScanRun || isRescanning}
                 onClick={() => onRescanRun(run.id)}
               >
-                Rescan
+                Run again
               </Button>
             )}
           </Stack>

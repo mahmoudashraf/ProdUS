@@ -202,7 +202,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
         },
         {
           id: 'product-findings',
-          title: 'Findings',
+          title: 'Scanners',
           type: 'item',
           url: productWorkspaceRoute(productId, 'findings'),
           icon: IconAlertTriangle,

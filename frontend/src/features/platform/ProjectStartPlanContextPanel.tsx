@@ -138,7 +138,7 @@ export default function ProjectStartPlanContextPanel({
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
-              <PastelChip label="Selected product plan" accent={appleColors.purple} />
+              <PastelChip label="Selected product" accent={appleColors.purple} />
               <PastelChip label={`Current: ${currentDetailLabel}`} accent={appleColors.blue} bg="#eaf3ff" />
               <PastelChip label={statusLabel} accent={statusAccent} bg={`${statusAccent}12`} />
             </Stack>
@@ -146,7 +146,7 @@ export default function ProjectStartPlanContextPanel({
               {displayName}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.6, lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              {product?.summary || 'This plan collects the services, people, and handoff decisions needed before delivery starts.'}
+              {product?.summary || 'Planning collects the services, people, and handoff decisions needed before delivery starts.'}
             </Typography>
             {product && !hasPlaceholderProduct && (
               <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
@@ -168,7 +168,7 @@ export default function ProjectStartPlanContextPanel({
           </Stack>
 
           <Box
-            aria-label="Product plan internal pages"
+            aria-label="Planning internal pages"
             component="nav"
             sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'auto minmax(0, 1fr)' }, gap: 0.75, alignItems: 'center' }}
           >

@@ -89,7 +89,7 @@ export default function OwnerServicePlanSequencePreview({
               {remainingCount} more services are included in the full delivery sequence.
             </Typography>
             <Button component={NextLink} href={PROJECT_START_PLAN_HREF} size="small" variant="text" endIcon={<OpenInNewOutlined />} sx={{ mt: 0.5, minHeight: 32, px: 0 }}>
-              Open full Product Plan
+              Open Planning
             </Button>
           </Box>
         )}

@@ -25,7 +25,7 @@ export default function OwnerProductAiOpportunityResult({
 }: OwnerProductAiOpportunityResultProps) {
   if (!analysis) {
     return (
-      <EmptyState label="Refresh analysis to review product-specific ideas, LoomAI fit, service modules, scanner focus, and next owner steps." />
+      <EmptyState label="Refresh analysis to review product-specific ideas, LoomAI fit, services, launch checks, and next owner steps." />
     );
   }
 

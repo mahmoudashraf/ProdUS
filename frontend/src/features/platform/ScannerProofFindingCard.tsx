@@ -3,7 +3,7 @@
 import { AddTaskOutlined, InfoOutlined } from '@mui/icons-material';
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { PastelChip, appleColors, formatLabel } from './PlatformComponents';
-import { findingStatusAccent, severityAccent } from './ownerFindingPresentation';
+import { findingStatusAccent, ownerReadinessAreaLabel, ownerRiskSummary, severityAccent } from './ownerFindingPresentation';
 import type { NormalizedFinding, ServiceModule } from './types';
 
 type FindingDecisionStatus = NormalizedFinding['status'];
@@ -42,6 +42,11 @@ export default function ScannerProofFindingCard({
   const recommendedModule = finding.recommendedModule;
   const recommendedInCart = !!recommendedModule && cartServiceIds.has(recommendedModule.id);
   const activeAccent = findingStatusAccent(finding.status);
+  const sourceLabel = [
+    finding.sourceTool ? `Found by ${finding.sourceTool}` : null,
+    finding.sourceRuleId || null,
+    finding.affectedComponent || null,
+  ].filter(Boolean).join(' · ') || 'Source proof available';
 
   return (
     <Box
@@ -73,7 +78,7 @@ export default function ScannerProofFindingCard({
             />
             {finding.readinessArea && (
               <PastelChip
-                label={finding.readinessArea}
+                label={ownerReadinessAreaLabel(finding.readinessArea)}
                 accent={appleColors.green}
                 bg="#e7f8ee"
               />
@@ -90,16 +95,14 @@ export default function ScannerProofFindingCard({
             color="text.secondary"
             sx={{ mt: 0.5, lineHeight: 1.6, overflowWrap: 'anywhere' }}
           >
-            {finding.businessRisk || finding.description}
+            {ownerRiskSummary(finding.businessRisk, finding.description)}
           </Typography>
           <Typography
             variant="caption"
             color="text.secondary"
             sx={{ display: 'block', mt: 0.75, overflowWrap: 'anywhere' }}
           >
-            {finding.sourceTool}
-            {finding.sourceRuleId ? ` / ${finding.sourceRuleId}` : ''}
-            {finding.affectedComponent ? ` / ${finding.affectedComponent}` : ''}
+            {sourceLabel}
           </Typography>
         </Box>
         <Button
@@ -141,7 +144,7 @@ export default function ScannerProofFindingCard({
               >
                 {recommendedModule.ownerOutcome ||
                   recommendedModule.description ||
-                  'Choose this service for tracked remediation in the Product Plan.'}
+                  'Choose this service for tracked remediation in Planning.'}
               </Typography>
             </Box>
             <Button
@@ -149,10 +152,10 @@ export default function ScannerProofFindingCard({
               variant={recommendedInCart ? 'outlined' : 'contained'}
               disabled={recommendedInCart || isAddingService}
               startIcon={<AddTaskOutlined />}
-              onClick={() => onAddService(recommendedModule, 'Scanner findings')}
+              onClick={() => onAddService(recommendedModule, 'Scanner risks')}
               sx={{ minHeight: 34, minWidth: 142 }}
             >
-              {recommendedInCart ? 'In Plan' : 'Choose Service'}
+              {recommendedInCart ? 'In plan' : 'Choose service'}
             </Button>
           </Stack>
         </Box>
@@ -173,12 +176,12 @@ export default function ScannerProofFindingCard({
               label="Decision note"
               value={reason}
               onChange={event => onFindingReasonChange(finding.id, event.target.value)}
-              placeholder="Evidence reviewed, fix merged, compensating control..."
+              placeholder="Proof reviewed, fix merged, workaround accepted..."
             />
             <TextField
               size="small"
               type="date"
-              label="Risk review"
+              label="Review by"
               value={reviewDue}
               onChange={event => onFindingReviewDueChange(finding.id, event.target.value)}
               InputLabelProps={{ shrink: true }}
@@ -191,7 +194,7 @@ export default function ScannerProofFindingCard({
               disabled={!canResolve || isUpdatingStatus}
               onClick={() => onRecordDecision(finding, 'RESOLVED')}
             >
-              Mark Resolved
+              Mark resolved
             </Button>
             <Button
               size="small"
@@ -199,7 +202,7 @@ export default function ScannerProofFindingCard({
               disabled={!canAcceptRisk || isUpdatingStatus}
               onClick={() => onRecordDecision(finding, 'ACCEPTED_RISK')}
             >
-              Accept Risk
+              Accept risk
             </Button>
             <Button
               size="small"
@@ -207,7 +210,7 @@ export default function ScannerProofFindingCard({
               disabled={!canResolve || isUpdatingStatus}
               onClick={() => onRecordDecision(finding, 'FALSE_POSITIVE')}
             >
-              False Positive
+              False positive
             </Button>
           </Stack>
         </>

@@ -20,16 +20,16 @@ export const projectStartReadinessScore = (cart?: ProductizationCart) => {
 };
 
 export const projectStartPlanTitle = (title?: string | null, productName?: string | null) => {
-  const fallback = productName ? `${productName} Product Plan` : 'Product Plan';
+  const fallback = productName ? `${productName} Planning` : 'Planning';
   const source = title?.trim() || fallback;
   return source
-    .replace(/\bproductization start plan\b/gi, 'Product Plan')
-    .replace(/\bproject start plan\b/gi, 'Product Plan')
-    .replace(/\bstart plan\b/gi, 'Product Plan')
-    .replace(/\bproductization product plan\b/gi, 'Product Plan')
-    .replace(/\bproductization plan\b/gi, 'Product Plan')
-    .replace(/\bproduct product plan\b/gi, 'Product Plan')
-    .replace(/\bproduct plan\b/gi, 'Product Plan');
+    .replace(/\bproductization start plan\b/gi, 'Planning')
+    .replace(/\bproject start plan\b/gi, 'Planning')
+    .replace(/\bstart plan\b/gi, 'Planning')
+    .replace(/\bproductization product plan\b/gi, 'Planning')
+    .replace(/\bproductization plan\b/gi, 'Planning')
+    .replace(/\bproduct product plan\b/gi, 'Planning')
+    .replace(/\bproduct plan\b/gi, 'Planning');
 };
 
 export const compactProjectTechStack = (techStack?: string | null) => {
@@ -68,11 +68,11 @@ export const buildProjectStartPlanJourneyItems = ({
   {
     value: 'handoff',
     label: 'Approve',
-    detail: 'Approve the product plan when scope is ready.',
+    detail: 'Approve Planning when scope is ready.',
     accent: canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.amber,
     meta: <PastelChip label={canStartWorkspace ? 'Can start' : blockers ? 'Blocked' : 'Needs scope'} accent={canStartWorkspace ? appleColors.green : blockers ? appleColors.red : appleColors.amber} bg={canStartWorkspace ? '#e7f8ee' : blockers ? '#fff1f2' : '#fff4dc'} />,
   },
 ];
 
 export const projectStartPlanDetailLabel = (items: ProjectStartJourneyItem[], value: ProjectStartJourneyItem['value']) =>
-  items.find((item) => item.value === value)?.label || 'Product plan';
+  items.find((item) => item.value === value)?.label || 'Planning';

@@ -58,7 +58,7 @@ export default function WorkspaceEvidenceAttachmentPanel({
       {canAttachEvidence && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: selectedFile ? 'minmax(220px, 1fr) 220px auto' : 'minmax(220px, 1fr)' }, gap: 1 }}>
           <FileUpload
-            label="Attach evidence"
+            label="Attach proof"
             accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md,.csv,.json,.zip,.docx,.xlsx,.pptx"
             maxSize={10}
             selectedFile={selectedFile}
@@ -72,7 +72,7 @@ export default function WorkspaceEvidenceAttachmentPanel({
             <>
               <TextField
                 size="small"
-                label="Evidence label"
+                label="Proof label"
                 value={labelValue}
                 onChange={(event) => onLabelChange(event.target.value)}
               />

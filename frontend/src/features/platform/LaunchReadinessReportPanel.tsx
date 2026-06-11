@@ -51,7 +51,7 @@ export default function LaunchReadinessReportPanel({
   isLoading = false,
   isGenerating = false,
   onGenerate,
-  title = 'Launch Readiness Report',
+  title = 'Launch snapshot',
   subtitle = 'Generate a practical report for a pilot, paid beta, customer demo, or public launch decision.',
 }: {
   report?: LaunchReadinessReport | null;
@@ -73,7 +73,7 @@ export default function LaunchReadinessReportPanel({
             onClick={onGenerate}
             sx={{ minHeight: 40, whiteSpace: 'nowrap' }}
           >
-            {isGenerating ? 'Generating...' : report ? 'Regenerate' : 'Generate Report'}
+            {isGenerating ? 'Generating...' : report ? 'Regenerate' : 'Generate snapshot'}
           </Button>
         }
       />
@@ -86,7 +86,7 @@ export default function LaunchReadinessReportPanel({
         <Stack spacing={1.5}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '130px 1fr' }, gap: 1.5, alignItems: 'center' }}>
             <Box sx={{ display: 'grid', placeItems: 'center' }}>
-              <ProgressRing value={report.shipConfidenceScore} size={104} color={scoreColor(report.shipConfidenceScore)} label="ship" />
+              <ProgressRing value={report.shipConfidenceScore} size={104} color={scoreColor(report.shipConfidenceScore)} label="ready" />
             </Box>
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -105,7 +105,7 @@ export default function LaunchReadinessReportPanel({
             <MetricTile label="Ready signals" value={report.readyItems.length} detail="Supported by current context" accent={appleColors.green} icon={<CheckCircleOutlineOutlined />} />
             <MetricTile label="Risk items" value={report.riskItems.length} detail="Review before widening usage" accent={report.riskItems.length ? appleColors.red : appleColors.green} icon={<ErrorOutlineOutlined />} />
             <MetricTile label="Selected services" value={report.selectedServices.length} detail="Delivery work in scope" accent={appleColors.purple} icon={<RocketLaunchOutlined />} />
-            <MetricTile label="Proof gaps" value={report.proofMissing.length} detail="Evidence still needed" accent={report.proofMissing.length ? appleColors.amber : appleColors.green} icon={<FactCheckOutlined />} />
+            <MetricTile label="Proof gaps" value={report.proofMissing.length} detail="Proof still needed" accent={report.proofMissing.length ? appleColors.amber : appleColors.green} icon={<FactCheckOutlined />} />
           </Box>
 
           <Box sx={{ p: 1.35, borderRadius: 1, border: '1px solid', borderColor: '#dbeafe', bgcolor: '#fbfdff' }}>
@@ -136,7 +136,7 @@ export default function LaunchReadinessReportPanel({
           )}
         </Stack>
       ) : (
-        <EmptyState label="No report generated yet. Generate one after product analysis, scanner mapping, or workspace evidence changes." />
+        <EmptyState label="No snapshot generated yet. Generate one after product analysis, scan mapping, or workspace proof changes." />
       )}
     </Surface>
   );

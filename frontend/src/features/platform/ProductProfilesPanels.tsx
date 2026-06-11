@@ -145,7 +145,7 @@ export function ProductPortfolioNextActionPanel({
       <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f8f7ff)' }}>
         <SectionTitle title="First Product" action={<AddOutlined sx={{ color: appleColors.purple }} />} />
         <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-          Create the product profile first. Services, teams, findings, and share links become product-specific after that choice.
+          Create the product profile first. Services, teams, scanners, and share links become product-specific after that choice.
         </Typography>
         <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ mt: 2, minHeight: 44 }}>
           Create product
@@ -164,7 +164,7 @@ export function ProductPortfolioNextActionPanel({
       </Typography>
       <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
         {score < 65
-          ? 'This product needs the next owner decision first. Open Workspace to see the launch verdict, action plan, findings, services, and share route.'
+          ? 'This product needs the next owner decision first. Open Workspace to see the launch verdict, action plan, scanners, services, and share route.'
           : 'Open Workspace to continue from the selected product. Use this page only when you want to switch products.'}
       </Typography>
       <Stack spacing={1.25} sx={{ mt: 2 }}>

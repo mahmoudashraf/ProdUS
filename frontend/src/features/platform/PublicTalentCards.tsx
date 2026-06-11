@@ -123,7 +123,7 @@ export function PublicTeamCard({
             }}
             sx={{ minHeight: 42 }}
           >
-            {!isLoggedIn ? 'Sign in to attach team' : canUseProjectCart ? (inCart ? 'In Product Plan' : 'Attach team to plan') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign in to attach team' : canUseProjectCart ? (inCart ? 'In Planning' : 'Attach team to Planning') : 'Open Dashboard'}
           </Button>
         </Stack>
       </Stack>
@@ -215,7 +215,7 @@ export function ExpertCard({
             }}
             sx={{ minHeight: 42 }}
           >
-            {!isLoggedIn ? 'Sign in to attach expert' : canUseProjectCart ? (inCart ? 'In Product Plan' : 'Attach expert to plan') : 'Open Dashboard'}
+            {!isLoggedIn ? 'Sign in to attach expert' : canUseProjectCart ? (inCart ? 'In Planning' : 'Attach expert to Planning') : 'Open Dashboard'}
           </Button>
         </Stack>
       </Stack>

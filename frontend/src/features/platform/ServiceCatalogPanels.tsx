@@ -109,7 +109,7 @@ export function ServiceCatalogInternalHeader({
     ai: 'AI Integration Options',
   };
   const detailByView: Record<ServiceCatalogView, string> = {
-    templates: 'Choose a bundled path, then continue into product setup or the active product plan.',
+    templates: 'Choose a bundled path, then continue into product setup or the active Planning.',
     services: 'Choose one workstream at a time, with the selected product context preserved when present.',
     ai: 'Review the AI support points that make service recommendations explainable and human-confirmed.',
   };
@@ -167,13 +167,13 @@ export function ServiceCatalogProductContextPanel({
           <Box>
             <Typography sx={{ fontWeight: 950 }}>Product context is active</Typography>
             <Typography variant="body2" color="text.secondary">
-              Service choices will stay attached to {productName}'s Product Plan.
+              Service choices will stay attached to {productName}'s Planning.
             </Typography>
           </Box>
         </Stack>
         {startPlanHref && (
           <Button component={NextLink} href={startPlanHref} variant="outlined" startIcon={<PlaylistAddCheckOutlined />} sx={{ minHeight: 40 }}>
-            Open Product Plan
+            Open Planning
           </Button>
         )}
       </Stack>

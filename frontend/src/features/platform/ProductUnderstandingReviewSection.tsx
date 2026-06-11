@@ -20,7 +20,7 @@ export function ProductUnderstandingReviewSection({
   return (
     <ProductOnboardingReviewSection
       title="Product understanding"
-      subtitle="Open this when the product name, users, outcome, or technical context need a closer owner check."
+      subtitle="Open this when the product name, users, outcome, or build context need a closer owner check."
     >
       <Stack spacing={1}>
         <Box

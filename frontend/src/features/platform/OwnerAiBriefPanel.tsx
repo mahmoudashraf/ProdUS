@@ -76,7 +76,7 @@ export default function OwnerAiBriefPanel({
         <Box>
           <Typography variant="h4">Product clarity</Typography>
           <Typography color="success.main" sx={{ fontWeight: 800 }}>
-            Evidence-led next steps
+            Proof-led next steps
           </Typography>
         </Box>
       </Stack>
@@ -84,7 +84,7 @@ export default function OwnerAiBriefPanel({
         {recommendationRationale ||
           (hasAskedAi
             ? 'AI did not return a usable owner brief. Check the status label and try again after confirming LoomAI is available.'
-            : 'Ask AI for a short product-owner brief based on the current product, launch status, services, scanner evidence, and next decision.')}
+            : 'Ask AI for a short product-owner brief based on the current product, launch status, services, scan proof, and next decision.')}
       </Typography>
       {visibleSuggestions.length ? (
         <Stack spacing={1} sx={{ mt: 2 }}>

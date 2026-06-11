@@ -105,11 +105,11 @@ export default function OwnerServicePriorityList({
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 0.9 }}>
                   {mapped && <DotLabel label="Proof-linked" color={appleColors.cyan} />}
                   {recommended && <DotLabel label="Recommended" color={appleColors.purple} />}
-                  {inPlan && <DotLabel label="In product plan" color={appleColors.green} />}
+                  {inPlan && <DotLabel label="In Planning" color={appleColors.green} />}
                   {!mapped && !recommended && !inPlan && <DotLabel label="Available" color={appleColors.muted} />}
                 </Stack>
               </Box>
-              <Tooltip title={inPlan ? 'Remove from product plan' : 'Add to product plan'}>
+              <Tooltip title={inPlan ? 'Remove from Planning' : 'Add to Planning'}>
                 <span>
                   <IconButton
                     size="small"

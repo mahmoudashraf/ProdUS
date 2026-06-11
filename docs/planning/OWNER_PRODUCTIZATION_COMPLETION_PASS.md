@@ -498,6 +498,7 @@ Status:
 - Local checks passed:
   - `git diff --check`
   - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
   - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
 - Focused local verification passed with screenshots:
   - `tmp/live-verification/2026-06-08/144-command-center-hub-local.png`
@@ -1482,6 +1483,480 @@ Deferred live verification:
 - Confirm side menu shows `Home` and `Workspace`.
 - Confirm the selected-product `Workspace` item remains visible from Dashboard/Home when a product is globally selected.
 - Confirm product workspace selected-product bar shows context only, with no switch-product button.
+
+### Local-Verified: Scanners Journey Redefinition
+
+Problem:
+
+- The previous `Findings` page mixed owner risks, stored proof, and technical proof without a clear founder journey.
+- Product Home now says `Go to scanners`, but the destination still felt like a generic findings area.
+- Scanner-related information was scattered across `Owner risks`, `Stored proof`, and `Technical proof`.
+
+Solution:
+
+- Renamed the selected product area from `Findings` to `Scanners`.
+- Changed `?tab=findings` to land on a Scanners hub instead of opening a subpage immediately.
+- Added a `Latest scan result` overview that answers:
+  - scan readiness,
+  - scanner coverage,
+  - open risks,
+  - linked proof.
+- Preserved existing information by mapping it into clearer journeys:
+  - existing owner risk groups -> `Risks to fix`,
+  - existing evidence/sources/repo readout -> `Proof library`,
+  - existing technical proof/run/result/fix/stored controls -> `Run scanners` / `Scanner tools`.
+- Renamed the nested technical proof choices:
+  - `Run Proof` -> `Run scanners`,
+  - `Review Result` -> `Scan result`,
+  - `Stored Proof` -> `Saved proof`.
+- Cleaned up the internal scanner/proof tools so Proof Library, Run scanners, source connection, CI upload, scan scheduling, recent runs, and repo readout use startup-owner language first:
+  - `Evidence and Stored Proof` -> `Proof library`,
+  - `Proof Operations` -> `Scanner setup and runs`,
+  - `Run governed scan` -> `Run scanner check`,
+  - `Evidence source` -> `Source to check`,
+  - `Artifact payload` -> `Proof file content`,
+  - `Repo Readout` -> `Product source readout`.
+- Added a small presentation layer so backend scanner labels stay precise in data but display as owner language:
+  - `Unmapped scanner signal` -> `Needs service review`,
+  - generic scanner classification copy -> a short owner-review explanation,
+  - `AI Fix Path Summary` -> `Fix path assistant`.
+- Kept the underlying route key as `findings` for compatibility; this is a UI language and journey restructure, not a backend contract change.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/OwnerWorkspaceScannersOverview.tsx`
+  - `frontend/src/features/platform/OwnerWorkspaceFindingsArea.tsx`
+  - `frontend/src/features/platform/OwnerTechnicalProofJourneyPanel.tsx`
+  - `frontend/src/features/platform/OwnerFindingsEvidencePanel.tsx`
+  - `frontend/src/features/platform/OwnerScannerEvidenceCenterPanel.tsx`
+  - `frontend/src/features/platform/OwnerScannerProofOperationsPanel.tsx`
+  - `frontend/src/features/platform/RepoReadoutPanel.tsx`
+  - `frontend/src/features/platform/ScannerProofRunway.tsx`
+  - `frontend/src/features/platform/ScannerProofRunPanel.tsx`
+  - `frontend/src/features/platform/ScannerProofAttachPanel.tsx`
+  - `frontend/src/features/platform/ScannerProofAutomationPanel.tsx`
+  - `frontend/src/features/platform/ScannerCoverageGrid.tsx`
+  - `frontend/src/features/platform/ScannerFixPathPanel.tsx`
+  - `frontend/src/features/platform/ScannerProofFindingCard.tsx`
+  - `frontend/src/features/platform/ownerFindingPresentation.ts`
+  - `frontend/src/features/platform/ownerWorkspaceJourneyConfig.tsx`
+  - `frontend/src/features/platform/ownerWorkspaceModel.ts`
+  - `frontend/src/layout/MainLayout/MenuList/index.tsx`
+  - supporting owner-facing copy files.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+- Focused local screenshot verification passed with `tmp/live-verification/2026-06-11/950-scanners-page-redefinition-review.js`.
+- Latest screenshots kept:
+  - `tmp/live-verification/2026-06-11/950-scanners-overview-local-scanners-language-v6.png`
+  - `tmp/live-verification/2026-06-11/951-scanners-risks-to-fix-local-scanners-language-v6.png`
+  - `tmp/live-verification/2026-06-11/952-scanners-run-tools-local-scanners-language-v6.png`
+  - `tmp/live-verification/2026-06-11/953-scanners-scan-result-local-scanners-language-v6.png`
+  - `tmp/live-verification/2026-06-11/954-scanners-fix-path-local-scanners-language-v6.png`
+  - `tmp/live-verification/2026-06-11/955-scanners-proof-library-local-scanners-language-v6.png`
+  - `tmp/live-verification/2026-06-11/956-mobile-scanners-overview-local-scanners-language-v6.png`
+- Follow-up adjustment:
+  - Removed the generic journey cards from the Scanners hub after screenshot review showed duplicate `Risks to fix`, `Proof library`, and `Run scanners` choices.
+  - Kept the lower Scanners overview cards as the single hub decision surface.
+  - Shortened the Run scanners completion badge from `10/10 checks` to `10/10` after screenshot review showed truncation.
+  - Expanded the screenshot verifier to include nested `Scan result` and `Fix Path` pages.
+  - Added bottom safe-area padding to the product workspace so lower content can scroll clear of the fixed LoomAI companion dock.
+  - Remaining visual note: the LoomAI-owned fixed dock still appears over the middle of Playwright full-page screenshots because fixed elements are captured at the viewport position. Review dock behavior separately if it feels too dominant in real use.
+
+Deferred live verification:
+
+- Verify after the next combined deploy.
+- Confirm Product Home `Go to scanners` lands on the Scanners hub.
+- Confirm main nav shows `Scanners` for the selected product.
+- Confirm `Risks to fix`, `Proof library`, and `Run scanners` all preserve the previous risk/evidence/technical proof content.
+
+### Local-Verified: Workspace Proof Language Redefinition
+
+Problem:
+
+- The workspace `Fixes And Proof` view still mixed owner language with internal wording such as `Ship Confidence`, `AI Fix Path Explainer`, `CI scanner evidence`, `Normalize Workspace Evidence`, `milestones`, `deliverables`, and `evidence`.
+- The route was functionally useful, but the page could still feel like a scanner/admin workspace instead of a founder decision flow.
+
+Solution:
+
+- Kept the same routes, data, and backend contracts, but changed visible language to match the owner journey:
+  - `Ship Confidence` -> `Launch confidence`,
+  - `Workspace Launch Report` -> `Workspace launch snapshot`,
+  - `AI Fix Path Explainer` -> `Workspace fix path assistant`,
+  - `Scanner Fix Path` -> `Workspace fix path`,
+  - `mapped` -> `linked to services`,
+  - `unmapped` -> `need review`,
+  - `Workspace Evidence` -> `Workspace proof`,
+  - `CI scanner evidence` -> `Upload scan proof`,
+  - `Normalize Workspace Evidence` -> `Save scan proof`,
+  - `Milestones` -> `Workspace steps`,
+  - `Deliverables` -> `Outputs`,
+  - `Acceptance And Evidence Review` -> `Acceptance checklist`.
+- Updated workspace navigation labels so the internal route reads as a workspace room:
+  - `Delivery Answer` -> `Workspace answer`,
+  - `Fixes And Proof` -> `Fixes and proof`,
+  - `Team And Risks` -> `Team and risks`,
+  - back action -> `Back to workspace`.
+- Adjusted the LoomAI prompt copy for the workspace fix-path assistant to ask for launch risks, missing proof, service recommendations, and the safe next owner decision without mutating state.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/WorkspaceProofReadinessPanel.tsx`
+  - `frontend/src/features/platform/WorkspaceScannerFixPathPanel.tsx`
+  - `frontend/src/features/platform/WorkspaceProofEvidencePanel.tsx`
+  - `frontend/src/features/platform/WorkspaceProofMilestonesPanel.tsx`
+  - `frontend/src/features/platform/WorkspaceAcceptanceReviewPanel.tsx`
+  - `frontend/src/features/platform/WorkspaceEvidenceAttachmentPanel.tsx`
+  - `frontend/src/features/platform/WorkspaceOverviewDeliveryAnswerPanel.tsx`
+  - `frontend/src/features/platform/WorkspaceCommandJourneyNav.tsx`
+  - `frontend/src/features/platform/WorkspaceCommandSelectedWorkspacePane.tsx`
+  - shared panels `ShipConfidencePanel.tsx` and `LaunchReadinessReportPanel.tsx`.
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+
+Deferred screenshot/live verification:
+
+- Capture local screenshots for `/workspaces` overview and selected workspace `Fixes and proof` view in the next combined screenshot batch.
+- Confirm the shared `Launch confidence` and `Launch snapshot` wording still works on the product overview progress view.
+- Confirm no workspace proof information was hidden: launch confidence, snapshot, fix path, workspace steps, outputs, saved proof files, scan proof upload, and acceptance checklist should remain reachable.
+
+### Local-Verified: Service Plan Language Polish
+
+Problem:
+
+- The service-plan surfaces were already split into internal pages, but some labels still exposed internal package/library language:
+  - `Generated plan library`,
+  - `Open a Generated Plan`,
+  - `Package Templates`,
+  - `AI Package Recommendation`,
+  - `Plan Summary`, `Milestones`, `Team Match`,
+  - `Owner Decision`,
+  - `evidence gates`.
+
+Solution:
+
+- Kept API/type names unchanged, and tuned only visible owner copy:
+  - `Generated plan library` -> `Service plans`,
+  - `Open a Generated Plan` -> `Open a service plan`,
+  - `Package Templates` -> `Plan templates`,
+  - `AI Package Recommendation` -> `AI service plan review`,
+  - `Plan Summary` -> `Plan summary`,
+  - `Milestones` -> `Steps`,
+  - `Team Match` -> `Team fit`,
+  - `Owner Decision` -> `Plan decision`,
+  - `Create From Brief` -> `Create from product brief`,
+  - `Needs Attention` -> `Needs attention`,
+  - `evidence gates` -> `proof gates`.
+- Also aligned the service plan detail empty states and page labels:
+  - `Selected Services` -> `Selected services`,
+  - `Milestone Path` -> `Plan steps`,
+  - `Matched Teams` -> `Team fit`,
+  - `No service modules...` -> `No services...`.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/ServicePlanLibraryPanel.tsx`
+  - `frontend/src/features/platform/ServicePlanBuilderPanels.tsx`
+  - `frontend/src/features/platform/ServicePlanBuilderServicesPanel.tsx`
+  - `frontend/src/features/platform/ServicePlanBuilderSummaryPanel.tsx`
+  - `frontend/src/features/platform/OwnerServicePlanDetailPanel.tsx`
+  - `frontend/src/features/platform/ProjectStartPackageTemplatesPanel.tsx`
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+
+Deferred screenshot/live verification:
+
+- Capture `/packages` and selected service-plan screenshots in the next combined screenshot batch.
+- Confirm `Planning` still routes to the Product Plan page and service-plan language stays distinct from Product Plan language.
+
+### Local-Verified: Product Onboarding Language Cleanup
+
+Problem:
+
+- First-run onboarding still had a few visible `Project` references even though the product language direction is now `Product`, `Planning`, and `Workspace`.
+
+Solution:
+
+- Updated owner-visible onboarding copy:
+  - `Project understanding` -> `Product understanding`,
+  - `Project documents` -> `Product documents`,
+  - repository placeholder `github.com/you/project` -> `github.com/you/product`,
+  - document-access warning now says `creating this product` instead of `creating this project`.
+- Left internal identifiers and API fields unchanged where they are compatibility names, not visible UX copy.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/ProductOnboardingAiReviewContent.tsx`
+  - `frontend/src/features/platform/ProductIntakeFrontDoor.tsx`
+  - `frontend/src/features/platform/ProductOnboardingAnalysisActionPanel.tsx`
+  - `frontend/src/features/platform/ProductOnboardingAnalysisContextEditor.tsx`
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+
+Deferred screenshot/live verification:
+
+- Capture product onboarding/front-door screenshots in the next combined screenshot batch.
+
+### Local-Verified: Risk Review And Proof Wording
+
+Problem:
+
+- Risk review and product overview surfaces still mixed the newer `Proof` language with older `Evidence` and `Finding` wording.
+- This made the Scanners journey feel less coherent after the page was renamed from Findings to Scanners.
+
+Solution:
+
+- Updated visible owner copy:
+  - `Finding review` -> `Risk review`,
+  - `Linked Evidence` -> `Linked proof`,
+  - `Open Evidence` -> `Open proof`,
+  - `Evidence-backed` -> `Proof-backed`,
+  - `Evidence checks` -> `Proof checks`,
+  - `Evidence:` labels -> `Proof:`,
+  - `AI Finding Review` -> `AI risk review`,
+  - `Ask AI About This Diagnosis` -> `Diagnosis assistant`,
+  - `Owner Control Panel` -> `Owner controls`,
+  - `AI Milestone Evidence` -> `AI milestone proof`.
+- Updated the risk-review LoomAI prompt to talk about scan risks, required proof, linked proof count, and workspace steps instead of scanner findings and evidence.
+- Changed the launch verdict CTA from `View technical proof` to `Go to scanners`.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/OwnerFindingReviewDrawer.tsx`
+  - `frontend/src/features/platform/OwnerFindingReviewDecisionPanels.tsx`
+  - `frontend/src/features/platform/OwnerFindingReviewSummaryPanels.tsx`
+  - `frontend/src/features/platform/OwnerFindingReviewDrawerHost.tsx`
+  - `frontend/src/features/platform/OwnerProductDiagnosisSummaryView.tsx`
+  - `frontend/src/features/platform/OwnerOverviewLaunchDecisionCard.tsx`
+  - `frontend/src/features/platform/OwnerOverviewRiskActionCards.tsx`
+  - `frontend/src/features/platform/OwnerOverviewProofServiceCards.tsx`
+  - `frontend/src/features/platform/OwnerActionPlanPanel.tsx`
+  - `frontend/src/features/platform/OwnerAiBriefPanel.tsx`
+  - `frontend/src/features/platform/OwnerJourneyCards.tsx`
+  - `frontend/src/features/platform/OwnerWorkspaceProductHero.tsx`
+  - `frontend/src/features/platform/OwnerDeliveryWorkspacePanel.tsx`
+  - `frontend/src/features/platform/WorkspaceHandoffAssistantPanel.tsx`
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+
+Deferred screenshot/live verification:
+
+- Capture Product Workspace overview, Action Plan, Scanners risk drawer, and diagnosis summary screenshots in the next combined screenshot batch.
+
+### Local-Verified: AI Opportunities Language Polish
+
+Problem:
+
+- The AI Opportunities home was improved structurally, but some labels still felt scanner/admin-oriented:
+  - `scanner focus`,
+  - `technical checks`,
+  - `implementation path`,
+  - `implementation steps`.
+
+Solution:
+
+- Kept stored field names unchanged and updated only owner-visible copy:
+  - `scanner focus` -> `checks to watch`,
+  - `technical checks` -> `launch checks`,
+  - `implementation path` -> `starting path`,
+  - `implementation steps` -> `starting steps`,
+  - `AI integration ideas` -> `AI product ideas`.
+- Updated the AI Opportunities home/detail metrics and accepted-result success message to use `checks` / `checks to watch`.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/OwnerProductAiOpportunityHome.tsx`
+  - `frontend/src/features/platform/OwnerProductAiOpportunityDetailsView.tsx`
+  - `frontend/src/features/platform/OwnerProductAiOpportunityLoomAiFit.tsx`
+  - `frontend/src/features/platform/OwnerProductAiOpportunitySelectionSections.tsx`
+  - `frontend/src/features/platform/OwnerProductAiOpportunityRefreshView.tsx`
+  - `frontend/src/features/platform/OwnerProductAiOpportunityResult.tsx`
+  - `frontend/src/features/platform/ProductAiOpportunitiesReviewSection.tsx`
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+
+Deferred screenshot/live verification:
+
+- Capture AI Opportunities home, details, refresh setup, and review-result screens in the next combined screenshot batch.
+
+### Local-Verified: Onboarding And AI Result Owner Language
+
+Problem:
+
+- Product creation and AI review screens still had leftover internal wording:
+  - `catalog-backed service modules`,
+  - `implementation path`,
+  - `implementation steps`,
+  - `scanner focus`,
+  - `document evidence`,
+  - `Product Plan`,
+  - `AI integration path`.
+- That language made creation/review feel like an admin configuration flow instead of a startup owner confirming a product and choosing what to save.
+
+Solution:
+
+- Updated visible owner copy while leaving field names/data contracts unchanged:
+  - `catalog-backed service modules` -> `matching services`,
+  - `implementation path` -> `starting path`,
+  - `implementation steps` -> `starting steps`,
+  - `scanner focus` -> `launch checks to watch`,
+  - `document evidence` -> `file/document proof`,
+  - `Product Plan` entry points in the creation flow -> `Planning`,
+  - `AI integration path` -> `AI opportunities path` / `LoomAI starting path`.
+- Changed product creation review labels to calmer owner language:
+  - `Product Context` -> `Product profile`,
+  - `Known Risks` -> `Known rough edges`,
+  - `Selected Service Path` -> `Selected services`.
+- Clarified service suggestion proof by adding a plain label: `Why this service was suggested`.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/ProductOnboardingServiceReviewPanels.tsx`
+  - `frontend/src/features/platform/ProductProofNextStepsReviewSection.tsx`
+  - `frontend/src/features/platform/ProductOnboardingDocumentUsageList.tsx`
+  - `frontend/src/features/platform/ProductOnboardingAnalysisActionPanel.tsx`
+  - `frontend/src/features/platform/ProductUnderstandingReviewSection.tsx`
+  - `frontend/src/features/platform/ProductOnboardingJourneyShell.tsx`
+  - `frontend/src/features/platform/ProductCreationReviewPanel.tsx`
+  - `frontend/src/features/platform/AiOpportunityDiscoveryPanel.tsx`
+  - `frontend/src/features/platform/OwnerProductAiOpportunityHome.tsx`
+  - `frontend/src/features/platform/OwnerProductAiOpportunityResult.tsx`
+  - `frontend/src/features/platform/OwnerProductAiOpportunityResultSummary.tsx`
+  - `frontend/src/features/platform/OwnerProductAiOpportunitySelectionSections.tsx`
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+
+Deferred screenshot/live verification:
+
+- Capture product creation setup/review, AI understanding review, and AI Opportunities result screens in the next combined screenshot batch.
+
+### Local-Verified: Planning Naming Alignment
+
+Problem:
+
+- The main navigation now uses `Planning`, but several owner-facing surfaces still said `Product Plan`.
+- This made the same concept appear under multiple names across Home, Planning, service-plan start, and workspace/service bridges.
+
+Solution:
+
+- Updated visible owner copy so the shared concept is consistently `Planning`.
+- Kept internal routes, component names, and compatibility title normalization unchanged.
+- Updated related owner language:
+  - `Approve Product Plan` -> `Approve Planning`,
+  - `Review Product Plan` -> `Review Planning`,
+  - `Use Product Plan` -> `Use Planning`,
+  - `Open full Product Plan` -> `Open Planning`,
+  - `Current product plan` -> `Current planning`,
+  - `product plan` references in Home/Planning/support copy -> `Planning`,
+  - `service plan modules and milestones` -> `service plan steps`.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/ProjectStartPlanPage.tsx`
+  - `frontend/src/features/platform/ProjectStartPlanHeroCard.tsx`
+  - `frontend/src/features/platform/ProjectStartPlanMetricStrip.tsx`
+  - `frontend/src/features/platform/ProjectStartPlanContextPanel.tsx`
+  - `frontend/src/features/platform/ProjectStartJourneyNavigation.tsx`
+  - `frontend/src/features/platform/ProjectStartLifecycleServicesPanel.tsx`
+  - `frontend/src/features/platform/ProjectStartReadinessPanel.tsx`
+  - `frontend/src/features/platform/ProjectStartApprovalPanel.tsx`
+  - `frontend/src/features/platform/projectStartPlanModel.tsx`
+  - `frontend/src/features/platform/OwnerProjectStartPanel.tsx`
+  - `frontend/src/features/platform/OwnerProjectStartSummaryCard.tsx`
+  - `frontend/src/features/platform/OwnerProjectStartApprovalControls.tsx`
+  - `frontend/src/features/platform/OwnerProjectStartServicesPanel.tsx`
+  - `frontend/src/features/platform/OwnerServicePlanEmptyBridge.tsx`
+  - `frontend/src/features/platform/OwnerServicePlanSequencePreview.tsx`
+  - `frontend/src/features/platform/ServicePlanStartPage.tsx`
+  - `frontend/src/features/platform/ProductizationLaunchpad.tsx`
+  - `frontend/src/features/platform/ProductizationLaunchpadSummaryPanels.tsx`
+  - `frontend/src/features/platform/ProductizationLaunchpadFocusPanels.tsx`
+  - `frontend/src/features/platform/ProductizationLaunchpadDetailPanels.tsx`
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run build`
+  - `npm --prefix frontend run type-check`
+- Note: one parallel `type-check` attempt failed while `next build` was rewriting `.next/types`; rerunning type-check alone passed.
+
+Deferred screenshot/live verification:
+
+- Capture Home, Planning hub, Planning readiness/services/approve internal pages, and Service Plan start bridge in the next combined screenshot batch.
+
+### Local-Verified: Planning Naming Across Service And Talent Entry Points
+
+Problem:
+
+- After the owner navigation moved to `Planning`, public/service/team entry points still used `Product Plan` or `product plan`.
+- Some labels also said `in plan`, `attach to plan`, or `catalog-backed service module`, which felt less clear for a startup/product owner.
+
+Solution:
+
+- Updated public and service entry points to consistently route the owner toward `Planning`.
+- Reworded rough mechanical phrases after the naming pass:
+  - `In Product Plan` -> `In Planning`,
+  - `Attach team/expert to plan` -> `Attach team/expert to Planning`,
+  - `Template in plan` -> `Template in Planning`,
+  - `selected Planning` -> `current planning scope`,
+  - `the Planning` / `a Planning` -> `Planning` or `planning scope`,
+  - `catalog-backed service module` -> `matching service`.
+- Kept compatibility title normalization in `projectStartPlanModel.tsx` so old saved titles containing `product plan` still display as `Planning`.
+
+Status:
+
+- Implemented locally across service, catalog, team, public profile, package, onboarding, and workspace helper surfaces, including:
+  - `frontend/src/features/platform/CatalogPage.tsx`
+  - `frontend/src/features/platform/ServiceCatalogPanels.tsx`
+  - `frontend/src/features/platform/ServiceCatalogTemplatePanel.tsx`
+  - `frontend/src/features/platform/ServiceCatalogWorkstreamsPanel.tsx`
+  - `frontend/src/features/platform/ServiceCatalogAiOptionsPanel.tsx`
+  - `frontend/src/features/platform/PublicTeamProfilePanel.tsx`
+  - `frontend/src/features/platform/PublicExpertProfilePanel.tsx`
+  - `frontend/src/features/platform/PublicTalentCards.tsx`
+  - `frontend/src/features/platform/PublicTalentPanels.tsx`
+  - `frontend/src/features/platform/PublicTalentDirectoryPage.tsx`
+  - `frontend/src/features/platform/PublicProfileConversionPanel.tsx`
+  - `frontend/src/features/platform/OwnerTeamMatchPanel.tsx`
+  - `frontend/src/features/platform/OwnerTeamMatchDecisionPanels.tsx`
+  - `frontend/src/features/platform/OwnerTeamRecommendationsPanel.tsx`
+  - `frontend/src/features/platform/OwnerServiceDecisionBridgePanel.tsx`
+  - `frontend/src/features/platform/OwnerServiceBriefIntakePanel.tsx`
+  - `frontend/src/features/platform/OwnerServicePlanSummaryCard.tsx`
+  - `frontend/src/features/platform/PackagesPage.tsx`
+  - `frontend/src/features/platform/TeamMatchPlanPickerPanel.tsx`
+  - `frontend/src/features/platform/ProductServicePathReviewSection.tsx`
+  - `frontend/src/features/platform/productOnboardingAnalysisResultModel.ts`
+  - `frontend/src/features/platform/useProjectStartPlanActions.ts`
+  - `frontend/src/features/platform/useOwnerWorkspaceProductActions.ts`
+  - `frontend/src/features/platform/ownerWorkspaceAssistantActions.ts`
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+
+Deferred screenshot/live verification:
+
+- Capture Services catalog template/workstream/AI paths, public team/expert cards, team profile, expert profile, Team Match, Service Plans, and Packages after the next grouped local screenshot pass.
 
 ## Implementation Loop
 

@@ -106,7 +106,7 @@ export function useOwnerWorkspaceInteractionHandlers({
     if (selectedProduct?.id && cart?.status === 'DRAFT' && cart.productProfile?.id !== selectedProduct.id && !updateCart.isPending) {
       updateCart.mutate({
         productProfileId: selectedProduct.id,
-        title: `${selectedProduct.name} Product Plan`,
+        title: `${selectedProduct.name} Planning`,
         businessGoal: cart.businessGoal || `Move ${selectedProduct.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
       });
     }
@@ -128,7 +128,7 @@ export function useOwnerWorkspaceInteractionHandlers({
       status,
       notes: status === 'COMPARED'
         ? 'Owner compared this team against service plan needs, evidence, and commercial readiness.'
-        : 'Owner shortlisted this team for product plan review.',
+        : 'Owner shortlisted this team for Planning review.',
     });
   };
 
@@ -140,7 +140,7 @@ export function useOwnerWorkspaceInteractionHandlers({
     if (cart?.productProfile?.id !== selectedProduct.id) {
       updateCart.mutate({
         productProfileId: selectedProduct.id,
-        title: `${selectedProduct.name} Product Plan`,
+        title: `${selectedProduct.name} Planning`,
         businessGoal,
       });
     }
@@ -198,7 +198,7 @@ export function useOwnerWorkspaceInteractionHandlers({
     if (product) {
       updateCart.mutate({
         productProfileId: product.id,
-        title: `${product.name} Product Plan`,
+        title: `${product.name} Planning`,
         businessGoal: cart?.businessGoal || `Move ${product.name} toward production-ready delivery with selected lifecycle services and verified talent.`,
       });
     }

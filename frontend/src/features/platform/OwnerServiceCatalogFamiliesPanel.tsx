@@ -178,7 +178,7 @@ export default function OwnerServiceCatalogFamiliesPanel({
                               {module.timelineRange || module.priceRange || module.ownerOutcome || 'Lifecycle module'}
                             </Typography>
                           </Box>
-                          <Tooltip title={inPlan ? 'Remove from product plan' : 'Add to product plan'}>
+                          <Tooltip title={inPlan ? 'Remove from Planning' : 'Add to Planning'}>
                             <span>
                               <IconButton
                                 size="small"

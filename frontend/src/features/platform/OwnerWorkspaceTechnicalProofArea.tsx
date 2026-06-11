@@ -206,8 +206,8 @@ export default function OwnerWorkspaceTechnicalProofArea({
           onAddService,
         },
         assistant: {
-          title: 'AI Fix Path Summary',
-          description: 'Summarize scanner findings, explain the highest-risk fixes, and turn proof into practical product actions.',
+          title: 'Fix path assistant',
+          description: 'Summarize scan risks, explain the highest-risk fixes, and turn proof into practical product actions.',
           prompt: `Do not call write actions for this answer. Summarize scanner ship-readiness for ${selectedProduct.name}. Current scanner score is ${scannerReadiness}/100 with ${scannerCounts?.critical || 0} critical, ${scannerCounts?.high || 0} high, and ${scannerCounts?.open || 0} open findings. Top visible findings: ${scannerOpenFindings.slice(0, 4).map((finding) => `${finding.title} (${finding.severity}, ${finding.status})`).join('; ') || 'none'}. ${scannerReadinessPromptFacts} Prioritize critical and high findings, explain the business risk in plain language, identify missing proof, and recommend lifecycle services or milestone actions. Use the provided context and visible facts directly. Also search indexed ProdUS safe knowledge in scanner-tool-description for the scanner tools behind these findings, especially ZAP, Semgrep, Checkov, Trivy, Gitleaks, OSV, Syft, and Grype, plus service-module/service-dependency records for recommended fixes. Do not answer only from page facts when matching scanner-tool or service-module records are available. Cite matching source titles or stable codes in the response and return source basis metadata. Avoid raw artifact details.`,
           conversationId: `studio-scanner-${selectedProduct.id}-${selectedFinding?.id || 'summary'}`,
           context: {
@@ -217,7 +217,7 @@ export default function OwnerWorkspaceTechnicalProofArea({
           },
           ...assistantActionProps,
           accent: scannerOpenFindings.length ? appleColors.amber : appleColors.green,
-          cta: 'Summarize Fixes',
+          cta: 'Summarize fixes',
         },
         operations: {
           selectedProduct,

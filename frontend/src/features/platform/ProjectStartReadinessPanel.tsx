@@ -46,7 +46,7 @@ export default function ProjectStartReadinessPanel({
         <Box>
           <Typography variant="h4">Before You Start</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.6 }}>
-            Use this as the owner gate: the plan can start only when the product and required services are clear.
+            Use this as the owner gate: delivery can start only when the product and required services are clear.
           </Typography>
         </Box>
         <StatusChip label={statusLabel} color={canStartWorkspace ? 'success' : blockers ? 'error' : 'warning'} />
@@ -67,7 +67,7 @@ export default function ProjectStartReadinessPanel({
       ) : (
         <Alert severity={serviceCount ? 'success' : 'info'} sx={{ borderRadius: 1, mb: 1.5 }}>
           {serviceCount
-            ? 'The selected services fit together for this product plan. You can start the workspace when the product and service list are ready.'
+            ? 'The selected services fit together for this product. You can start the workspace when the product and service list are ready.'
             : 'Add services first. ProdUS will show service gaps here before you start the workspace.'}
         </Alert>
       )}

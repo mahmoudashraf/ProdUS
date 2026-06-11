@@ -41,7 +41,7 @@ export default function ScannerProofAutomationPanel({
       }}>
         <Stack spacing={1.25}>
           <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-            <Typography sx={{ fontWeight: 900 }}>Schedule evidence refresh</Typography>
+            <Typography sx={{ fontWeight: 900 }}>Schedule scan refresh</Typography>
             <EventRepeatOutlined sx={{ color: appleColors.cyan }} />
           </Stack>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1.4fr' }, gap: 1 }}>
@@ -64,7 +64,7 @@ export default function ScannerProofAutomationPanel({
           </Box>
           <TextField
             size="small"
-            label="Schedule reason"
+            label="Why refresh?"
             value={scheduleForm.reason}
             onChange={(event) => setScheduleForm((current) => ({ ...current, reason: event.target.value }))}
           />
@@ -76,7 +76,7 @@ export default function ScannerProofAutomationPanel({
             disabled={!!scheduleBlockedReason || isCreatingSchedule}
             sx={{ minHeight: 42 }}
           >
-            Create Schedule
+            Create schedule
           </Button>
         </Stack>
       </Box>
@@ -85,7 +85,7 @@ export default function ScannerProofAutomationPanel({
 
       <Box>
         <Stack spacing={1.25}>
-          <Typography sx={{ fontWeight: 900 }}>Customer-owned CI template</Typography>
+          <Typography sx={{ fontWeight: 900 }}>CI scan template</Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <TextField
               select
@@ -112,7 +112,7 @@ export default function ScannerProofAutomationPanel({
             <Box sx={{ border: 1, borderColor: appleColors.line, bgcolor: '#fbfdff', borderRadius: 1, overflow: 'hidden' }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: appleColors.line }}>
                 <Typography variant="caption" color="text.secondary">
-                  Uses `{ciTemplate.tokenEnvironmentVariable}` and uploads to ProdUS.
+                  Uses `{ciTemplate.tokenEnvironmentVariable}` and sends scan proof to ProdUS.
                 </Typography>
                 <Tooltip title="Copy template">
                   <IconButton size="small" onClick={() => navigator.clipboard?.writeText(ciTemplate.template)}>

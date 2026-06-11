@@ -123,28 +123,28 @@ export function useOwnerWorkspaceProductActions({
   const addServiceToCart = useMutation({
     mutationFn: (payload: CartServicePayload) => postJson<ProductizationCart, CartServicePayload>('/productization-cart/services', payload),
     onSuccess: async () => {
-      setCartNotice('Service added to the product plan.');
+      setCartNotice('Service added to Planning.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const removeServiceFromCart = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
     onSuccess: async () => {
-      setCartNotice('Service removed from the product plan.');
+      setCartNotice('Service removed from Planning.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const addTalentToCart = useMutation({
     mutationFn: (payload: CartTalentPayload) => postJson<ProductizationCart, CartTalentPayload>('/productization-cart/talent', payload),
     onSuccess: async () => {
-      setCartNotice('Delivery talent added to the product plan.');
+      setCartNotice('Delivery talent added to Planning.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
   const removeTalentFromCart = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/talent/${itemId}`),
     onSuccess: async () => {
-      setCartNotice('Delivery talent removed from the product plan.');
+      setCartNotice('Delivery talent removed from Planning.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });

@@ -41,7 +41,7 @@ export default function CatalogPage() {
   const startPlanHref = canUseStartPlan ? PROJECT_START_PLAN_HREF : isLoggedIn ? '/dashboard' : '/login';
   const startPlanServicesHref = canUseStartPlan ? `${PROJECT_START_PLAN_HREF}?step=services` : startPlanHref;
   const startPlanReadinessHref = canUseStartPlan ? `${PROJECT_START_PLAN_HREF}?step=readiness` : startPlanHref;
-  const startPlanActionLabel = canUseStartPlan ? 'Product Plan' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
+  const startPlanActionLabel = canUseStartPlan ? 'Planning' : isLoggedIn ? 'Open dashboard' : 'Sign in to start';
   const aiProductSetupHref = isLoggedIn ? '/products/new?step=setup&from=service-catalog&ai=1' : '/login';
 
   const categories = useQuery({
@@ -82,7 +82,7 @@ export default function CatalogPage() {
           '/productization-cart/current',
           {
             productProfileId: selectedProductId,
-            title: `${productName} Product Plan`,
+            title: `${productName} Planning`,
             businessGoal: selectedProduct.data?.summary || `Plan ${payload.moduleName} for ${productName}.`,
           }
         );
@@ -174,12 +174,12 @@ export default function CatalogPage() {
       />
       {chooseService.isSuccess && (
         <Alert severity="success" sx={{ borderRadius: 1 }}>
-          Service chosen. Opening the next internal view for product setup or the active product plan.
+          Service chosen. Opening the next internal view for product setup or the active Planning.
         </Alert>
       )}
       {useTemplate.isSuccess && (
         <Alert severity="success" sx={{ borderRadius: 1 }}>
-          Template chosen. Opening the next internal view for product setup or the active product plan.
+          Template chosen. Opening the next internal view for product setup or the active Planning.
         </Alert>
       )}
 

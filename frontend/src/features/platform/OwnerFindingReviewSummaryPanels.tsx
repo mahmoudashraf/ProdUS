@@ -27,7 +27,7 @@ export function OwnerFindingSummaryPanel({
       <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
         <PastelChip label={formatLabel(finding.severity)} accent={severityAccent(finding.severity)} bg={`${severityAccent(finding.severity)}12`} />
         <PastelChip label={formatLabel(finding.status)} accent={findingStatusAccent(finding.status)} bg={`${findingStatusAccent(finding.status)}12`} />
-        <PastelChip label={compactConfidenceBasis ? confidenceBasis : 'Evidence-backed'} accent={appleColors.cyan} bg="#e4f9fd" />
+        <PastelChip label={compactConfidenceBasis ? confidenceBasis : 'Proof-backed'} accent={appleColors.cyan} bg="#e4f9fd" />
       </Stack>
       <Typography sx={{ mt: 1, fontWeight: 950, lineHeight: 1.35, ...wrapFindingText }}>
         {finding.title}
@@ -36,7 +36,7 @@ export function OwnerFindingSummaryPanel({
         {finding.businessRisk || finding.description || ownerImpactForCategory(ownerCategory)}
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.8, lineHeight: 1.45, ...wrapFindingText }}>
-        Evidence: {ownerProofLine({ sourceTool: finding.sourceTool, sourceRuleId: finding.sourceRuleId, category: ownerCategory })}
+        Proof: {ownerProofLine({ sourceTool: finding.sourceTool, sourceRuleId: finding.sourceRuleId, category: ownerCategory })}
       </Typography>
       {!compactConfidenceBasis && confidenceBasis && (
         <Typography variant="caption" sx={{ display: 'block', mt: 0.5, lineHeight: 1.45, color: appleColors.cyan, fontWeight: 800, ...wrapFindingText }}>
@@ -133,17 +133,17 @@ export function OwnerFindingRecommendedServicePanel({
         {finding.recommendedModule.name}
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45, lineHeight: 1.45, ...wrapFindingText }}>
-        {finding.recommendedModule.ownerOutcome || finding.recommendedModule.description || 'Choose this service for tracked remediation in the Product Plan.'}
+        {finding.recommendedModule.ownerOutcome || finding.recommendedModule.description || 'Choose this service for tracked remediation in Planning.'}
       </Typography>
       <Button
         size="small"
         variant={recommendedInCart ? 'outlined' : 'contained'}
         disabled={recommendedInCart || isAddingService}
         startIcon={<AddTaskOutlined />}
-        onClick={() => finding.recommendedModule && onAddService(finding.recommendedModule, 'Finding review')}
+        onClick={() => finding.recommendedModule && onAddService(finding.recommendedModule, 'Risk review')}
         sx={{ mt: 1, minHeight: 34 }}
       >
-        {recommendedInCart ? 'Already in plan' : 'Choose service'}
+        {recommendedInCart ? 'Already in Planning' : 'Choose service'}
       </Button>
     </Box>
   );

@@ -37,7 +37,7 @@ export default function ScannerProofScheduleSummaryPanel({
       }}
     >
       <SectionTitle
-        title="Scheduled Scans"
+        title="Scheduled scan refresh"
         action={
           <PastelChip
             label={`${schedules.length} configured`}
@@ -80,7 +80,7 @@ export default function ScannerProofScheduleSummaryPanel({
                   sx={{ display: 'block', mt: 0.5 }}
                 >
                   Every {schedule.intervalDays} days / Next {formatDateTime(schedule.nextRunAt)} /{' '}
-                  {schedule.toolKeys.join(', ') || 'default tools'}
+                  {schedule.toolKeys.join(', ') || 'default checks'}
                 </Typography>
               </Box>
               <Button

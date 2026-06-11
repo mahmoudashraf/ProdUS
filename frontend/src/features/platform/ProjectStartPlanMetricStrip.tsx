@@ -56,7 +56,7 @@ export default function ProjectStartPlanMetricStrip({
         ))}
       </Box>
       <Box sx={{ minWidth: 0, display: { xs: 'none', sm: 'grid' }, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 2 }}>
-        <MetricTile label="Selected services" value={serviceCount} detail="Become service plan modules" accent={appleColors.purple} icon={<PlaylistAddCheckOutlined />} sparkline />
+        <MetricTile label="Selected services" value={serviceCount} detail="Become service plan steps" accent={appleColors.purple} icon={<PlaylistAddCheckOutlined />} sparkline />
         <MetricTile label="Teams / experts" value={talentCount} detail="Become shortlist and participants" accent={appleColors.cyan} icon={<GroupsOutlined />} sparkline />
         <MetricTile
           label="Workspace status"

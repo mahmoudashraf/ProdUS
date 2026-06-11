@@ -39,7 +39,7 @@ const findingReviewPrompt = (
   finding: NormalizedFinding,
   linkedEvidenceCount: number
 ) =>
-  `Do not call write actions for this answer. Review scanner finding ${finding.id} for ${product.name}. Finding details: title "${finding.title}", severity ${finding.severity}, status ${finding.status}, affected area "${finding.readinessArea || finding.affectedComponent || 'not specified'}", source rule "${finding.sourceRuleId || finding.sourceTool}", description "${finding.description}", business risk "${finding.businessRisk || 'not mapped'}", required evidence "${finding.evidenceRequired || 'not mapped'}", recommended service "${finding.recommendedModule?.name || 'not mapped'}", linked evidence count ${linkedEvidenceCount}. Explain likely impact, what evidence is needed to resolve or accept risk, and which service or milestone should own follow-up. Use these provided details directly. Also search indexed ProdUS safe knowledge in scanner-tool-description and service-module for matching scanner/tool/service context. Do not answer only from page facts when matching indexed records are available. Cite matching source titles or stable codes in the response and return source basis metadata. Do not include raw artifact contents.`;
+  `Do not call write actions for this answer. Review scan risk ${finding.id} for ${product.name}. Risk details: title "${finding.title}", severity ${finding.severity}, status ${finding.status}, affected area "${finding.readinessArea || finding.affectedComponent || 'not specified'}", source rule "${finding.sourceRuleId || finding.sourceTool}", description "${finding.description}", business risk "${finding.businessRisk || 'not mapped'}", required proof "${finding.evidenceRequired || 'not mapped'}", recommended service "${finding.recommendedModule?.name || 'not mapped'}", linked proof count ${linkedEvidenceCount}. Explain likely impact, what proof is needed to resolve or accept risk, and which service or workspace step should own follow-up. Use these provided details directly. Also search indexed ProdUS safe knowledge in scanner-tool-description and service-module for matching scanner/tool/service context. Do not answer only from page facts when matching indexed records are available. Cite matching source titles or stable codes in the response and return source basis metadata. Do not include raw artifact contents.`;
 
 export default function OwnerFindingReviewDrawerHost({
   open,
@@ -66,8 +66,8 @@ export default function OwnerFindingReviewDrawerHost({
 }: OwnerFindingReviewDrawerHostProps) {
   const assistantSlot = finding && product ? (
     <StudioAssistantCard
-      title="AI Finding Review"
-      description="Turn this finding into an owner-readable decision with evidence needs and remediation direction."
+      title="AI risk review"
+      description="Turn this risk into an owner-readable decision with proof needs and fix direction."
       prompt={findingReviewPrompt(product, finding, evidence.length)}
       conversationId={`studio-finding-${product.id}-${finding.id}`}
       context={assistantContext('scanner-finding-review', {
@@ -78,7 +78,7 @@ export default function OwnerFindingReviewDrawerHost({
       {...assistantActions}
       accent={findingStatusAccent(finding.status)}
       compact
-      cta="Review Finding"
+      cta="Review risk"
     />
   ) : undefined;
 

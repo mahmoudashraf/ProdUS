@@ -86,7 +86,7 @@ export default function OwnerProductAiOpportunityDetailsView({
               {overviewSummary
                 || context?.aiCreationSummary
                 || product.aiCreationSummary
-                || 'Review how the accepted AI opportunities shape LoomAI fit, services, technical checks, and owner next steps.'}
+                || 'Review how the accepted AI opportunities shape LoomAI fit, services, launch checks, and owner next steps.'}
             </Typography>
           </Stack>
           <Button
@@ -110,7 +110,7 @@ export default function OwnerProductAiOpportunityDetailsView({
         <Metric label="Opportunities" value={useCases.length} detail="Saved or latest" accent={appleColors.purple} />
         <Metric label="LoomAI capabilities" value={capabilities.length} detail="Fit signals" accent={appleColors.cyan} />
         <Metric label="Services" value={services.length} detail="Can shape delivery" accent={appleColors.green} />
-        <Metric label="Focus areas" value={scannerFocus.length} detail="Checks to watch" accent={appleColors.amber} />
+        <Metric label="Checks to watch" value={scannerFocus.length} detail="Launch checks" accent={appleColors.amber} />
       </Box>
 
       <Surface>
@@ -127,7 +127,7 @@ export default function OwnerProductAiOpportunityDetailsView({
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 2 }}>
         <ListSurface title="Capabilities to consider" items={capabilities} empty="No LoomAI capabilities have been accepted yet." />
-        <ListSurface title="Implementation path" items={implementationSteps} empty="No implementation path has been accepted yet." />
+        <ListSurface title="Starting path" items={implementationSteps} empty="No starting path has been accepted yet." />
         <ListSurface title="Owner decisions" items={ownerDecisions} empty="No owner decisions have been accepted yet." />
       </Box>
 
@@ -138,9 +138,9 @@ export default function OwnerProductAiOpportunityDetailsView({
           empty="No AI-shaped services have been accepted yet."
         />
         <ListSurface
-          title="Technical checks to watch"
+          title="Launch checks to watch"
           items={scannerFocus}
-          empty="No technical check focus areas have been accepted yet."
+          empty="No launch check focus areas have been accepted yet."
         />
         <ListSurface
           title="Next owner steps"

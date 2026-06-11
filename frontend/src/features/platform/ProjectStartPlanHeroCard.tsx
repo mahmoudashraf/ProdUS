@@ -74,7 +74,7 @@ export default function ProjectStartPlanHeroCard({
                 {displayTitle}
               </Typography>
               <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6, fontSize: { xs: 14, sm: 16 } }}>
-                Choose the services and delivery support, then approve the workspace when the product plan is ready.
+                Choose the services and delivery support, then approve the workspace when Planning is ready.
               </Typography>
             </Box>
           </Stack>
@@ -88,7 +88,7 @@ export default function ProjectStartPlanHeroCard({
           )}
           {hasPlaceholderProduct && (
             <Alert severity="warning" sx={{ borderRadius: 1 }}>
-              This product plan is attached to a temporary test product. Choose the real product from Home before starting a workspace.
+              Planning is attached to a temporary test product. Choose the real product from Home before starting a workspace.
             </Alert>
           )}
           {product && !hasPlaceholderProduct ? (
@@ -113,7 +113,7 @@ export default function ProjectStartPlanHeroCard({
               </Stack>
             </Surface>
           ) : (
-            <EmptyState label="Choose a real product from Home before this product plan can become a workspace." />
+            <EmptyState label="Choose a real product from Home before Planning can become a workspace." />
           )}
           <Button
             component={NextLink}

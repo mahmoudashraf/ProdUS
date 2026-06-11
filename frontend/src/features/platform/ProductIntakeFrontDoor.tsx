@@ -98,7 +98,7 @@ export function ProductIntakeFrontDoor({
               label="Repository URL"
               value={repositoryUrl}
               onChange={(event) => onRepositoryUrlChange(event.target.value)}
-              placeholder="github.com/you/project"
+              placeholder="github.com/you/product"
               fullWidth
             />
             <TextField

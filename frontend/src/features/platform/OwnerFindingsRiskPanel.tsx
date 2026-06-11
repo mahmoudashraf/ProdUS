@@ -9,7 +9,7 @@ import {
   appleColors,
   formatLabel,
 } from './PlatformComponents';
-import { severityAccent } from './ownerFindingPresentation';
+import { ownerRiskSummary, severityAccent } from './ownerFindingPresentation';
 import { ownerCategoryFromSignal, ownerImpactForCategory } from './ownerWorkspaceModel';
 
 export interface OwnerGroupedFinding {
@@ -49,7 +49,7 @@ export default function OwnerFindingsRiskPanel({
   return (
     <Surface>
       <SectionTitle
-        title="Findings"
+        title="Risks to fix"
         action={<PastelChip label={`${totalFindingCount} total`} accent={totalFindingCount ? appleColors.amber : appleColors.green} bg={totalFindingCount ? '#fff4dc' : '#e7f8ee'} />}
       />
       <Stack spacing={1.25}>
@@ -85,7 +85,7 @@ export default function OwnerFindingsRiskPanel({
                 <Box sx={{ minWidth: 0 }}>
                   <Typography sx={{ fontWeight: 950 }}>{group.label}</Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4 }}>
-                    {group.findings[0]?.title || 'No findings in this group.'}
+                    {group.findings[0]?.title || 'No risks in this group.'}
                   </Typography>
                 </Box>
                 <PastelChip label={`${group.findings.length}`} accent={group.accent} bg="#fff" />
@@ -96,6 +96,11 @@ export default function OwnerFindingsRiskPanel({
                 <Stack spacing={0} divider={<Divider />}>
                   {group.findings.slice(0, group.label === 'Launch blockers' ? 8 : 5).map((finding) => {
                     const category = ownerCategoryFromSignal(finding.sourceTool ?? undefined, finding.readinessArea ?? undefined, finding.title);
+                    const sourceLabel = finding.sourceTool
+                      ? `Found by ${finding.sourceTool}${finding.sourceRuleId ? ` · ${finding.sourceRuleId}` : ''}`
+                      : finding.sourceRuleId
+                        ? `Rule ${finding.sourceRuleId}`
+                        : 'Source proof available';
                     return (
                       <Box key={finding.id} sx={{ p: 1.35 }}>
                         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'flex-start' }}>
@@ -105,9 +110,11 @@ export default function OwnerFindingsRiskPanel({
                               <PastelChip label={category} accent={group.accent} bg={`${group.accent}12`} />
                             </Stack>
                             <Typography sx={{ mt: 0.8, fontWeight: 950, lineHeight: 1.35 }}>{finding.title}</Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>{finding.businessRisk || finding.description || ownerImpactForCategory(category)}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>
+                              {ownerRiskSummary(finding.businessRisk, finding.description, ownerImpactForCategory(category))}
+                            </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45 }}>
-                              {finding.sourceTool}{finding.sourceRuleId ? ` · ${finding.sourceRuleId}` : ''}
+                              {sourceLabel}
                             </Typography>
                           </Box>
                           <Button
@@ -125,13 +132,13 @@ export default function OwnerFindingsRiskPanel({
                   {group.findings.length > (group.label === 'Launch blockers' ? 8 : 5) && (
                     <Box sx={{ p: 1.25 }}>
                       <Button size="small" variant="text" onClick={onOpenTechnicalProof} sx={{ minHeight: 34 }}>
-                        View all {group.findings.length}
+                        View all {group.findings.length} risks
                       </Button>
                     </Box>
                   )}
                 </Stack>
               ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>No findings in this group.</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>No risks in this group.</Typography>
               )}
             </AccordionDetails>
           </Accordion>

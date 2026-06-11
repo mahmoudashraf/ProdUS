@@ -153,7 +153,7 @@ export default function OwnerProductDiagnosisSummaryView({
                   <MetricTile
                     label="Proof linked"
                     value={latestDiagnosis.evidenceCount || 0}
-                    detail="Evidence items"
+                    detail="Proof items"
                     accent={appleColors.cyan}
                     icon={<ArticleOutlined />}
                   />
@@ -218,14 +218,14 @@ export default function OwnerProductDiagnosisSummaryView({
           </Surface>
 
           <StudioAssistantCard
-            title="Ask AI About This Diagnosis"
+            title="Diagnosis assistant"
             description="Translate the diagnosis into practical fixes, tradeoffs, and the next owner decision."
-            prompt={`Do not call tools for this answer. Explain the product readiness diagnosis for ${product.name} using these visible facts directly. ${diagnosisPromptFacts} Focus on the ship-readiness score, priority fixes, recommended lifecycle services, scanner signals, and the next owner decision. Do not certify production readiness; call out where human review is needed.`}
+            prompt={`Do not call tools for this answer. Explain the product readiness diagnosis for ${product.name} using these visible facts directly. ${diagnosisPromptFacts} Focus on the launch-readiness score, priority fixes, recommended services, scan signals, and the next owner decision. Do not certify production readiness; call out where human review is needed.`}
             conversationId={`studio-diagnosis-${product.id}`}
             context={assistantContext}
             {...assistantActions}
             accent={appleColors.purple}
-            cta="Ask AI"
+            cta="Explain diagnosis"
           />
         </>
       ) : (

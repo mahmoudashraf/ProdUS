@@ -37,7 +37,7 @@ export default function WorkspaceHandoffReviewPanel({
 }: WorkspaceHandoffReviewPanelProps) {
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff, #f6fffb)' }}>
-      <SectionTitle title="Handoff And Health" action={<PastelChip label={latestHealthReview ? `${latestHealthReview.healthScore}/100` : 'No review'} accent={latestHealthReview ? appleColors.green : appleColors.purple} bg={latestHealthReview ? '#e7f8ee' : '#f1efff'} />} />
+      <SectionTitle title="Handoff and health" action={<PastelChip label={latestHealthReview ? `${latestHealthReview.healthScore}/100` : 'No review'} accent={latestHealthReview ? appleColors.green : appleColors.purple} bg={latestHealthReview ? '#e7f8ee' : '#f1efff'} />} />
       <Stack spacing={1.25}>
         <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.25, bgcolor: '#fff' }}>
           <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
@@ -61,7 +61,7 @@ export default function WorkspaceHandoffReviewPanel({
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 900 }}>{latestHealthReview?.summary || 'No health review published yet.'}</Typography>
               <Typography variant="caption" color="text.secondary">
-                {missingEvidenceCount ? `${missingEvidenceCount} required evidence items missing` : 'Evidence requirements are current'}
+                {missingEvidenceCount ? `${missingEvidenceCount} required proof item${missingEvidenceCount === 1 ? '' : 's'} missing` : 'Proof requirements are current'}
               </Typography>
             </Box>
           </Stack>

@@ -31,6 +31,7 @@ export default function OwnerWorkspaceNavigationPanel({
 }) {
   const isOverviewHome = workspaceTab === 'overview' && !workspaceDetailOpen;
   const isAiAreaHome = workspaceTab === 'ai' && !workspaceDetailOpen;
+  const hasCustomAreaHub = workspaceTab === 'findings' && !workspaceDetailOpen;
   const visibleJourneyItems =
     isOverviewHome
       ? currentJourneyItems.filter((item) => item.value !== 'refresh' && item.value !== 'refresh-review')
@@ -59,7 +60,7 @@ export default function OwnerWorkspaceNavigationPanel({
           <WorkspaceBreadcrumbs
             items={breadcrumbItems}
           />
-        ) : !isOverviewHome ? (
+        ) : !isOverviewHome && !hasCustomAreaHub ? (
           <OwnerWorkspaceJourneyNav
             label={`${currentAreaLabel} home`}
             value={null}

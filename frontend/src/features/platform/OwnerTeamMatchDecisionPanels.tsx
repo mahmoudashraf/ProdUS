@@ -35,7 +35,7 @@ export function TeamMatchDecisionPanel({
 }) {
   const topScore = topRecommendation ? Math.round(topRecommendation.score * 100) : 0;
   const adjustPlanHref = selectedPackageId ? `/packages?planId=${encodeURIComponent(selectedPackageId)}&view=team` : '/packages';
-  const planName = selectedPackage?.productProfile?.name || selectedPackage?.name || 'Selected product plan';
+  const planName = selectedPackage?.productProfile?.name || selectedPackage?.name || 'Selected planning scope';
 
   return (
     <Surface sx={{ p: { xs: 2, md: 3 } }}>
@@ -61,7 +61,7 @@ export function TeamMatchDecisionPanel({
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) auto auto auto' }, gap: 1.5, alignItems: 'center' }}>
           <Box sx={{ minWidth: 0, p: 1.25, border: '1px solid', borderColor: appleColors.line, borderRadius: 1, bgcolor: '#fbfdff' }}>
             <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
-              <PastelChip label="Selected product plan" accent={appleColors.cyan} bg="#e4f9fd" />
+              <PastelChip label="Selected planning scope" accent={appleColors.cyan} bg="#e4f9fd" />
               {selectedPackage && <StatusChip label={selectedPackage.status} />}
             </Stack>
             <Typography sx={{ mt: 0.65, fontWeight: 950, overflowWrap: 'anywhere' }}>
@@ -143,7 +143,7 @@ export function TeamMatchSelectedContextPanel({
   onOpenShortlist: () => void;
 }) {
   const score = topRecommendation ? Math.round(topRecommendation.score * 100) : averageMatch;
-  const planName = selectedPackage?.productProfile?.name || selectedPackage?.name || 'No product plan selected';
+  const planName = selectedPackage?.productProfile?.name || selectedPackage?.name || 'No planning scope selected';
   const teamName = selectedTeam?.name || topRecommendation?.team.name || 'Top match pending';
   const currentView = teamMatchViews.find((item) => item.value === activeView) || teamMatchViews[0]!;
   const routeActions: Array<{ value: TeamMatchView; label: string; onClick: () => void }> = [
@@ -165,7 +165,7 @@ export function TeamMatchSelectedContextPanel({
         <ProgressRing value={score || 0} size={72} color={teamMatchColor(score || 0)} label="match" />
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 900, textTransform: 'uppercase' }}>
-            Selected product plan
+            Selected planning scope
           </Typography>
           <Typography sx={{ fontWeight: 950, overflowWrap: 'anywhere' }}>{planName}</Typography>
           <Typography variant="body2" color="text.secondary">

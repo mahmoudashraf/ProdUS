@@ -27,9 +27,9 @@ export default function ProjectStartPackageTemplatesPanel({
 
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8f7ff 100%)' }}>
-      <SectionTitle title="Package Templates" action={<FactCheckOutlined sx={{ color: appleColors.purple }} />} />
+      <SectionTitle title="Plan templates" action={<FactCheckOutlined sx={{ color: appleColors.purple }} />} />
       <Typography color="text.secondary" sx={{ lineHeight: 1.65, mb: 2 }}>
-        Apply a mature service plan recipe when the product matches a common product path. ProdUS keeps the dependency checks active after adding the services.
+        Apply a proven service plan when the product matches a common path. ProdUS keeps the dependency checks active after adding the services.
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
         {templates.slice(0, 4).map((template) => {
@@ -69,7 +69,7 @@ export default function ProjectStartPackageTemplatesPanel({
                   onClick={() => onApplyTemplate(template.id)}
                   sx={{ minHeight: 42, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
                 >
-                  {templateApplied ? 'Template applied' : 'Apply template'}
+                  {templateApplied ? 'Plan applied' : 'Apply plan'}
                 </Button>
               </Stack>
             </Box>

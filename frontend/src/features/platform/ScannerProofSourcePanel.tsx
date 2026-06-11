@@ -63,7 +63,7 @@ export default function ScannerProofSourcePanel({
                   {selectedConnectorPermission.purpose}
                 </Typography>
               </Box>
-              {selectedConnectorPermission.appConnectorPreferred && <PastelChip label="App Preferred" accent={appleColors.purple} />}
+              {selectedConnectorPermission.appConnectorPreferred && <PastelChip label="Preferred app" accent={appleColors.purple} />}
             </Stack>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
               {selectedConnectorPermission.permissions.map((permission) => (
@@ -84,7 +84,7 @@ export default function ScannerProofSourcePanel({
                     {scanSourceForm.providerType === 'GITHUB' ? 'GitHub App connection' : 'GitLab project connection'}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Connect once, then attach repository sources to this product with an auditable installation record.
+                    Connect once, then choose the repository this product uses.
                   </Typography>
                 </Box>
                 <Button
@@ -95,7 +95,7 @@ export default function ScannerProofSourcePanel({
                   disabled={isRequestingConnectorInstall}
                   sx={{ minHeight: 36, minWidth: 154 }}
                 >
-                  Connect App
+                  Connect app
                 </Button>
               </Stack>
               {activeProviderInstallations.length ? (
@@ -142,12 +142,12 @@ export default function ScannerProofSourcePanel({
                     onClick={onCreateProviderSource}
                     sx={{ minHeight: 42 }}
                   >
-                    Add Repository Source
+                    Add repository source
                   </Button>
                 </>
               ) : (
                 <Alert severity="info" sx={{ borderRadius: 1 }}>
-                  No active {formatLabel(scanSourceForm.providerType)} connector is attached yet. Manual source entry still works for public repositories and CI imports.
+                  No active {formatLabel(scanSourceForm.providerType)} app is connected yet. Manual source entry still works for public repositories and CI imports.
                 </Alert>
               )}
             </Stack>
@@ -183,7 +183,7 @@ export default function ScannerProofSourcePanel({
           }
           label={
             <Typography variant="body2" color="text.secondary">
-              I confirm this source is authorized for scanner evidence collection.
+              I confirm this source belongs to this product and can be scanned.
             </Typography>
           }
         />
@@ -194,7 +194,7 @@ export default function ScannerProofSourcePanel({
           disabled={!selectedProduct || !scanSourceForm.displayName.trim() || isCreatingSource}
           sx={{ minHeight: 42 }}
         >
-          Save Source
+          Save source
         </Button>
       </Stack>
     </Box>

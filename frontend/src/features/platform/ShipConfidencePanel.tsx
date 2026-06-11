@@ -34,8 +34,8 @@ const trendColor = (direction?: string) => {
 export default function ShipConfidencePanel({
   history,
   isLoading = false,
-  title = 'Ship Confidence',
-  subtitle = 'Each diagnosis creates a checkpoint so owners can see whether the prototype is getting closer to a real launch.',
+  title = 'Launch confidence',
+  subtitle = 'Each diagnosis creates a checkpoint so owners can see whether the product is getting closer to launch.',
   showScoreRing = true,
 }: {
   history?: ShipConfidenceHistory | undefined;
@@ -72,7 +72,7 @@ export default function ShipConfidencePanel({
               </Typography>
             </Box>
           </Stack>
-          {showScoreRing && <ProgressRing value={latest?.shipConfidenceScore || 0} size={86} color={scoreColor(latest?.shipConfidenceScore)} label="ship" />}
+          {showScoreRing && <ProgressRing value={latest?.shipConfidenceScore || 0} size={86} color={scoreColor(latest?.shipConfidenceScore)} label="ready" />}
         </Stack>
         {isLoading && <LinearProgress sx={{ mt: 1.5, borderRadius: 999 }} />}
       </Box>
@@ -81,7 +81,7 @@ export default function ShipConfidencePanel({
         <Box sx={{ p: 1.5 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
             <MetricTile label="Priority fixes" value={latest.priorityFixCount} detail="Critical/high rough edges" accent={latest.priorityFixCount ? appleColors.red : appleColors.green} icon={<TroubleshootOutlined />} />
-            <MetricTile label="Mapped fixes" value={latest.mappedFindingCount} detail="Signals with a service path" accent={appleColors.green} icon={<CheckCircleOutlineOutlined />} />
+            <MetricTile label="Linked fixes" value={latest.mappedFindingCount} detail="Risks with a service path" accent={appleColors.green} icon={<CheckCircleOutlineOutlined />} />
             <MetricTile label="Proof gaps" value={latest.proofGapCount} detail="Needs a scan, note, or link" accent={latest.proofGapCount ? appleColors.amber : appleColors.green} icon={<AutoAwesomeOutlined />} />
             <MetricTile label="Services" value={latest.recommendedServiceCount} detail="Recommended service work" accent={appleColors.purple} icon={<MovingOutlined />} />
           </Box>
@@ -121,7 +121,7 @@ export default function ShipConfidencePanel({
         </Box>
       ) : (
         <Box sx={{ p: 1.5 }}>
-          <EmptyState label="No ship-confidence checkpoint yet. Run a diagnosis or scanner to create one." />
+          <EmptyState label="No launch-confidence checkpoint yet. Run an analysis or scanner to create one." />
         </Box>
       )}
     </Box>

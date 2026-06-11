@@ -45,13 +45,13 @@ export default function ScannerProofRunPanel({
     }}>
       <Stack spacing={1.25}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-          <Typography sx={{ fontWeight: 900 }}>Run governed scan</Typography>
+          <Typography sx={{ fontWeight: 900 }}>Run scanner check</Typography>
           {activeScanRun && <StatusChip label={activeScanRun.status} color={activeScanRun.status === 'RUNNING' ? 'warning' : 'default'} />}
         </Stack>
         <TextField
           select
           size="small"
-          label="Evidence source"
+          label="Source to check"
           value={hostedScanForm.sourceId}
           onChange={(event) => setHostedScanForm((current) => ({ ...current, sourceId: event.target.value }))}
         >
@@ -65,21 +65,21 @@ export default function ScannerProofRunPanel({
         <TextField
           select
           size="small"
-          label="Scan depth"
+          label="Check type"
           value={hostedScanForm.depth}
           onChange={(event) => {
             const depth = event.target.value as ScanRun['depth'];
             setHostedScanForm((current) => ({ ...current, depth, toolKeys: defaultToolsForDepth(depth) }));
           }}
         >
-          <MenuItem value="SAFE_STATIC">L1 Safe static</MenuItem>
-          <MenuItem value="DEPENDENCY_CONTAINER">L2 Dependency / container</MenuItem>
-          <MenuItem value="RUNTIME_BASELINE">L3 Runtime baseline</MenuItem>
+          <MenuItem value="SAFE_STATIC">Repository safety check</MenuItem>
+          <MenuItem value="DEPENDENCY_CONTAINER">Dependency and container check</MenuItem>
+          <MenuItem value="RUNTIME_BASELINE">Live app baseline check</MenuItem>
         </TextField>
         <TextField
           select
           size="small"
-          label="Scanner tools"
+          label="Checks to run"
           value={hostedScanForm.toolKeys}
           SelectProps={{ multiple: true }}
           onChange={(event) => {
@@ -116,7 +116,7 @@ export default function ScannerProofRunPanel({
         {hostedScanForm.depth === 'RUNTIME_BASELINE' && (
           <TextField
             size="small"
-            label="Runtime URL"
+            label="Live app URL"
             placeholder={selectedProduct?.productUrl || 'https://staging.example.com'}
             value={hostedScanForm.runtimeTargetUrl}
             onChange={(event) => setHostedScanForm((current) => ({ ...current, runtimeTargetUrl: event.target.value }))}
@@ -124,7 +124,7 @@ export default function ScannerProofRunPanel({
         )}
         <TextField
           size="small"
-          label="Audit reason"
+          label="Why run this now?"
           value={hostedScanForm.reason}
           onChange={(event) => setHostedScanForm((current) => ({ ...current, reason: event.target.value }))}
         />
@@ -135,7 +135,7 @@ export default function ScannerProofRunPanel({
               onChange={(event) => setHostedScanForm((current) => ({ ...current, authorizationConfirmed: event.target.checked }))}
             />
           }
-          label={<Typography variant="body2" color="text.secondary">I am authorized to run selected scanners on this source.</Typography>}
+          label={<Typography variant="body2" color="text.secondary">I am allowed to run these checks on this source.</Typography>}
         />
         {hostedScanForm.depth === 'RUNTIME_BASELINE' && (
           <FormControlLabel
@@ -145,12 +145,12 @@ export default function ScannerProofRunPanel({
                 onChange={(event) => setHostedScanForm((current) => ({ ...current, runtimeAuthorizationConfirmed: event.target.checked }))}
               />
             }
-            label={<Typography variant="body2" color="text.secondary">I confirm the runtime URL/domain is authorized for baseline scanning.</Typography>}
+            label={<Typography variant="body2" color="text.secondary">I confirm this live app URL is allowed to be checked.</Typography>}
           />
         )}
         {hostedScanBlockedReason && <Alert severity="info" sx={{ borderRadius: 1 }}>{hostedScanBlockedReason}</Alert>}
         {fullHostedScanBlockedReason && fullHostedScanBlockedReason !== hostedScanBlockedReason && (
-          <Alert severity="info" sx={{ borderRadius: 1 }}>Full suite: {fullHostedScanBlockedReason}</Alert>
+          <Alert severity="info" sx={{ borderRadius: 1 }}>Full scan suite: {fullHostedScanBlockedReason}</Alert>
         )}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
           <Button
@@ -160,9 +160,9 @@ export default function ScannerProofRunPanel({
             disabled={!!hostedScanBlockedReason || !!activeScanRun || isStartingHostedScan}
             sx={{ minHeight: 44, flex: 1 }}
           >
-            Start Scan
+            Start scan
           </Button>
-          <Tooltip title={fullHostedScanBlockedReason || 'Queue every configured scanner across repository, image, and runtime targets.'}>
+          <Tooltip title={fullHostedScanBlockedReason || 'Run every configured check across the repository, container image, and live app.'}>
             <span style={{ flex: 1 }}>
               <Button
                 type="button"
@@ -172,7 +172,7 @@ export default function ScannerProofRunPanel({
                 onClick={onStartFullHostedScan}
                 sx={{ minHeight: 44, width: '100%' }}
               >
-                Run Full Suite
+                Run full suite
               </Button>
             </span>
           </Tooltip>

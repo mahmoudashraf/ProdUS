@@ -80,8 +80,8 @@ export default function ProjectStartPlanPage() {
   return (
     <>
       <PageHeader
-        title="Product Plan"
-        description="Approve the services, team, and scope for this product before starting delivery."
+        title="Planning"
+        description="Confirm the services, team, and scope for this product before starting delivery."
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button variant="outlined" startIcon={<FactCheckOutlined />} onClick={() => openStartPlanDetail('services')} sx={{ minHeight: 44 }}>

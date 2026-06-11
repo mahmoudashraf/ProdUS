@@ -58,7 +58,7 @@ export default function OwnerProductAiOpportunityResultSummary({
                 {!hasLiveResult
                   ? 'AI refresh did not return usable opportunities'
                   : focus === 'loomai'
-                    ? 'LoomAI integration path'
+                    ? 'LoomAI starting path'
                     : 'AI opportunities found'}
               </Typography>
               <PastelChip

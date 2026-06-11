@@ -52,7 +52,7 @@ export function OwnerOverviewTopRisksCard({
                       {risk.businessRisk || ownerImpactForCategory(category)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.55, lineHeight: 1.45 }}>
-                      Evidence: {proofLineForRisk(risk, category)}
+                      Proof: {proofLineForRisk(risk, category)}
                     </Typography>
                   </Box>
                   <Button size="small" variant="outlined" onClick={onOpenFindingsRisks} sx={{ minHeight: 34, minWidth: 112 }}>
@@ -68,7 +68,7 @@ export function OwnerOverviewTopRisksCard({
           })}
         </Stack>
       ) : (
-        <EmptyState label="No launch blockers are visible. Keep final human review, evidence export, and a clean rerun before public launch." />
+        <EmptyState label="No launch blockers are visible. Keep final human review, proof export, and a clean rerun before public launch." />
       )}
     </Surface>
   );
@@ -96,7 +96,7 @@ export function OwnerOverviewRecommendedActionsCard({
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, lineHeight: 1.45 }}>{item.action}</Typography>
                   {'proof' in item && item.proof && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, lineHeight: 1.45 }}>
-                      Evidence: {item.proof}
+                      Proof: {item.proof}
                     </Typography>
                   )}
                 </Box>

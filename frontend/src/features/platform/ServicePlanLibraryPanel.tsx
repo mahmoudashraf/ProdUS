@@ -22,14 +22,14 @@ export default function ServicePlanLibraryPanel({
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 360px' }, gap: 2.5, alignItems: 'center' }}>
           <Stack spacing={1.5} sx={{ minWidth: 0 }}>
             <Box sx={{ alignSelf: 'flex-start' }}>
-              <PastelChip label="Generated plan library" accent={appleColors.purple} bg="#f1efff" />
+              <PastelChip label="Service plans" accent={appleColors.purple} bg="#f1efff" />
             </Box>
             <Box>
               <Typography variant="h1" sx={{ fontSize: { xs: 30, md: 40 }, letterSpacing: 0, overflowWrap: 'anywhere' }}>
                 Choose the plan to review
               </Typography>
               <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 760, fontSize: 16, lineHeight: 1.7 }}>
-                Review scoped production paths, delivery fit, and handoff readiness for each approved product plan.
+                Review the scoped services, delivery fit, and handoff readiness for each approved planning scope.
               </Typography>
             </Box>
           </Stack>
@@ -44,8 +44,8 @@ export default function ServicePlanLibraryPanel({
 
       <Surface>
         <SectionTitle
-          title="Open a Generated Plan"
-          action={<PastelChip label="Library view" accent={appleColors.purple} bg="#f1efff" />}
+          title="Open a service plan"
+          action={<PastelChip label="All plans" accent={appleColors.purple} bg="#f1efff" />}
         />
         {packageList.length ? (
           <Stack spacing={1.25}>
@@ -54,7 +54,7 @@ export default function ServicePlanLibraryPanel({
             ))}
           </Stack>
         ) : (
-          <EmptyState label="No service plans yet. Submit a product brief or approve a product plan to create the first service plan." />
+          <EmptyState label="No service plans yet. Submit a product brief or approve Planning to create the first service plan." />
         )}
       </Surface>
     </Stack>

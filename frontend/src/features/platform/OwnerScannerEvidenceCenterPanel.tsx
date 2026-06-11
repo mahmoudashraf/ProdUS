@@ -24,10 +24,16 @@ interface OwnerScannerEvidenceCenterPanelProps {
   formatDateTime: (value?: string) => string;
 }
 
-const confidenceDots = (level?: string) => {
-  if (level === 'HIGH') return '●●●';
-  if (level === 'MEDIUM') return '●●○';
-  return '●○○';
+const confidenceLabel = (level?: string) => {
+  if (level === 'HIGH') return 'High confidence';
+  if (level === 'MEDIUM') return 'Medium confidence';
+  return 'Needs review';
+};
+
+const redactionLabel = (status?: string) => {
+  if (status === 'NONE') return 'Safe summary';
+  if (status === 'REDACTED') return 'Sensitive hidden';
+  return 'Private details hidden';
 };
 
 export default function OwnerScannerEvidenceCenterPanel({
@@ -46,7 +52,7 @@ export default function OwnerScannerEvidenceCenterPanel({
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mb: 1.25 }}>
         <Stack direction="row" spacing={1} alignItems="center">
           <ArticleOutlined sx={{ color: appleColors.purple }} />
-          <Typography sx={{ fontWeight: 900 }}>Evidence Center</Typography>
+          <Typography sx={{ fontWeight: 900 }}>Saved proof</Typography>
         </Stack>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
           <Button
@@ -57,20 +63,20 @@ export default function OwnerScannerEvidenceCenterPanel({
             onClick={onExport}
             sx={{ minHeight: 40, minWidth: 132 }}
           >
-            Export
+            Export proof
           </Button>
           <TextField
             select
             size="small"
-            label="Filter"
+            label="Show"
             value={evidenceFilter}
             onChange={(event) => onEvidenceFilterChange(event.target.value as OwnerEvidenceFilter)}
             sx={{ minWidth: { xs: '100%', sm: 180 } }}
           >
-            <MenuItem value="ALL">All evidence</MenuItem>
-            <MenuItem value="FINDINGS">Finding-linked</MenuItem>
-            <MenuItem value="MILESTONES">Milestone-linked</MenuItem>
-            <MenuItem value="REDACTED">Redacted</MenuItem>
+            <MenuItem value="ALL">All proof</MenuItem>
+            <MenuItem value="FINDINGS">Linked to risks</MenuItem>
+            <MenuItem value="MILESTONES">Linked to milestones</MenuItem>
+            <MenuItem value="REDACTED">Sensitive hidden</MenuItem>
           </TextField>
         </Stack>
       </Stack>
@@ -82,15 +88,15 @@ export default function OwnerScannerEvidenceCenterPanel({
                 <Box sx={{ minWidth: 0 }}>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
                     <Typography variant="body2" sx={{ fontWeight: 900 }} noWrap>{item.title}</Typography>
-                    <PastelChip label={confidenceDots(item.confidenceLevel)} accent={item.confidenceLevel === 'HIGH' ? appleColors.green : item.confidenceLevel === 'MEDIUM' ? appleColors.amber : appleColors.muted} />
-                    <StatusChip label={item.redactionStatus} color={item.redactionStatus === 'NONE' ? 'success' : 'warning'} />
+                    <PastelChip label={confidenceLabel(item.confidenceLevel)} accent={item.confidenceLevel === 'HIGH' ? appleColors.green : item.confidenceLevel === 'MEDIUM' ? appleColors.amber : appleColors.muted} />
+                    <StatusChip label={redactionLabel(item.redactionStatus)} color={item.redactionStatus === 'NONE' ? 'success' : 'warning'} />
                   </Stack>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.45 }}>
                     {scannerEvidenceText(item.summary || item.source)} · {formatDateTime(item.createdAt)}
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
-                  <Tooltip title={item.storageKey ? 'Open with a short-lived signed artifact URL' : item.artifactRef ? 'Open the stored evidence artifact' : 'No artifact link exists for this evidence item'}>
+                  <Tooltip title={item.storageKey || item.artifactRef ? 'Open the saved proof securely' : 'No saved proof link exists for this item'}>
                     <span>
                       <Button
                         size="small"
@@ -104,7 +110,7 @@ export default function OwnerScannerEvidenceCenterPanel({
                       </Button>
                     </span>
                   </Tooltip>
-                  <Tooltip title={item.storageKey ? 'Copy storage key for audit support' : 'No storage key recorded'}>
+                  <Tooltip title={item.storageKey ? 'Copy the private proof reference' : 'No private proof reference recorded'}>
                     <span>
                       <IconButton
                         size="small"
@@ -122,7 +128,7 @@ export default function OwnerScannerEvidenceCenterPanel({
           ))}
         </Stack>
       ) : (
-        <EmptyState label="No scanner evidence matches this filter yet." />
+        <EmptyState label="No saved proof matches this filter yet." />
       )}
     </Box>
   );

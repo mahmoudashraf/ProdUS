@@ -218,7 +218,7 @@ export function PublicProfileContextPanel({
             {badge}
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>
-            {summary || 'Review profile fit before adding this option to a governed product plan.'}
+            {summary || 'Review profile fit before adding this option to a governed Planning.'}
           </Typography>
         </Box>
         <Box sx={{ minWidth: 0 }}>

@@ -134,7 +134,7 @@ export default function OwnerProductAiOpportunityRefreshView({
                   bg="#e7f8ee"
                 />
                 <PastelChip
-                  label={`${context?.scannerFocusAreas.length ?? 0} scanner focus`}
+                  label={`${context?.scannerFocusAreas.length ?? 0} checks`}
                   accent={appleColors.amber}
                   bg="#fff4dc"
                 />
@@ -233,7 +233,7 @@ export default function OwnerProductAiOpportunityRefreshView({
                 <Alert severity="success" data-testid="ai-opportunity-accepted">
                   Saved {acceptedResult.acceptedUseCases} opportunities,{' '}
                   {acceptedResult.acceptedServiceRecommendations} services,{' '}
-                  {acceptedResult.acceptedScannerFocusAreas} scanner focus areas, and{' '}
+                  {acceptedResult.acceptedScannerFocusAreas} checks to watch, and{' '}
                   {acceptedResult.acceptedNextSteps} next steps for {acceptedResult.product.name}.
                 </Alert>
               )}

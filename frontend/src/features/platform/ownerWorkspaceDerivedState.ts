@@ -245,7 +245,7 @@ export const buildOwnerActionGroups = ({
     items: weekItems.slice(0, 3).map((item) => ({
       title: String(item),
       detail: 'Turn this into planned product work with a clear owner.',
-      action: 'Add or confirm the service in the product plan.',
+      action: 'Add or confirm the service in Planning.',
     })),
   },
   {
@@ -255,12 +255,12 @@ export const buildOwnerActionGroups = ({
       {
         title: 'Rerun the full evidence check after fixes',
         detail: `${latestCompletedTools}/${totalTools} checks currently have completed results.`,
-        action: 'Use Findings technical proof to rerun the full suite after remediation.',
+        action: 'Use Scanners to rerun the full suite after remediation.',
       },
       {
         title: 'Export owner proof before sharing externally',
         detail: `${evidenceCount} evidence item${evidenceCount === 1 ? '' : 's'} available for the report.`,
-        action: 'Use Findings proof to export stored evidence.',
+        action: 'Use the Scanners proof library to export stored evidence.',
       },
     ],
   },

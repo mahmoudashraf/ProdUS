@@ -61,8 +61,8 @@ export default function ProductizationLaunchpad() {
   const currentDraftTitle = cartProduct && !isPlaceholderProduct(cartProduct)
     ? projectStartPlanTitle(cart.data?.title, cartProduct.name)
     : nextProduct
-      ? `${nextProduct.name} Product Plan`
-      : 'Product Plan';
+      ? `${nextProduct.name} Planning`
+      : 'Planning';
 
   const openDetail = (view: LaunchpadDetailView) => {
     const next = new URLSearchParams(searchParamString);
@@ -81,7 +81,7 @@ export default function ProductizationLaunchpad() {
     <>
       <PageHeader
         title="Home"
-        description="Your owner Home: portfolio metrics, selected products, draft product plan, and active workspaces in one place."
+        description="Your owner Home: portfolio metrics, selected products, Planning, and active workspaces in one place."
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button component={NextLink} href="/products/new" variant="contained" startIcon={<AddOutlined />} sx={{ minHeight: 44, minWidth: 150 }}>

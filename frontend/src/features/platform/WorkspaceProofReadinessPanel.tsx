@@ -76,8 +76,8 @@ export default function WorkspaceProofReadinessPanel({
         <ShipConfidencePanel
           history={shipConfidence}
           isLoading={isShipConfidenceLoading}
-          title="Workspace Ship Confidence"
-          subtitle="Workspace scanner maps become checkpoints, so the owner can see whether this prototype is moving closer to launch."
+          title="Workspace launch confidence"
+          subtitle="Use scan proof and milestone progress to see whether this workspace is moving closer to a launch decision."
         />
       </Surface>
 
@@ -86,14 +86,14 @@ export default function WorkspaceProofReadinessPanel({
         isLoading={isLaunchReportLoading}
         isGenerating={isGeneratingLaunchReport}
         onGenerate={onGenerateLaunchReport}
-        title="Workspace Launch Report"
-        subtitle="Generate a shareable launch decision snapshot from workspace scanner proof, service milestones, checks, and remaining rough edges."
+        title="Workspace launch snapshot"
+        subtitle="Generate a shareable decision snapshot from scan proof, service milestones, checks, and remaining rough edges."
       />
 
       <PlatformAssistantCard
-        title="AI Fix Path Explainer"
-        description="Explain mapped findings and owner decisions from the stored scanner fix path."
-        prompt={`Use thinker mode and read-only context only. Explain the scanner fix path for workspace "${workspace.name}". Product: ${workspace.packageInstance?.productProfile?.name || 'not recorded'}. Readiness score: ${readinessScore}. Status: ${readinessStatus}. Mapped findings: ${readiness?.mappedFindingCount || 0}. Priority fixes: ${readiness?.blockerCount || 0}. Missing proof: ${readiness?.missingEvidenceCount || 0}. Unmapped findings: ${readiness?.unmappedFindingCount || 0}. Ship-confidence history: ${shipConfidence?.trendSummary || 'not available yet'}. Latest checkpoint: ${latestCheckpoint}. Mapped services: ${(readiness?.milestoneRisks || []).flatMap((risk) => risk.mappedServices).slice(0, 8).join(', ') || 'none'}. Milestone risks: ${(readiness?.milestoneRisks || []).slice(0, 6).map((risk) => `${risk.milestoneTitle}: ${risk.scannerFindingCount} findings, ${risk.missingEvidenceCount} proof gaps, highest ${risk.highestSeverity || 'none'}`).join('; ') || 'none'}. Tell the owner what could stop shipping, which service work addresses it, what proof is missing, and what decision is safe next. Do not mutate workspace state.`}
+        title="Workspace fix path assistant"
+        description="Explain launch risks, missing proof, and the next owner decision from the stored fix path."
+        prompt={`Use thinker mode and read-only context only. Explain the launch fix path for workspace "${workspace.name}". Product: ${workspace.packageInstance?.productProfile?.name || 'not recorded'}. Readiness score: ${readinessScore}. Status: ${readinessStatus}. Risks linked to services: ${readiness?.mappedFindingCount || 0}. Priority fixes: ${readiness?.blockerCount || 0}. Missing proof: ${readiness?.missingEvidenceCount || 0}. Risks needing review: ${readiness?.unmappedFindingCount || 0}. Launch-confidence history: ${shipConfidence?.trendSummary || 'not available yet'}. Latest checkpoint: ${latestCheckpoint}. Suggested services: ${(readiness?.milestoneRisks || []).flatMap((risk) => risk.mappedServices).slice(0, 8).join(', ') || 'none'}. Milestone risks: ${(readiness?.milestoneRisks || []).slice(0, 6).map((risk) => `${risk.milestoneTitle}: ${risk.scannerFindingCount} scan risks, ${risk.missingEvidenceCount} proof gaps, highest ${risk.highestSeverity || 'none'}`).join('; ') || 'none'}. Tell the owner what could stop launch, which service work addresses it, what proof is missing, and what decision is safe next. Do not mutate workspace state.`}
         conversationId={`workspace-scanner-readiness-${workspace.id}`}
         context={{
           pageType: 'workspace-scanner-readiness',
@@ -103,7 +103,7 @@ export default function WorkspaceProofReadinessPanel({
           milestoneId: selectedMilestone?.id,
         }}
         accent={readiness?.blockerCount ? appleColors.red : appleColors.cyan}
-        cta="Ask AI"
+        cta="Explain next step"
       />
     </>
   );

@@ -41,7 +41,7 @@ export const useProjectStartPlanActions = ({
     mutationFn: (payload: CartUpdatePayload) => putJson<ProductizationCart, CartUpdatePayload>('/productization-cart/current', payload),
     onSuccess: async () => {
       setCreatedWorkspace(null);
-      setNotice('Product plan product updated.');
+      setNotice('Selected product changed for Planning.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -49,7 +49,7 @@ export const useProjectStartPlanActions = ({
   const removeService = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
     onSuccess: async () => {
-      setNotice('Service removed from the product plan.');
+      setNotice('Service removed from Planning.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -57,7 +57,7 @@ export const useProjectStartPlanActions = ({
   const removeTalent = useMutation({
     mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/talent/${itemId}`),
     onSuccess: async () => {
-      setNotice('Team or expert removed from the product plan.');
+      setNotice('Team or expert removed from Planning.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
@@ -65,7 +65,7 @@ export const useProjectStartPlanActions = ({
   const addRecommendedService = useMutation({
     mutationFn: (payload: { serviceModuleId: string; notes: string }) => postJson<ProductizationCart, { serviceModuleId: string; notes: string }>('/productization-cart/services', payload),
     onSuccess: async () => {
-      setNotice('Recommended service chosen for the product plan.');
+      setNotice('Recommended service chosen for Planning.');
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
   });
