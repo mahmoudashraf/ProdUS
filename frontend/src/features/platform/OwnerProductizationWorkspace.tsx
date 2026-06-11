@@ -402,6 +402,7 @@ export default function OwnerProductizationWorkspace({
             onAreaChange={openWorkspaceArea}
             onAreaHub={openWorkspaceAreaHub}
             onDetailChange={(value) => openWorkspaceDetail(workspaceTab, value)}
+            onEditProfile={() => openWorkspaceDetail('overview', 'profile')}
             onExportReport={() => createEvidenceExport.mutate()}
             onProductHome={openProductHome}
             onPrimaryAction={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}

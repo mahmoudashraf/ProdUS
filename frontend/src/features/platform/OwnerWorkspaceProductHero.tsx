@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import {
   CloudUploadOutlined,
   AutoAwesomeOutlined,
+  EditOutlined,
   Inventory2Outlined,
   PsychologyOutlined,
   RocketLaunchOutlined,
@@ -43,6 +44,7 @@ interface OwnerWorkspaceProductHeroProps {
   topOwnerRisks: OwnerRiskSummary[];
   evidenceSummaryItems: EvidenceSummaryItem[];
   onPrimaryAction: () => void;
+  onEditProfile: () => void;
   onRefreshBrief: () => void;
   onViewProof: () => void;
   onExportReport: () => void;
@@ -56,6 +58,7 @@ export default function OwnerWorkspaceProductHero({
   topOwnerRisks,
   evidenceSummaryItems,
   onPrimaryAction,
+  onEditProfile,
   onRefreshBrief,
   onViewProof,
   onExportReport,
@@ -164,7 +167,7 @@ export default function OwnerWorkspaceProductHero({
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 900 }}>
           Product shortcuts
         </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1.25 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' }, gap: 1.25 }}>
           <ProductShortcut
             icon={<PsychologyOutlined />}
             title="AI opportunities"
@@ -172,6 +175,14 @@ export default function OwnerWorkspaceProductHero({
             actionLabel="Open"
             accent={appleColors.purple}
             onClick={onOpenAiOpportunities}
+          />
+          <ProductShortcut
+            icon={<EditOutlined />}
+            title="Edit profile"
+            detail="Update name, users, stage, links, summary, and owner notes."
+            actionLabel="Edit"
+            accent={appleColors.green}
+            onClick={onEditProfile}
           />
           <ProductShortcut
             icon={<AutoAwesomeOutlined />}

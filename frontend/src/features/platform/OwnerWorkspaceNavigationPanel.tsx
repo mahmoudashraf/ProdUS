@@ -34,6 +34,13 @@ export default function OwnerWorkspaceNavigationPanel({
     isOverviewHome
       ? currentJourneyItems.filter((item) => item.value !== 'refresh')
       : currentJourneyItems;
+  const breadcrumbItems = [
+    { label: 'Product Home', onClick: () => onAreaChange('overview') },
+    ...(workspaceTab === 'overview'
+      ? []
+      : [{ label: currentAreaLabel, onClick: () => onAreaHub(workspaceTab) }]),
+    { label: currentDetailLabel },
+  ];
 
   return (
     <>
@@ -47,11 +54,7 @@ export default function OwnerWorkspaceNavigationPanel({
       {productName && (
         workspaceDetailOpen ? (
           <WorkspaceBreadcrumbs
-            items={[
-              { label: 'Product Home', onClick: () => onAreaChange('overview') },
-              { label: currentAreaLabel, onClick: () => onAreaHub(workspaceTab) },
-              { label: currentDetailLabel },
-            ]}
+            items={breadcrumbItems}
           />
         ) : !isOverviewHome ? (
           <OwnerWorkspaceJourneyNav
