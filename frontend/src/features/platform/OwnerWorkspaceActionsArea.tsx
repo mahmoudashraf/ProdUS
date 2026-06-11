@@ -23,6 +23,9 @@ interface OwnerWorkspaceActionsAreaProps {
   latestDiagnosis: DiagnosisProps['latestDiagnosis'];
   onAddService: DiagnosisProps['onAddService'];
   onCreateDiagnosis: DiagnosisProps['onCreateDiagnosis'];
+  onOpenFindingsRisks: DiagnosisProps['onOpenFindingsRisks'];
+  onOpenDiagnosisMap: DiagnosisProps['onOpenMap'];
+  onOpenDiagnosisSummary: DiagnosisProps['onOpenSummary'];
   onOpenServicesRecommend: ActionPlanProps['onOpenServicesRecommend'];
   ownerActionGroups: ActionPlanProps['ownerActionGroups'];
   selectedProduct: ProductProfile | undefined;
@@ -43,6 +46,9 @@ export default function OwnerWorkspaceActionsArea({
   latestDiagnosis,
   onAddService,
   onCreateDiagnosis,
+  onOpenFindingsRisks,
+  onOpenDiagnosisMap,
+  onOpenDiagnosisSummary,
   onOpenServicesRecommend,
   ownerActionGroups,
   selectedProduct,
@@ -72,6 +78,9 @@ export default function OwnerWorkspaceActionsArea({
         isAddingService,
         onCreateDiagnosis,
         onAddService,
+        onOpenFindingsRisks,
+        onOpenMap: onOpenDiagnosisMap,
+        onOpenSummary: onOpenDiagnosisSummary,
       }}
     />
   );

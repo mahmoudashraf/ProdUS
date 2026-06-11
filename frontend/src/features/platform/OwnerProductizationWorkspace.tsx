@@ -451,6 +451,9 @@ export default function OwnerProductizationWorkspace({
             latestDiagnosis={latestDiagnosis}
             onAddService={addLifecycleService}
             onCreateDiagnosis={() => createDiagnosis.mutate()}
+            onOpenFindingsRisks={() => openFindingsView('risks')}
+            onOpenDiagnosisMap={() => openActionView('map')}
+            onOpenDiagnosisSummary={() => openActionView('diagnosis')}
             onOpenServicesRecommend={() => openServicesView('recommend')}
             ownerActionGroups={ownerActionGroups}
             selectedProduct={selectedProduct}

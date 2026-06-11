@@ -5,7 +5,7 @@ import { PastelChip, appleColors } from './PlatformComponents';
 import { WorkspaceTab } from './ownerWorkspaceModel';
 
 export type OverviewJourneyView = 'decision' | 'profile' | 'progress' | 'refresh';
-export type ActionJourneyView = 'plan' | 'diagnosis';
+export type ActionJourneyView = 'plan' | 'diagnosis' | 'map';
 export type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
 export type ServicesJourneyView = 'recommend' | 'browse' | 'plan' | 'team';
 export type AiJourneyView = 'opportunities' | 'details' | 'refresh' | 'loomai';
@@ -13,7 +13,7 @@ export type ShareJourneyView = 'create' | 'links' | 'preview';
 
 export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
   overview: ['decision', 'profile', 'progress', 'refresh'],
-  actions: ['plan', 'diagnosis'],
+  actions: ['plan', 'diagnosis', 'map'],
   findings: ['risks', 'evidence', 'technical'],
   services: ['recommend', 'browse', 'plan', 'team'],
   ai: ['opportunities', 'details', 'refresh', 'loomai'],
@@ -100,10 +100,17 @@ export const buildOwnerWorkspaceJourneyItems = ({
     },
     {
       value: 'diagnosis',
-      label: 'Diagnosis',
-      detail: 'Stored owner brief, mapped rough edges, and AI explanation.',
+      label: 'Saved diagnosis',
+      detail: 'Review mapped rough edges, proof needs, services, and AI explanation.',
       accent: appleColors.blue,
       meta: <PastelChip label={latestDiagnosisFindingCount !== undefined ? `${latestDiagnosisFindingCount} findings` : 'Not run'} accent={latestDiagnosisFindingCount !== undefined ? appleColors.amber : appleColors.blue} />,
+    },
+    {
+      value: 'map',
+      label: 'Map rough edges',
+      detail: 'Update the launch goal, known gaps, and repo or app signals.',
+      accent: appleColors.cyan,
+      meta: <PastelChip label="Owner input" accent={appleColors.cyan} bg="#e4f9fd" />,
     },
   ],
   findingsJourneyItems: [

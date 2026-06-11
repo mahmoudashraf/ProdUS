@@ -6,7 +6,7 @@ import OwnerProductDiagnosisPanel from './OwnerProductDiagnosisPanel';
 import type { ActionJourneyView } from './ownerWorkspaceJourneyConfig';
 
 type ActionPlanProps = ComponentProps<typeof OwnerActionPlanPanel>;
-type DiagnosisProps = ComponentProps<typeof OwnerProductDiagnosisPanel>;
+type DiagnosisProps = Omit<ComponentProps<typeof OwnerProductDiagnosisPanel>, 'mode'>;
 
 interface OwnerWorkspaceActionsPaneProps {
   view: ActionJourneyView;
@@ -23,8 +23,12 @@ export default function OwnerWorkspaceActionsPane({
 }: OwnerWorkspaceActionsPaneProps) {
   if (!detailOpen) return null;
 
+  if (view === 'map') {
+    return <OwnerProductDiagnosisPanel {...diagnosis} mode="map" />;
+  }
+
   if (view === 'diagnosis') {
-    return <OwnerProductDiagnosisPanel {...diagnosis} />;
+    return <OwnerProductDiagnosisPanel {...diagnosis} mode="summary" />;
   }
 
   return <OwnerActionPlanPanel {...actionPlan} />;
