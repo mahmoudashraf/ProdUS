@@ -173,7 +173,7 @@ export default function OwnerWorkspaceFixedChatDock({
         bottom: { xs: 12, md: 22 },
         width: expanded
           ? { xs: 'calc(100vw - 24px)', sm: 390, xl: 410 }
-          : { xs: 'calc(100vw - 24px)', sm: 280, xl: 300 },
+          : { xs: 156, sm: 280, xl: 300 },
         maxWidth: 'calc(100vw - 24px)',
         zIndex: theme => theme.zIndex.modal + 3,
         pointerEvents: 'auto',
@@ -193,13 +193,21 @@ export default function OwnerWorkspaceFixedChatDock({
           spacing={1}
           alignItems="center"
           justifyContent="space-between"
-          sx={{ px: 1.15, py: 1, borderBottom: expanded ? '1px solid #edf2f7' : 'none' }}
+          sx={{
+            px: expanded ? 1.15 : { xs: 0.85, sm: 1.15 },
+            py: expanded ? 1 : { xs: 0.75, sm: 1 },
+            borderBottom: expanded ? '1px solid #edf2f7' : 'none',
+            cursor: expanded ? 'default' : 'pointer',
+          }}
+          onClick={() => {
+            if (!expanded) setExpanded(true);
+          }}
         >
           <Stack direction="row" spacing={0.9} alignItems="center" sx={{ minWidth: 0 }}>
             <Box
               sx={{
-                width: 34,
-                height: 34,
+                width: expanded ? 34 : { xs: 30, sm: 34 },
+                height: expanded ? 34 : { xs: 30, sm: 34 },
                 borderRadius: 1,
                 bgcolor: '#f1efff',
                 color: appleColors.purple,
@@ -212,12 +220,25 @@ export default function OwnerWorkspaceFixedChatDock({
             </Box>
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="body2" sx={{ fontWeight: 950 }} noWrap>
-                ProdUS AI
+                {expanded ? (
+                  'ProdUS AI'
+                ) : (
+                  <>
+                    <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                      Ask AI
+                    </Box>
+                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                      ProdUS AI
+                    </Box>
+                  </>
+                )}
               </Typography>
-              <DotLabel
-                label={chatQuery.isPending ? 'Thinking' : liveStatus ? 'Live product chat' : 'AI issue shown'}
-                color={chatQuery.isPending ? appleColors.amber : liveStatus ? appleColors.green : appleColors.amber}
-              />
+              <Box sx={{ display: { xs: expanded ? 'block' : 'none', sm: 'block' } }}>
+                <DotLabel
+                  label={chatQuery.isPending ? 'Thinking' : liveStatus ? 'Live product chat' : 'AI issue shown'}
+                  color={chatQuery.isPending ? appleColors.amber : liveStatus ? appleColors.green : appleColors.amber}
+                />
+              </Box>
             </Box>
           </Stack>
           <Stack direction="row" spacing={0.25} alignItems="center">
@@ -225,16 +246,27 @@ export default function OwnerWorkspaceFixedChatDock({
               <span>
                 <IconButton
                   size="small"
-                  onClick={onOpenFullChat}
+                  onClick={event => {
+                    event.stopPropagation();
+                    onOpenFullChat();
+                  }}
                   disabled={!fullChatReady}
                   aria-label="Open full ProdUS AI chat"
+                  sx={{ display: { xs: expanded ? 'inline-flex' : 'none', sm: 'inline-flex' } }}
                 >
                   {fullChatReady ? <OpenInFullOutlined sx={{ fontSize: 18 }} /> : <CircularProgress size={16} />}
                 </IconButton>
               </span>
             </Tooltip>
             <Tooltip title={expanded ? 'Collapse chat' : 'Show chat'}>
-              <IconButton size="small" onClick={() => setExpanded(value => !value)} aria-label={expanded ? 'Collapse ProdUS AI chat' : 'Show ProdUS AI chat'}>
+              <IconButton
+                size="small"
+                onClick={event => {
+                  event.stopPropagation();
+                  setExpanded(value => !value);
+                }}
+                aria-label={expanded ? 'Collapse ProdUS AI chat' : 'Show ProdUS AI chat'}
+              >
                 {expanded ? <CloseFullscreenOutlined sx={{ fontSize: 18 }} /> : <AutoAwesomeOutlined sx={{ fontSize: 18 }} />}
               </IconButton>
             </Tooltip>
@@ -338,7 +370,7 @@ export default function OwnerWorkspaceFixedChatDock({
         )}
 
         {!expanded && (
-          <Box component="form" onSubmit={submit} sx={{ px: 1.15, pb: 1.15 }}>
+          <Box component="form" onSubmit={submit} sx={{ px: 1.15, pb: 1.15, display: { xs: 'none', sm: 'block' } }}>
             <TextField
               fullWidth
               size="small"
