@@ -1,9 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { LoomAIMaxModeAssistant } from './LoomAIMaxModeAssistant';
-import { openWidgetAssistant, type WidgetStatus } from './loomAIMaxModeWidgetRuntime';
-import OwnerWorkspaceFixedChatDock from './OwnerWorkspaceFixedChatDock';
 import type { WorkspaceTab } from './ownerWorkspaceModel';
 import type { ProductProfile } from './types';
 
@@ -38,7 +36,6 @@ export default function OwnerWorkspaceAiChatDock({
   totalChecks,
   workspaceTab,
 }: OwnerWorkspaceAiChatDockProps) {
-  const [fullChatStatus, setFullChatStatus] = useState<WidgetStatus>('idle');
   const requestContext = useMemo(
     () => ({
       pageType: 'product-workspace-fixed-chat',
@@ -90,19 +87,10 @@ export default function OwnerWorkspaceAiChatDock({
         title="Ask about this product"
         eyebrow="Fixed chat · read-only context"
         description="Ask ProdUS AI about this product, blockers, services, scanner proof, AI opportunities, and the next owner decision. Chat can read context but cannot update records."
-        onStatusChange={setFullChatStatus}
+        companionDock
         renderCard={false}
         showLauncher={false}
         starterPrompts={starterPrompts}
-      />
-      <OwnerWorkspaceFixedChatDock
-        conversationId={conversationId}
-        requestContext={requestContext}
-        mode="thinker"
-        position="product_workspace_fixed_chat"
-        starterPrompts={starterPrompts}
-        fullChatStatus={fullChatStatus}
-        onOpenFullChat={openWidgetAssistant}
       />
     </>
   );
