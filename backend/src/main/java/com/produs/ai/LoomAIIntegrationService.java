@@ -127,6 +127,20 @@ public class LoomAIIntegrationService {
     private static final String DATA_SYNC_SCOPE = "data-sync:upsert";
     private static final String SAFE_KNOWLEDGE_SYSTEM_SUBJECT = "system:produs-safe-knowledge-sync";
     private static final String SAFE_KNOWLEDGE_EXPORT_VERSION = "produs-safe-knowledge-v1";
+    private static final Set<String> SUPPORTED_SAFE_VECTOR_SPACES = Set.of(
+            "service-category",
+            "service-module",
+            "service-dependency",
+            "package-template",
+            "ai-capability-contract",
+            "milestone-template",
+            "acceptance-criteria-template",
+            "evidence-template",
+            "scanner-tool-description",
+            "case-pattern",
+            "team-profile",
+            "solo-expert-profile"
+    );
     private static final Pattern SECRET_PATTERN = Pattern.compile(
             "(?is)(api[_-]?key|secret|token|password|authorization|bearer|private[_-]?key)\\s*[:=]\\s*[^\\s,;]+"
                     + "|gh[pousr]_[A-Za-z0-9_]+"
@@ -958,6 +972,28 @@ public class LoomAIIntegrationService {
         };
     }
 
+    private List<String> safeVectorSpaces(AssistantContextRequest context) {
+        if (context == null) {
+            return List.of();
+        }
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        addSafeVectorSpace(values, context.vectorSpace());
+        if (context.vectorSpaces() != null) {
+            context.vectorSpaces().forEach(value -> addSafeVectorSpace(values, value));
+        }
+        return values.stream().limit(4).toList();
+    }
+
+    private void addSafeVectorSpace(Set<String> values, String value) {
+        if (blank(value)) {
+            return;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        if (SUPPORTED_SAFE_VECTOR_SPACES.contains(normalized)) {
+            values.add(normalized);
+        }
+    }
+
     private KnowledgeExportRecord knowledgeExportRecord(SafeKnowledgeRecord record) {
         return new KnowledgeExportRecord(
                 record.id(),
@@ -1176,6 +1212,16 @@ public class LoomAIIntegrationService {
         safe.put("pageType", context == null || context.pageType() == null ? "unknown" : context.pageType());
         if (context == null) {
             return safe;
+        }
+        List<String> preferredVectorSpaces = safeVectorSpaces(context);
+        if (!preferredVectorSpaces.isEmpty()) {
+            safe.put("vectorSpace", preferredVectorSpaces.get(0));
+            safe.put("vectorSpaces", preferredVectorSpaces);
+            safe.put("indexedKnowledgePolicy", Map.of(
+                    "preferredVectorSpaces", preferredVectorSpaces,
+                    "useWhen", "service, package, scanner-tool, AI capability, or evidence-template details are useful for the page answer",
+                    "sourceRequirement", "return source citations when indexed ProdUS safe knowledge is used"
+            ));
         }
         if ("owner-project-ai-analysis".equals(context.pageType())) {
             safe.put("actionProfile", "loomai-productization-read");
@@ -4250,6 +4296,8 @@ public class LoomAIIntegrationService {
             UUID workspaceId,
             UUID milestoneId,
             UUID findingId,
+            String vectorSpace,
+            List<String> vectorSpaces,
             Map<String, Object> pageContext
     ) {}
 

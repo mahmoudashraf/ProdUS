@@ -1344,6 +1344,8 @@ export interface AssistantContext {
   workspaceId?: string | undefined;
   milestoneId?: string | undefined;
   findingId?: string | undefined;
+  vectorSpace?: string | undefined;
+  vectorSpaces?: string[] | undefined;
   pageContext?: Record<string, unknown> | undefined;
 }
 
