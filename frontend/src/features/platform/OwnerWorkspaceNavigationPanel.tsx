@@ -30,9 +30,12 @@ export default function OwnerWorkspaceNavigationPanel({
   onDetailChange: (value: string) => void;
 }) {
   const isOverviewHome = workspaceTab === 'overview' && !workspaceDetailOpen;
+  const isAiAreaHome = workspaceTab === 'ai' && !workspaceDetailOpen;
   const visibleJourneyItems =
     isOverviewHome
       ? currentJourneyItems.filter((item) => item.value !== 'refresh' && item.value !== 'refresh-review')
+      : isAiAreaHome
+        ? currentJourneyItems.filter((item) => item.value !== 'refresh-review')
       : currentJourneyItems;
   const breadcrumbItems = [
     { label: 'Product Home', onClick: () => onAreaChange('overview') },

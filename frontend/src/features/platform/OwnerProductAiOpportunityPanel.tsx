@@ -45,6 +45,15 @@ export default function OwnerProductAiOpportunityPanel({
     queryFn: () => getJson<ProductAiOpportunityContextResponse>(`/products/${product.id}/ai-opportunities`),
   });
 
+  const openAiView = (nextView: AiJourneyView) => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || `/products/${product.id}`;
+    next.set('tab', 'ai');
+    next.set('view', nextView);
+    next.delete('proof');
+    router.push(`${routePath}?${next.toString()}`, { scroll: false });
+  };
+
   const analyzeProduct = useMutation({
     mutationFn: async () => {
       const payload = new FormData();
@@ -64,6 +73,7 @@ export default function OwnerProductAiOpportunityPanel({
       setAnalysis(response);
       setSelection(defaultAiOpportunitySelection(response));
       setAcceptedResult(null);
+      openAiView('refresh-review');
     },
   });
 
@@ -75,8 +85,6 @@ export default function OwnerProductAiOpportunityPanel({
       + selection.nextSteps.length,
     [selection]
   );
-  const activeView = view === 'loomai' ? 'details' : view;
-
   const acceptSelection = useMutation({
     mutationFn: async () => {
       if (!analysis) throw new Error('Refresh AI opportunities first.');
@@ -97,6 +105,7 @@ export default function OwnerProductAiOpportunityPanel({
         queryClient.invalidateQueries({ queryKey: ['scanner-summary', product.id] }),
         queryClient.invalidateQueries({ queryKey: ['productization-cart'] }),
       ]);
+      openAiView('opportunities');
     },
   });
 
@@ -105,14 +114,7 @@ export default function OwnerProductAiOpportunityPanel({
     setSharedFileIndexes(new Set(nextFiles.map((_, index) => index)));
   };
 
-  const openAiView = (nextView: AiJourneyView) => {
-    const next = new URLSearchParams(searchParamString);
-    const routePath = pathname || `/products/${product.id}`;
-    next.set('tab', 'ai');
-    next.set('view', nextView);
-    next.delete('proof');
-    router.push(`${routePath}?${next.toString()}`);
-  };
+  const activeView = view === 'loomai' ? 'details' : view;
 
   return (
     <Stack spacing={2.5}>
@@ -122,7 +124,7 @@ export default function OwnerProductAiOpportunityPanel({
         </Alert>
       )}
 
-      {activeView === 'refresh' ? (
+      {activeView === 'refresh' || activeView === 'refresh-review' ? (
         <OwnerProductAiOpportunityRefreshView
           acceptedResult={acceptedResult}
           acceptError={acceptSelection.error}
@@ -137,10 +139,12 @@ export default function OwnerProductAiOpportunityPanel({
           selectedItemCount={selectedItemCount}
           selection={selection}
           sharedFileIndexes={sharedFileIndexes}
+          mode={activeView === 'refresh-review' ? 'review' : 'setup'}
           onAccept={() => acceptSelection.mutate()}
-          onBackHome={() => openAiView('opportunities')}
           onFilesChange={setAllFilesShared}
           onOwnerNoteChange={setOwnerNote}
+          onRefreshSetup={() => openAiView('refresh')}
+          onReviewResult={() => openAiView('refresh-review')}
           onRun={() => analyzeProduct.mutate()}
           onSelectAll={() => {
             if (analysis) setSelection(defaultAiOpportunitySelection(analysis));
@@ -169,6 +173,7 @@ export default function OwnerProductAiOpportunityPanel({
           product={product}
           selectedItemCount={selectedItemCount}
           onRefresh={() => openAiView('refresh')}
+          onReviewResult={() => openAiView('refresh-review')}
           onViewDetails={() => openAiView('details')}
         />
       )}

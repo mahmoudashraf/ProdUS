@@ -8,7 +8,7 @@ export type OverviewJourneyView = 'decision' | 'profile' | 'progress' | 'refresh
 export type ActionJourneyView = 'plan' | 'diagnosis' | 'map';
 export type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
 export type ServicesJourneyView = 'recommend' | 'browse' | 'plan' | 'team';
-export type AiJourneyView = 'opportunities' | 'details' | 'refresh' | 'loomai';
+export type AiJourneyView = 'opportunities' | 'details' | 'refresh' | 'refresh-review' | 'loomai';
 export type ShareJourneyView = 'create' | 'links' | 'preview';
 
 export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
@@ -16,7 +16,7 @@ export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
   actions: ['plan', 'diagnosis', 'map'],
   findings: ['risks', 'evidence', 'technical'],
   services: ['recommend', 'browse', 'plan', 'team'],
-  ai: ['opportunities', 'details', 'refresh', 'loomai'],
+  ai: ['opportunities', 'details', 'refresh', 'refresh-review', 'loomai'],
   share: ['create', 'links', 'preview'],
 };
 
@@ -191,9 +191,16 @@ export const buildOwnerWorkspaceJourneyItems = ({
     {
       value: 'refresh',
       label: 'Refresh analysis',
-      detail: 'Add context, rerun AI, review the proposal, and accept only what should update the product.',
+      detail: 'Add context and files, then rerun AI for product opportunities and LoomAI fit.',
       accent: appleColors.blue,
       meta: <PastelChip label="Owner approves" accent={appleColors.blue} bg="#e8f2ff" />,
+    },
+    {
+      value: 'refresh-review',
+      label: 'Review AI result',
+      detail: 'Choose which opportunities, services, checks, and owner steps should be saved.',
+      accent: appleColors.green,
+      meta: <PastelChip label="No auto-save" accent={appleColors.green} bg="#e7f8ee" />,
     },
   ],
   shareJourneyItems: [

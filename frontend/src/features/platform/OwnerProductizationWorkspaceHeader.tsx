@@ -86,7 +86,6 @@ export function OwnerProductizationWorkspaceLead({
   onEditProfile,
   onExportReport,
   onOpenAiOpportunities,
-  onProductHome,
   onPrimaryAction,
   onRefreshBrief,
   onViewProof,
@@ -109,7 +108,6 @@ export function OwnerProductizationWorkspaceLead({
   onEditProfile: () => void;
   onExportReport: () => void;
   onOpenAiOpportunities: () => void;
-  onProductHome: () => void;
   onPrimaryAction: () => void;
   onRefreshBrief: () => void;
   onViewProof: () => void;
@@ -151,7 +149,6 @@ export function OwnerProductizationWorkspaceLead({
           detailLabel={internalTitle}
           detailText={internalDescription}
           productName={product.name}
-          onBackHome={onProductHome}
         />
       ) : (
         <EmptyState label="Create a product profile to start the owner product workflow." />

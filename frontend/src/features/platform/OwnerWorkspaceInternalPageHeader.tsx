@@ -1,7 +1,6 @@
 'use client';
 
-import { KeyboardBackspaceOutlined } from '@mui/icons-material';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import {
   PastelChip,
   Surface,
@@ -13,17 +12,15 @@ export default function OwnerWorkspaceInternalPageHeader({
   detailLabel,
   detailText,
   productName,
-  onBackHome,
 }: {
   areaLabel: string;
   detailLabel: string;
   detailText?: string | undefined;
   productName?: string | undefined;
-  onBackHome: () => void;
 }) {
   return (
     <Surface sx={{ background: '#fff' }}>
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ md: 'center' }}>
+      <Stack spacing={1.5}>
         <Box sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 0.85 }}>
             <PastelChip label="Product section" accent={appleColors.purple} bg="#f1efff" />
@@ -36,14 +33,6 @@ export default function OwnerWorkspaceInternalPageHeader({
             {detailText || `Focused ${areaLabel.toLowerCase()} view for ${productName || 'this product'}.`}
           </Typography>
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={<KeyboardBackspaceOutlined />}
-          onClick={onBackHome}
-          sx={{ minHeight: 42, alignSelf: { xs: 'flex-start', md: 'center' }, flexShrink: 0 }}
-        >
-          Back to Product Home
-        </Button>
       </Stack>
     </Surface>
   );

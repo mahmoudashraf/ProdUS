@@ -29,6 +29,7 @@ interface OwnerProductAiOpportunityHomeProps {
   context: ProductAiOpportunityContextResponse | undefined;
   latestAnalysis: AiAssistedProductAnalysisResponse | null;
   onRefresh: () => void;
+  onReviewResult: () => void;
   onViewDetails: () => void;
   product: ProductProfile;
   selectedItemCount: number;
@@ -54,6 +55,7 @@ export default function OwnerProductAiOpportunityHome({
   context,
   latestAnalysis,
   onRefresh,
+  onReviewResult,
   onViewDetails,
   product,
   selectedItemCount,
@@ -352,10 +354,10 @@ export default function OwnerProductAiOpportunityHome({
             <Button
               variant="outlined"
               endIcon={<ArrowForwardOutlined />}
-              onClick={onRefresh}
+              onClick={onReviewResult}
               sx={{ alignSelf: 'flex-start', minHeight: 40 }}
             >
-              Open refresh analysis
+              Review AI result
             </Button>
           </Stack>
         </Surface>

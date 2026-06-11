@@ -69,7 +69,6 @@ export default function OwnerProductizationWorkspace({
     technicalProofDetailOpen,
     technicalProofView,
     workspaceDetailOpen,
-    openProductHome,
     openWorkspaceArea,
     openWorkspaceAreaHub,
     openWorkspaceDetail,
@@ -404,7 +403,6 @@ export default function OwnerProductizationWorkspace({
             onDetailChange={(value) => openWorkspaceDetail(workspaceTab, value)}
             onEditProfile={() => openWorkspaceDetail('overview', 'profile')}
             onExportReport={() => createEvidenceExport.mutate()}
-            onProductHome={openProductHome}
             onPrimaryAction={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}
             onOpenAiOpportunities={() => openAiView('opportunities')}
             onRefreshBrief={() => openWorkspaceDetail('overview', 'refresh')}
