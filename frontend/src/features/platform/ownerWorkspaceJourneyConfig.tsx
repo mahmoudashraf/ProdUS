@@ -4,7 +4,7 @@ import { type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import { PastelChip, appleColors } from './PlatformComponents';
 import { WorkspaceTab } from './ownerWorkspaceModel';
 
-export type OverviewJourneyView = 'decision' | 'profile' | 'progress' | 'refresh';
+export type OverviewJourneyView = 'decision' | 'profile' | 'progress' | 'refresh' | 'refresh-review';
 export type ActionJourneyView = 'plan' | 'diagnosis' | 'map';
 export type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
 export type ServicesJourneyView = 'recommend' | 'browse' | 'plan' | 'team';
@@ -12,7 +12,7 @@ export type AiJourneyView = 'opportunities' | 'details' | 'refresh' | 'loomai';
 export type ShareJourneyView = 'create' | 'links' | 'preview';
 
 export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
-  overview: ['decision', 'profile', 'progress', 'refresh'],
+  overview: ['decision', 'profile', 'progress', 'refresh', 'refresh-review'],
   actions: ['plan', 'diagnosis', 'map'],
   findings: ['risks', 'evidence', 'technical'],
   services: ['recommend', 'browse', 'plan', 'team'],
@@ -81,6 +81,13 @@ export const buildOwnerWorkspaceJourneyItems = ({
       detail: 'Rerun AI analysis, review suggested profile updates, and save only owner-approved fields.',
       accent: appleColors.blue,
       meta: <PastelChip label="Owner chooses" accent={appleColors.blue} bg="#e8f2ff" />,
+    },
+    {
+      value: 'refresh-review',
+      label: 'Review AI result',
+      detail: 'Choose which suggested product profile fields should be saved.',
+      accent: appleColors.cyan,
+      meta: <PastelChip label="No auto-save" accent={appleColors.cyan} bg="#e4f9fd" />,
     },
     {
       value: 'progress',

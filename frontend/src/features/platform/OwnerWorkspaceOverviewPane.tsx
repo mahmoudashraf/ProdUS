@@ -56,8 +56,11 @@ export default function OwnerWorkspaceOverviewPane({
         </>
       )}
 
-      {detailOpen && view === 'refresh' && (
-        <OwnerProductAiRefreshPanel {...productAiRefresh} />
+      {detailOpen && (view === 'refresh' || view === 'refresh-review') && (
+        <OwnerProductAiRefreshPanel
+          {...productAiRefresh}
+          mode={view === 'refresh-review' ? 'review' : 'setup'}
+        />
       )}
 
       {detailOpen && view === 'profile' && (
