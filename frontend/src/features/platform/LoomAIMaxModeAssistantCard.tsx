@@ -12,6 +12,7 @@ export default function LoomAIMaxModeAssistantCard({
   eyebrow,
   onOpenAssistant,
   onSendPrompt,
+  openButtonLabel = 'Open analysis chat',
   starterPrompts,
   status,
   title,
@@ -22,6 +23,7 @@ export default function LoomAIMaxModeAssistantCard({
   eyebrow: string;
   onOpenAssistant: () => void;
   onSendPrompt: (prompt: string) => void;
+  openButtonLabel?: string;
   starterPrompts: string[];
   status: WidgetStatus;
   title: string;
@@ -109,7 +111,7 @@ export default function LoomAIMaxModeAssistantCard({
           onClick={onOpenAssistant}
           sx={{ minHeight: 40 }}
         >
-          {status === 'loading' ? 'Preparing ProdUS AI...' : 'Open analysis chat'}
+          {status === 'loading' ? 'Preparing ProdUS AI...' : openButtonLabel}
         </Button>
       </Stack>
     </Box>

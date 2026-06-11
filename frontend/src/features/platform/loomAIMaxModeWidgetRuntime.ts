@@ -132,6 +132,11 @@ export async function loadWidgetScript(src: string) {
   });
 }
 
+export function openWidgetAssistant() {
+  if (typeof window === 'undefined') return;
+  window.MaxMode?.open();
+}
+
 export async function assistantHeaders() {
   const headers: Record<string, string> = {};
   if (typeof window === 'undefined') return headers;

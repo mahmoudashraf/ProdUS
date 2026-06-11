@@ -22,6 +22,10 @@ interface LoomAIMaxModeAssistantProps {
   conversationId: string;
   mode: string;
   position: string;
+  companionDock?: boolean;
+  openButtonLabel?: string;
+  renderCard?: boolean;
+  showLauncher?: boolean;
   title: string;
   eyebrow: string;
   description: string;
@@ -34,6 +38,10 @@ export function LoomAIMaxModeAssistant({
   conversationId,
   mode,
   position,
+  companionDock = false,
+  openButtonLabel = 'Open analysis chat',
+  renderCard = true,
+  showLauncher = true,
   title,
   eyebrow,
   description,
@@ -69,7 +77,7 @@ export function LoomAIMaxModeAssistant({
         window.MaxMode?.destroy();
         window.MaxMode?.init({
           integrationMode: 'backend-mediated-private-runtime',
-          launcher: true,
+          launcher: showLauncher,
           position: 'bottom-right',
           apiConfig: {
             chatBaseUrl: apiBaseUrl(),
@@ -103,7 +111,7 @@ export function LoomAIMaxModeAssistant({
             launcherLabel: 'Ask ProdUS AI',
             launcherAriaLabel: 'Ask ProdUS AI about this page',
             launcherVariant: 'pill',
-            companionDock: false,
+            companionDock,
             showUtilityPanel: false,
             defaultConversationMode: mode,
             effectiveConversationMode: mode,
@@ -152,7 +160,7 @@ export function LoomAIMaxModeAssistant({
       cancelled = true;
       window.MaxMode?.destroy();
     };
-  }, [description, disabled, mode, position, starterPrompts, widgetContext]);
+  }, [companionDock, description, disabled, mode, position, showLauncher, starterPrompts, widgetContext]);
 
   const openAssistant = () => {
     if (!canUseAssistant) return;
@@ -171,6 +179,8 @@ export function LoomAIMaxModeAssistant({
     });
   };
 
+  if (!renderCard) return null;
+
   return (
     <LoomAIMaxModeAssistantCard
       canUseAssistant={canUseAssistant}
@@ -182,6 +192,7 @@ export function LoomAIMaxModeAssistant({
       title={title}
       onOpenAssistant={openAssistant}
       onSendPrompt={sendPrompt}
+      openButtonLabel={openButtonLabel}
     />
   );
 }
