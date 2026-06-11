@@ -267,6 +267,96 @@ MaxMode.init({
 
 The widget is a UI shell only. It must not know the LoomAI runtime URL, assignment endpoint, assignment key, runtime API key, or assertion signing secret.
 
+### Required ProdUS UI Surfaces
+
+ProdUS should treat the LoomAI UI integration as a small set of backend-mediated surfaces. Every surface calls ProdUS backend routes only; no surface calls the LoomAI runtime, Platform assignment endpoint, MCP endpoint, or vector store directly from the browser.
+
+1. Always-on product workspace fixed chat input.
+
+   Use `OwnerWorkspaceAiChatDock` to mount both the hidden Max Mode shell and the visible `OwnerWorkspaceFixedChatDock`.
+
+   Required behavior:
+
+   - Render a fixed bottom-right chat input on product workspace pages when a `product.id` is available.
+   - Start collapsed/minimized; expand when the owner clicks the dock/header, submits a prompt, or chooses a starter prompt.
+   - Use `conversationId=product-workspace-<productId>`.
+   - Use `mode=thinker` and `position=product_workspace_fixed_chat`.
+   - Send to `POST /api/ai/assistant/query` through the ProdUS API client, normally as relative path `/ai/assistant/query`.
+   - Send page/product/workspace context under `context`, including product id/name/url, workspace area, launch status, scanner totals, and a read-only AI policy.
+   - Keep this surface read-only: it may explain, recommend, summarize, and inspect context, but must not create, update, execute, prepare, or call app actions.
+   - Prefer `safeSummary || answer` for rendered copy.
+   - Show structured failure/fallback states from `provider`, `mode`, `success`, `fallbackReason`, `errorCode`, and `providerRequestId`; do not parse English text to detect failures.
+
+   The fixed dock's "open full chat" control must call the Max Mode shell, not a separate runtime path. In the current code this is `onOpenFullChat={openWidgetAssistant}`.
+
+2. Full Max Mode chat for the product workspace.
+
+   Use `LoomAIMaxModeAssistant` as the full chat shell behind the fixed dock.
+
+   Required behavior:
+
+   - Initialize with `integrationMode=backend-mediated-private-runtime`.
+   - Use `showLauncher=false` when paired with the fixed workspace dock, so the fixed dock is the always-on visible entry point.
+   - Reuse the same `conversationId`, `mode=thinker`, `position=product_workspace_fixed_chat`, `requestContext`, and starter prompts as the fixed dock.
+   - Load the widget through `GET /api/loomai/max-mode-widget`.
+   - Use `chatBaseUrl=<ProdUS API base>`, `fetchCredentials=include`, and the ProdUS-owned routes `/ai/assistant/query`, `/ai/assistant/suggestions`, and `/ai/assistant/auth-context`.
+   - Keep widget features that imply external mutation or unrelated commerce behavior disabled unless ProdUS explicitly implements the governed backend path for them.
+
+3. Product intake / analysis chat panel.
+
+   Use `ProductAnalysisChatPanel` for richer analysis flows while onboarding or analyzing a product.
+
+   Required behavior:
+
+   - Use `LoomAIMaxModeAssistant`.
+   - Use `mode=thinker` and `position=product_intake_analysis`.
+   - Send analysis/product context through the same backend-mediated route set.
+   - Treat this as an analysis and explanation surface, not as an execution surface.
+
+4. One-time page helper cards.
+
+   Use `PlatformAssistantCard` and `StudioAssistantCard` for non-persistent helper answers.
+
+   Required behavior:
+
+   - Send to `POST /api/ai/assistant/query-once` through the ProdUS API client, normally as `/ai/assistant/query-once`.
+   - Use `mode=thinker` and `position=page-helper`.
+   - Do not create or depend on persistent chat history.
+   - Use for page explanations, reviews, guidance, and short analysis cards.
+
+5. Suggestions.
+
+   Use `POST /api/ai/assistant/suggestions` for prompt suggestions.
+
+   Required behavior:
+
+   - Send `content` and `maxSuggestions` plus safe page context where needed.
+   - Render returned suggestions as prompts only. Selecting a suggestion should still submit through the correct surface route, usually `/query` for persistent chat or `/query-once` for helper cards.
+
+6. Optional generic Max Mode companion dock.
+
+   If ProdUS later wants the generic LoomAI widget to render the always-on input itself instead of the custom `OwnerWorkspaceFixedChatDock`, initialize `LoomAIMaxModeAssistant` with `companionDock=true` and `showLauncher=false`.
+
+   Expected behavior:
+
+   - The generic companion dock starts minimized.
+   - It expands on input focus or owner interaction.
+   - The `MAX` control opens full Max Mode.
+   - It uses the same backend-mediated route set and request context rules above.
+   - It should remain visually lightweight and should not block the product workspace page.
+
+### UI Surface Checklist
+
+ProdUS has enough integration information in this handover when each of these is wired:
+
+- Product workspace always-on fixed input: `OwnerWorkspaceAiChatDock` + `OwnerWorkspaceFixedChatDock`.
+- Full workspace Max Mode: hidden `LoomAIMaxModeAssistant` opened by the fixed dock.
+- Product analysis Max Mode panel: `ProductAnalysisChatPanel`.
+- One-time helper cards: `PlatformAssistantCard` and `StudioAssistantCard`.
+- Suggestions route: `/api/ai/assistant/suggestions`.
+- Widget proxy: `/api/loomai/max-mode-widget`.
+- Backend runtime proxy/signing: `LoomAIIntegrationController` and `LoomAIIntegrationService`.
+
 ### Canonical Chat Payload
 
 ProdUS frontend-to-backend assistant requests should use the canonical LoomAI chat shape:
@@ -338,6 +428,8 @@ frontend/src/features/platform/LoomAIMaxModeAssistant.tsx
 frontend/src/features/platform/OwnerWorkspaceAiChatDock.tsx
 frontend/src/features/platform/OwnerWorkspaceFixedChatDock.tsx
 frontend/src/features/platform/ProductAnalysisChatPanel.tsx
+frontend/src/features/platform/PlatformAssistantCard.tsx
+frontend/src/features/platform/StudioAssistantCard.tsx
 frontend/src/app/api/loomai/max-mode-widget/route.ts
 backend/src/main/java/com/produs/ai/LoomAIIntegrationController.java
 backend/src/main/java/com/produs/ai/LoomAIIntegrationService.java
