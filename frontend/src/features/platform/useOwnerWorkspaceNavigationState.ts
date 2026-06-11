@@ -21,6 +21,9 @@ const isWorkspaceTabValue = (value: string | null): value is WorkspaceTab =>
 const isWorkspaceViewValue = (tab: WorkspaceTab, value: string | null) =>
   !!value && workspaceViewValues[tab].includes(value);
 
+const normalizedWorkspaceViewValue = (tab: WorkspaceTab, value: string) =>
+  tab === 'ai' && value === 'loomai' ? 'details' : value;
+
 export function useOwnerWorkspaceNavigationState() {
   const router = useRouter();
   const pathname = usePathname();
@@ -46,13 +49,14 @@ export function useOwnerWorkspaceNavigationState() {
 
     setWorkspaceTab(nextTab);
     if (isWorkspaceViewValue(nextTab, viewParam)) {
+      const normalizedViewParam = normalizedWorkspaceViewValue(nextTab, viewParam || '');
       setWorkspaceDetailOpen(true);
-      if (nextTab === 'overview') setOverviewView(viewParam as OverviewJourneyView);
-      if (nextTab === 'actions') setActionView(viewParam as ActionJourneyView);
-      if (nextTab === 'findings') setFindingsView(viewParam as FindingsJourneyView);
-      if (nextTab === 'services') setServicesView(viewParam as ServicesJourneyView);
-      if (nextTab === 'ai') setAiView(viewParam as AiJourneyView);
-      if (nextTab === 'share') setShareView(viewParam as ShareJourneyView);
+      if (nextTab === 'overview') setOverviewView(normalizedViewParam as OverviewJourneyView);
+      if (nextTab === 'actions') setActionView(normalizedViewParam as ActionJourneyView);
+      if (nextTab === 'findings') setFindingsView(normalizedViewParam as FindingsJourneyView);
+      if (nextTab === 'services') setServicesView(normalizedViewParam as ServicesJourneyView);
+      if (nextTab === 'ai') setAiView(normalizedViewParam as AiJourneyView);
+      if (nextTab === 'share') setShareView(normalizedViewParam as ShareJourneyView);
     } else {
       setWorkspaceDetailOpen(false);
     }

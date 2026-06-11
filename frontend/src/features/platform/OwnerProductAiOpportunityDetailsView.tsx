@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  ArrowBackOutlined,
   AutoAwesomeOutlined,
   PsychologyOutlined,
 } from '@mui/icons-material';
@@ -20,10 +19,9 @@ import type {
   ProductProfile,
 } from './types';
 
-interface OwnerProductLoomAiIntegrationHomeProps {
+interface OwnerProductAiOpportunityDetailsViewProps {
   context: ProductAiOpportunityContextResponse | undefined;
   latestAnalysis: AiAssistedProductAnalysisResponse | null;
-  onOpportunityHome: () => void;
   onRefresh: () => void;
   product: ProductProfile;
 }
@@ -34,13 +32,12 @@ const cleanList = (items: Array<string | undefined>) =>
 const shortChipLabel = (item: string) =>
   item.length > 44 ? `${item.slice(0, 41).trim()}...` : item;
 
-export default function OwnerProductLoomAiIntegrationHome({
+export default function OwnerProductAiOpportunityDetailsView({
   context,
   latestAnalysis,
-  onOpportunityHome,
   onRefresh,
   product,
-}: OwnerProductLoomAiIntegrationHomeProps) {
+}: OwnerProductAiOpportunityDetailsViewProps) {
   const latestOverview = latestAnalysis?.loomaiIntegrationOverview?.live
     ? latestAnalysis.loomaiIntegrationOverview
     : undefined;
@@ -58,6 +55,9 @@ export default function OwnerProductLoomAiIntegrationHome({
   const ownerDecisions = overview?.ownerDecisions?.length
     ? overview.ownerDecisions
     : context?.suggestedNextSteps ?? [];
+  const services = context?.recommendedServiceModules ?? [];
+  const scannerFocus = context?.scannerFocusAreas ?? [];
+  const nextSteps = context?.suggestedNextSteps ?? [];
   const hasContext = !!context?.hasAcceptedContext;
   const hasLoomAiRead = !!latestOverview || hasContext;
   const overviewSummary = ownerFacingAiText(overview?.summary);
@@ -66,11 +66,16 @@ export default function OwnerProductLoomAiIntegrationHome({
   return (
     <Stack spacing={2}>
       <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #effcff 100%)' }}>
-        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ lg: 'flex-start' }}>
+        <Stack
+          direction={{ xs: 'column', lg: 'row' }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ lg: 'flex-start' }}
+        >
           <Stack spacing={1.5} sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               <PsychologyOutlined sx={{ color: appleColors.cyan }} />
-              <Typography variant="h3">LoomAI fit inside AI opportunities</Typography>
+              <Typography variant="h3">Opportunity details</Typography>
               <PastelChip
                 label={latestOverview ? 'New AI result' : hasContext ? 'Product-specific' : 'Needs analysis'}
                 accent={latestOverview || hasContext ? appleColors.green : appleColors.amber}
@@ -81,30 +86,36 @@ export default function OwnerProductLoomAiIntegrationHome({
               {overviewSummary
                 || context?.aiCreationSummary
                 || product.aiCreationSummary
-                || 'See how LoomAI should support the selected AI opportunities, which capabilities are worth building, and what the owner must decide before implementation.'}
+                || 'Review how the accepted AI opportunities shape LoomAI fit, services, technical checks, and owner next steps.'}
             </Typography>
           </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row', lg: 'column' }} spacing={1} sx={{ minWidth: { lg: 220 } }}>
-            <Button variant="outlined" startIcon={<ArrowBackOutlined />} onClick={onOpportunityHome} sx={{ minHeight: 44, whiteSpace: 'normal' }}>
-              Back to AI opportunities
-            </Button>
-            <Button variant="contained" startIcon={<AutoAwesomeOutlined />} onClick={onRefresh} sx={{ minHeight: 44, whiteSpace: 'normal' }}>
-              Refresh analysis
-            </Button>
-          </Stack>
+          <Button
+            variant="contained"
+            startIcon={<AutoAwesomeOutlined />}
+            onClick={onRefresh}
+            sx={{ minHeight: 44, whiteSpace: 'normal' }}
+          >
+            Refresh analysis
+          </Button>
         </Stack>
       </Surface>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
-        <Metric label="Capabilities" value={capabilities.length} detail="Accepted or inferred" accent={appleColors.cyan} />
-        <Metric label="Opportunities" value={useCases.length} detail="Linked to product value" accent={appleColors.purple} />
-        <Metric label="Services" value={context?.recommendedServiceModules.length ?? 0} detail="Can shape delivery" accent={appleColors.green} />
-        <Metric label="Decisions" value={ownerDecisions.length} detail="Owner choices needed" accent={appleColors.amber} />
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' },
+          gap: 1,
+        }}
+      >
+        <Metric label="Opportunities" value={useCases.length} detail="Saved or latest" accent={appleColors.purple} />
+        <Metric label="LoomAI capabilities" value={capabilities.length} detail="Fit signals" accent={appleColors.cyan} />
+        <Metric label="Services" value={services.length} detail="Can shape delivery" accent={appleColors.green} />
+        <Metric label="Focus areas" value={scannerFocus.length} detail="Checks to watch" accent={appleColors.amber} />
       </Box>
 
       <Surface>
         <Stack spacing={1.25}>
-          <Typography variant="h4">Recommended starting point</Typography>
+          <Typography variant="h4">LoomAI fit</Typography>
           <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
             {recommendedStartingPoint
               || (hasLoomAiRead
@@ -120,34 +131,39 @@ export default function OwnerProductLoomAiIntegrationHome({
         <ListSurface title="Owner decisions" items={ownerDecisions} empty="No owner decisions have been accepted yet." />
       </Box>
 
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 2 }}>
+        <ListSurface
+          title="Services shaped by AI"
+          items={services.map((service) => service.moduleName || service.moduleCode)}
+          empty="No AI-shaped services have been accepted yet."
+        />
+        <ListSurface
+          title="Technical checks to watch"
+          items={scannerFocus}
+          empty="No technical check focus areas have been accepted yet."
+        />
+        <ListSurface
+          title="Next owner steps"
+          items={nextSteps}
+          empty="No next owner steps have been accepted yet."
+        />
+      </Box>
+
       <Surface>
         <Stack spacing={1.5}>
-          <Typography variant="h4">AI opportunities supported by LoomAI</Typography>
+          <Typography variant="h4">Opportunities linked to LoomAI</Typography>
           {useCases.length ? (
             <Box sx={{ display: 'grid', gap: 1 }}>
-              {useCases.slice(0, 5).map((useCase, index) => (
+              {useCases.slice(0, 6).map((useCase, index) => (
                 <UseCaseRow key={`${useCase.title}-${index}`} useCase={useCase} index={index} />
               ))}
             </Box>
           ) : (
             <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
-              No accepted AI opportunities are linked to LoomAI yet. Refresh analysis and accept the useful items first.
+              No accepted AI opportunities are linked to LoomAI yet. Refresh analysis and accept
+              the useful items first.
             </Typography>
           )}
-        </Stack>
-      </Surface>
-
-      <Surface sx={{ background: '#fbfaff' }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ md: 'center' }}>
-          <Box>
-            <Typography variant="h4">Need a newer integration read?</Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
-              Refresh analysis when the product direction, customer evidence, repo, or pitch changes.
-            </Typography>
-          </Box>
-          <Button variant="contained" startIcon={<AutoAwesomeOutlined />} onClick={onRefresh} sx={{ minHeight: 44 }}>
-            Refresh analysis
-          </Button>
         </Stack>
       </Surface>
     </Stack>

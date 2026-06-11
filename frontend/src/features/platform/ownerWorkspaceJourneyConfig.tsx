@@ -8,7 +8,7 @@ export type OverviewJourneyView = 'decision' | 'profile' | 'progress' | 'refresh
 export type ActionJourneyView = 'plan' | 'diagnosis';
 export type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
 export type ServicesJourneyView = 'recommend' | 'browse' | 'plan' | 'team';
-export type AiJourneyView = 'opportunities' | 'refresh' | 'loomai';
+export type AiJourneyView = 'opportunities' | 'details' | 'refresh' | 'loomai';
 export type ShareJourneyView = 'create' | 'links' | 'preview';
 
 export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
@@ -16,7 +16,7 @@ export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
   actions: ['plan', 'diagnosis'],
   findings: ['risks', 'evidence', 'technical'],
   services: ['recommend', 'browse', 'plan', 'team'],
-  ai: ['opportunities', 'refresh'],
+  ai: ['opportunities', 'details', 'refresh', 'loomai'],
   share: ['create', 'links', 'preview'],
 };
 
@@ -162,10 +162,17 @@ export const buildOwnerWorkspaceJourneyItems = ({
   aiJourneyItems: [
     {
       value: 'opportunities',
-      label: 'Opportunity home',
-      detail: 'See the accepted AI opportunities, LoomAI fit, services, scanner focus, and next owner steps.',
+      label: 'Saved opportunities',
+      detail: 'See the accepted AI opportunities and the LoomAI fit summary.',
       accent: appleColors.purple,
       meta: <PastelChip label="Accepted context" accent={appleColors.purple} bg="#f1efff" />,
+    },
+    {
+      value: 'details',
+      label: 'Opportunity details',
+      detail: 'Review LoomAI fit, services, technical checks, and next owner steps.',
+      accent: appleColors.cyan,
+      meta: <PastelChip label="Product context" accent={appleColors.cyan} bg="#e4f9fd" />,
     },
     {
       value: 'refresh',

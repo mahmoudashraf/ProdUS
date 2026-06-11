@@ -100,7 +100,7 @@ export default function OwnerProductAiOpportunityRefreshView({
             onClick={onBackHome}
             sx={{ minHeight: 44, whiteSpace: 'normal' }}
           >
-            Opportunity home
+            Saved opportunities
           </Button>
         </Stack>
       </Surface>

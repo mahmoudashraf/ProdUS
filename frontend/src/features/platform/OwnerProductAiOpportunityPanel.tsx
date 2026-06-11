@@ -5,9 +5,9 @@ import { Alert, Stack } from '@mui/material';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getJson, postFormData, postJson } from './api';
+import OwnerProductAiOpportunityDetailsView from './OwnerProductAiOpportunityDetailsView';
 import OwnerProductAiOpportunityHome from './OwnerProductAiOpportunityHome';
 import OwnerProductAiOpportunityRefreshView from './OwnerProductAiOpportunityRefreshView';
-import OwnerProductLoomAiIntegrationHome from './OwnerProductLoomAiIntegrationHome';
 import {
   buildAiOpportunityAcceptancePayload,
   defaultAiOpportunitySelection,
@@ -75,6 +75,7 @@ export default function OwnerProductAiOpportunityPanel({
       + selection.nextSteps.length,
     [selection]
   );
+  const activeView = view === 'loomai' ? 'details' : view;
 
   const acceptSelection = useMutation({
     mutationFn: async () => {
@@ -121,7 +122,7 @@ export default function OwnerProductAiOpportunityPanel({
         </Alert>
       )}
 
-      {view === 'refresh' ? (
+      {activeView === 'refresh' ? (
         <OwnerProductAiOpportunityRefreshView
           acceptedResult={acceptedResult}
           acceptError={acceptSelection.error}
@@ -154,12 +155,11 @@ export default function OwnerProductAiOpportunityPanel({
             });
           }}
         />
-      ) : view === 'loomai' ? (
-        <OwnerProductLoomAiIntegrationHome
+      ) : activeView === 'details' ? (
+        <OwnerProductAiOpportunityDetailsView
           context={aiOpportunityContext.data}
           latestAnalysis={analysis}
           product={product}
-          onOpportunityHome={() => openAiView('opportunities')}
           onRefresh={() => openAiView('refresh')}
         />
       ) : (
@@ -169,7 +169,7 @@ export default function OwnerProductAiOpportunityPanel({
           product={product}
           selectedItemCount={selectedItemCount}
           onRefresh={() => openAiView('refresh')}
-          onViewLoomAi={() => openAiView('loomai')}
+          onViewDetails={() => openAiView('details')}
         />
       )}
     </Stack>
