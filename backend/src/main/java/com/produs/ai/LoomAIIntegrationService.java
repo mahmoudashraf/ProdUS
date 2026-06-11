@@ -3139,7 +3139,7 @@ public class LoomAIIntegrationService {
 
     private String assistantQueryText(String query, Map<String, Object> context) {
         if (!"owner-project-ai-analysis".equals(String.valueOf(context.get("pageType")))) {
-            return query;
+            return indexedKnowledgeQueryText(query, context);
         }
         String briefing = String.valueOf(context.getOrDefault("currentPageAnalysis", "")).trim();
         if (briefing.isBlank()) {
@@ -3151,9 +3151,9 @@ public class LoomAIIntegrationService {
             }
         }
         if (briefing.isBlank()) {
-            return query;
+            return indexedKnowledgeQueryText(query, context);
         }
-        return """
+        return indexedKnowledgeQueryText("""
                 You are answering inside the ProdUS Create Product page after AI product analysis completed.
                 Use the current page analysis below as the authoritative source for questions about this product.
                 If the owner asks for product name, tech stack, selected services, document usage, missing evidence, scanner focus, or next steps, answer directly from this context before using indexed knowledge.
@@ -3166,7 +3166,44 @@ public class LoomAIIntegrationService {
 
                 Owner question:
                 %s
-                """.formatted(briefing, query);
+                """.formatted(briefing, query), context);
+    }
+
+    private String indexedKnowledgeQueryText(String query, Map<String, Object> context) {
+        List<String> vectorSpaces = indexedVectorSpacesFromContext(context);
+        if (vectorSpaces.isEmpty()) {
+            return query;
+        }
+        String instruction = """
+                Indexed ProdUS safe knowledge lookup:
+                Search these vector spaces before the final answer when they can answer service, package, scanner, AI capability, or evidence-template details: %s.
+                Use exact product, service, scanner, stable-code, and finding terms from the question as retrieval terms.
+                When matching indexed records are found, return source basis metadata/sources and cite their titles or stable codes in the answer.
+                If no indexed source matches, state that no indexed source matched and continue from page facts.
+
+                User/page question:
+                """.formatted(String.join(", ", vectorSpaces)).trim();
+        return instruction + "\n" + query;
+    }
+
+    private List<String> indexedVectorSpacesFromContext(Map<String, Object> context) {
+        if (context == null || context.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        Object vectorSpace = context.get("vectorSpace");
+        if (vectorSpace instanceof String text) {
+            addSafeVectorSpace(values, text);
+        }
+        Object vectorSpaces = context.get("vectorSpaces");
+        if (vectorSpaces instanceof Collection<?> collection) {
+            collection.forEach(item -> {
+                if (item instanceof String text) {
+                    addSafeVectorSpace(values, text);
+                }
+            });
+        }
+        return values.stream().limit(4).toList();
     }
 
     private String projectAnalysisBriefing(Map<String, Object> context) {
