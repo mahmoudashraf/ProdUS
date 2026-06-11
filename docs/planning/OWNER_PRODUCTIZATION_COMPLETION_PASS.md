@@ -1318,6 +1318,44 @@ Status:
   - `tmp/live-verification/2026-06-08/379-choose-services-ai-product-context-live-14e586e.png`
   - `tmp/live-verification/2026-06-08/380-mobile-choose-services-ai-language-live-14e586e.png`
 
+### Completed: LoomAI-Owned Companion Dock
+
+Problem:
+
+- The product workspace had drifted back to a ProdUS-built fixed chat dock, so the LoomAI companion surface from the handover was no longer the primary chat UI.
+- The user expected two LoomAI-owned surfaces:
+  - full-width bottom companion dock,
+  - Max Mode opened from that dock.
+
+Solution:
+
+- Updated `OwnerWorkspaceAiChatDock.tsx` so the product workspace renders `LoomAIMaxModeAssistant` with `companionDock`, `renderCard={false}`, and `showLauncher={false}`.
+- Removed the custom fixed chat dock from the active render path for this workspace while keeping all browser calls backend-mediated through existing ProdUS assistant routes.
+- Verified that the LoomAI widget shadow-root renders:
+  - fixed full-width bottom dock,
+  - `Ask me anything...` input,
+  - `MAX` control,
+  - expanded Max Mode surface with `Close MAX Mode` and AI suggestions.
+
+Status:
+
+- Implemented in code commit `d31014d` (`Enable LoomAI companion dock`).
+- Deployed to Coolify frontend staging with deployment `aw0vf6khjmmvl3utb3vw6hna`.
+- Deployed commit confirmed by Coolify: `d31014d02f2dd1f23302b4e7e6822b0d8a5b797b`.
+- Local checks passed:
+  - `npm --prefix frontend run build`
+  - `npm --prefix frontend run type-check`
+- Focused local and live verification passed with `tmp/live-verification/2026-06-11/910-loomai-companion-dock-local-review.js`.
+- Live screenshots:
+  - `tmp/live-verification/2026-06-11/910-local-loomai-companion-dock-live-d31014d.png`
+  - `tmp/live-verification/2026-06-11/911-local-loomai-companion-dock-max-mode-live-d31014d.png`
+  - `tmp/live-verification/2026-06-11/912-local-mobile-loomai-companion-dock-live-d31014d.png`
+- Scanner sanity for product `0a56637c-41b3-4b8b-9ecd-88eca3d7a237` remained healthy:
+  - 10 tool coverage rows completed.
+  - 73 total findings, 73 open, 14 high, 28 medium, 1 low, 30 info.
+  - Gitleaks, OSV, Semgrep, Trivy FS, Checkov, Syft, Grype, Trivy Image, Lighthouse, and ZAP Baseline all reported `COMPLETED`.
+  - All normalized findings were mapped for tools with nonzero findings.
+
 ## Implementation Loop
 
 For each slice:
