@@ -24,6 +24,7 @@ import { useMutation } from '@tanstack/react-query';
 import { postJson } from './api';
 import AssistantMarkdownRenderer from './AssistantMarkdownRenderer';
 import { DotLabel, PastelChip, appleColors, errorMessageFromUnknown } from './PlatformComponents';
+import type { WidgetStatus } from './loomAIMaxModeWidgetRuntime';
 import type { AssistantContext, AssistantQueryResponse } from './types';
 
 type FixedChatMessage = {
@@ -40,7 +41,8 @@ interface OwnerWorkspaceFixedChatDockProps {
   mode: string;
   position: string;
   starterPrompts: string[];
-  onOpenFullChat: () => void;
+  fullChatStatus: WidgetStatus;
+  onOpenFullChat: () => boolean;
 }
 
 const answerText = (response?: AssistantQueryResponse) =>
@@ -76,6 +78,7 @@ export default function OwnerWorkspaceFixedChatDock({
   mode,
   position,
   starterPrompts,
+  fullChatStatus,
   onOpenFullChat,
 }: OwnerWorkspaceFixedChatDockProps) {
   const [expanded, setExpanded] = useState(true);
@@ -159,6 +162,7 @@ export default function OwnerWorkspaceFixedChatDock({
   const liveStatus = latestResponse
     ? latestResponse.provider === 'LOOMAI' && latestResponse.mode !== 'FALLBACK' && latestResponse.success !== false
     : true;
+  const fullChatReady = fullChatStatus === 'ready';
 
   return (
     <Box
@@ -215,10 +219,17 @@ export default function OwnerWorkspaceFixedChatDock({
             </Box>
           </Stack>
           <Stack direction="row" spacing={0.25} alignItems="center">
-            <Tooltip title="Open full chat">
-              <IconButton size="small" onClick={onOpenFullChat} aria-label="Open full ProdUS AI chat">
-                <OpenInFullOutlined sx={{ fontSize: 18 }} />
-              </IconButton>
+            <Tooltip title={fullChatReady ? 'Open full chat' : 'Full chat is loading'}>
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={onOpenFullChat}
+                  disabled={!fullChatReady}
+                  aria-label="Open full ProdUS AI chat"
+                >
+                  {fullChatReady ? <OpenInFullOutlined sx={{ fontSize: 18 }} /> : <CircularProgress size={16} />}
+                </IconButton>
+              </span>
             </Tooltip>
             <Tooltip title={expanded ? 'Collapse chat' : 'Show chat'}>
               <IconButton size="small" onClick={() => setExpanded(value => !value)} aria-label={expanded ? 'Collapse ProdUS AI chat' : 'Show ProdUS AI chat'}>

@@ -24,6 +24,7 @@ interface LoomAIMaxModeAssistantProps {
   position: string;
   companionDock?: boolean;
   openButtonLabel?: string;
+  onStatusChange?: (status: WidgetStatus) => void;
   renderCard?: boolean;
   showLauncher?: boolean;
   title: string;
@@ -40,6 +41,7 @@ export function LoomAIMaxModeAssistant({
   position,
   companionDock = false,
   openButtonLabel = 'Open analysis chat',
+  onStatusChange,
   renderCard = true,
   showLauncher = true,
   title,
@@ -56,6 +58,10 @@ export function LoomAIMaxModeAssistant({
     [conversationId, parsedContext]
   );
   const canUseAssistant = !disabled && status === 'ready';
+
+  useEffect(() => {
+    onStatusChange?.(status);
+  }, [onStatusChange, status]);
 
   useEffect(() => {
     if (disabled) {

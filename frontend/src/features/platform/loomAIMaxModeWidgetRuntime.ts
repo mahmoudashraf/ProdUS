@@ -133,8 +133,9 @@ export async function loadWidgetScript(src: string) {
 }
 
 export function openWidgetAssistant() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !window.MaxMode) return false;
   window.MaxMode?.open();
+  return true;
 }
 
 export async function assistantHeaders() {
