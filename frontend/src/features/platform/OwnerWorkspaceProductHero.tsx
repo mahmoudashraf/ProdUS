@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import {
   CloudUploadOutlined,
   AutoAwesomeOutlined,
@@ -116,27 +117,12 @@ export default function OwnerWorkspaceProductHero({
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
             {launchStatus.reason}
           </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
-            <Button variant="contained" startIcon={<RocketLaunchOutlined />} onClick={onPrimaryAction} sx={{ minHeight: 42, flex: { sm: '1 1 180px' }, whiteSpace: 'normal' }}>
-              {topOwnerRisks.length ? 'Review launch blockers' : 'Plan next service'}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 1.5 }}>
+            <Button variant="contained" startIcon={<RocketLaunchOutlined />} onClick={onPrimaryAction} sx={{ minHeight: 42, flex: { sm: '1 1 220px' }, whiteSpace: 'normal' }}>
+              {topOwnerRisks.length ? 'Open action plan' : 'Review service path'}
             </Button>
             <Button variant="outlined" startIcon={<ShieldOutlined />} onClick={onViewProof} sx={{ minHeight: 42, flex: { sm: '1 1 160px' }, whiteSpace: 'normal' }}>
-              View scanner proof
-            </Button>
-            <Button variant="outlined" startIcon={<AutoAwesomeOutlined />} onClick={onRefreshBrief} sx={{ minHeight: 42, flex: { sm: '1 1 160px' }, whiteSpace: 'normal' }}>
-              Refresh brief
-            </Button>
-            <Button variant="outlined" startIcon={<PsychologyOutlined />} onClick={onOpenAiOpportunities} sx={{ minHeight: 42, flex: { sm: '1 1 190px' }, whiteSpace: 'normal' }}>
-              AI opportunities
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<CloudUploadOutlined />}
-              onClick={onExportReport}
-              disabled={Boolean(isExporting)}
-              sx={{ minHeight: 42, flex: { sm: '1 1 140px' }, whiteSpace: 'normal' }}
-            >
-              Export report
+              View findings
             </Button>
           </Stack>
         </Box>
@@ -174,44 +160,37 @@ export default function OwnerWorkspaceProductHero({
           </Stack>
         </Box>
       </Box>
-      <Box
-        sx={{
-          mt: 1.5,
-          p: 1.5,
-          borderRadius: 1,
-          border: '1px solid',
-          borderColor: `${appleColors.purple}28`,
-          bgcolor: '#fff',
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'auto minmax(0, 1fr) auto' },
-          gap: 1.25,
-          alignItems: 'center',
-        }}
-      >
-        <Box
-          sx={{
-            width: 42,
-            height: 42,
-            borderRadius: 1,
-            bgcolor: '#f1efff',
-            color: appleColors.purple,
-            display: 'grid',
-            placeItems: 'center',
-          }}
-        >
-          <PsychologyOutlined />
+      <Box sx={{ mt: 1.5 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 900 }}>
+          Product shortcuts
+        </Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1.25 }}>
+          <ProductShortcut
+            icon={<PsychologyOutlined />}
+            title="AI opportunities"
+            detail="See accepted AI ideas, LoomAI fit, and rerun analysis with owner approval."
+            actionLabel="Open"
+            accent={appleColors.purple}
+            onClick={onOpenAiOpportunities}
+          />
+          <ProductShortcut
+            icon={<AutoAwesomeOutlined />}
+            title="Refresh brief"
+            detail="Rerun the product brief and choose which suggested updates to save."
+            actionLabel="Refresh"
+            accent={appleColors.blue}
+            onClick={onRefreshBrief}
+          />
+          <ProductShortcut
+            icon={<CloudUploadOutlined />}
+            title="Export report"
+            detail="Create a safe snapshot to share with a team, pilot, or launch reviewer."
+            actionLabel={isExporting ? 'Exporting...' : 'Export'}
+            accent={appleColors.cyan}
+            disabled={Boolean(isExporting)}
+            onClick={onExportReport}
+          />
         </Box>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="body2" sx={{ fontWeight: 950 }}>
-            Find new AI opportunities
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, lineHeight: 1.45 }}>
-            Rerun product-specific AI analysis, attach fresh context, and approve what should update the plan.
-          </Typography>
-        </Box>
-        <Button variant="contained" startIcon={<AutoAwesomeOutlined />} onClick={onOpenAiOpportunities} sx={{ minHeight: 40, whiteSpace: 'normal' }}>
-          Open
-        </Button>
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 1.25, mt: 1.5 }}>
         {evidenceSummaryItems.map((item) => (
@@ -226,5 +205,72 @@ export default function OwnerWorkspaceProductHero({
         ))}
       </Box>
     </Surface>
+  );
+}
+
+function ProductShortcut({
+  actionLabel,
+  accent,
+  detail,
+  disabled,
+  icon,
+  onClick,
+  title,
+}: {
+  actionLabel: string;
+  accent: string;
+  detail: string;
+  disabled?: boolean | undefined;
+  icon: ReactNode;
+  onClick: () => void;
+  title: string;
+}) {
+  return (
+    <Box
+      sx={{
+        p: 1.35,
+        borderRadius: 1,
+        border: '1px solid',
+        borderColor: `${accent}2f`,
+        bgcolor: '#fff',
+        minWidth: 0,
+        display: 'grid',
+        gridTemplateColumns: 'auto minmax(0, 1fr)',
+        gap: 1,
+      }}
+    >
+      <Box
+        sx={{
+          width: 40,
+          height: 40,
+          borderRadius: 1,
+          bgcolor: `${accent}12`,
+          color: accent,
+          display: 'grid',
+          placeItems: 'center',
+        }}
+      >
+        {icon}
+      </Box>
+      <Stack spacing={0.85} sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body2" sx={{ fontWeight: 950 }}>
+            {title}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, lineHeight: 1.45 }}>
+            {detail}
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          size="small"
+          disabled={Boolean(disabled)}
+          onClick={onClick}
+          sx={{ minHeight: 32, alignSelf: 'flex-start', color: accent, borderColor: `${accent}42`, '&:hover': { borderColor: accent, bgcolor: `${accent}08` } }}
+        >
+          {actionLabel}
+        </Button>
+      </Stack>
+    </Box>
   );
 }

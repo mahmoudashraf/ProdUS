@@ -124,8 +124,8 @@ export function WorkspaceBreadcrumbs({
   onBack,
 }: {
   items: WorkspaceBreadcrumbItem[];
-  backLabel: string;
-  onBack: () => void;
+  backLabel?: string;
+  onBack?: () => void;
 }) {
   return (
     <Box
@@ -169,15 +169,17 @@ export function WorkspaceBreadcrumbs({
             );
           })}
         </Stack>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<KeyboardBackspaceOutlined />}
-          onClick={onBack}
-          sx={{ minHeight: 34, alignSelf: { xs: 'flex-start', sm: 'center' } }}
-        >
-          {backLabel}
-        </Button>
+        {backLabel && onBack && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<KeyboardBackspaceOutlined />}
+            onClick={onBack}
+            sx={{ minHeight: 34, alignSelf: { xs: 'flex-start', sm: 'center' } }}
+          >
+            {backLabel}
+          </Button>
+        )}
       </Stack>
     </Box>
   );

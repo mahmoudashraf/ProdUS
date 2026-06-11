@@ -81,7 +81,7 @@ export default function OwnerWorkspaceFixedChatDock({
   fullChatStatus,
   onOpenFullChat,
 }: OwnerWorkspaceFixedChatDockProps) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<FixedChatMessage[]>([
     {
@@ -171,7 +171,9 @@ export default function OwnerWorkspaceFixedChatDock({
         position: 'fixed',
         right: { xs: 12, md: 22, xl: 30 },
         bottom: { xs: 12, md: 22 },
-        width: { xs: 'calc(100vw - 24px)', sm: 390, xl: 410 },
+        width: expanded
+          ? { xs: 'calc(100vw - 24px)', sm: 390, xl: 410 }
+          : { xs: 'calc(100vw - 24px)', sm: 280, xl: 300 },
         maxWidth: 'calc(100vw - 24px)',
         zIndex: theme => theme.zIndex.modal + 3,
         pointerEvents: 'auto',
@@ -333,6 +335,35 @@ export default function OwnerWorkspaceFixedChatDock({
               />
             </Box>
           </Stack>
+        )}
+
+        {!expanded && (
+          <Box component="form" onSubmit={submit} sx={{ px: 1.15, pb: 1.15 }}>
+            <TextField
+              fullWidth
+              size="small"
+              value={input}
+              placeholder="Ask ProdUS AI..."
+              onChange={event => setInput(event.target.value)}
+              disabled={chatQuery.isPending}
+              inputProps={{ 'aria-label': 'Ask ProdUS AI about this product' }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      edge="end"
+                      type="submit"
+                      disabled={!input.trim() || chatQuery.isPending}
+                      aria-label="Send ProdUS AI chat message"
+                      sx={{ color: appleColors.purple }}
+                    >
+                      <SendOutlined sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Box>
         )}
       </Box>
     </Box>

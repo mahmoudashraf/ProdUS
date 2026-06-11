@@ -27,6 +27,12 @@ export default function OwnerWorkspaceNavigationPanel({
   onAreaHub: (tab: WorkspaceTab) => void;
   onDetailChange: (value: string) => void;
 }) {
+  const isOverviewHome = workspaceTab === 'overview' && !workspaceDetailOpen;
+  const visibleJourneyItems =
+    isOverviewHome
+      ? currentJourneyItems.filter((item) => item.value !== 'refresh')
+      : currentJourneyItems;
+
   return (
     <>
       <ProductAreaNavigation
@@ -38,22 +44,19 @@ export default function OwnerWorkspaceNavigationPanel({
         workspaceDetailOpen ? (
           <WorkspaceBreadcrumbs
             items={[
-              { label: 'Product', onClick: () => onAreaChange('overview') },
-              { label: productName, onClick: () => onAreaChange('overview') },
+              { label: 'Product Home', onClick: () => onAreaChange('overview') },
               { label: currentAreaLabel, onClick: () => onAreaHub(workspaceTab) },
               { label: currentDetailLabel },
             ]}
-            backLabel={`${currentAreaLabel} home`}
-            onBack={() => onAreaHub(workspaceTab)}
           />
-        ) : (
+        ) : !isOverviewHome ? (
           <OwnerWorkspaceJourneyNav
             label={`${currentAreaLabel} home`}
             value={null}
-            items={currentJourneyItems}
+            items={visibleJourneyItems}
             onChange={onDetailChange}
           />
-        )
+        ) : null
       )}
     </>
   );
