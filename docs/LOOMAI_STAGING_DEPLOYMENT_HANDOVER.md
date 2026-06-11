@@ -198,6 +198,153 @@ Rules for ProdUS:
 - Keep using `mode=thinker` for read-only analysis and `mode=executor` only for governed action execution.
 - Use `/query-once` for one-time helpers and analysis that must not create chat history. Use `/query` only for persistent chat panels.
 
+## 0B. Chat UI Integration Notes
+
+This section restores the UI integration notes from the older LoomAI/ProdUS rollout context. The current supported posture is **backend-mediated private runtime**: the ProdUS browser talks only to ProdUS backend routes, and the ProdUS backend talks to the assigned LoomAI runtime.
+
+Do not expose LoomAI assignment keys, runtime API keys, assertion signing secrets, MCP keys, provider keys, Platform keys, or Coolify tokens to browser code.
+
+### Browser-To-ProdUS Routes
+
+ProdUS frontend should call only ProdUS-owned backend routes:
+
+```text
+POST /api/ai/assistant/query
+POST /api/ai/assistant/query-once
+POST /api/ai/assistant/suggestions
+GET  /api/ai/assistant/auth-context
+```
+
+The frontend may use relative paths through the existing frontend API client, for example `/ai/assistant/query`, when `NEXT_PUBLIC_API_URL` already points at the ProdUS API base.
+
+Use:
+
+- `/api/ai/assistant/query` for persistent chat panels, docks, and product/workspace conversations.
+- `/api/ai/assistant/query-once` for one-time page helpers, product analysis, document analysis, and explanation cards that must not create chat history.
+- `/api/ai/assistant/suggestions` for prompt suggestions.
+- `/api/ai/assistant/auth-context` for integration health/auth posture display.
+
+### Widget / Max Mode Shell
+
+The current ProdUS UI can load the LoomAI Max Mode widget through a ProdUS-hosted proxy:
+
+```text
+GET /api/loomai/max-mode-widget
+```
+
+Frontend configuration:
+
+```text
+NEXT_PUBLIC_API_URL=<ProdUS API base ending in /api>
+NEXT_PUBLIC_LOOMAI_MAX_MODE_WIDGET_URL=<optional override; default /api/loomai/max-mode-widget>
+```
+
+The widget should be initialized in backend-mediated mode:
+
+```js
+MaxMode.init({
+  integrationMode: "backend-mediated-private-runtime",
+  apiConfig: {
+    chatBaseUrl: "<ProdUS API base>",
+    fetchCredentials: "include",
+    runtimeRoutes: {
+      chatQueryUrl: "/ai/assistant/query",
+      suggestionsUrl: "/ai/assistant/suggestions",
+      authContextUrl: "/ai/assistant/auth-context"
+    },
+    runtimeAuth: {
+      probeAuthContextOnOpen: false
+    }
+  },
+  features: {
+    cart: false,
+    debug: false,
+    conversations: false,
+    quickActions: false
+  }
+});
+```
+
+The widget is a UI shell only. It must not know the LoomAI runtime URL, assignment endpoint, assignment key, runtime API key, or assertion signing secret.
+
+### Canonical Chat Payload
+
+ProdUS frontend-to-backend assistant requests should use the canonical LoomAI chat shape:
+
+```json
+{
+  "conversationId": "product-workspace-<product-id>",
+  "query": "What should I do next?",
+  "mode": "thinker",
+  "position": "product_workspace_fixed_chat",
+  "context": {
+    "pageType": "product-workspace-fixed-chat",
+    "productId": "<uuid>",
+    "workspaceArea": "overview",
+    "aiPolicy": "Answer from read-only ProdUS context. Do not create or mutate records from chat."
+  }
+}
+```
+
+Rules:
+
+- Use `mode=thinker` for read-only analysis, AI opportunity guidance, service/package explanation, scanner/evidence explanation, and owner decision support.
+- Use `mode=executor` only for deliberately governed action execution flows with consent, authorization, idempotency, and audit.
+- Put page/product/workspace/package/finding/evidence context under `context`.
+- Do not send top-level `userId`, `ownerId`, `tenantId`, raw Supabase session values, bearer tokens, runtime secrets, MCP keys, raw scanner logs, private artifact URLs, or raw temporary file URLs from browser context.
+- ProdUS backend must authorize every referenced product/package/workspace/milestone/finding/evidence id before forwarding summarized context to LoomAI.
+- Backend may convert browser conversation ids into subject-scoped provider conversation ids before calling LoomAI.
+
+### Canonical Chat Response For UI Rendering
+
+ProdUS UI should consume the flat response fields:
+
+```json
+{
+  "provider": "LOOMAI",
+  "mode": "thinker",
+  "success": true,
+  "type": "INFORMATION_PROVIDED",
+  "answer": "Safe answer",
+  "safeSummary": "Safe answer",
+  "conversationId": "product-workspace-<product-id>",
+  "confidence": 0.82,
+  "sources": [],
+  "documents": [],
+  "actions": [],
+  "suggestions": [],
+  "metadata": {},
+  "fallbackReason": null,
+  "errorCode": null,
+  "providerRequestId": "rag-..."
+}
+```
+
+Rendering rules:
+
+- Prefer `answer` for the visible assistant message; use `safeSummary` as equivalent/fallback safe copy.
+- Store `providerRequestId` for audit/debug correlation.
+- Treat `provider != LOOMAI`, `mode == FALLBACK`, `success == false`, `fallbackReason`, or `errorCode` as structured UI states.
+- Do not parse English answer text to detect auth, access, action, provider, or fallback failures.
+- If an action is returned, render it as a proposed/inspected action unless the surface has a reviewed confirmed-action UX. Chat surfaces must not silently execute mutations.
+
+### Current ProdUS Code References
+
+Current ProdUS implementation points:
+
+```text
+frontend/src/features/platform/loomAIMaxModeWidgetRuntime.ts
+frontend/src/features/platform/LoomAIMaxModeAssistant.tsx
+frontend/src/features/platform/OwnerWorkspaceAiChatDock.tsx
+frontend/src/features/platform/OwnerWorkspaceFixedChatDock.tsx
+frontend/src/features/platform/ProductAnalysisChatPanel.tsx
+frontend/src/app/api/loomai/max-mode-widget/route.ts
+backend/src/main/java/com/produs/ai/LoomAIIntegrationController.java
+backend/src/main/java/com/produs/ai/LoomAIIntegrationService.java
+```
+
+The key integration rule remains: **UI calls ProdUS backend only; ProdUS backend discovers assignment, signs private runtime assertions, and calls LoomAI runtime.**
+
 Live verification performed by LoomAI on 2026-06-02:
 
 - Platform production backend health: `UP`.
