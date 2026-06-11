@@ -9,8 +9,11 @@ import OwnerWorkspaceScannersOverview from './OwnerWorkspaceScannersOverview';
 import OwnerWorkspaceTechnicalProofArea from './OwnerWorkspaceTechnicalProofArea';
 import type { OwnerTechnicalProofProps } from './OwnerTechnicalProofJourneyPanel';
 import type { StudioAssistantContext } from './StudioAssistantCard';
+import type { EvidenceLibraryView } from './ownerEvidenceLibraryModel';
 import type { FindingsJourneyView } from './ownerWorkspaceJourneyConfig';
 import type { TechnicalProofView } from './ownerTechnicalProofJourneyModel';
+import type { OwnerRiskGroupView } from './ownerRiskGroupRouteModel';
+import type { ScannerProofOperationView } from './scannerProofOperationModel';
 import type { WorkspaceTab } from './ownerWorkspaceModel';
 import type { useOwnerWorkspaceProductActions } from './useOwnerWorkspaceProductActions';
 import type { useOwnerWorkspaceScannerOperations } from './useOwnerWorkspaceScannerOperations';
@@ -38,6 +41,8 @@ interface OwnerWorkspaceFindingsAreaProps {
   openFindingGroups: RiskProps['openGroups'];
   evidenceSummaryItems: EvidenceProps['summaryItems'];
   evidenceFilter: EvidenceProps['evidenceFilter'];
+  riskGroupView: OwnerRiskGroupView | null;
+  evidenceLibraryView: EvidenceLibraryView | null;
   repoSignalsData: ComponentProps<typeof OwnerWorkspaceEvidenceArea>['repoSummary'];
   repoSignalsFetching: ComponentProps<typeof OwnerWorkspaceEvidenceArea>['repoSignalsFetching'];
   scannerSummaryData: OwnerTechnicalProofProps['companion']['scannerSummary'];
@@ -65,11 +70,18 @@ interface OwnerWorkspaceFindingsAreaProps {
   productActions: Pick<ProductActions, 'addServiceToCart' | 'createScannerReadinessDiagnosis' | 'refreshRepoSignals'>;
   assistantActionProps: Pick<OwnerTechnicalProofProps['assistant'], 'onConfirmAction' | 'actionDisabledReason'>;
   assistantContext: (pageType: string, overrides?: Partial<StudioAssistantContext>) => StudioAssistantContext;
+  scannerProofOperationView: ScannerProofOperationView | null;
   technicalProofView: TechnicalProofView;
   technicalProofDetailOpen: boolean;
   onToggleFindingGroup: RiskProps['onGroupToggle'];
   onReviewFinding: RiskProps['onReviewFinding'];
   onOpenFindingsView: (view: FindingsJourneyView) => void;
+  onOpenRiskGroupHub: () => void;
+  onOpenRiskGroupView: (view: OwnerRiskGroupView) => void;
+  onOpenEvidenceLibraryHub: () => void;
+  onOpenEvidenceLibraryView: (view: EvidenceLibraryView) => void;
+  onOpenScannerProofOperationHub: () => void;
+  onOpenScannerProofOperationView: (view: ScannerProofOperationView) => void;
   onOpenTechnicalProofHub: () => void;
   onOpenTechnicalProofView: (view: TechnicalProofView) => void;
   onEvidenceFilterChange: EvidenceProps['onEvidenceFilterChange'];
@@ -89,6 +101,8 @@ export default function OwnerWorkspaceFindingsArea({
   openFindingGroups,
   evidenceSummaryItems,
   evidenceFilter,
+  riskGroupView,
+  evidenceLibraryView,
   repoSignalsData,
   repoSignalsFetching,
   scannerSummaryData,
@@ -116,11 +130,18 @@ export default function OwnerWorkspaceFindingsArea({
   productActions,
   assistantActionProps,
   assistantContext,
+  scannerProofOperationView,
   technicalProofView,
   technicalProofDetailOpen,
   onToggleFindingGroup,
   onReviewFinding,
   onOpenFindingsView,
+  onOpenRiskGroupHub,
+  onOpenRiskGroupView,
+  onOpenEvidenceLibraryHub,
+  onOpenEvidenceLibraryView,
+  onOpenScannerProofOperationHub,
+  onOpenScannerProofOperationView,
   onOpenTechnicalProofHub,
   onOpenTechnicalProofView,
   onEvidenceFilterChange,
@@ -157,6 +178,7 @@ export default function OwnerWorkspaceFindingsArea({
         sources={scannerSummaryData?.sources || []}
         evidence={scannerOperations.filteredScannerEvidence}
         evidenceFilter={evidenceFilter}
+        view={evidenceLibraryView}
         repoSummary={repoSignalsData}
         scannerSummary={scannerSummaryData}
         repoSignalsFetching={repoSignalsFetching}
@@ -166,6 +188,8 @@ export default function OwnerWorkspaceFindingsArea({
         onEvidenceFilterChange={onEvidenceFilterChange}
         onExport={() => scannerOperations.createEvidenceExport.mutate()}
         onOpenEvidence={scannerOperations.openEvidenceArtifact}
+        onOpenHub={onOpenEvidenceLibraryHub}
+        onViewChange={onOpenEvidenceLibraryView}
         onRefreshRepoSignals={() => productActions.refreshRepoSignals.mutate()}
       />
     );
@@ -207,9 +231,12 @@ export default function OwnerWorkspaceFindingsArea({
         selectedFinding={selectedFinding}
         selectedProduct={selectedProduct}
         selectedWorkspace={selectedWorkspace}
+        scannerProofOperationView={scannerProofOperationView}
         technicalProofDetailOpen={technicalProofDetailOpen}
         technicalProofView={technicalProofView}
         unavailableScannerTools={unavailableScannerTools}
+        onOpenScannerProofOperationHub={onOpenScannerProofOperationHub}
+        onOpenScannerProofOperationView={onOpenScannerProofOperationView}
         onOpenTechnicalProofHub={onOpenTechnicalProofHub}
         onOpenTechnicalProofView={onOpenTechnicalProofView}
       />
@@ -221,8 +248,11 @@ export default function OwnerWorkspaceFindingsArea({
       groups={groupedFindings}
       totalFindingCount={scannerSummaryData?.findings.length || 0}
       openGroups={openFindingGroups}
+      activeGroupView={riskGroupView}
       onGroupToggle={onToggleFindingGroup}
       onReviewFinding={onReviewFinding}
+      onOpenHub={onOpenRiskGroupHub}
+      onOpenGroupView={onOpenRiskGroupView}
       onOpenTechnicalProof={() => onOpenFindingsView('technical')}
     />
   );

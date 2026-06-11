@@ -28,6 +28,7 @@ interface ScannerProofRunwayProps {
   fullSuiteBlockedReason?: string;
   isStartingFullSuite?: boolean;
   isExporting?: boolean;
+  onConnectSource?: () => void;
   onRunFullSuite: () => void;
   onReviewBlockers: () => void;
   onExportProof: () => void;
@@ -47,6 +48,7 @@ export default function ScannerProofRunway({
   fullSuiteBlockedReason,
   isStartingFullSuite,
   isExporting,
+  onConnectSource,
   onRunFullSuite,
   onReviewBlockers,
   onExportProof,
@@ -64,7 +66,11 @@ export default function ScannerProofRunway({
       detail: sourceCount ? `${sourceCount} authorized source${sourceCount === 1 ? '' : 's'} attached.` : 'Connect the repository, live app URL, or scanner export first.',
       complete: sourceCount > 0,
       accent: sourceCount ? appleColors.green : appleColors.amber,
-      action: (
+      action: onConnectSource ? (
+        <Button size="small" variant="outlined" onClick={onConnectSource} sx={{ minHeight: 34 }}>
+          Connect
+        </Button>
+      ) : (
         <Button component="a" href="#scanner-operations" size="small" variant="outlined" sx={{ minHeight: 34 }}>
           Connect
         </Button>

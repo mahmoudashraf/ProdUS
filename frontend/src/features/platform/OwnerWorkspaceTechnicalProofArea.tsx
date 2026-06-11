@@ -12,6 +12,7 @@ import {
   shortDateTime,
 } from './ownerProductizationWorkspaceConfig';
 import type { TechnicalProofView } from './ownerTechnicalProofJourneyModel';
+import type { ScannerProofOperationView } from './scannerProofOperationModel';
 import type { useOwnerWorkspaceProductActions } from './useOwnerWorkspaceProductActions';
 import type { useOwnerWorkspaceScannerOperations } from './useOwnerWorkspaceScannerOperations';
 import type { NormalizedFinding } from './types';
@@ -54,9 +55,12 @@ interface OwnerWorkspaceTechnicalProofAreaProps {
   productActions: Pick<ProductActions, 'addServiceToCart' | 'createScannerReadinessDiagnosis'>;
   assistantActionProps: Pick<OwnerTechnicalProofProps['assistant'], 'onConfirmAction' | 'actionDisabledReason'>;
   assistantContext: (pageType: string, overrides?: Partial<StudioAssistantContext>) => StudioAssistantContext;
+  scannerProofOperationView: ScannerProofOperationView | null;
   technicalProofView: TechnicalProofView;
   technicalProofDetailOpen: boolean;
   onReviewBlockers: OwnerTechnicalProofProps['runway']['onReviewBlockers'];
+  onOpenScannerProofOperationHub: () => void;
+  onOpenScannerProofOperationView: (view: ScannerProofOperationView) => void;
   onOpenTechnicalProofHub: () => void;
   onOpenTechnicalProofView: (view: TechnicalProofView) => void;
   onEvidenceFilterChange: OwnerTechnicalProofProps['companion']['onEvidenceFilterChange'];
@@ -95,9 +99,12 @@ export default function OwnerWorkspaceTechnicalProofArea({
   productActions,
   assistantActionProps,
   assistantContext,
+  scannerProofOperationView,
   technicalProofView,
   technicalProofDetailOpen,
   onReviewBlockers,
+  onOpenScannerProofOperationHub,
+  onOpenScannerProofOperationView,
   onOpenTechnicalProofHub,
   onOpenTechnicalProofView,
   onEvidenceFilterChange,
@@ -176,6 +183,7 @@ export default function OwnerWorkspaceTechnicalProofArea({
           fullSuiteBlockedReason: fullHostedScanBlockedReason,
           isStartingFullSuite: startFullHostedScan.isPending,
           isExporting: createEvidenceExport.isPending,
+          onConnectSource: () => onOpenScannerProofOperationView('source'),
           onRunFullSuite: () => startFullHostedScan.mutate(),
           onReviewBlockers,
           onExportProof: () => createEvidenceExport.mutate(),
@@ -268,6 +276,9 @@ export default function OwnerWorkspaceTechnicalProofArea({
           onImportExternalEvidence: () => importExternalEvidence.mutate(),
           onFetchCiTemplate: () => fetchCiTemplate.mutate(),
           defaultToolsForDepth,
+          operationView: scannerProofOperationView,
+          onOpenOperationHub: onOpenScannerProofOperationHub,
+          onOpenOperationView: onOpenScannerProofOperationView,
         },
         companion: {
           scannerSummary: scannerSummaryData,

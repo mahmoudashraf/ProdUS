@@ -11,6 +11,9 @@ import type {
   ServicesJourneyView,
 } from './ownerWorkspaceJourneyConfig';
 import { workspaceViewValues } from './ownerWorkspaceJourneyConfig';
+import { isEvidenceLibraryView, type EvidenceLibraryView } from './ownerEvidenceLibraryModel';
+import { isOwnerRiskGroupView, type OwnerRiskGroupView } from './ownerRiskGroupRouteModel';
+import { isScannerProofOperationView, type ScannerProofOperationView } from './scannerProofOperationModel';
 import { isTechnicalProofView, type TechnicalProofView } from './ownerTechnicalProofJourneyModel';
 import type { WorkspaceTab } from './ownerWorkspaceModel';
 import { workspaceDefaultViewByTab, workspaceTabs } from './ownerWorkspaceModel';
@@ -35,8 +38,11 @@ export function useOwnerWorkspaceNavigationState() {
   const [servicesView, setServicesView] = useState<ServicesJourneyView>('recommend');
   const [aiView, setAiView] = useState<AiJourneyView>('opportunities');
   const [shareView, setShareView] = useState<ShareJourneyView>('create');
+  const [riskGroupView, setRiskGroupView] = useState<OwnerRiskGroupView | null>(null);
+  const [evidenceLibraryView, setEvidenceLibraryView] = useState<EvidenceLibraryView | null>(null);
   const [technicalProofView, setTechnicalProofView] = useState<TechnicalProofView>('run');
   const [technicalProofDetailOpen, setTechnicalProofDetailOpen] = useState(false);
+  const [scannerProofOperationView, setScannerProofOperationView] = useState<ScannerProofOperationView | null>(null);
   const [workspaceDetailOpen, setWorkspaceDetailOpen] = useState(false);
   const searchParamString = searchParams?.toString() || '';
 
@@ -44,7 +50,10 @@ export function useOwnerWorkspaceNavigationState() {
     const currentParams = new URLSearchParams(searchParamString);
     const tabParam = currentParams.get('tab');
     const viewParam = currentParams.get('view');
+    const riskGroupParam = currentParams.get('riskGroup');
+    const proofLibraryParam = currentParams.get('proofLibrary');
     const proofParam = currentParams.get('proof');
+    const setupParam = currentParams.get('setup');
     const nextTab = isWorkspaceTabValue(tabParam) ? tabParam : 'overview';
 
     setWorkspaceTab(nextTab);
@@ -57,16 +66,22 @@ export function useOwnerWorkspaceNavigationState() {
       if (nextTab === 'services') setServicesView(normalizedViewParam as ServicesJourneyView);
       if (nextTab === 'ai') setAiView(normalizedViewParam as AiJourneyView);
       if (nextTab === 'share') setShareView(normalizedViewParam as ShareJourneyView);
+      setRiskGroupView(nextTab === 'findings' && normalizedViewParam === 'risks' && isOwnerRiskGroupView(riskGroupParam) ? riskGroupParam : null);
+      setEvidenceLibraryView(nextTab === 'findings' && normalizedViewParam === 'evidence' && isEvidenceLibraryView(proofLibraryParam) ? proofLibraryParam : null);
     } else {
       setWorkspaceDetailOpen(false);
+      setRiskGroupView(null);
+      setEvidenceLibraryView(null);
     }
 
     const hasTechnicalProofRoute = nextTab === 'findings' && viewParam === 'technical';
     if (hasTechnicalProofRoute && isTechnicalProofView(proofParam)) {
       setTechnicalProofView(proofParam);
       setTechnicalProofDetailOpen(true);
+      setScannerProofOperationView(proofParam === 'run' && isScannerProofOperationView(setupParam) ? setupParam : null);
     } else {
       setTechnicalProofDetailOpen(false);
+      setScannerProofOperationView(null);
       if (!hasTechnicalProofRoute) {
         setTechnicalProofView('run');
       }
@@ -82,7 +97,10 @@ export function useOwnerWorkspaceNavigationState() {
     } else {
       next.delete('view');
     }
+    next.delete('riskGroup');
+    next.delete('proofLibrary');
     next.delete('proof');
+    next.delete('setup');
     router.push(`${routePath}?${next.toString()}`, { scroll: false });
   };
 
@@ -93,7 +111,10 @@ export function useOwnerWorkspaceNavigationState() {
     const routePath = currentPath || pathname || '/products';
     next.delete('tab');
     next.delete('view');
+    next.delete('riskGroup');
+    next.delete('proofLibrary');
     next.delete('proof');
+    next.delete('setup');
     const suffix = next.toString();
     router.push(`${routePath}${suffix ? `?${suffix}` : ''}`, { scroll: false });
   };
@@ -143,11 +164,15 @@ export function useOwnerWorkspaceNavigationState() {
     const routePath = pathname || '/products';
     next.set('tab', 'findings');
     next.set('view', 'technical');
+    next.delete('riskGroup');
+    next.delete('proofLibrary');
     next.delete('proof');
+    next.delete('setup');
     setWorkspaceTab('findings');
     setFindingsView('technical');
     setWorkspaceDetailOpen(true);
     setTechnicalProofDetailOpen(false);
+    setScannerProofOperationView(null);
     router.push(`${routePath}?${next.toString()}`, { scroll: false });
   };
 
@@ -156,12 +181,130 @@ export function useOwnerWorkspaceNavigationState() {
     const routePath = pathname || '/products';
     next.set('tab', 'findings');
     next.set('view', 'technical');
+    next.delete('riskGroup');
+    next.delete('proofLibrary');
     next.set('proof', view);
+    next.delete('setup');
     setWorkspaceTab('findings');
     setFindingsView('technical');
     setWorkspaceDetailOpen(true);
     setTechnicalProofView(view);
     setTechnicalProofDetailOpen(true);
+    setScannerProofOperationView(null);
+    router.push(`${routePath}?${next.toString()}`, { scroll: false });
+  };
+
+  const openEvidenceLibraryHub = () => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || '/products';
+    next.set('tab', 'findings');
+    next.set('view', 'evidence');
+    next.delete('riskGroup');
+    next.delete('proofLibrary');
+    next.delete('proof');
+    next.delete('setup');
+    setWorkspaceTab('findings');
+    setFindingsView('evidence');
+    setWorkspaceDetailOpen(true);
+    setRiskGroupView(null);
+    setEvidenceLibraryView(null);
+    setTechnicalProofDetailOpen(false);
+    setScannerProofOperationView(null);
+    router.push(`${routePath}?${next.toString()}`, { scroll: false });
+  };
+
+  const openEvidenceLibraryView = (view: EvidenceLibraryView) => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || '/products';
+    next.set('tab', 'findings');
+    next.set('view', 'evidence');
+    next.delete('riskGroup');
+    next.set('proofLibrary', view);
+    next.delete('proof');
+    next.delete('setup');
+    setWorkspaceTab('findings');
+    setFindingsView('evidence');
+    setWorkspaceDetailOpen(true);
+    setRiskGroupView(null);
+    setEvidenceLibraryView(view);
+    setTechnicalProofDetailOpen(false);
+    setScannerProofOperationView(null);
+    router.push(`${routePath}?${next.toString()}`, { scroll: false });
+  };
+
+  const openRiskGroupHub = () => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || '/products';
+    next.set('tab', 'findings');
+    next.set('view', 'risks');
+    next.delete('riskGroup');
+    next.delete('proofLibrary');
+    next.delete('proof');
+    next.delete('setup');
+    setWorkspaceTab('findings');
+    setFindingsView('risks');
+    setWorkspaceDetailOpen(true);
+    setRiskGroupView(null);
+    setEvidenceLibraryView(null);
+    setTechnicalProofDetailOpen(false);
+    setScannerProofOperationView(null);
+    router.push(`${routePath}?${next.toString()}`, { scroll: false });
+  };
+
+  const openRiskGroupView = (view: OwnerRiskGroupView) => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || '/products';
+    next.set('tab', 'findings');
+    next.set('view', 'risks');
+    next.set('riskGroup', view);
+    next.delete('proofLibrary');
+    next.delete('proof');
+    next.delete('setup');
+    setWorkspaceTab('findings');
+    setFindingsView('risks');
+    setWorkspaceDetailOpen(true);
+    setRiskGroupView(view);
+    setEvidenceLibraryView(null);
+    setTechnicalProofDetailOpen(false);
+    setScannerProofOperationView(null);
+    router.push(`${routePath}?${next.toString()}`, { scroll: false });
+  };
+
+  const openScannerProofOperationHub = () => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || '/products';
+    next.set('tab', 'findings');
+    next.set('view', 'technical');
+    next.delete('riskGroup');
+    next.delete('proofLibrary');
+    next.set('proof', 'run');
+    next.delete('setup');
+    setWorkspaceTab('findings');
+    setFindingsView('technical');
+    setWorkspaceDetailOpen(true);
+    setRiskGroupView(null);
+    setTechnicalProofView('run');
+    setTechnicalProofDetailOpen(true);
+    setScannerProofOperationView(null);
+    router.push(`${routePath}?${next.toString()}`, { scroll: false });
+  };
+
+  const openScannerProofOperationView = (view: ScannerProofOperationView) => {
+    const next = new URLSearchParams(searchParamString);
+    const routePath = pathname || '/products';
+    next.set('tab', 'findings');
+    next.set('view', 'technical');
+    next.delete('riskGroup');
+    next.delete('proofLibrary');
+    next.set('proof', 'run');
+    next.set('setup', view);
+    setWorkspaceTab('findings');
+    setFindingsView('technical');
+    setWorkspaceDetailOpen(true);
+    setRiskGroupView(null);
+    setTechnicalProofView('run');
+    setTechnicalProofDetailOpen(true);
+    setScannerProofOperationView(view);
     router.push(`${routePath}?${next.toString()}`, { scroll: false });
   };
 
@@ -173,8 +316,11 @@ export function useOwnerWorkspaceNavigationState() {
     servicesView,
     aiView,
     shareView,
+    riskGroupView,
+    evidenceLibraryView,
     technicalProofView,
     technicalProofDetailOpen,
+    scannerProofOperationView,
     workspaceDetailOpen,
     openProductHome: () => {
       setWorkspaceTab('overview');
@@ -190,7 +336,13 @@ export function useOwnerWorkspaceNavigationState() {
     openServicesView: (view: ServicesJourneyView) => openWorkspaceDetail('services', view),
     openAiView: (view: AiJourneyView) => openWorkspaceDetail('ai', view),
     openShareView: (view: ShareJourneyView) => openWorkspaceDetail('share', view),
+    openRiskGroupHub,
+    openRiskGroupView,
+    openEvidenceLibraryHub,
+    openEvidenceLibraryView,
     openTechnicalProofHub,
     openTechnicalProofView,
+    openScannerProofOperationHub,
+    openScannerProofOperationView,
   };
 }

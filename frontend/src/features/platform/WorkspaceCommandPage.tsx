@@ -5,6 +5,7 @@ import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import WorkspaceCommandBoard from './WorkspaceCommandBoard';
 import type { WorkspaceCommandHandoffView } from './WorkspaceCommandHandoffPanels';
+import type { WorkspaceCommandProofView } from './WorkspaceCommandProofStepPanel';
 import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import WorkspaceCommandMetricsPanel from './WorkspaceCommandMetricsPanel';
 import type { WorkspaceCommandTeamView } from './WorkspaceCommandTeamPanels';
@@ -27,6 +28,7 @@ export default function WorkspaceCommandPage() {
     pushWorkspaceRoute,
     workspaceHandoffView,
     workspaceParam,
+    workspaceProofView,
     workspaceTeamView,
     workspaceView,
   } = useWorkspaceCommandRouteState();
@@ -95,6 +97,7 @@ export default function WorkspaceCommandPage() {
     view: WorkspaceCommandView,
     workspaceId = selectedWorkspace?.id,
     options?: {
+      proofView?: WorkspaceCommandProofView;
       teamView?: WorkspaceCommandTeamView;
       handoffView?: WorkspaceCommandHandoffView;
     },
@@ -118,6 +121,9 @@ export default function WorkspaceCommandPage() {
   };
   const openWorkspaceTeamHub = () => openWorkspaceRoute('team');
   const openWorkspaceTeamView = (view: WorkspaceCommandTeamView) => openWorkspaceRoute('team', selectedWorkspace?.id, { teamView: view });
+  const openWorkspaceProofHub = () => openWorkspaceRoute('proof');
+  const openWorkspaceProofView = (proofView: WorkspaceCommandProofView) =>
+    openWorkspaceRoute('proof', selectedWorkspace?.id, { proofView });
   const openWorkspaceHandoffHub = () => openWorkspaceRoute('handoff');
   const openWorkspaceHandoffView = (view: WorkspaceCommandHandoffView) => openWorkspaceRoute('handoff', selectedWorkspace?.id, { handoffView: view });
 
@@ -281,6 +287,7 @@ export default function WorkspaceCommandPage() {
             onReviewProof: () => openWorkspaceRoute('proof'),
           },
           proof: {
+            view: workspaceProofView,
             workspace: selectedWorkspace,
             productId: selectedWorkspaceProductId,
             selectedMilestone,
@@ -326,6 +333,8 @@ export default function WorkspaceCommandPage() {
             onCreateCheck: (criterionId, payload) => createCheck.mutate({ criterionId, payload }),
             onReviewCriterion: (criterionId, payload) => reviewCriterion.mutate({ criterionId, payload }),
             evidencePanel,
+            onOpenHub: openWorkspaceProofHub,
+            onViewChange: openWorkspaceProofView,
           },
         } : undefined}
         teamPanels={workspaceView === 'team' ? {

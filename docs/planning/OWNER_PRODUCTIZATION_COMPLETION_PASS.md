@@ -1958,6 +1958,121 @@ Deferred screenshot/live verification:
 
 - Capture Services catalog template/workstream/AI paths, public team/expert cards, team profile, expert profile, Team Match, Service Plans, and Packages after the next grouped local screenshot pass.
 
+### Local-Verified: Workspace Proof And Scanner Setup Internal Views
+
+Problem:
+
+- The workspace `Fixes and proof` surface still rendered readiness, milestone steps, proof files, and acceptance review together in one long view.
+- The scanner `Run scanners` spoke had a good top-level journey, but its setup area still stacked source setup, scan execution, proof import, and proof refresh as accordions.
+- Both patterns made meaningful choices feel like same-page UI toggles instead of focused internal work areas.
+
+Solution:
+
+- Converted workspace `Fixes and proof` into a hub plus URL-backed internal views:
+  - `Fix path`
+  - `Steps`
+  - `Proof files`
+  - `Acceptance`
+- Preserved the existing readiness, milestone, proof evidence, and acceptance panels; only the navigation structure changed.
+- Converted scanner setup inside `Run scanners` into a hub plus URL-backed setup views:
+  - `Connect source`
+  - `Run checks`
+  - `Attach proof`
+  - `Keep proof fresh`
+- Preserved all scanner forms and actions for source creation, provider source creation, hosted scans, full suite scans, evidence upload/import, schedules, and CI templates.
+- Updated the scanner guide `Connect` action to open the focused source setup view directly.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/WorkspaceCommandProofStepPanel.tsx`
+  - `frontend/src/features/platform/useWorkspaceCommandRouteState.ts`
+  - `frontend/src/features/platform/WorkspaceCommandPage.tsx`
+  - `frontend/src/features/platform/OwnerScannerProofOperationsPanel.tsx`
+  - `frontend/src/features/platform/scannerProofOperationModel.ts`
+  - `frontend/src/features/platform/useOwnerWorkspaceNavigationState.ts`
+  - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`
+  - `frontend/src/features/platform/OwnerWorkspaceFindingsArea.tsx`
+  - `frontend/src/features/platform/OwnerWorkspaceTechnicalProofArea.tsx`
+  - `frontend/src/features/platform/ScannerProofRunway.tsx`
+- Added route state:
+  - Workspace command proof views: `?view=proof&proofView=readiness|steps|proof|acceptance`
+  - Product scanner setup views: `?tab=findings&view=technical&proof=run&setup=source|run|attach|fresh`
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+- Note: one full build attempt reached static page generation but failed during standalone copy because the disk was full. Generated `.next/cache` was removed, free disk recovered, and the build passed on retry.
+
+Deferred screenshot/live verification:
+
+- Per the current batching instruction, no live verification or screenshots were created for this local pass.
+- In the next grouped screenshot batch, capture:
+  - Workspace command `Fixes and proof` hub.
+  - Each workspace proof internal view.
+  - Product scanners hub.
+  - `Run scanners` internal view.
+  - Scanner setup hub.
+  - Each scanner setup internal view on desktop and mobile.
+
+### Local-Verified: Proof Library And Risk Groups Internal Views
+
+Problem:
+
+- The product `Proof library` page still combined saved proof, connected sources, and product source readout into one long page.
+- The product `Risks to fix` page used accordions for meaningful launch-risk categories, which kept the owner in a same-page expand/collapse pattern instead of a focused journey.
+- The page technically preserved information, but it made scanner/proof concepts feel scattered again.
+
+Solution:
+
+- Converted `Proof library` into a hub plus URL-backed internal views:
+  - `Saved proof`
+  - `Connected sources`
+  - `Source readout`
+- Split the proof UI into smaller components:
+  - summary grid
+  - connected sources list
+  - saved proof list
+- Preserved existing proof export, evidence filters, evidence open action, source status display, repo refresh, source facts, scan-backed facts, unknowns, and next scan steps.
+- Converted `Risks to fix` into a hub plus URL-backed internal risk-group views:
+  - `Launch blockers`
+  - `High-priority technical risks`
+  - `Medium-priority improvements`
+  - `Resolved or accepted`
+- Preserved existing risk rows, severity/category labels, source proof line, owner-readable risk summary, review drawer action, and scanner route.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/OwnerWorkspaceEvidenceArea.tsx`
+  - `frontend/src/features/platform/OwnerFindingsEvidencePanel.tsx`
+  - `frontend/src/features/platform/OwnerProofLibrarySummaryGrid.tsx`
+  - `frontend/src/features/platform/OwnerProofLibrarySourcesList.tsx`
+  - `frontend/src/features/platform/OwnerSavedProofList.tsx`
+  - `frontend/src/features/platform/ownerEvidenceLibraryModel.ts`
+  - `frontend/src/features/platform/OwnerFindingsRiskPanel.tsx`
+  - `frontend/src/features/platform/OwnerWorkspaceRiskArea.tsx`
+  - `frontend/src/features/platform/ownerRiskGroupRouteModel.ts`
+  - `frontend/src/features/platform/useOwnerWorkspaceNavigationState.ts`
+  - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`
+  - `frontend/src/features/platform/OwnerWorkspaceFindingsArea.tsx`
+- Added route state:
+  - Proof library views: `?tab=findings&view=evidence&proofLibrary=saved|sources|readout`
+  - Risk group views: `?tab=findings&view=risks&riskGroup=launch-blockers|technical-risks|improvements|handled`
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `NEXT_SKIP_BUILD_TYPECHECK=true npm --prefix frontend run build`
+
+Deferred screenshot/live verification:
+
+- Per the current batching instruction, no live verification or screenshots were created for this local pass.
+- In the next grouped screenshot batch, capture:
+  - Product scanners hub.
+  - `Risks to fix` hub and each risk group view.
+  - `Proof library` hub and each proof library view.
+  - Mobile views for risk group and proof library focused routes.
+
 ## Implementation Loop
 
 For each slice:

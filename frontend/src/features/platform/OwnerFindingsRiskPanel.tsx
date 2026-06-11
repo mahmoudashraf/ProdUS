@@ -1,8 +1,9 @@
 'use client';
 
-import { ExpandMoreOutlined } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Divider, Stack, Typography } from '@mui/material';
+import { Box, Button, Divider, Stack, Typography } from '@mui/material';
+import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import {
+  EmptyState,
   PastelChip,
   SectionTitle,
   Surface,
@@ -11,6 +12,11 @@ import {
 } from './PlatformComponents';
 import { ownerRiskSummary, severityAccent } from './ownerFindingPresentation';
 import { ownerCategoryFromSignal, ownerImpactForCategory } from './ownerWorkspaceModel';
+import {
+  riskGroupLabelByView,
+  riskGroupViewByLabel,
+  type OwnerRiskGroupView,
+} from './ownerRiskGroupRouteModel';
 
 export interface OwnerGroupedFinding {
   id: string;
@@ -33,117 +39,146 @@ interface OwnerFindingsRiskPanelProps {
   groups: OwnerFindingGroup[];
   totalFindingCount: number;
   openGroups: Record<string, boolean>;
+  activeGroupView: OwnerRiskGroupView | null;
   onGroupToggle: (label: string, expanded: boolean) => void;
   onReviewFinding: (findingId: string) => void;
+  onOpenHub?: () => void;
+  onOpenGroupView?: (view: OwnerRiskGroupView) => void;
   onOpenTechnicalProof: () => void;
 }
 
 export default function OwnerFindingsRiskPanel({
   groups,
   totalFindingCount,
-  openGroups,
-  onGroupToggle,
+  activeGroupView = null,
   onReviewFinding,
+  onOpenHub = () => {},
+  onOpenGroupView = () => {},
   onOpenTechnicalProof,
 }: OwnerFindingsRiskPanelProps) {
+  const selectedGroup = activeGroupView
+    ? groups.find((group) => group.label === riskGroupLabelByView[activeGroupView])
+    : null;
+  const hubItems: JourneyStepItem<OwnerRiskGroupView>[] = groups.map((group) => {
+    const groupView = riskGroupViewByLabel(group.label);
+    const firstFinding = group.findings[0];
+    return {
+      value: groupView,
+      label: group.label,
+      detail: firstFinding
+        ? ownerRiskSummary(firstFinding.businessRisk, firstFinding.description, group.label === 'Resolved or accepted' ? 'Already handled or accepted by the owner.' : 'Review the risk and decide the next owner action.')
+        : 'No risks in this group right now.',
+      accent: group.accent,
+      meta: <PastelChip label={`${group.findings.length}`} accent={group.accent} bg={`${group.accent}12`} />,
+    };
+  });
+
+  if (!selectedGroup) {
+    return (
+      <Surface>
+        <SectionTitle
+          title="Risks to fix"
+          action={<PastelChip label={`${totalFindingCount} total`} accent={totalFindingCount ? appleColors.amber : appleColors.green} bg={totalFindingCount ? '#fff4dc' : '#e7f8ee'} />}
+        />
+        <Stack spacing={1.5}>
+          <Typography color="text.secondary" sx={{ maxWidth: 820, lineHeight: 1.65 }}>
+            Choose the risk group you want to handle now. Launch blockers should come first; improvements and handled risks stay available without making the first screen feel crowded.
+          </Typography>
+          <OwnerWorkspaceJourneyNav
+            label="Risk groups"
+            value={null}
+            items={hubItems}
+            maxColumns={4}
+            onChange={onOpenGroupView}
+          />
+          <Button size="small" variant="outlined" onClick={onOpenTechnicalProof} sx={{ minHeight: 38, alignSelf: 'flex-start' }}>
+            Go to scanners
+          </Button>
+        </Stack>
+      </Surface>
+    );
+  }
+
   return (
-    <Surface>
-      <SectionTitle
-        title="Risks to fix"
-        action={<PastelChip label={`${totalFindingCount} total`} accent={totalFindingCount ? appleColors.amber : appleColors.green} bg={totalFindingCount ? '#fff4dc' : '#e7f8ee'} />}
+    <Stack spacing={2}>
+      <WorkspaceBreadcrumbs
+        items={[
+          { label: 'Risks to fix', onClick: onOpenHub },
+          { label: selectedGroup.label },
+        ]}
+        backLabel="Risk groups"
+        onBack={onOpenHub}
       />
-      <Stack spacing={1.25}>
-        {groups.map((group) => (
-          <Accordion
-            key={group.label}
-            expanded={!!openGroups[group.label]}
-            onChange={(_, expanded) => onGroupToggle(group.label, expanded)}
-            disableGutters
-            sx={{
-              border: '1px solid',
-              borderColor: `${group.accent}30`,
-              borderRadius: 1,
-              bgcolor: '#fff',
-              overflow: 'hidden',
-              boxShadow: 'none',
-              '&:before': { display: 'none' },
-            }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreOutlined />}
-              sx={{
-                px: 1.5,
-                py: 0.35,
-                bgcolor: `${group.accent}0f`,
-                borderBottom: openGroups[group.label] ? '1px solid' : 0,
-                borderColor: `${group.accent}20`,
-                minHeight: 58,
-                '& .MuiAccordionSummary-content': { my: 0.8 },
-              }}
-            >
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ width: '100%', pr: 1 }}>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 950 }}>{group.label}</Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4 }}>
-                    {group.findings[0]?.title || 'No risks in this group.'}
-                  </Typography>
-                </Box>
-                <PastelChip label={`${group.findings.length}`} accent={group.accent} bg="#fff" />
-              </Stack>
-            </AccordionSummary>
-            <AccordionDetails sx={{ p: 0 }}>
-              {group.findings.length ? (
-                <Stack spacing={0} divider={<Divider />}>
-                  {group.findings.slice(0, group.label === 'Launch blockers' ? 8 : 5).map((finding) => {
-                    const category = ownerCategoryFromSignal(finding.sourceTool ?? undefined, finding.readinessArea ?? undefined, finding.title);
-                    const sourceLabel = finding.sourceTool
-                      ? `Found by ${finding.sourceTool}${finding.sourceRuleId ? ` · ${finding.sourceRuleId}` : ''}`
-                      : finding.sourceRuleId
-                        ? `Rule ${finding.sourceRuleId}`
-                        : 'Source proof available';
-                    return (
-                      <Box key={finding.id} sx={{ p: 1.35 }}>
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'flex-start' }}>
-                          <Box sx={{ minWidth: 0 }}>
-                            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                              <PastelChip label={formatLabel(finding.severity)} accent={severityAccent(finding.severity)} bg={`${severityAccent(finding.severity)}12`} />
-                              <PastelChip label={category} accent={group.accent} bg={`${group.accent}12`} />
-                            </Stack>
-                            <Typography sx={{ mt: 0.8, fontWeight: 950, lineHeight: 1.35 }}>{finding.title}</Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>
-                              {ownerRiskSummary(finding.businessRisk, finding.description, ownerImpactForCategory(category))}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45 }}>
-                              {sourceLabel}
-                            </Typography>
-                          </Box>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => onReviewFinding(finding.id)}
-                            sx={{ minHeight: 34, minWidth: 112 }}
-                          >
-                            Review
-                          </Button>
-                        </Stack>
-                      </Box>
-                    );
-                  })}
-                  {group.findings.length > (group.label === 'Launch blockers' ? 8 : 5) && (
-                    <Box sx={{ p: 1.25 }}>
-                      <Button size="small" variant="text" onClick={onOpenTechnicalProof} sx={{ minHeight: 34 }}>
-                        View all {group.findings.length} risks
-                      </Button>
-                    </Box>
-                  )}
-                </Stack>
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>No risks in this group.</Typography>
-              )}
-            </AccordionDetails>
-          </Accordion>
-        ))}
+      <Surface>
+        <SectionTitle
+          title={selectedGroup.label}
+          action={<PastelChip label={`${selectedGroup.findings.length}`} accent={selectedGroup.accent} bg={`${selectedGroup.accent}12`} />}
+        />
+        {selectedGroup.findings.length ? (
+          <Stack spacing={0} divider={<Divider />}>
+            {selectedGroup.findings.map((finding) => (
+              <OwnerFindingRiskRow
+                key={finding.id}
+                finding={finding}
+                group={selectedGroup}
+                onReviewFinding={onReviewFinding}
+              />
+            ))}
+          </Stack>
+        ) : (
+          <EmptyState label="No risks in this group." />
+        )}
+        {selectedGroup.findings.length > 0 && (
+          <Button size="small" variant="text" onClick={onOpenTechnicalProof} sx={{ mt: 1.25, minHeight: 34 }}>
+            Go to scanners
+          </Button>
+        )}
+      </Surface>
+    </Stack>
+  );
+}
+
+function OwnerFindingRiskRow({
+  finding,
+  group,
+  onReviewFinding,
+}: {
+  finding: OwnerGroupedFinding;
+  group: OwnerFindingGroup;
+  onReviewFinding: (findingId: string) => void;
+}) {
+  const category = ownerCategoryFromSignal(finding.sourceTool ?? undefined, finding.readinessArea ?? undefined, finding.title);
+  const sourceLabel = finding.sourceTool
+    ? `Found by ${finding.sourceTool}${finding.sourceRuleId ? ` · ${finding.sourceRuleId}` : ''}`
+    : finding.sourceRuleId
+      ? `Rule ${finding.sourceRuleId}`
+      : 'Source proof available';
+
+  return (
+    <Box sx={{ p: 1.35 }}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'flex-start' }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+            <PastelChip label={formatLabel(finding.severity)} accent={severityAccent(finding.severity)} bg={`${severityAccent(finding.severity)}12`} />
+            <PastelChip label={category} accent={group.accent} bg={`${group.accent}12`} />
+          </Stack>
+          <Typography sx={{ mt: 0.8, fontWeight: 950, lineHeight: 1.35 }}>{finding.title}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>
+            {ownerRiskSummary(finding.businessRisk, finding.description, ownerImpactForCategory(category))}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.45 }}>
+            {sourceLabel}
+          </Typography>
+        </Box>
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => onReviewFinding(finding.id)}
+          sx={{ minHeight: 34, minWidth: 112 }}
+        >
+          Review
+        </Button>
       </Stack>
-    </Surface>
+    </Box>
   );
 }

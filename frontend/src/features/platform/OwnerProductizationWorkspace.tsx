@@ -66,8 +66,11 @@ export default function OwnerProductizationWorkspace({
     servicesView,
     aiView,
     shareView,
+    riskGroupView,
+    evidenceLibraryView,
     technicalProofDetailOpen,
     technicalProofView,
+    scannerProofOperationView,
     workspaceDetailOpen,
     openWorkspaceArea,
     openWorkspaceAreaHub,
@@ -76,8 +79,14 @@ export default function OwnerProductizationWorkspace({
     openFindingsView,
     openServicesView,
     openAiView,
+    openRiskGroupHub,
+    openRiskGroupView,
+    openEvidenceLibraryHub,
+    openEvidenceLibraryView,
     openTechnicalProofHub,
     openTechnicalProofView,
+    openScannerProofOperationHub,
+    openScannerProofOperationView,
   } = useOwnerWorkspaceNavigationState();
   const {
     categories,
@@ -490,6 +499,8 @@ export default function OwnerProductizationWorkspace({
             productActions={productActions}
             repoSignalsData={repoSignals.data}
             repoSignalsFetching={repoSignals.isFetching}
+            riskGroupView={riskGroupView}
+            evidenceLibraryView={evidenceLibraryView}
             scannerCounts={scannerCounts}
             scannerMappedFindings={scannerMappedFindings}
             scannerMappedServices={scannerMappedServices}
@@ -503,12 +514,19 @@ export default function OwnerProductizationWorkspace({
             selectedFinding={selectedFinding}
             selectedProduct={selectedProduct}
             selectedWorkspace={selectedWorkspace}
+            scannerProofOperationView={scannerProofOperationView}
             technicalProofDetailOpen={technicalProofDetailOpen}
             technicalProofView={technicalProofView}
             totalScanTools={scanToolOptions.length}
             unavailableScannerTools={unavailableScannerTools}
             view={findingsView}
             workspaceTab={workspaceTab}
+            onOpenRiskGroupHub={openRiskGroupHub}
+            onOpenRiskGroupView={openRiskGroupView}
+            onOpenEvidenceLibraryHub={openEvidenceLibraryHub}
+            onOpenEvidenceLibraryView={openEvidenceLibraryView}
+            onOpenScannerProofOperationHub={openScannerProofOperationHub}
+            onOpenScannerProofOperationView={openScannerProofOperationView}
             onOpenTechnicalProofHub={openTechnicalProofHub}
             onOpenTechnicalProofView={openTechnicalProofView}
           />

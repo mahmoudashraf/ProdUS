@@ -2,9 +2,11 @@
 
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from 'react';
 import WorkspaceAcceptanceReviewPanel from './WorkspaceAcceptanceReviewPanel';
+import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import WorkspaceProofEvidencePanel, { type WorkspaceScannerUploadForm } from './WorkspaceProofEvidencePanel';
 import WorkspaceProofMilestonesPanel from './WorkspaceProofMilestonesPanel';
 import WorkspaceProofReadinessPanel from './WorkspaceProofReadinessPanel';
+import { PastelChip, SectionTitle, Surface, appleColors } from './PlatformComponents';
 import type {
   AcceptanceCriterion,
   AttachmentScope,
@@ -60,7 +62,17 @@ type ReviewPayload = {
 
 type MilestoneRisk = WorkspaceScannerReadiness['milestoneRisks'][number];
 
+export type WorkspaceCommandProofView = 'readiness' | 'steps' | 'proof' | 'acceptance';
+
+const proofViewLabels: Record<WorkspaceCommandProofView, string> = {
+  readiness: 'Fix path',
+  steps: 'Steps',
+  proof: 'Proof files',
+  acceptance: 'Acceptance',
+};
+
 type WorkspaceCommandProofStepPanelProps = {
+  view: WorkspaceCommandProofView | null;
   workspace: ProjectWorkspace;
   productId: string;
   selectedMilestone: Milestone | undefined;
@@ -106,9 +118,12 @@ type WorkspaceCommandProofStepPanelProps = {
   onCreateCheck: (criterionId: string, payload: CheckPayload) => void;
   onReviewCriterion: (criterionId: string, payload: ReviewPayload) => void;
   evidencePanel: (scopeType: AttachmentScope, scopeId: string) => ReactNode;
+  onOpenHub: () => void;
+  onViewChange: (view: WorkspaceCommandProofView) => void;
 };
 
 export default function WorkspaceCommandProofStepPanel({
+  view,
   workspace,
   productId,
   selectedMilestone,
@@ -154,73 +169,140 @@ export default function WorkspaceCommandProofStepPanel({
   onCreateCheck,
   onReviewCriterion,
   evidencePanel,
+  onOpenHub,
+  onViewChange,
 }: WorkspaceCommandProofStepPanelProps) {
+  const proofItems: JourneyStepItem<WorkspaceCommandProofView>[] = [
+    {
+      value: 'readiness',
+      label: proofViewLabels.readiness,
+      detail: 'Launch confidence, priority fixes, generated snapshot, and AI explanation.',
+      accent: readiness?.blockerCount ? appleColors.red : appleColors.cyan,
+      meta: <PastelChip label={`${readiness?.blockerCount || 0} blockers`} accent={readiness?.blockerCount ? appleColors.red : appleColors.cyan} bg={readiness?.blockerCount ? '#fff1f1' : '#e4f9fd'} />,
+    },
+    {
+      value: 'steps',
+      label: proofViewLabels.steps,
+      detail: 'Workspace steps, outputs, selected milestone, and linked output proof.',
+      accent: appleColors.purple,
+      meta: <PastelChip label={`${milestoneList.length} steps`} accent={appleColors.purple} bg="#f1efff" />,
+    },
+    {
+      value: 'proof',
+      label: proofViewLabels.proof,
+      detail: 'Workspace proof files plus scan proof upload and recent scan records.',
+      accent: appleColors.blue,
+      meta: <PastelChip label={`${proofFileCount + scannerEvidenceList.length} records`} accent={appleColors.blue} bg="#eaf3ff" />,
+    },
+    {
+      value: 'acceptance',
+      label: proofViewLabels.acceptance,
+      detail: 'Acceptance checklist, proof requirements, checks, and owner review decisions.',
+      accent: totalCriteriaCount === passedCriteriaCount && totalCriteriaCount ? appleColors.green : appleColors.amber,
+      meta: <PastelChip label={`${passedCriteriaCount}/${totalCriteriaCount} passed`} accent={totalCriteriaCount === passedCriteriaCount && totalCriteriaCount ? appleColors.green : appleColors.amber} bg={totalCriteriaCount === passedCriteriaCount && totalCriteriaCount ? '#e7f8ee' : '#fff4dc'} />,
+    },
+  ];
+
+  if (!view) {
+    return (
+      <Surface>
+        <SectionTitle
+          title="Choose proof work"
+          action={<PastelChip label="One job at a time" accent={appleColors.purple} bg="#f1efff" />}
+        />
+        <OwnerWorkspaceJourneyNav
+          label="Fixes and proof internal pages"
+          value={null}
+          items={proofItems}
+          onChange={onViewChange}
+        />
+      </Surface>
+    );
+  }
+
   return (
     <>
-      <WorkspaceProofReadinessPanel
-        canRefresh={!!productId}
-        isGeneratingLaunchReport={isGeneratingLaunchReport}
-        isLaunchReportLoading={isLaunchReportLoading}
-        isRefreshing={isRefreshingReadiness}
-        isScannerLoading={isScannerLoading}
-        isShipConfidenceLoading={isShipConfidenceLoading}
-        launchReport={launchReport}
-        productId={productId}
-        readiness={readiness}
-        readinessScore={readinessScore}
-        readinessStatus={readinessStatus}
-        scannerEvidenceCount={scannerEvidenceList.length}
-        selectedMilestone={selectedMilestone}
-        shipConfidence={shipConfidence}
-        workspace={workspace}
-        onGenerateLaunchReport={onGenerateLaunchReport}
-        onRefresh={onRefreshReadiness}
+      <WorkspaceBreadcrumbs
+        items={[
+          { label: 'Fixes and proof', onClick: onOpenHub },
+          { label: proofViewLabels[view] },
+        ]}
+        backLabel="Fixes and proof"
+        onBack={onOpenHub}
       />
 
-      <WorkspaceProofMilestonesPanel
-        milestoneList={milestoneList}
-        selectedMilestone={selectedMilestone}
-        deliverableList={deliverableList}
-        milestoneRiskById={milestoneRiskById}
-        milestoneForm={milestoneForm}
-        deliverableForm={deliverableForm}
-        isCreatingMilestone={isCreatingMilestone}
-        isCreatingDeliverable={isCreatingDeliverable}
-        onCreateMilestone={onCreateMilestone}
-        onCreateDeliverable={onCreateDeliverable}
-        onSelectMilestone={onSelectMilestone}
-        evidencePanel={evidencePanel}
-      />
+      {view === 'readiness' && (
+        <WorkspaceProofReadinessPanel
+          canRefresh={!!productId}
+          isGeneratingLaunchReport={isGeneratingLaunchReport}
+          isLaunchReportLoading={isLaunchReportLoading}
+          isRefreshing={isRefreshingReadiness}
+          isScannerLoading={isScannerLoading}
+          isShipConfidenceLoading={isShipConfidenceLoading}
+          launchReport={launchReport}
+          productId={productId}
+          readiness={readiness}
+          readinessScore={readinessScore}
+          readinessStatus={readinessStatus}
+          scannerEvidenceCount={scannerEvidenceList.length}
+          selectedMilestone={selectedMilestone}
+          shipConfidence={shipConfidence}
+          workspace={workspace}
+          onGenerateLaunchReport={onGenerateLaunchReport}
+          onRefresh={onRefreshReadiness}
+        />
+      )}
 
-      <WorkspaceProofEvidencePanel
-        workspaceId={workspace.id}
-        proofFileCount={proofFileCount}
-        scannerEvidenceList={scannerEvidenceList}
-        milestoneList={milestoneList}
-        selectedMilestone={selectedMilestone}
-        scannerUploadForm={scannerUploadForm}
-        isUploadingScannerEvidence={isUploadingScannerEvidence}
-        canSubmitScannerEvidence={canSubmitScannerEvidence}
-        onScannerUploadFormChange={onScannerUploadFormChange}
-        onSubmitScannerEvidence={onSubmitScannerEvidence}
-        evidencePanel={evidencePanel}
-      />
+      {view === 'steps' && (
+        <WorkspaceProofMilestonesPanel
+          milestoneList={milestoneList}
+          selectedMilestone={selectedMilestone}
+          deliverableList={deliverableList}
+          milestoneRiskById={milestoneRiskById}
+          milestoneForm={milestoneForm}
+          deliverableForm={deliverableForm}
+          isCreatingMilestone={isCreatingMilestone}
+          isCreatingDeliverable={isCreatingDeliverable}
+          onCreateMilestone={onCreateMilestone}
+          onCreateDeliverable={onCreateDeliverable}
+          onSelectMilestone={onSelectMilestone}
+          evidencePanel={evidencePanel}
+        />
+      )}
 
-      <WorkspaceAcceptanceReviewPanel
-        selectedMilestone={selectedMilestone}
-        criteria={selectedMilestoneCriteria}
-        totalCriteriaCount={totalCriteriaCount}
-        passedCriteriaCount={passedCriteriaCount}
-        isGovernanceFetching={isGovernanceFetching}
-        isGeneratingCriteria={isGeneratingCriteria}
-        isUpdatingEvidenceRequirement={isUpdatingEvidenceRequirement}
-        isCreatingCheck={isCreatingCheck}
-        isReviewingCriterion={isReviewingCriterion}
-        onGenerateCriteria={onGenerateCriteria}
-        onUpdateEvidenceRequirement={onUpdateEvidenceRequirement}
-        onCreateCheck={onCreateCheck}
-        onReviewCriterion={onReviewCriterion}
-      />
+      {view === 'proof' && (
+        <WorkspaceProofEvidencePanel
+          workspaceId={workspace.id}
+          proofFileCount={proofFileCount}
+          scannerEvidenceList={scannerEvidenceList}
+          milestoneList={milestoneList}
+          selectedMilestone={selectedMilestone}
+          scannerUploadForm={scannerUploadForm}
+          isUploadingScannerEvidence={isUploadingScannerEvidence}
+          canSubmitScannerEvidence={canSubmitScannerEvidence}
+          onScannerUploadFormChange={onScannerUploadFormChange}
+          onSubmitScannerEvidence={onSubmitScannerEvidence}
+          evidencePanel={evidencePanel}
+        />
+      )}
+
+      {view === 'acceptance' && (
+        <WorkspaceAcceptanceReviewPanel
+          selectedMilestone={selectedMilestone}
+          criteria={selectedMilestoneCriteria}
+          totalCriteriaCount={totalCriteriaCount}
+          passedCriteriaCount={passedCriteriaCount}
+          isGovernanceFetching={isGovernanceFetching}
+          isGeneratingCriteria={isGeneratingCriteria}
+          isUpdatingEvidenceRequirement={isUpdatingEvidenceRequirement}
+          isCreatingCheck={isCreatingCheck}
+          isReviewingCriterion={isReviewingCriterion}
+          onGenerateCriteria={onGenerateCriteria}
+          onUpdateEvidenceRequirement={onUpdateEvidenceRequirement}
+          onCreateCheck={onCreateCheck}
+          onReviewCriterion={onReviewCriterion}
+        />
+      )}
     </>
   );
 }
