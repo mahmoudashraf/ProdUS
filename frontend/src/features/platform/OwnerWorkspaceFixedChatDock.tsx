@@ -173,7 +173,7 @@ export default function OwnerWorkspaceFixedChatDock({
         bottom: { xs: 12, md: 22 },
         width: expanded
           ? { xs: 'calc(100vw - 24px)', sm: 390, xl: 410 }
-          : { xs: 156, sm: 280, xl: 300 },
+          : { xs: 54, sm: 280, xl: 300 },
         maxWidth: 'calc(100vw - 24px)',
         zIndex: theme => theme.zIndex.modal + 3,
         pointerEvents: 'auto',
@@ -182,6 +182,10 @@ export default function OwnerWorkspaceFixedChatDock({
       <Box
         sx={{
           borderRadius: 1,
+          borderTopLeftRadius: !expanded ? { xs: 999, sm: 1 } : 1,
+          borderTopRightRadius: !expanded ? { xs: 999, sm: 1 } : 1,
+          borderBottomLeftRadius: !expanded ? { xs: 999, sm: 1 } : 1,
+          borderBottomRightRadius: !expanded ? { xs: 999, sm: 1 } : 1,
           border: '1px solid #dbe4f0',
           bgcolor: '#ffffff',
           boxShadow: '0 22px 60px rgba(15, 23, 42, 0.18)',
@@ -192,10 +196,10 @@ export default function OwnerWorkspaceFixedChatDock({
           direction="row"
           spacing={1}
           alignItems="center"
-          justifyContent="space-between"
+          justifyContent={expanded ? 'space-between' : { xs: 'center', sm: 'space-between' }}
           sx={{
-            px: expanded ? 1.15 : { xs: 0.85, sm: 1.15 },
-            py: expanded ? 1 : { xs: 0.75, sm: 1 },
+            px: expanded ? 1.15 : { xs: 0.8, sm: 1.15 },
+            py: expanded ? 1 : { xs: 0.8, sm: 1 },
             borderBottom: expanded ? '1px solid #edf2f7' : 'none',
             cursor: expanded ? 'default' : 'pointer',
           }}
@@ -218,7 +222,7 @@ export default function OwnerWorkspaceFixedChatDock({
             >
               <ChatBubbleOutlineOutlined sx={{ fontSize: 19 }} />
             </Box>
-            <Box sx={{ minWidth: 0 }}>
+            <Box sx={{ minWidth: 0, display: { xs: expanded ? 'block' : 'none', sm: 'block' } }}>
               <Typography variant="body2" sx={{ fontWeight: 950 }} noWrap>
                 {expanded ? (
                   'ProdUS AI'
@@ -241,7 +245,12 @@ export default function OwnerWorkspaceFixedChatDock({
               </Box>
             </Box>
           </Stack>
-          <Stack direction="row" spacing={0.25} alignItems="center">
+          <Stack
+            direction="row"
+            spacing={0.25}
+            alignItems="center"
+            sx={{ display: { xs: expanded ? 'flex' : 'none', sm: 'flex' } }}
+          >
             <Tooltip title={fullChatReady ? 'Open full chat' : 'Full chat is loading'}>
               <span>
                 <IconButton
