@@ -95,7 +95,7 @@ export default function OwnerServicesRecommendationPanel({
   const serviceSelectorPrompt = `
 Write a short review-only owner decision note for ${product?.name || 'the selected product'}.
 Do not create a product, prepare an action, or ask for action parameters.
-Use only these page facts:
+Use the page facts below as the owner-specific source of truth. Also use indexed ProdUS safe knowledge when available for service-module, service-dependency, and package-template details.
 Service choices on screen: ${availableServiceNames}.
 Already selected work: ${selectedServiceNames}.
 Scanner/readiness mapped work: ${mappedServiceSummary}.
@@ -107,6 +107,7 @@ Add now: the blocker work or missing required services to handle first.
 Keep or revisit: selected services that still help and why.
 Defer: work that can wait until blockers are resolved.
 Use practical startup/MVP language and mention the blocker, scanner proof, or plan gap behind each decision.
+When indexed safe knowledge is used, keep the source basis visible in the response.
 `.trim();
 
   return (
@@ -131,7 +132,10 @@ Use practical startup/MVP language and mention the blocker, scanner proof, or pl
           description="Narrow the work that belongs in the product plan, using the verdict, scanner proof, current cart, and dependencies."
           prompt={serviceSelectorPrompt}
           conversationId={`studio-services-${product?.id || 'none'}`}
-          context={assistantContext}
+          context={{
+            ...assistantContext,
+            vectorSpaces: ['service-module', 'service-dependency', 'package-template'],
+          }}
           disabled={!product}
           {...assistantActions}
           accent={appleColors.cyan}

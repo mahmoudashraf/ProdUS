@@ -28,6 +28,8 @@ export interface StudioAssistantContext {
   workspaceId?: string | undefined;
   milestoneId?: string | undefined;
   findingId?: string | undefined;
+  vectorSpace?: string | undefined;
+  vectorSpaces?: string[] | undefined;
   startReadiness?: {
     status?: string;
     ready?: boolean;
@@ -73,7 +75,25 @@ const assistantActionLabel = (action: Record<string, unknown>) =>
   assistantRecordText(action, ['label', 'title', 'name'], 'Review proposed action');
 
 const assistantSourceLabel = (source: Record<string, unknown>) =>
-  assistantRecordText(source, ['title', 'name', 'id', 'type'], 'Source');
+  assistantRecordText(source, ['title', 'name'])
+  || assistantRecordText(assistantSourceContent(source), ['title', 'id'])
+  || assistantRecordText(source, ['id', 'type'], 'Source');
+
+const assistantSourceSummary = (source: Record<string, unknown>) =>
+  assistantRecordText(source, ['source', 'summary', 'description'])
+  || assistantRecordText(assistantSourceContent(source), ['type', 'body'])
+  || 'Authorized ProdUS context';
+
+const assistantSourceContent = (source: Record<string, unknown>) => {
+  const content = source.content;
+  if (typeof content !== 'string' || !content.trim().startsWith('{')) return {};
+  try {
+    const parsed = JSON.parse(content);
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+};
 
 export default function StudioAssistantCard({
   title,
@@ -238,7 +258,7 @@ export default function StudioAssistantCard({
                       {assistantSourceLabel(source)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {assistantRecordText(source, ['summary', 'description', 'type'], 'Authorized ProdUS context')}
+                      {assistantSourceSummary(source)}
                     </Typography>
                   </Box>
                 ))}

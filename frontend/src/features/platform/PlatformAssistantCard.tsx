@@ -138,7 +138,24 @@ const recordText = (record: Record<string, unknown>, keys: string[], fallback = 
 };
 
 const actionLabel = (action: Record<string, unknown>) => recordText(action, ['label', 'title', 'name'], 'Review proposed action');
-const sourceLabel = (source: Record<string, unknown>) => recordText(source, ['title', 'name', 'id', 'type'], 'Source');
+const sourceContent = (source: Record<string, unknown>) => {
+  const content = source.content;
+  if (typeof content !== 'string' || !content.trim().startsWith('{')) return {};
+  try {
+    const parsed = JSON.parse(content);
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+};
+const sourceLabel = (source: Record<string, unknown>) =>
+  recordText(source, ['title', 'name'])
+  || recordText(sourceContent(source), ['title', 'id'])
+  || recordText(source, ['id', 'type'], 'Source');
+const sourceSummary = (source: Record<string, unknown>) =>
+  recordText(source, ['source', 'summary', 'description'])
+  || recordText(sourceContent(source), ['type', 'body'])
+  || 'Authorized ProdUS context';
 
 export default function PlatformAssistantCard({
   title,
@@ -225,7 +242,7 @@ export default function PlatformAssistantCard({
               {result.sources.slice(0, 4).map((source, index) => (
                 <Box key={`${sourceLabel(source)}-${index}`} sx={{ p: 1, border: '1px solid', borderColor: '#dbeafe', borderRadius: 1, bgcolor: '#f8fbff' }}>
                   <Typography variant="body2" sx={{ fontWeight: 900 }}>{sourceLabel(source)}</Typography>
-                  <Typography variant="caption" color="text.secondary">{recordText(source, ['summary', 'description', 'type'], 'Authorized ProdUS context')}</Typography>
+                  <Typography variant="caption" color="text.secondary">{sourceSummary(source)}</Typography>
                 </Box>
               ))}
             </Stack>
