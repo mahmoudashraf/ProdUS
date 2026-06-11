@@ -55,7 +55,7 @@ export default function ServicePlanStartPage() {
         description="Choose a clear starting point: approve the product plan into a workspace, or generate a service plan from a submitted product brief."
         action={
           <Button component={NextLink} href="/dashboard" variant="outlined" sx={{ minHeight: 42 }}>
-            Back to Product Home
+            Back to Workspace
           </Button>
         }
       />

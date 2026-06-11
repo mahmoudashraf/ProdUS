@@ -124,7 +124,7 @@ export default function OwnerProductProfileEditPanel({ product }: { product: Pro
 
         {showSaved && (
           <Alert severity="success" icon={<CheckCircleOutlineOutlined />}>
-            Product profile saved. Product Home will use these details for the next decisions.
+            Product profile saved. Workspace will use these details for the next decisions.
           </Alert>
         )}
         {updateProduct.error && (
@@ -139,7 +139,7 @@ export default function OwnerProductProfileEditPanel({ product }: { product: Pro
             value={form.name}
             onChange={(event) => setField('name', event.target.value)}
             error={nameMissing}
-            helperText={nameMissing ? 'Product name is required.' : 'Shown as the fixed selected product inside Product Home.'}
+            helperText={nameMissing ? 'Product name is required.' : 'Shown as the fixed selected product inside Workspace.'}
             fullWidth
           />
           <TextField

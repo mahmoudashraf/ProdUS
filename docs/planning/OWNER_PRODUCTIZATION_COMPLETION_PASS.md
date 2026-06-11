@@ -1397,6 +1397,92 @@ Status:
   - 73 total findings, 73 open, 14 high, 28 medium, 1 low, 30 info.
   - ZAP Baseline reported `COMPLETED` with 10 normalized and 10 mapped findings.
 
+### Local-Verified: Product Home Scanner Proof Hook
+
+Problem:
+
+- Product Home looked calmer after the redesign, but scan/scanner context was too hard to find.
+- `Status reason` and `Top risks` already came from scanner/readiness evidence, yet the page did not clearly show how to reach scan details.
+- Adding a full scanner dashboard back to Product Home would reintroduce the old density problem.
+
+Solution:
+
+- Kept `Status reason` as the owner-facing launch explanation.
+- Kept `Top risks` as plain-language risk summary with source proof lines.
+- Changed the secondary verdict action from `View findings` to `Go to scanners`.
+- Routed that action to the temporary Findings hub route (`?tab=findings`) rather than a deeper technical proof subpage.
+- Added a compact `Latest scan proof` strip below the decision/risk cards:
+  - last scan time,
+  - scanner coverage,
+  - open findings,
+  - mapped findings.
+- Avoided a duplicate CTA in the proof strip; Product Home now has one clear scanner action.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/OwnerWorkspaceScannerProofAction.tsx`
+  - `frontend/src/features/platform/OwnerWorkspaceProductHero.tsx`
+  - `frontend/src/features/platform/OwnerProductizationWorkspace.tsx`
+  - `frontend/src/features/platform/OwnerProductizationWorkspaceHeader.tsx`
+  - `frontend/src/features/platform/ownerWorkspaceViewModel.ts`
+- Local checks passed:
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+- Focused local verification passed with `tmp/live-verification/2026-06-11/940-product-home-scanner-proof-review.js`.
+- Local screenshots:
+  - `tmp/live-verification/2026-06-11/940-product-home-scanner-proof-local-scanner-proof-v3.png`
+  - `tmp/live-verification/2026-06-11/941-product-home-go-to-scanners-route-local-scanner-proof-v3.png`
+  - `tmp/live-verification/2026-06-11/942-mobile-product-home-scanner-proof-local-scanner-proof-v3.png`
+
+Deferred live verification:
+
+- Verify after the next combined deploy.
+- Confirm Product Home shows one `Go to scanners` action.
+- Confirm `Go to scanners` lands on `?tab=findings` without `view=technical` or `proof=`.
+- Confirm the proof strip uses live staging scanner data for the selected product.
+
+### Local-Verified: Product Workspace Navigation Language Cleanup
+
+Problem:
+
+- The selected product page repeated a switch-product action even though product switching belongs on Home.
+- The left menu label `Home / switch product` was too long and made the global switcher feel like a product-specific action.
+- The selected product landing item still said `Product Home`, while the intended model is product-specific `Workspace`.
+
+Solution:
+
+- Removed the `Switch product on Home` button from the selected product bar inside the product workspace.
+- Renamed the left menu global switcher item to `Home`.
+- Renamed the selected product landing item to `Workspace`.
+- Renamed the overview product-area navigation and breadcrumb label to `Workspace`.
+- Made the selected-product menu available from the main nav whenever a product is globally selected, not only from product-context routes.
+- Updated remaining owner-facing navigation copy from `Product Home` to `Workspace` where it guided owners between product-specific pages.
+- Kept the routes unchanged; this is a language/navigation clarity cleanup only.
+
+Status:
+
+- Implemented locally in:
+  - `frontend/src/features/platform/OwnerWorkspaceSelectedProductBar.tsx`
+  - `frontend/src/layout/MainLayout/MenuList/index.tsx`
+  - `frontend/src/features/platform/ownerWorkspaceModel.ts`
+  - `frontend/src/features/platform/OwnerWorkspaceNavigationPanel.tsx`
+  - supporting owner-facing copy files for product portfolio and planning routes.
+- Local checks passed:
+  - `rg "Home / switch product|Switch product on Home|Product Home" frontend/src/features/platform frontend/src/layout/MainLayout -S` returned no matches.
+  - `git diff --check`
+  - `npm --prefix frontend run type-check`
+  - `npm --prefix frontend run build`
+- No screenshots were created for this copy-only cleanup.
+
+Deferred live verification:
+
+- Verify after the next combined deploy.
+- Confirm side menu shows `Home` and `Workspace`.
+- Confirm the selected-product `Workspace` item remains visible from Dashboard/Home when a product is globally selected.
+- Confirm product workspace selected-product bar shows context only, with no switch-product button.
+
 ## Implementation Loop
 
 For each slice:

@@ -83,14 +83,11 @@ const MenuList = () => {
     retry: false,
   });
   const selectedProductName = routeProduct.data?.name || (selectedProductId === globalProductId ? globalProductName : '');
-  const isProductContextRoute = Boolean(routeProductId)
-    || pathname === '/owner/project-cart'
-    || Boolean(productIdParam && (pathname === '/catalog' || pathname === '/services'));
   const visibleMenuItems = useMemo(
-    () => isProductOwner && selectedProductId && isProductContextRoute
+    () => isProductOwner && selectedProductId
       ? buildOwnerProductWorkspaceMenu(roleVisibleMenuItems, selectedProductId, selectedProductName)
       : roleVisibleMenuItems,
-    [isProductContextRoute, isProductOwner, roleVisibleMenuItems, selectedProductId, selectedProductName]
+    [isProductOwner, roleVisibleMenuItems, selectedProductId, selectedProductName]
   );
 
   let lastItemIndex = visibleMenuItems.length - 1;
@@ -165,7 +162,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
       children: [
         {
           id: 'product-switch-home',
-          title: 'Home / switch product',
+          title: 'Home',
           type: 'item',
           url: '/dashboard?focus=products',
           icon: IconHome,
@@ -173,7 +170,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
         },
         {
           id: 'product-overview',
-          title: 'Product Home',
+          title: 'Workspace',
           type: 'item',
           url: productWorkspaceRoute(productId),
           icon: IconListDetails,

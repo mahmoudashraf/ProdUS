@@ -18,6 +18,7 @@ import {
   formatLabel,
 } from './PlatformComponents';
 import OwnerWorkspaceAiOpportunityHeroHook from './OwnerWorkspaceAiOpportunityHeroHook';
+import OwnerWorkspaceScannerProofAction, { type OwnerScannerProofSummary } from './OwnerWorkspaceScannerProofAction';
 import { ownerCategoryFromSignal, ownerProofLine, type OwnerLaunchStatus } from './ownerWorkspaceModel';
 import { severityAccent } from './ownerFindingPresentation';
 import type { ProductProfile } from './types';
@@ -43,6 +44,7 @@ interface OwnerWorkspaceProductHeroProps {
   launchStatus: OwnerLaunchStatus;
   topOwnerRisks: OwnerRiskSummary[];
   evidenceSummaryItems: EvidenceSummaryItem[];
+  scannerProofSummary: OwnerScannerProofSummary;
   onPrimaryAction: () => void;
   onEditProfile: () => void;
   onRefreshBrief: () => void;
@@ -58,6 +60,7 @@ export default function OwnerWorkspaceProductHero({
   launchStatus,
   topOwnerRisks,
   evidenceSummaryItems,
+  scannerProofSummary,
   onPrimaryAction,
   onEditProfile,
   onRefreshBrief,
@@ -130,7 +133,7 @@ export default function OwnerWorkspaceProductHero({
               {topOwnerRisks.length ? 'Open action plan' : 'Review service path'}
             </Button>
             <Button variant="outlined" startIcon={<ShieldOutlined />} onClick={onViewProof} sx={{ minHeight: 42, flex: { sm: '1 1 160px' }, whiteSpace: 'normal' }}>
-              View findings
+              Go to scanners
             </Button>
           </Stack>
         </Box>
@@ -168,6 +171,9 @@ export default function OwnerWorkspaceProductHero({
           </Stack>
         </Box>
       </Box>
+      <OwnerWorkspaceScannerProofAction
+        summary={scannerProofSummary}
+      />
       {navigationSlot}
       <Box sx={{ mt: 1.5 }}>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 900 }}>

@@ -197,6 +197,7 @@ export default function OwnerProductizationWorkspace({
     scannerMappedFindings,
     scannerMappedServices,
     scannerOpenFindings,
+    scannerProofSummary,
     scannerReadiness,
     scannerReadinessPromptFacts,
     scannerToolCoverage,
@@ -369,7 +370,7 @@ export default function OwnerProductizationWorkspace({
         selectedProduct={selectedProduct}
         totalChecks={scanToolOptions.length}
         onSeePlan={() => launchStatus.blockerCount ? openActionView('plan') : openServicesView('recommend')}
-        onViewProof={() => openFindingsView('technical')}
+        onViewProof={() => openWorkspaceAreaHub('findings')}
         showReadinessReveal={false}
       />
 
@@ -395,6 +396,7 @@ export default function OwnerProductizationWorkspace({
             isProductHome={isProductHome}
             launchStatus={launchStatus}
             product={selectedProduct}
+            scannerProofSummary={scannerProofSummary}
             topOwnerRisks={topOwnerRisks}
             workspaceDetailOpen={workspaceDetailOpen}
             workspaceTab={workspaceTab}
@@ -406,7 +408,7 @@ export default function OwnerProductizationWorkspace({
             onPrimaryAction={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}
             onOpenAiOpportunities={() => openAiView('opportunities')}
             onRefreshBrief={() => openWorkspaceDetail('overview', 'refresh')}
-            onViewProof={() => openFindingsView('technical')}
+            onViewProof={() => openWorkspaceAreaHub('findings')}
           />
 
           <OwnerWorkspaceOverviewArea

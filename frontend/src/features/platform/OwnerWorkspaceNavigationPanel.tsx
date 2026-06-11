@@ -38,7 +38,7 @@ export default function OwnerWorkspaceNavigationPanel({
         ? currentJourneyItems.filter((item) => item.value !== 'refresh-review')
       : currentJourneyItems;
   const breadcrumbItems = [
-    { label: 'Product Home', onClick: () => onAreaChange('overview') },
+    { label: 'Workspace', onClick: () => onAreaChange('overview') },
     ...(workspaceTab === 'overview'
       ? []
       : [{ label: currentAreaLabel, onClick: () => onAreaHub(workspaceTab) }]),

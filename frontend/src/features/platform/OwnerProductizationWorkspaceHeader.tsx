@@ -90,6 +90,7 @@ export function OwnerProductizationWorkspaceLead({
   onRefreshBrief,
   onViewProof,
   product,
+  scannerProofSummary,
   topOwnerRisks,
   workspaceDetailOpen,
   workspaceTab,
@@ -112,6 +113,7 @@ export function OwnerProductizationWorkspaceLead({
   onRefreshBrief: () => void;
   onViewProof: () => void;
   product?: ProductProfile | undefined;
+  scannerProofSummary: ProductHeroProps['scannerProofSummary'];
   topOwnerRisks: ProductHeroProps['topOwnerRisks'];
   workspaceDetailOpen: boolean;
   workspaceTab: WorkspaceTab;
@@ -140,6 +142,7 @@ export function OwnerProductizationWorkspaceLead({
           launchStatus={launchStatus}
           topOwnerRisks={topOwnerRisks}
           evidenceSummaryItems={evidenceSummaryItems}
+          scannerProofSummary={scannerProofSummary}
           onPrimaryAction={onPrimaryAction}
           onEditProfile={onEditProfile}
           onRefreshBrief={onRefreshBrief}

@@ -107,7 +107,7 @@ export default function ProjectStartPlanHeroCard({
                     {techStackLabel && <PastelChip label={techStackLabel} accent={appleColors.cyan} bg="#e4f9fd" />}
                   </Stack>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                    Product is selected globally. Switch products from Home.
+                    Product is selected globally. Use Home to switch products.
                   </Typography>
                 </Box>
               </Stack>
@@ -122,7 +122,7 @@ export default function ProjectStartPlanHeroCard({
             endIcon={<ArrowForwardOutlined />}
             sx={{ minHeight: 40, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
           >
-            Switch product on Home
+            Home
           </Button>
         </Stack>
       </Box>

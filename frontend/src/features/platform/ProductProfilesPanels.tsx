@@ -164,12 +164,12 @@ export function ProductPortfolioNextActionPanel({
       </Typography>
       <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
         {score < 65
-          ? 'This product needs the next owner decision first. Open Product Home to see the launch verdict, action plan, findings, services, and share route.'
-          : 'Open Product Home to continue from the selected workspace. Use this page only when you want to switch products.'}
+          ? 'This product needs the next owner decision first. Open Workspace to see the launch verdict, action plan, findings, services, and share route.'
+          : 'Open Workspace to continue from the selected product. Use this page only when you want to switch products.'}
       </Typography>
       <Stack spacing={1.25} sx={{ mt: 2 }}>
         <Button component={NextLink} href={`/products/${selectedProduct.id}`} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 44 }}>
-          Open Product Home
+          Open Workspace
         </Button>
       </Stack>
     </Surface>

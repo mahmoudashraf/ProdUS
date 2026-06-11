@@ -161,6 +161,19 @@ export function buildOwnerWorkspaceViewModel({
     (total, tool) => total + (tool.mappedFindingCount || 0),
     0
   );
+  const latestCompletedScannerRun = scannerSummary?.recentRuns.find(
+    run => run.status === 'COMPLETED'
+  );
+  const latestScannerRun = latestCompletedScannerRun || scannerSummary?.recentRuns[0];
+  const scannerProofSummary = {
+    lastScanLabel: shortDateTime(latestScannerRun?.completedAt || latestScannerRun?.startedAt),
+    completedChecks: latestCompletedTools,
+    totalChecks: scanToolOptions.length,
+    openFindings: scannerCounts?.open ?? scannerOpenFindings.length,
+    highRiskFindings: (scannerCounts?.critical || 0) + (scannerCounts?.high || 0),
+    mappedFindings: latestMappedToolFindings,
+    hasCompletedRun: Boolean(latestCompletedScannerRun),
+  };
   const unavailableScannerTools = scannerToolCoverage.filter(
     tool => tool.enabled && !tool.executableAvailable
   ).length;
@@ -278,6 +291,7 @@ export function buildOwnerWorkspaceViewModel({
     scannerMappedFindings,
     scannerMappedServices,
     scannerOpenFindings,
+    scannerProofSummary,
     scannerReadiness,
     scannerReadinessPromptFacts,
     scannerToolCoverage,

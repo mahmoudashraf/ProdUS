@@ -163,7 +163,7 @@ export default function ProjectStartApprovalPanel({
             Open product workspace
           </Button>
           <Button component={NextLink} href="/dashboard" variant="text" sx={{ minHeight: 42 }}>
-            Back to Product Home
+            Back to Workspace
           </Button>
         </Stack>
       </Surface>

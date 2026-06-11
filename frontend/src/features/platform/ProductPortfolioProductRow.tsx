@@ -78,7 +78,7 @@ export default function ProductPortfolioProductRow({
       </Stack>
       <Stack spacing={0.75} alignItems={{ xs: 'stretch', md: 'flex-end' }}>
         <Button component={NextLink} href={`/products/${profile.id}`} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 40 }}>
-          Open Product Home
+          Open Workspace
         </Button>
       </Stack>
     </Box>

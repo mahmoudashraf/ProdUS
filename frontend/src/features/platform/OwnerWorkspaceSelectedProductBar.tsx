@@ -1,8 +1,7 @@
 'use client';
 
-import NextLink from 'next/link';
-import { ArrowBackOutlined, Inventory2Outlined } from '@mui/icons-material';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Inventory2Outlined } from '@mui/icons-material';
+import { Box, Stack, Typography } from '@mui/material';
 import {
   PastelChip,
   Surface,
@@ -48,17 +47,6 @@ export default function OwnerWorkspaceSelectedProductBar({
               {product.name}
             </Typography>
           </Box>
-        </Stack>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ flexShrink: 0 }}>
-          <Button
-            component={NextLink}
-            href="/dashboard?focus=products"
-            variant="outlined"
-            startIcon={<ArrowBackOutlined />}
-            sx={{ minHeight: 36, whiteSpace: 'normal' }}
-          >
-            Switch product on Home
-          </Button>
         </Stack>
       </Stack>
     </Surface>

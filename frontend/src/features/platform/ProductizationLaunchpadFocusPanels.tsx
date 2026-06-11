@@ -102,7 +102,7 @@ export function LaunchpadAiNextActionPanel({
         {draftServices
           ? 'Your product plan already has services. Add matching delivery talent or start the workspace when the scope is clear.'
           : hasProducts
-            ? 'Open the right Product Home first, then continue to its action plan, findings, services, or share route.'
+            ? 'Open the right Workspace first, then continue to its action plan, findings, services, or share route.'
             : 'A product profile gives the platform enough context to recommend services, teams, and workspace milestones.'}
       </Typography>
       <Button component={NextLink} href={href} variant="contained" sx={{ mt: 2, minHeight: 44 }}>
