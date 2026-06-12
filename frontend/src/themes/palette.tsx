@@ -11,6 +11,7 @@ import theme3 from '../scss/_theme3.module.scss';
 import theme4 from '../scss/_theme4.module.scss';
 import theme5 from '../scss/_theme5.module.scss';
 import theme6 from '../scss/_theme6.module.scss';
+import theme7 from '../scss/_theme7.module.scss';
 import defaultColor from '../scss/_themes-vars.module.scss';
 
 // types
@@ -37,6 +38,9 @@ const Palette = (navType: PaletteMode, presetColor: string) => {
       break;
     case 'theme6':
       colors = theme6;
+      break;
+    case 'theme7':
+      colors = theme7;
       break;
     case 'default':
     default:
@@ -100,15 +104,15 @@ const Palette = (navType: PaletteMode, presetColor: string) => {
         900: colors.darkPaper || '#121212',
       },
       text: {
-        primary: navType === 'dark' ? (colors.darkTextPrimary || '#ffffff') : '#1f2937',
-        secondary: navType === 'dark' ? (colors.darkTextSecondary || '#9e9e9e') : '#64748b',
-        dark: navType === 'dark' ? (colors.darkTextPrimary || '#ffffff') : '#101828',
+        primary: navType === 'dark' ? (colors.darkTextPrimary || '#ffffff') : (colors.grey700 || '#1f2937'),
+        secondary: navType === 'dark' ? (colors.darkTextSecondary || '#9e9e9e') : (colors.grey500 || '#64748b'),
+        dark: navType === 'dark' ? (colors.darkTextPrimary || '#ffffff') : (colors.grey900 || '#101828'),
         hint: colors.grey100 || '#f5f5f5',
       },
-      divider: navType === 'dark' ? (colors.darkTextPrimary || '#424242') : '#dbe4f0',
+      divider: navType === 'dark' ? (colors.darkTextPrimary || '#424242') : (colors.grey200 || '#dbe4f0'),
       background: {
         paper: navType === 'dark' ? (colors.darkLevel2 || '#1e1e1e') : (colors.paper || '#ffffff'),
-        default: navType === 'dark' ? (colors.darkPaper || '#121212') : '#f8fafc',
+        default: navType === 'dark' ? (colors.darkPaper || '#121212') : (colors.grey50 || '#f8fafc'),
       },
     },
   });

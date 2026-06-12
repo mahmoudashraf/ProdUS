@@ -1,5 +1,5 @@
 // project imports
-import { Theme } from '@mui/material/styles';
+import { alpha, Theme } from '@mui/material/styles';
 
 export default function componentStyleOverrides(
   theme: Theme,
@@ -36,19 +36,25 @@ export default function componentStyleOverrides(
           paddingRight: 22,
         },
         contained: {
-          boxShadow: '0 12px 28px rgba(37, 99, 235, 0.18)',
+          boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.18)}`,
           '&:hover': {
-            boxShadow: '0 16px 34px rgba(37, 99, 235, 0.24)',
+            boxShadow: `0 16px 34px ${alpha(theme.palette.primary.main, 0.24)}`,
           },
           '&.Mui-disabled': {
             boxShadow: 'none',
           },
         },
         outlined: {
-          borderColor: theme.palette.mode === 'dark' ? theme.palette.dark[500] : '#dbe4f0',
-          backgroundColor: theme.palette.mode === 'dark' ? 'transparent' : 'rgba(255, 255, 255, 0.72)',
+          borderColor: theme.palette.divider,
+          backgroundColor:
+            theme.palette.mode === 'dark'
+              ? 'transparent'
+              : alpha(theme.palette.background.paper, 0.72),
           '&:hover': {
-            backgroundColor: theme.palette.mode === 'dark' ? theme.palette.dark[700] : '#f8faff',
+            backgroundColor:
+              theme.palette.mode === 'dark'
+                ? theme.palette.dark[700]
+                : alpha(theme.palette.primary.light, 0.5),
             borderColor: theme.palette.primary.main,
           },
         },

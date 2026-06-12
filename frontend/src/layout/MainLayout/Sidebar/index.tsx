@@ -93,9 +93,9 @@ const Sidebar = () => {
               mt: matchDownMd ? 0 : 11,
               zIndex: 1099,
               width: drawerWidth,
-              background: '#fff',
+              background: theme.palette.background.paper,
               color: theme.palette.text.primary,
-              borderRight: '1px solid #dbe4f0',
+              borderRight: `1px solid ${theme.palette.divider}`,
             },
           }}
           ModalProps={{ keepMounted: true }}

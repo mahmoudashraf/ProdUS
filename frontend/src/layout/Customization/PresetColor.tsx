@@ -18,6 +18,7 @@ import theme3 from '../../scss/_theme3.module.scss';
 import theme4 from '../../scss/_theme4.module.scss';
 import theme5 from '../../scss/_theme5.module.scss';
 import theme6 from '../../scss/_theme6.module.scss';
+import theme7 from '../../scss/_theme7.module.scss';
 import colors from '../../scss/_themes-vars.module.scss';
 
 // types
@@ -88,6 +89,11 @@ const PresetColor = () => {
       id: 'theme6',
       primary: (theme.palette.mode === 'dark' ? theme6.darkPrimaryMain : theme6.primaryMain) || '#000',
       secondary: (theme.palette.mode === 'dark' ? theme6.darkSecondaryMain : theme6.secondaryMain) || '#000',
+    },
+    {
+      id: 'theme7',
+      primary: (theme.palette.mode === 'dark' ? theme7.darkPrimaryMain : theme7.primaryMain) || '#000',
+      secondary: (theme.palette.mode === 'dark' ? theme7.darkSecondaryMain : theme7.secondaryMain) || '#000',
     },
   ];
 

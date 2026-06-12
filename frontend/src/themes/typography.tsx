@@ -19,23 +19,23 @@ const Typography = (
   },
   h4: {
     fontSize: '1rem',
-    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#101828',
+    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : theme.palette.text.dark,
     fontWeight: 600,
   },
   h3: {
     fontSize: '1.375rem',
-    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#101828',
+    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : theme.palette.text.dark,
     fontWeight: 700,
   },
   h2: {
     fontSize: '2rem',
-    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#101828',
+    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : theme.palette.text.dark,
     fontWeight: 800,
     lineHeight: 1.15,
   },
   h1: {
     fontSize: '2.75rem',
-    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#101828',
+    color: theme.palette.mode === 'dark' ? theme.palette.grey[600] : theme.palette.text.dark,
     fontWeight: 800,
     lineHeight: 1.08,
   },
@@ -91,7 +91,7 @@ const Typography = (
   } as any,
   mainContent: {
     backgroundColor:
-      theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#f8fafc',
+      theme.palette.mode === 'dark' ? theme.palette.dark[800] : theme.palette.background.default,
     width: '100%',
     minHeight: 'calc(100vh - 88px)',
     flexGrow: 1,

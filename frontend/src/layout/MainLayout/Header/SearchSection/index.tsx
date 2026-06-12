@@ -32,13 +32,13 @@ const OutlineInputStyle = styled(OutlinedInput, { shouldForwardProp })(({ theme 
   paddingRight: 16,
   height: 48,
   borderRadius: 8,
-  background: '#fff',
+  background: theme.palette.background.paper,
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)',
   '& .MuiOutlinedInput-notchedOutline': {
-    borderColor: '#dbe4f0',
+    borderColor: theme.palette.divider,
   },
   '&:hover .MuiOutlinedInput-notchedOutline': {
-    borderColor: '#b9c8dc',
+    borderColor: theme.palette.primary.main,
   },
   '& input': {
     background: 'transparent !important',
@@ -50,7 +50,7 @@ const OutlineInputStyle = styled(OutlinedInput, { shouldForwardProp })(({ theme 
   [theme.breakpoints.down('md')]: {
     width: '100%',
     marginLeft: 4,
-    background: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#fff',
+    background: theme.palette.background.paper,
   },
 }));
 
@@ -155,8 +155,7 @@ const SearchSection = () => {
                     >
                       <Card
                         sx={{
-                          background:
-                            theme.palette.mode === 'dark' ? theme.palette.dark[900] : '#fff',
+                          background: theme.palette.background.paper,
                           [theme.breakpoints.down('sm')]: {
                             border: 0,
                             boxShadow: 'none',

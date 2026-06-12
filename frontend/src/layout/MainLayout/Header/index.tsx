@@ -56,11 +56,11 @@ const Header = () => {
               ...theme.typography.mediumAvatar,
               overflow: 'hidden',
               transition: 'all .2s ease-in-out',
-              background: '#fff',
+              background: theme.palette.background.paper,
               color: theme.palette.primary.main,
-              border: '1px solid #dbe4f0',
+              border: `1px solid ${theme.palette.divider}`,
               '&:hover': {
-                background: '#f1efff',
+                background: theme.palette.primary.light,
                 color: theme.palette.primary.main,
               },
             } as any}

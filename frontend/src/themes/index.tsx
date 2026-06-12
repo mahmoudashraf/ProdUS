@@ -17,6 +17,7 @@ import theme3 from '../scss/_theme3.module.scss';
 import theme4 from '../scss/_theme4.module.scss';
 import theme5 from '../scss/_theme5.module.scss';
 import theme6 from '../scss/_theme6.module.scss';
+import theme7 from '../scss/_theme7.module.scss';
 import colors from '../scss/_themes-vars.module.scss';
 
 import componentStyleOverrides from './compStyleOverride';
@@ -67,6 +68,9 @@ export default function ThemeCustomization({ children }: Props) {
     case 'theme6':
       color = theme6;
       break;
+    case 'theme7':
+      color = theme7;
+      break;
     case 'default':
     default:
       color = colors;
@@ -76,7 +80,7 @@ export default function ThemeCustomization({ children }: Props) {
     colors: color,
     heading: color.grey900 || '#212121',
     paper: color.paper || '#ffffff',
-    backgroundDefault: color.paper || '#ffffff',
+    backgroundDefault: color.grey50 || '#f8fafc',
     background: color.primaryLight || '#90caf9',
     darkTextPrimary: color.grey700 || '#616161',
     darkTextSecondary: color.grey500 || '#9e9e9e',
@@ -103,7 +107,7 @@ export default function ThemeCustomization({ children }: Props) {
     case 'light':
     default:
       themeOption.paper = color.paper || '#ffffff';
-      themeOption.backgroundDefault = color.paper || '#ffffff';
+      themeOption.backgroundDefault = color.grey50 || '#f8fafc';
       themeOption.background = color.primaryLight || '#90caf9';
       themeOption.darkTextPrimary = color.grey700 || '#616161';
       themeOption.darkTextSecondary = color.grey500 || '#9e9e9e';

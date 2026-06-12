@@ -16,6 +16,7 @@ import { useMenuState, useMenuActions } from 'contexts/MenuContext';
 import Header from './Header';
 import HorizontalBar from './HorizontalBar';
 import Sidebar from './Sidebar';
+import Customization from '../Customization';
 
 interface MainStyleProps {
   $open: boolean;
@@ -115,9 +116,12 @@ const MainLayout: FC<Props> = ({ children }) => {
         color="inherit"
         elevation={0}
         sx={{
-          bgcolor: 'rgba(255, 255, 255, 0.86)',
+          bgcolor:
+            theme.palette.mode === 'dark'
+              ? 'rgba(14, 8, 39, 0.86)'
+              : 'rgba(255, 255, 255, 0.86)',
           backdropFilter: 'blur(18px)',
-          borderBottom: '1px solid #dbe4f0',
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
         {header}
@@ -138,6 +142,7 @@ const MainLayout: FC<Props> = ({ children }) => {
           {children}
         </Container>
       </Main>
+      <Customization />
     </Box>
   );
 };
