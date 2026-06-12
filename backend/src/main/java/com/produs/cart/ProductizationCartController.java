@@ -46,6 +46,12 @@ public class ProductizationCartController {
         return toCartResponse(cart);
     }
 
+    @DeleteMapping("/current")
+    public ProductizationCartResponse deleteCurrentDraft(@AuthenticationPrincipal User user) {
+        ProductizationCart cart = cartService.deleteCurrentDraft(user);
+        return toCartResponse(cart);
+    }
+
     @PostMapping("/services")
     public ProductizationCartResponse addService(
             @AuthenticationPrincipal User user,

@@ -105,6 +105,32 @@ public class ProductizationCartService {
     }
 
     @Transactional
+    public ProductizationCart deleteCurrentDraft(User owner) {
+        List<ProductizationCart> drafts = cartRepository.findByOwnerIdAndStatusOrderByCreatedAtDesc(
+                owner.getId(),
+                ProductizationCart.CartStatus.DRAFT
+        );
+        if (drafts.isEmpty()) {
+            return createDraftCart(owner);
+        }
+
+        for (ProductizationCart cart : drafts) {
+            requireCartOwner(owner, cart);
+            serviceItemRepository.deleteAll(services(cart));
+            talentItemRepository.deleteAll(talent(cart));
+            cart.setProductProfile(null);
+            cart.setBusinessGoal(null);
+            cart.setTitle("Product Plan");
+            cart.setConvertedPackage(null);
+            cart.setConvertedWorkspace(null);
+            cart.setStatus(ProductizationCart.CartStatus.ARCHIVED);
+            cartRepository.save(cart);
+        }
+
+        return createDraftCart(owner);
+    }
+
+    @Transactional
     public ProductizationCartServiceItem addService(User owner, ServiceItemRequest request) {
         ProductizationCart cart = current(owner);
         requireCartOwner(owner, cart);

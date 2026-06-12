@@ -52,6 +52,7 @@ import static org.mockito.Mockito.when;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -270,6 +271,72 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.title").value("AI Product Creation Action Rejected"))
                 .andExpect(jsonPath("$.detail").value("This action payload is stale. Use the latest AI analysis result."))
                 .andExpect(jsonPath("$.errorCode").value("AI_CREATION_CONSENT_INVALID"));
+    }
+
+    @Test
+    void deleteCurrentCartClearsDraftPlanningAndReturnsFreshEmptyDraft() throws Exception {
+        User owner = saveUser("owner-cart-delete@produs.test", User.UserRole.PRODUCT_OWNER);
+        PlatformCatalog catalog = saveCatalog();
+
+        MvcResult productResult = mockMvc.perform(post("/api/products")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Draft Delete OS",
+                                  "summary": "Owner wants to reset a selected plan",
+                                  "businessStage": "PROTOTYPE"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        UUID productId = readId(productResult);
+
+        mockMvc.perform(put("/api/productization-cart/current")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productProfileId": "%s",
+                                  "title": "Draft Delete OS launch plan",
+                                  "businessGoal": "Reset the draft safely"
+                                }
+                                """.formatted(productId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productProfile.id").value(productId.toString()));
+
+        mockMvc.perform(post("/api/productization-cart/services")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "serviceModuleId": "%s",
+                                  "notes": "This selected service should be removed with the draft."
+                                }
+                                """.formatted(catalog.launchReadiness().getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serviceItems", hasSize(1)));
+
+        MvcResult deleteResult = mockMvc.perform(delete("/api/productization-cart/current")
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.title").value("Product Plan"))
+                .andExpect(jsonPath("$.productProfile").value(nullValue()))
+                .andExpect(jsonPath("$.businessGoal").value(nullValue()))
+                .andExpect(jsonPath("$.serviceItems", hasSize(0)))
+                .andExpect(jsonPath("$.talentItems", hasSize(0)))
+                .andExpect(jsonPath("$.startReadiness.status").value("NEEDS_PRODUCT"))
+                .andReturn();
+        UUID emptyDraftId = readId(deleteResult);
+
+        mockMvc.perform(get("/api/productization-cart/current")
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(emptyDraftId.toString()))
+                .andExpect(jsonPath("$.productProfile").value(nullValue()))
+                .andExpect(jsonPath("$.serviceItems", hasSize(0)))
+                .andExpect(jsonPath("$.talentItems", hasSize(0)));
     }
 
     @Test

@@ -8,7 +8,7 @@ import {
 } from '@mui/icons-material';
 import { Box, Button, Stack } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getJson, putJson } from './api';
+import { deleteJson, getJson, putJson } from './api';
 import { isPlaceholderProduct, sortPackagesForOwner, sortProductsForOwner, sortWorkspacesForOwner } from './displayOrder';
 import {
   PageHeader,
@@ -48,6 +48,12 @@ export default function ProductizationLaunchpad() {
   const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const cart = useQuery({ queryKey: ['productization-cart'], queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
+  const deleteDraftMutation = useMutation({
+    mutationFn: () => deleteJson<ProductizationCart>('/productization-cart/current'),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
   const clearSelectedProductMutation = useMutation({
     mutationFn: () =>
       putJson<ProductizationCart, { clearProductProfile: true; title: string; businessGoal: string }>(
@@ -88,7 +94,16 @@ export default function ProductizationLaunchpad() {
       ? 58
       : 0;
   const cartProduct = cart.data?.productProfile;
-  const nextProduct = cartProduct && !isPlaceholderProduct(cartProduct) ? cartProduct : productList[0];
+  const selectedProduct = cartProduct && !isPlaceholderProduct(cartProduct) ? cartProduct : undefined;
+  const nextProduct = selectedProduct || productList[0];
+  const hasMeaningfulDraft = Boolean(
+    cart.data?.status === 'DRAFT' && (
+      selectedProduct ||
+      draftServices > 0 ||
+      draftTalent > 0 ||
+      cart.data?.businessGoal?.trim()
+    )
+  );
   const currentDraftTitle = cartProduct && !isPlaceholderProduct(cartProduct)
     ? projectStartPlanTitle(cart.data?.title, cartProduct.name)
     : nextProduct
@@ -123,7 +138,7 @@ export default function ProductizationLaunchpad() {
       />
       <QueryState
         isLoading={[products, requirements, packages, workspaces, cart].some((query) => query.isLoading)}
-        error={[products, requirements, packages, workspaces, cart, clearSelectedProductMutation].find((query) => query.error)?.error}
+        error={[products, requirements, packages, workspaces, cart, clearSelectedProductMutation, deleteDraftMutation].find((query) => query.error)?.error}
       />
 
       <Stack spacing={2.5}>
@@ -143,9 +158,17 @@ export default function ProductizationLaunchpad() {
           <>
             <LaunchpadHeroPanel
               nextProduct={nextProduct}
+              selectedProduct={selectedProduct}
+              productCount={productList.length}
               currentDraftTitle={currentDraftTitle}
               draftServices={draftServices}
               draftTalent={draftTalent}
+              draftBusinessGoal={cart.data?.businessGoal}
+              hasMeaningfulDraft={hasMeaningfulDraft}
+              isDeletingDraft={deleteDraftMutation.isPending}
+              onDeleteDraft={async () => {
+                await deleteDraftMutation.mutateAsync();
+              }}
               cartStatus={cart.data?.status}
             />
 
