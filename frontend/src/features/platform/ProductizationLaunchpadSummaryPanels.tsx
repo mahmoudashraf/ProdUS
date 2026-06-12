@@ -54,6 +54,7 @@ export function LaunchpadHeroPanel({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const hasProducts = productCount > 0;
   const productToOpen = selectedProduct || (productCount === 1 ? nextProduct : undefined);
+  const showSingleProductSnapshot = productCount === 1 && Boolean(productToOpen) && !hasMeaningfulDraft;
   const draftItemCount = draftServices + draftTalent;
   const draftPlanHref = productToOpen ? `/products/${productToOpen.id}?tab=services&view=plan` : PROJECT_START_PLAN_HREF;
   const buildPlanHref = productToOpen ? productWorkspaceRoute(productToOpen.id, 'services') : PROJECT_START_PLAN_HREF;
@@ -75,7 +76,7 @@ export function LaunchpadHeroPanel({
   const subtitle = !hasProducts
     ? 'Add a product idea, app link, repo, README, or files. ProdUS will help you understand launch blockers, AI opportunities, and the next work to start.'
     : productToOpen
-      ? `${productToOpen.name} is ready to review. Open the workspace to see launch readiness, AI opportunities, scanners, services, and the next work to start.`
+      ? 'Open the workspace to see launch readiness, AI opportunities, scanners, services, and the next work to start.'
       : 'Open the product you want to work on next. Each product has its own launch picture, scanners, AI opportunities, services, and share path.';
 
   const confirmDeleteDraft = async () => {
@@ -93,10 +94,46 @@ export function LaunchpadHeroPanel({
             <Typography variant="h1" sx={{ fontSize: { xs: 30, sm: 36, md: 48 }, letterSpacing: 0, mb: 1, overflowWrap: 'anywhere' }}>
               {headline}
             </Typography>
+            {productToOpen && (
+              <Typography
+                component="p"
+                sx={{
+                  display: 'inline-flex',
+                  maxWidth: '100%',
+                  alignItems: 'center',
+                  borderRadius: 1.5,
+                  bgcolor: '#eaf3ff',
+                  color: '#0f172a',
+                  px: 1.4,
+                  py: 0.85,
+                  mb: 1.25,
+                  fontSize: { xs: 20, md: 24 },
+                  fontWeight: 950,
+                  lineHeight: 1.25,
+                  overflowWrap: 'anywhere',
+                  boxShadow: 'inset 0 0 0 1px rgba(25, 118, 210, 0.16)',
+                }}
+              >
+                {productToOpen.name}
+              </Typography>
+            )}
             <Typography color="text.secondary" sx={{ maxWidth: 680, fontSize: 17, lineHeight: 1.7 }}>
               {subtitle}
             </Typography>
           </Box>
+          {showSingleProductSnapshot && productToOpen && (
+            <Stack
+              direction="row"
+              spacing={1}
+              flexWrap="wrap"
+              useFlexGap
+              sx={{ display: { xs: 'flex', lg: 'none' } }}
+            >
+              <PastelChip label={formatLabel(productToOpen.businessStage)} accent={appleColors.blue} bg="#eaf3ff" />
+              <PastelChip label={productToOpen.repositoryUrl ? 'Repo added' : 'Repo not added'} accent={productToOpen.repositoryUrl ? appleColors.green : appleColors.amber} bg={productToOpen.repositoryUrl ? '#e8f7ef' : '#fff7e6'} />
+              <PastelChip label={productToOpen.productUrl ? 'Live link added' : 'Live link not added'} accent={productToOpen.productUrl ? appleColors.green : appleColors.amber} bg={productToOpen.productUrl ? '#e8f7ef' : '#fff7e6'} />
+            </Stack>
+          )}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button component={NextLink} href={primaryHref} variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ minHeight: 46 }}>
               {primaryLabel}
@@ -150,10 +187,25 @@ export function LaunchpadHeroPanel({
 
               {productToOpen && (
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <PastelChip label={formatLabel(productToOpen.businessStage)} accent={appleColors.blue} bg="#eaf3ff" />
+                  {!showSingleProductSnapshot && <PastelChip label={formatLabel(productToOpen.businessStage)} accent={appleColors.blue} bg="#eaf3ff" />}
                   {hasMeaningfulDraft && <PastelChip label={`${draftServices} services`} accent={appleColors.purple} />}
                   {hasMeaningfulDraft && <PastelChip label={`${draftTalent} teams / experts`} accent={appleColors.cyan} bg="#e4f9fd" />}
                   {hasMeaningfulDraft && <PastelChip label={formatLabel(cartStatus || 'DRAFT')} accent={launchpadStatusAccent(cartStatus)} />}
+                </Stack>
+              )}
+
+              {showSingleProductSnapshot && productToOpen && (
+                <Stack spacing={1.5}>
+                  {productToOpen.summary && (
+                    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                      {productToOpen.summary}
+                    </Typography>
+                  )}
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <PastelChip label={formatLabel(productToOpen.businessStage)} accent={appleColors.blue} bg="#eaf3ff" />
+                    <PastelChip label={productToOpen.repositoryUrl ? 'Repo added' : 'Repo not added'} accent={productToOpen.repositoryUrl ? appleColors.green : appleColors.amber} bg={productToOpen.repositoryUrl ? '#e8f7ef' : '#fff7e6'} />
+                    <PastelChip label={productToOpen.productUrl ? 'Live link added' : 'Live link not added'} accent={productToOpen.productUrl ? appleColors.green : appleColors.amber} bg={productToOpen.productUrl ? '#e8f7ef' : '#fff7e6'} />
+                  </Stack>
                 </Stack>
               )}
 

@@ -2,185 +2,242 @@
 
 import NextLink from 'next/link';
 import {
+  ArrowForwardOutlined,
   AutoAwesomeOutlined,
   CheckCircleOutlineOutlined,
+  FactCheckOutlined,
   GroupsOutlined,
   Inventory2Outlined,
   RocketLaunchOutlined,
   ShieldOutlined,
+  TravelExploreOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Container, Stack, Typography } from '@mui/material';
 import useAuth from '@/hooks/useAuth';
-import Logo from '@/components/ui-component/Logo';
+import {
+  colors,
+  HeroProofPanel,
+  JourneyStep,
+  LandingHeader,
+  OutcomePanel,
+  primaryButtonSx,
+  secondaryButtonSx,
+  SectionEyebrow,
+  sectionBodySx,
+  sectionTitleSx,
+  ServicePathTile,
+  WorkspaceStory,
+} from './LandingPagePanels';
 
-const services = [
+const outcomes = [
   {
-    title: 'Diagnose',
-    description: 'Turn prototype state, codebase risk, dependencies, and business goals into a concrete product brief.',
+    title: 'Know what blocks launch',
+    description: 'Get a plain-language verdict with the blockers, risks, and proof behind the decision.',
+    icon: <ShieldOutlined />,
+    accent: colors.coral,
+  },
+  {
+    title: 'Find the AI opportunities',
+    description: 'See the product moments where AI can improve workflow, support, search, or automation.',
     icon: <AutoAwesomeOutlined />,
-    color: '#625cff',
+    accent: colors.purple,
   },
   {
-    title: 'Plan',
-    description: 'Build a governed service plan with dependencies, milestones, deliverables, acceptance criteria, and budget range.',
-    icon: <Inventory2Outlined />,
-    color: '#0ea5e9',
-  },
-  {
-    title: 'Match',
-    description: 'Compare verified teams against service-plan needs, capability evidence, reputation, timeline, and operating fit.',
-    icon: <GroupsOutlined />,
-    color: '#14b8a6',
-  },
-  {
-    title: 'Deliver',
-    description: 'Run milestone evidence, support risk, proposal decisions, contracts, and handoff from a single workspace.',
+    title: 'Pick the next work to start',
+    description: 'Turn the diagnosis into a focused service path, then compare the right people to deliver it.',
     icon: <RocketLaunchOutlined />,
-    color: '#f59e0b',
+    accent: colors.teal,
   },
 ];
 
-const catalog = [
-  'Validation',
-  'Code Rewrite',
-  'Scaling',
-  'Cloud / DevOps',
-  'Database',
-  'Security',
-  'Launch Readiness',
-  'Operations / Support',
+const journey = [
+  {
+    title: 'Add the product',
+    description: 'Start from an idea, app link, repo, README, or files.',
+    icon: <Inventory2Outlined />,
+  },
+  {
+    title: 'Review the diagnosis',
+    description: 'ProdUS explains readiness, scanners, AI opportunities, and evidence in owner language.',
+    icon: <FactCheckOutlined />,
+  },
+  {
+    title: 'Choose the work',
+    description: 'Accept the service path, compare teams, and keep delivery proof in one workspace.',
+    icon: <GroupsOutlined />,
+  },
+];
+
+const servicePaths = [
+  'Launch readiness',
+  'AI integration',
+  'Security review',
+  'Cloud and DevOps',
+  'Code rewrite',
+  'Scale and performance',
+  'Support handoff',
+  'Product validation',
 ];
 
 export default function LandingPage() {
   const { isLoggedIn, user } = useAuth();
+  const dashboardLabel = isLoggedIn ? `Open ${user?.role === 'PRODUCT_OWNER' ? 'Product Home' : 'Dashboard'}` : 'Start product review';
+  const dashboardHref = isLoggedIn ? '/dashboard' : '/register';
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f8fbff', color: '#101828' }}>
-      <Box component="header" sx={{ bgcolor: 'rgba(255,255,255,0.86)', borderBottom: '1px solid #dbe4f0', backdropFilter: 'blur(18px)', position: 'sticky', top: 0, zIndex: 10 }}>
-        <Container maxWidth="xl">
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ height: 78 }}>
-            <NextLink href="/" aria-label="ProdOps Network home" style={{ color: 'inherit', textDecoration: 'none' }}>
-              <Logo />
-            </NextLink>
-            <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' } }}>
-              <Button component={NextLink} href="/catalog" variant="text" sx={{ minHeight: 42, color: '#334155', fontWeight: 800 }}>
-                Services
-              </Button>
-              <Button component={NextLink} href="/teams" variant="text" sx={{ minHeight: 42, color: '#334155', fontWeight: 800 }}>
-                Teams
-              </Button>
-              <Button component={NextLink} href="/solo-experts" variant="text" sx={{ minHeight: 42, color: '#334155', fontWeight: 800 }}>
-                Solo Experts
-              </Button>
-            </Stack>
-            <Stack direction="row" spacing={1}>
-              <Button component={NextLink} href="/dashboard" variant={isLoggedIn ? 'contained' : 'outlined'}>
-                Dashboard
-              </Button>
-              {!isLoggedIn && (
-                <Button component={NextLink} href="/login" variant="contained">
-                  Log in
+    <Box sx={{ minHeight: '100vh', bgcolor: colors.paper, color: colors.ink, overflowX: 'hidden' }}>
+      <LandingHeader isLoggedIn={isLoggedIn} />
+
+      <Box
+        component="main"
+        sx={{
+          position: 'relative',
+          bgcolor: colors.cream,
+          backgroundImage: {
+            xs: `linear-gradient(180deg, rgba(247,241,232,0.94), rgba(247,241,232,0.98)), url('/assets/images/cards/card-3.jpg')`,
+            md: `linear-gradient(90deg, rgba(247,241,232,0.98) 0%, rgba(247,241,232,0.94) 42%, rgba(247,241,232,0.72) 68%, rgba(247,241,232,0.24) 100%), url('/assets/images/cards/card-3.jpg')`,
+          },
+          backgroundSize: 'cover',
+          backgroundPosition: { xs: 'center top', md: 'center right' },
+        }}
+      >
+        <Container maxWidth="xl" sx={{ minHeight: { xs: 760, md: 720 }, display: 'flex', alignItems: 'center', py: { xs: 6, md: 8 } }}>
+          <Box sx={{ width: '100%', display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 0.92fr) minmax(420px, 0.78fr)' }, gap: { xs: 4, lg: 7 }, alignItems: 'center' }}>
+            <Stack spacing={3.2} sx={{ maxWidth: 760 }}>
+              <Typography
+                component="p"
+                sx={{
+                  display: 'inline-flex',
+                  alignSelf: 'flex-start',
+                  px: 1.3,
+                  py: 0.75,
+                  borderRadius: 2,
+                  bgcolor: '#fff2dc',
+                  color: '#a64a12',
+                  fontWeight: 900,
+                  fontSize: 13,
+                }}
+              >
+                AI-guided product launch workspace
+              </Typography>
+              <Typography
+                component="h1"
+                sx={{
+                  fontSize: { xs: 46, sm: 58, md: 80 },
+                  lineHeight: { xs: 1.02, md: 0.96 },
+                  fontWeight: 950,
+                  letterSpacing: 0,
+                  maxWidth: 830,
+                }}
+              >
+                Turn a prototype into a launch-ready product.
+              </Typography>
+              <Typography sx={{ fontSize: { xs: 19, md: 23 }, lineHeight: 1.58, color: colors.muted, maxWidth: 690 }}>
+                ProdUS shows founders what to fix, where AI can help, and which service path should start next. No scanner clutter. No endless planning page. Just the decision and the proof behind it.
+              </Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.4} sx={{ maxWidth: { xs: '100%', sm: 520 } }}>
+                <Button component={NextLink} href={dashboardHref} size="large" variant="contained" endIcon={<ArrowForwardOutlined />} sx={primaryButtonSx}>
+                  {dashboardLabel}
                 </Button>
-              )}
+                <Button component={NextLink} href="/catalog" size="large" variant="outlined" startIcon={<TravelExploreOutlined />} sx={secondaryButtonSx}>
+                  Explore services
+                </Button>
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1.4, sm: 2.4 }}>
+                {['Owner-ready verdict', 'AI opportunities', 'Verified delivery paths'].map((label) => (
+                  <Stack key={label} direction="row" spacing={1} alignItems="center">
+                    <CheckCircleOutlineOutlined sx={{ color: colors.teal, fontSize: 22 }} />
+                    <Typography sx={{ fontWeight: 900, color: colors.ink }}>{label}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
             </Stack>
-          </Stack>
+
+            <HeroProofPanel />
+          </Box>
         </Container>
       </Box>
 
-      <Container maxWidth="xl" sx={{ py: { xs: 5, md: 8 } }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.95fr 1.05fr' }, gap: { xs: 4, lg: 7 }, alignItems: 'center' }}>
-          <Stack spacing={3}>
-            <Box sx={{ display: 'inline-flex', alignSelf: 'flex-start', px: 1.25, py: 0.75, borderRadius: 1, bgcolor: '#eeedff', color: '#5147ff', fontWeight: 900, fontSize: 12, letterSpacing: 0 }}>
-              AI-guided product launch platform
-            </Box>
-            <Typography component="h1" sx={{ fontSize: { xs: 44, md: 74 }, lineHeight: 0.96, fontWeight: 900, letterSpacing: 0 }}>
-              Turn prototypes into products.
+      <Container maxWidth="xl" sx={{ py: { xs: 6, md: 9 } }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.78fr 1.22fr' }, gap: { xs: 4, lg: 7 }, alignItems: 'start' }}>
+          <Stack spacing={2} sx={{ maxWidth: 560 }}>
+            <SectionEyebrow>What the owner gets</SectionEyebrow>
+            <Typography component="h2" sx={sectionTitleSx}>
+              One workspace that explains the next decision.
             </Typography>
-            <Typography sx={{ fontSize: { xs: 18, md: 22 }, lineHeight: 1.55, color: '#475569', maxWidth: 720 }}>
-              ProdOps Network helps owners diagnose what blocks production, select lifecycle services, compare verified teams, and govern delivery with evidence at every milestone.
+            <Typography sx={sectionBodySx}>
+              The product home should feel like a clear launch conversation: what is ready, what is blocked, what AI can unlock, and what service work should start first.
             </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <Button component={NextLink} href={isLoggedIn ? '/dashboard' : '/catalog'} size="large" variant="contained">
-                {isLoggedIn ? `Open ${user?.role === 'PRODUCT_OWNER' ? 'Product Home' : 'Dashboard'}` : 'Explore Services'}
-              </Button>
-              <Button component={NextLink} href="/teams" size="large" variant="outlined">
-                Browse Teams
-              </Button>
-            </Stack>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} sx={{ pt: 1 }}>
-              {['AI governed', 'Verified teams', 'Outcome focused'].map((label) => (
-                <Stack key={label} direction="row" spacing={1} alignItems="center">
-                  <CheckCircleOutlineOutlined sx={{ color: '#0f9f6e' }} />
-                  <Typography sx={{ fontWeight: 800 }}>{label}</Typography>
-                </Stack>
-              ))}
-            </Stack>
           </Stack>
 
-          <Box sx={{ border: '1px solid #dbe4f0', borderRadius: 2, bgcolor: '#fff', boxShadow: '0 30px 90px rgba(15,23,42,0.10)', p: { xs: 2, md: 3 } }}>
-            <Stack spacing={2}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="h3">Product Health Overview</Typography>
-                <Button component={NextLink} href="/dashboard" variant="outlined" size="small">Dashboard</Button>
-              </Stack>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '170px 1fr 180px' }, gap: 1.5 }}>
-                <Box sx={{ p: 2, border: '1px solid #e4eaf5', borderRadius: 1 }}>
-                  <Typography color="text.secondary">Health score</Typography>
-                  <Typography sx={{ fontSize: 44, fontWeight: 900 }}>82</Typography>
-                  <Typography color="success.main" sx={{ fontWeight: 800 }}>Production path clear</Typography>
-                </Box>
-                <Box sx={{ p: 2, border: '1px solid #e4eaf5', borderRadius: 1 }}>
-                  <Typography sx={{ fontWeight: 900, mb: 1 }}>Top blockers</Typography>
-                  {['Security scan needs closure', 'CI/CD release gate missing', 'Support runbook incomplete'].map((item) => (
-                    <Stack key={item} direction="row" spacing={1} alignItems="center" sx={{ py: 0.5 }}>
-                      <ShieldOutlined sx={{ fontSize: 18, color: '#ef4444' }} />
-                      <Typography>{item}</Typography>
-                    </Stack>
-                  ))}
-                </Box>
-                <Box sx={{ p: 2, border: '1px solid #e4eaf5', borderRadius: 1 }}>
-                  <Typography sx={{ fontWeight: 900 }}>Recommended next step</Typography>
-                  <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.6 }}>Build a dependency-aware service plan and shortlist two verified teams.</Typography>
-                </Box>
-              </Box>
-            </Stack>
-          </Box>
-        </Box>
-
-        <Box sx={{ mt: { xs: 6, md: 9 }, p: { xs: 2, md: 3 }, borderRadius: 2, bgcolor: '#fff', border: '1px solid #dbe4f0', boxShadow: '0 24px 70px rgba(15,23,42,0.08)' }}>
-          <Typography align="center" variant="h2">How ProdOps Network Works</Typography>
-          <Typography align="center" color="text.secondary" sx={{ mt: 1, mb: 3 }}>Structured product planning with AI guidance, verified specialists, and concrete delivery evidence.</Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' }, gap: 2 }}>
-            {services.map((service, index) => (
-              <Box key={service.title} sx={{ p: 2.5, border: '1px solid #e4eaf5', borderRadius: 1, background: `linear-gradient(180deg, ${service.color}14, #fff)` }}>
-                <Box sx={{ width: 44, height: 44, borderRadius: 1, bgcolor: '#fff', color: service.color, display: 'grid', placeItems: 'center', fontWeight: 900, mb: 1.5 }}>
-                  {service.icon}
-                </Box>
-                <Typography variant="h4">{index + 1}. {service.title}</Typography>
-                <Typography color="text.secondary" sx={{ mt: 1, lineHeight: 1.65 }}>{service.description}</Typography>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-
-        <Box sx={{ mt: 4, p: { xs: 2, md: 3 }, borderRadius: 2, bgcolor: '#fff', border: '1px solid #dbe4f0' }}>
-          <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2} alignItems={{ md: 'center' }}>
-            <Box>
-              <Typography variant="h2">Service Paths</Typography>
-              <Typography color="text.secondary" sx={{ mt: 0.75 }}>Production-ready workstreams with clear descriptions, inputs, deliverables, and acceptance criteria.</Typography>
-            </Box>
-            <Button component={NextLink} href="/catalog" variant="outlined">Choose services</Button>
-          </Stack>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 1.5, mt: 2.5 }}>
-            {catalog.map((item, index) => (
-              <Box key={item} sx={{ p: 2, borderRadius: 1, border: '1px solid #e4eaf5', borderTop: `3px solid ${['#625cff', '#2563eb', '#f59e0b', '#0891b2', '#0ea5e9', '#ef4444', '#16a34a', '#7c3aed'][index]}` }}>
-                <Typography sx={{ fontWeight: 900 }}>{item}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>Concrete services, dependencies, milestones, and evidence checkpoints.</Typography>
-              </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: { xs: 2.5, md: 3 } }}>
+            {outcomes.map((item) => (
+              <OutcomePanel key={item.title} {...item} />
             ))}
           </Box>
         </Box>
       </Container>
+
+      <Box sx={{ bgcolor: colors.white, borderTop: `1px solid ${colors.line}`, borderBottom: `1px solid ${colors.line}` }}>
+        <Container maxWidth="xl" sx={{ py: { xs: 6, md: 9 } }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.1fr 0.9fr' }, gap: { xs: 4, lg: 7 }, alignItems: 'center' }}>
+            <WorkspaceStory />
+            <Stack spacing={3}>
+              <SectionEyebrow>Product journey</SectionEyebrow>
+              <Typography component="h2" sx={sectionTitleSx}>
+                From idea to scoped delivery, without losing the story.
+              </Typography>
+              <Typography sx={sectionBodySx}>
+                ProdUS keeps the journey simple for a nontechnical owner. Start with the product, understand the verdict, then move into the service path and proof only when needed.
+              </Typography>
+              <Stack spacing={2.3}>
+                {journey.map((step, index) => (
+                  <JourneyStep key={step.title} index={index + 1} {...step} />
+                ))}
+              </Stack>
+            </Stack>
+          </Box>
+        </Container>
+      </Box>
+
+      <Container maxWidth="xl" sx={{ py: { xs: 6, md: 9 } }}>
+        <Stack spacing={4}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '0.9fr 1.1fr' }, gap: { xs: 2, md: 6 }, alignItems: 'end' }}>
+            <Box>
+              <SectionEyebrow>Service paths</SectionEyebrow>
+              <Typography component="h2" sx={sectionTitleSx}>
+                Practical workstreams, not a confusing catalog.
+              </Typography>
+            </Box>
+            <Typography sx={sectionBodySx}>
+              Services stay tied to the product verdict. A founder can see why a path matters before comparing teams or approving work.
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 1.6 }}>
+            {servicePaths.map((path, index) => (
+              <ServicePathTile key={path} path={path} index={index} />
+            ))}
+          </Box>
+        </Stack>
+      </Container>
+
+      <Box sx={{ bgcolor: colors.navy, color: colors.white }}>
+        <Container maxWidth="xl" sx={{ py: { xs: 5, md: 7 } }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems={{ md: 'center' }} justifyContent="space-between">
+            <Box sx={{ maxWidth: 760 }}>
+              <Typography component="h2" sx={{ fontSize: { xs: 34, md: 50 }, lineHeight: 1.03, fontWeight: 950, letterSpacing: 0 }}>
+                Give every product a clear next step.
+              </Typography>
+              <Typography sx={{ mt: 1.5, color: '#d9d5ff', fontSize: 18, lineHeight: 1.65 }}>
+                Start with the product context. ProdUS turns it into a launch verdict, AI opportunity map, and service plan the owner can actually use.
+              </Typography>
+            </Box>
+            <Button component={NextLink} href={dashboardHref} size="large" variant="contained" endIcon={<ArrowForwardOutlined />} sx={{ ...primaryButtonSx, bgcolor: colors.coral, '&:hover': { bgcolor: '#e95b31' } }}>
+              {dashboardLabel}
+            </Button>
+          </Stack>
+        </Container>
+      </Box>
     </Box>
   );
 }
