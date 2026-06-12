@@ -74,7 +74,10 @@ const MenuList = () => {
   const productIdParam = searchParams?.get('productId') || '';
   const globalProductId = globalProductContext.data?.productProfile?.id || '';
   const globalProductName = globalProductContext.data?.productProfile?.name || '';
-  const selectedProductId = routeProductId || productIdParam || globalProductId;
+  const isProductContextRoute = Boolean(routeProductId)
+    || pathname === '/owner/project-cart'
+    || Boolean(productIdParam && (pathname === '/catalog' || pathname === '/services'));
+  const selectedProductId = routeProductId || productIdParam || (isProductContextRoute ? globalProductId : '');
   const routeProduct = useQuery({
     queryKey: ['products', selectedProductId, 'menu-context'],
     enabled: isProductOwner && !!selectedProductId && (!globalProductId || selectedProductId !== globalProductId),
@@ -84,10 +87,10 @@ const MenuList = () => {
   });
   const selectedProductName = routeProduct.data?.name || (selectedProductId === globalProductId ? globalProductName : '');
   const visibleMenuItems = useMemo(
-    () => isProductOwner && selectedProductId
+    () => isProductOwner && selectedProductId && isProductContextRoute
       ? buildOwnerProductWorkspaceMenu(roleVisibleMenuItems, selectedProductId, selectedProductName)
       : roleVisibleMenuItems,
-    [isProductOwner, roleVisibleMenuItems, selectedProductId, selectedProductName]
+    [isProductContextRoute, isProductOwner, roleVisibleMenuItems, selectedProductId, selectedProductName]
   );
 
   let lastItemIndex = visibleMenuItems.length - 1;
@@ -164,7 +167,7 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
           id: 'product-switch-home',
           title: 'Home',
           type: 'item',
-          url: '/dashboard?focus=products',
+          url: '/dashboard?focus=products&clearSelectedProduct=1',
           icon: IconHome,
           breadcrumbs: true,
         },

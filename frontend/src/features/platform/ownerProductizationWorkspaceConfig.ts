@@ -50,9 +50,10 @@ export interface CartServicePayload {
 }
 
 export interface CartUpdatePayload {
-  productProfileId?: string;
+  productProfileId?: string | null;
   title?: string;
   businessGoal?: string;
+  clearProductProfile?: boolean;
 }
 
 export interface CartTalentPayload {

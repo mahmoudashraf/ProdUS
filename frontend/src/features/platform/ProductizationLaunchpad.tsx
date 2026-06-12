@@ -1,13 +1,14 @@
 'use client';
 
 import NextLink from 'next/link';
+import { useEffect, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   AddOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Stack } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import { getJson } from './api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getJson, putJson } from './api';
 import { isPlaceholderProduct, sortPackagesForOwner, sortProductsForOwner, sortWorkspacesForOwner } from './displayOrder';
 import {
   PageHeader,
@@ -32,18 +33,48 @@ const isLaunchpadDetailView = (value: string | null): value is LaunchpadDetailVi
   value === 'products' || value === 'workspaces';
 
 export default function ProductizationLaunchpad() {
+  const queryClient = useQueryClient();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchParamString = searchParams?.toString() || '';
   const focusParam = searchParams?.get('focus') || null;
+  const clearSelectedProduct = searchParams?.get('clearSelectedProduct') === '1';
   const detailView = isLaunchpadDetailView(focusParam) ? focusParam : null;
+  const clearRequestedRef = useRef(false);
 
   const products = useQuery({ queryKey: ['products'], queryFn: () => getJson<ProductProfile[]>('/products') });
   const requirements = useQuery({ queryKey: ['requirements'], queryFn: () => getJson<RequirementIntake[]>('/requirements') });
   const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const cart = useQuery({ queryKey: ['productization-cart'], queryFn: () => getJson<ProductizationCart>('/productization-cart/current') });
+  const clearSelectedProductMutation = useMutation({
+    mutationFn: () =>
+      putJson<ProductizationCart, { clearProductProfile: true; title: string; businessGoal: string }>(
+        '/productization-cart/current',
+        {
+          clearProductProfile: true,
+          title: 'Planning',
+          businessGoal: '',
+        }
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
+    },
+  });
+
+  useEffect(() => {
+    if (!clearSelectedProduct || clearRequestedRef.current) return;
+    clearRequestedRef.current = true;
+    clearSelectedProductMutation.mutate(undefined, {
+      onSettled: () => {
+        const next = new URLSearchParams(searchParamString);
+        next.delete('clearSelectedProduct');
+        const query = next.toString();
+        router.replace(query ? `${pathname || '/dashboard'}?${query}` : pathname || '/dashboard', { scroll: false });
+      },
+    });
+  }, [clearSelectedProduct, clearSelectedProductMutation, pathname, router, searchParamString]);
 
   const packageList = sortPackagesForOwner(packages.data || []);
   const productList = sortProductsForOwner(products.data || [], packageList);
@@ -92,7 +123,7 @@ export default function ProductizationLaunchpad() {
       />
       <QueryState
         isLoading={[products, requirements, packages, workspaces, cart].some((query) => query.isLoading)}
-        error={[products, requirements, packages, workspaces, cart].find((query) => query.error)?.error}
+        error={[products, requirements, packages, workspaces, cart, clearSelectedProductMutation].find((query) => query.error)?.error}
       />
 
       <Stack spacing={2.5}>

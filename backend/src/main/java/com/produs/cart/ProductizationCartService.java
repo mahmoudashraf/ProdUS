@@ -84,7 +84,9 @@ public class ProductizationCartService {
     public ProductizationCart update(User owner, CartUpdateRequest request) {
         ProductizationCart cart = current(owner);
         requireCartOwner(owner, cart);
-        if (request.productProfileId() != null) {
+        if (Boolean.TRUE.equals(request.clearProductProfile())) {
+            cart.setProductProfile(null);
+        } else if (request.productProfileId() != null) {
             ProductProfile product = productProfileRepository.findById(request.productProfileId())
                     .orElseThrow(() -> new IllegalArgumentException("Product not found"));
             requireProductOwner(owner, product);
@@ -463,7 +465,7 @@ public class ProductizationCartService {
         throw new AccessDeniedException("Product belongs to another owner");
     }
 
-    public record CartUpdateRequest(UUID productProfileId, String title, String businessGoal) {}
+    public record CartUpdateRequest(UUID productProfileId, String title, String businessGoal, Boolean clearProductProfile) {}
     public record ServiceItemRequest(UUID serviceModuleId, String notes) {}
     public record TalentItemRequest(ProductizationCartTalentItem.TalentItemType itemType, UUID teamId, UUID expertProfileId, String notes) {}
 
