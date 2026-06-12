@@ -23,7 +23,17 @@ import {
   workspaceAccent,
 } from './workspaceCommandTeamTypes';
 
-export default function WorkspaceCommandPage() {
+interface WorkspaceCommandPageProps {
+  embedded?: boolean;
+  productId?: string | undefined;
+  selectedWorkspaceId?: string | null | undefined;
+}
+
+export default function WorkspaceCommandPage({
+  embedded = false,
+  productId,
+  selectedWorkspaceId,
+}: WorkspaceCommandPageProps = {}) {
   const {
     pushWorkspaceRoute,
     workspaceHandoffView,
@@ -31,7 +41,13 @@ export default function WorkspaceCommandPage() {
     workspaceProofView,
     workspaceTeamView,
     workspaceView,
-  } = useWorkspaceCommandRouteState();
+  } = useWorkspaceCommandRouteState(embedded ? {
+    handoffViewParamName: 'workspaceHandoffView',
+    proofViewParamName: 'workspaceProofView',
+    teamViewParamName: 'workspaceTeamView',
+    viewParamName: 'workspaceView',
+  } : undefined);
+  const effectiveWorkspaceId = selectedWorkspaceId ?? workspaceParam;
   const { hasRole } = useAuth();
   const canCoordinate = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
   const canAttachEvidence = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER, UserRole.SPECIALIST]);
@@ -72,7 +88,7 @@ export default function WorkspaceCommandPage() {
     launchReadinessReport,
     milestoneList,
     milestones,
-    packages,
+    packageList,
     participantList,
     queriesLoading,
     queryError,
@@ -91,7 +107,7 @@ export default function WorkspaceCommandPage() {
     uploadAttachment,
     workspaceList,
     workspaceScannerReadiness,
-  } = useWorkspaceCommandData({ canAttachEvidence, selectedWorkspaceId: workspaceParam });
+  } = useWorkspaceCommandData({ canAttachEvidence, productId, selectedWorkspaceId: effectiveWorkspaceId });
 
   const openWorkspaceRoute = (
     view: WorkspaceCommandView,
@@ -199,10 +215,12 @@ export default function WorkspaceCommandPage() {
 
   return (
     <>
-      <PageHeader
-        title="Product Workspaces"
-        description="One focused place to turn a prototype into a shippable product: fixes, proof, people, and next launch decisions."
-      />
+      {!embedded && (
+        <PageHeader
+          title="Product Workspaces"
+          description="One focused place to turn a prototype into a shippable product: fixes, proof, people, and next launch decisions."
+        />
+      )}
       <QueryState
         isLoading={queriesLoading}
         error={
@@ -221,7 +239,7 @@ export default function WorkspaceCommandPage() {
           {attachmentOpenError}
         </Alert>
       )}
-      {workspaceView === 'overview' && (
+      {!embedded && workspaceView === 'overview' && (
         <WorkspaceCommandMetricsPanel
           activeWorkspaceCount={activeWorkspaceCount}
           blockedItems={blockedItems}
@@ -235,7 +253,7 @@ export default function WorkspaceCommandPage() {
       <WorkspaceCommandBoard
         workspaceView={workspaceView}
         sidebar={{
-          packages: packages.data || [],
+          packages: packageList,
           workspaceList,
           selectedWorkspace,
           workspaceForm,

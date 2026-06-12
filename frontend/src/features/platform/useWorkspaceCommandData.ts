@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getJson } from './api';
 import { useWorkspaceCommandMilestoneSelection, useWorkspaceCommandSelection } from './useWorkspaceCommandSelection';
@@ -22,20 +23,35 @@ import type {
 
 interface WorkspaceCommandDataInput {
   canAttachEvidence: boolean;
+  productId?: string | undefined;
   selectedWorkspaceId?: string | null;
 }
 
-export function useWorkspaceCommandData({ canAttachEvidence, selectedWorkspaceId }: WorkspaceCommandDataInput) {
+export function useWorkspaceCommandData({ canAttachEvidence, productId, selectedWorkspaceId }: WorkspaceCommandDataInput) {
   const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
   const teams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
+  const allPackages = packages.data || [];
+  const allWorkspaces = workspaces.data || [];
+  const packageList = useMemo(
+    () => productId
+      ? allPackages.filter((item) => item.productProfile?.id === productId)
+      : allPackages,
+    [allPackages, productId]
+  );
+  const productWorkspaceList = useMemo(
+    () => productId
+      ? allWorkspaces.filter((workspace) => workspace.packageInstance?.productProfile?.id === productId)
+      : allWorkspaces,
+    [allWorkspaces, productId]
+  );
 
   const {
     selectedWorkspace,
     selectedWorkspaceProductId,
     setSelectedWorkspaceId,
     workspaceList,
-  } = useWorkspaceCommandSelection(workspaces.data || [], selectedWorkspaceId);
+  } = useWorkspaceCommandSelection(productWorkspaceList, selectedWorkspaceId);
 
   const milestones = useQuery({
     queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'],
@@ -143,6 +159,7 @@ export function useWorkspaceCommandData({ canAttachEvidence, selectedWorkspaceId
     launchReadinessReport,
     milestoneList,
     milestones,
+    packageList,
     packages,
     participantList,
     participants,
