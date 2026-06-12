@@ -1,5 +1,5 @@
 import RailswareColorTrialLandingPage from '@/features/landing/RailswareColorTrialLandingPage';
 
-export default function HomePage() {
+export default function LandingRailswareTrialPage() {
   return <RailswareColorTrialLandingPage />;
 }
