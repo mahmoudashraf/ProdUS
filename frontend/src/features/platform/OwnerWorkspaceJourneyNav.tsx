@@ -127,59 +127,140 @@ export function WorkspaceBreadcrumbs({
   backLabel?: string;
   onBack?: () => void;
 }) {
+  const previousActionItem = items
+    .slice(0, Math.max(items.length - 1, 0))
+    .reverse()
+    .find((item): item is WorkspaceBreadcrumbItem & { onClick: () => void } => Boolean(item.onClick));
+  const resolvedBackAction = onBack || previousActionItem?.onClick;
+  const rawBackLabel = backLabel || previousActionItem?.label;
+  const resolvedBackLabel = rawBackLabel
+    ? /^back\b/i.test(rawBackLabel.trim())
+      ? rawBackLabel
+      : `Back to ${rawBackLabel}`
+    : undefined;
+
   return (
     <Box
       component="nav"
       aria-label="Workspace breadcrumb"
       sx={{
         minWidth: 0,
-        p: 1,
+        p: { xs: 1, sm: 1.15 },
         border: '1px solid',
-        borderColor: appleColors.line,
+        borderColor: '#cbdcf1',
         borderRadius: 1,
-        bgcolor: '#fff',
+        background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)',
+        boxShadow: '0 10px 28px rgba(16, 24, 40, 0.05)',
       }}
     >
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ minWidth: 0 }}>
-        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ minWidth: 0, flex: 1 }}>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={1}
+        justifyContent="space-between"
+        alignItems={{ xs: 'stretch', md: 'center' }}
+        sx={{ minWidth: 0 }}
+      >
+        {resolvedBackLabel && resolvedBackAction && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<KeyboardBackspaceOutlined />}
+            onClick={resolvedBackAction}
+            sx={{
+              minHeight: 38,
+              alignSelf: { xs: 'stretch', md: 'center' },
+              justifyContent: 'flex-start',
+              borderColor: '#b9d5fb',
+              bgcolor: '#fff',
+              color: appleColors.blue,
+              fontWeight: 950,
+              boxShadow: '0 8px 20px rgba(24, 119, 242, 0.08)',
+              '&:hover': {
+                bgcolor: '#eef6ff',
+                borderColor: appleColors.blue,
+              },
+            }}
+          >
+            {resolvedBackLabel}
+          </Button>
+        )}
+
+        <Stack
+          component="ol"
+          direction="row"
+          spacing={0.6}
+          alignItems="center"
+          flexWrap="wrap"
+          useFlexGap
+          sx={{
+            minWidth: 0,
+            flex: 1,
+            m: 0,
+            p: 0,
+            listStyle: 'none',
+            justifyContent: { xs: 'flex-start', md: 'flex-end' },
+          }}
+        >
           {items.map((item, index) => {
             const isLast = index === items.length - 1;
             return (
-              <Stack key={`${item.label}-${index}`} direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+              <Stack
+                key={`${item.label}-${index}`}
+                component="li"
+                direction="row"
+                spacing={0.6}
+                alignItems="center"
+                sx={{ minWidth: 0 }}
+              >
                 {item.onClick && !isLast ? (
                   <Button
                     variant="text"
                     size="small"
                     onClick={item.onClick}
-                    sx={{ minHeight: 28, minWidth: 0, maxWidth: '100%', px: 0.4, color: appleColors.muted, fontWeight: 850, whiteSpace: 'normal', textAlign: 'left' }}
+                    sx={{
+                      minHeight: 30,
+                      minWidth: 0,
+                      maxWidth: '100%',
+                      px: 0.65,
+                      color: appleColors.blue,
+                      fontWeight: 900,
+                      whiteSpace: 'normal',
+                      textAlign: 'left',
+                      textDecoration: 'none',
+                      '&:hover': {
+                        bgcolor: '#eef6ff',
+                      },
+                    }}
                   >
                     {item.label}
                   </Button>
                 ) : (
-                  <Typography variant="caption" sx={{ color: isLast ? appleColors.ink : appleColors.muted, fontWeight: isLast ? 950 : 850, overflowWrap: 'anywhere' }}>
+                  <Typography
+                    variant="caption"
+                    aria-current={isLast ? 'page' : undefined}
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      minHeight: isLast ? 30 : 'auto',
+                      px: isLast ? 1 : 0,
+                      border: isLast ? '1px solid #d8d6ff' : 'none',
+                      borderRadius: isLast ? 1 : 0,
+                      bgcolor: isLast ? '#f1efff' : 'transparent',
+                      color: isLast ? appleColors.ink : appleColors.muted,
+                      fontWeight: isLast ? 950 : 850,
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
                     {item.label}
                   </Typography>
                 )}
                 {!isLast && (
-                  <Typography variant="caption" color="text.secondary">
-                    &gt;
-                  </Typography>
+                  <ChevronRightOutlined sx={{ color: appleColors.muted, fontSize: 18, flexShrink: 0 }} />
                 )}
               </Stack>
             );
           })}
         </Stack>
-        {backLabel && onBack && (
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<KeyboardBackspaceOutlined />}
-            onClick={onBack}
-            sx={{ minHeight: 34, alignSelf: { xs: 'flex-start', sm: 'center' } }}
-          >
-            {backLabel}
-          </Button>
-        )}
       </Stack>
     </Box>
   );
