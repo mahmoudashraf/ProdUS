@@ -101,6 +101,7 @@ export function useOwnerWorkspaceNavigationState() {
     next.delete('proofLibrary');
     next.delete('proof');
     next.delete('setup');
+    if (tab !== 'workspaces' || !view) next.delete('workspace');
     router.push(`${routePath}?${next.toString()}`, { scroll: false });
   };
 
@@ -115,6 +116,7 @@ export function useOwnerWorkspaceNavigationState() {
     next.delete('proofLibrary');
     next.delete('proof');
     next.delete('setup');
+    next.delete('workspace');
     const suffix = next.toString();
     router.push(`${routePath}${suffix ? `?${suffix}` : ''}`, { scroll: false });
   };
@@ -168,6 +170,7 @@ export function useOwnerWorkspaceNavigationState() {
     next.delete('proofLibrary');
     next.delete('proof');
     next.delete('setup');
+    next.delete('workspace');
     setWorkspaceTab('findings');
     setFindingsView('technical');
     setWorkspaceDetailOpen(true);
@@ -185,6 +188,7 @@ export function useOwnerWorkspaceNavigationState() {
     next.delete('proofLibrary');
     next.set('proof', view);
     next.delete('setup');
+    next.delete('workspace');
     setWorkspaceTab('findings');
     setFindingsView('technical');
     setWorkspaceDetailOpen(true);
@@ -203,6 +207,7 @@ export function useOwnerWorkspaceNavigationState() {
     next.delete('proofLibrary');
     next.delete('proof');
     next.delete('setup');
+    next.delete('workspace');
     setWorkspaceTab('findings');
     setFindingsView('evidence');
     setWorkspaceDetailOpen(true);
@@ -222,6 +227,7 @@ export function useOwnerWorkspaceNavigationState() {
     next.set('proofLibrary', view);
     next.delete('proof');
     next.delete('setup');
+    next.delete('workspace');
     setWorkspaceTab('findings');
     setFindingsView('evidence');
     setWorkspaceDetailOpen(true);
@@ -241,6 +247,7 @@ export function useOwnerWorkspaceNavigationState() {
     next.delete('proofLibrary');
     next.delete('proof');
     next.delete('setup');
+    next.delete('workspace');
     setWorkspaceTab('findings');
     setFindingsView('risks');
     setWorkspaceDetailOpen(true);
@@ -260,6 +267,7 @@ export function useOwnerWorkspaceNavigationState() {
     next.delete('proofLibrary');
     next.delete('proof');
     next.delete('setup');
+    next.delete('workspace');
     setWorkspaceTab('findings');
     setFindingsView('risks');
     setWorkspaceDetailOpen(true);
@@ -279,6 +287,7 @@ export function useOwnerWorkspaceNavigationState() {
     next.delete('proofLibrary');
     next.set('proof', 'run');
     next.delete('setup');
+    next.delete('workspace');
     setWorkspaceTab('findings');
     setFindingsView('technical');
     setWorkspaceDetailOpen(true);
@@ -298,6 +307,7 @@ export function useOwnerWorkspaceNavigationState() {
     next.delete('proofLibrary');
     next.set('proof', 'run');
     next.set('setup', view);
+    next.delete('workspace');
     setWorkspaceTab('findings');
     setFindingsView('technical');
     setWorkspaceDetailOpen(true);
