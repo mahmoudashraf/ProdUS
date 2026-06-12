@@ -4,6 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import {
   IconAlertTriangle,
+  IconBuildingCommunity,
   IconChecklist,
   IconHome,
   IconListDetails,
@@ -173,10 +174,18 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
         },
         {
           id: 'product-overview',
-          title: 'Workspace',
+          title: 'Product Details',
           type: 'item',
           url: productWorkspaceRoute(productId),
           icon: IconListDetails,
+          breadcrumbs: true,
+        },
+        {
+          id: 'product-workspaces',
+          title: 'Workspaces',
+          type: 'item',
+          url: productWorkspaceRoute(productId, 'workspaces'),
+          icon: IconBuildingCommunity,
           breadcrumbs: true,
         },
         {

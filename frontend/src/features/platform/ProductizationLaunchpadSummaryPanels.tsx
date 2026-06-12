@@ -35,6 +35,9 @@ export function LaunchpadHeroPanel({
   draftTalent,
   draftBusinessGoal,
   hasMeaningfulDraft,
+  requirementCount,
+  activeWorkspaceCount,
+  workspaceCount,
   isDeletingDraft = false,
   onDeleteDraft,
   cartStatus,
@@ -47,6 +50,9 @@ export function LaunchpadHeroPanel({
   draftTalent: number;
   draftBusinessGoal?: string | undefined;
   hasMeaningfulDraft: boolean;
+  requirementCount: number;
+  activeWorkspaceCount: number;
+  workspaceCount: number;
   isDeletingDraft?: boolean | undefined;
   onDeleteDraft?: (() => Promise<void> | void) | undefined;
   cartStatus?: string | undefined;
@@ -55,6 +61,7 @@ export function LaunchpadHeroPanel({
   const hasProducts = productCount > 0;
   const productToOpen = selectedProduct || (productCount === 1 ? nextProduct : undefined);
   const showSingleProductSnapshot = productCount === 1 && Boolean(productToOpen) && !hasMeaningfulDraft;
+  const showPortfolioPicker = hasProducts && !productToOpen && !hasMeaningfulDraft;
   const draftItemCount = draftServices + draftTalent;
   const draftPlanHref = productToOpen ? `/products/${productToOpen.id}?tab=services&view=plan` : PROJECT_START_PLAN_HREF;
   const buildPlanHref = productToOpen ? productWorkspaceRoute(productToOpen.id, 'services') : PROJECT_START_PLAN_HREF;
@@ -72,12 +79,12 @@ export function LaunchpadHeroPanel({
     ? 'Start with your product'
     : productToOpen
       ? 'Continue your product'
-      : 'Choose a product to continue';
+      : 'Pick the product that needs attention';
   const subtitle = !hasProducts
     ? 'Add a product idea, app link, repo, README, or files. ProdUS will help you understand launch blockers, AI opportunities, and the next work to start.'
     : productToOpen
       ? 'Open the workspace to see launch readiness, AI opportunities, scanners, services, and the next work to start.'
-      : 'Open the product you want to work on next. Each product has its own launch picture, scanners, AI opportunities, services, and share path.';
+      : `You have ${productCount} products. Choose one to open its workspace with launch verdict, scanners, AI opportunities, services, and sharing.`;
 
   const confirmDeleteDraft = async () => {
     if (!onDeleteDraft) return;
@@ -89,7 +96,7 @@ export function LaunchpadHeroPanel({
     <Surface sx={{ p: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
       <Box sx={{ p: { xs: 2.5, md: 3 }, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.1fr 0.9fr' }, gap: 3, alignItems: 'center', minWidth: 0 }}>
         <Stack spacing={2} sx={{ minWidth: 0 }}>
-          <PastelChip label={!hasProducts ? 'First step' : productToOpen ? 'Selected product' : 'Products'} accent={appleColors.purple} />
+          <PastelChip label={!hasProducts ? 'First step' : productToOpen ? 'Selected product' : 'Portfolio'} accent={appleColors.purple} />
           <Box>
             <Typography variant="h1" sx={{ fontSize: { xs: 30, sm: 36, md: 48 }, letterSpacing: 0, mb: 1, overflowWrap: 'anywhere' }}>
               {headline}
@@ -152,7 +159,7 @@ export function LaunchpadHeroPanel({
               </Button>
             ) : (
               <Button component={NextLink} href="/products/new" variant="outlined" sx={{ minHeight: 46 }}>
-                Create another product
+                Create product
               </Button>
             )}
           </Stack>
@@ -165,6 +172,38 @@ export function LaunchpadHeroPanel({
               <HeroStep index={1} title="Create a product" detail="Add the product name, stage, notes, links, repo, README, or files." />
               <HeroStep index={2} title="Get a launch picture" detail="See readiness, blockers, scanners, and AI opportunities." />
               <HeroStep index={3} title="Plan the work" detail="Choose services only when there is real product context." />
+            </Stack>
+          ) : showPortfolioPicker ? (
+            <Stack spacing={2}>
+              <SectionTitle
+                title="Portfolio snapshot"
+                action={<PastelChip label="No product selected" accent={appleColors.amber} bg="#fff7e6" />}
+              />
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
+                  gap: 1,
+                }}
+              >
+                <PortfolioStat
+                  label="Products"
+                  value={productCount}
+                  detail="Choose where to continue"
+                  accent={appleColors.purple}
+                  href="/dashboard?focus=products"
+                  actionLabel="Open products"
+                />
+                <PortfolioStat label="Product briefs" value={requirementCount} detail="Saved context" accent={appleColors.cyan} />
+                <PortfolioStat
+                  label="Workspaces"
+                  value={activeWorkspaceCount}
+                  detail={`${workspaceCount} total`}
+                  accent={appleColors.green}
+                  href="/dashboard?focus=workspaces"
+                  actionLabel="Open workspaces"
+                />
+              </Box>
             </Stack>
           ) : (
             <Stack spacing={2}>
@@ -304,6 +343,79 @@ function HeroStep({
         </Typography>
       </Box>
     </Stack>
+  );
+}
+
+function PortfolioStat({
+  label,
+  value,
+  detail,
+  accent,
+  href,
+  actionLabel,
+}: {
+  label: string;
+  value: number;
+  detail: string;
+  accent: string;
+  href?: string | undefined;
+  actionLabel?: string | undefined;
+}) {
+  const content = (
+    <>
+      <Typography sx={{ fontSize: 24, fontWeight: 950, color: appleColors.ink, lineHeight: 1 }}>
+        {value}
+      </Typography>
+      <Typography variant="body2" sx={{ mt: 0.75, fontWeight: 900 }}>
+        {label}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35 }}>
+        {detail}
+      </Typography>
+      {actionLabel && (
+        <Typography variant="caption" sx={{ display: 'block', mt: 0.9, color: accent, fontWeight: 950 }}>
+          {actionLabel}
+        </Typography>
+      )}
+    </>
+  );
+  const cardSx = {
+    p: 1.25,
+    borderRadius: 1,
+    border: '1px solid',
+    borderColor: `${accent}26`,
+    bgcolor: `${accent}08`,
+    minWidth: 0,
+    color: 'inherit',
+    textDecoration: 'none',
+    transition: 'border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease',
+    ...(href
+      ? {
+          cursor: 'pointer',
+          '&:hover': {
+            borderColor: `${accent}70`,
+            boxShadow: `0 12px 26px ${accent}14`,
+            transform: 'translateY(-1px)',
+          },
+          '&:focus-visible': {
+            outline: `3px solid ${accent}35`,
+            outlineOffset: 2,
+          },
+        }
+      : {}),
+  };
+
+  return href ? (
+    <Box
+      component={NextLink}
+      href={href}
+      aria-label={actionLabel || label}
+      sx={cardSx}
+    >
+      {content}
+    </Box>
+  ) : (
+    <Box sx={cardSx}>{content}</Box>
   );
 }
 

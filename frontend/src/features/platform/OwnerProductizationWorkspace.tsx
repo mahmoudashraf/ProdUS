@@ -5,6 +5,7 @@ import OwnerWorkspaceActionsArea from './OwnerWorkspaceActionsArea';
 import OwnerWorkspaceAiArea from './OwnerWorkspaceAiArea';
 import OwnerWorkspaceFindingsArea from './OwnerWorkspaceFindingsArea';
 import OwnerWorkspaceOverviewArea from './OwnerWorkspaceOverviewArea';
+import OwnerProductWorkspacesArea from './OwnerProductWorkspacesArea';
 import OwnerWorkspaceServicesArea from './OwnerWorkspaceServicesArea';
 import OwnerWorkspaceShareArea from './OwnerWorkspaceShareArea';
 import OwnerWorkspaceSideRailHost from './OwnerWorkspaceSideRailHost';
@@ -109,6 +110,7 @@ export default function OwnerProductizationWorkspace({
     milestones,
     shortlists,
     assistantSuggestions,
+    workspaces,
     productList,
     selectedProduct,
     selectedPackage,
@@ -121,6 +123,9 @@ export default function OwnerProductizationWorkspace({
     selectedPackageId,
     selectedFindingId,
   });
+  const productWorkspaces = (workspaces.data || []).filter(
+    (workspace) => workspace.packageInstance?.productProfile?.id === selectedProduct?.id
+  );
   const scannerOperations = useOwnerWorkspaceScannerOperations({
     connectorPermissions: connectorPermissions.data || [],
     evidenceFilter,
@@ -446,6 +451,13 @@ export default function OwnerProductizationWorkspace({
             totalScanTools={scanToolOptions.length}
             view={overviewView}
             workspaceTab={workspaceTab}
+          />
+
+          <OwnerProductWorkspacesArea
+            isLoading={workspaces.isFetching}
+            selectedProduct={selectedProduct}
+            workspaceTab={workspaceTab}
+            workspaces={productWorkspaces}
           />
 
           <OwnerWorkspaceActionsArea

@@ -4,6 +4,7 @@ import type {
   AiJourneyView,
   FindingsJourneyView,
   OverviewJourneyView,
+  WorkspacesJourneyView,
   ShareJourneyView,
   ServicesJourneyView,
 } from './ownerWorkspaceJourneyConfig';
@@ -19,6 +20,7 @@ interface OwnerWorkspaceCurrentJourneyInput {
   findingsView: FindingsJourneyView;
   overviewJourneyItems: JourneyStepItem<OverviewJourneyView>[];
   overviewView: OverviewJourneyView;
+  workspacesJourneyItems: JourneyStepItem<WorkspacesJourneyView>[];
   servicesJourneyItems: JourneyStepItem<ServicesJourneyView>[];
   servicesView: ServicesJourneyView;
   shareJourneyItems: JourneyStepItem<ShareJourneyView>[];
@@ -35,6 +37,7 @@ export const getOwnerWorkspaceCurrentJourney = ({
   findingsView,
   overviewJourneyItems,
   overviewView,
+  workspacesJourneyItems,
   servicesJourneyItems,
   servicesView,
   shareJourneyItems,
@@ -44,28 +47,32 @@ export const getOwnerWorkspaceCurrentJourney = ({
   const currentJourneyItems: JourneyStepItem<string>[] =
     workspaceTab === 'overview'
       ? overviewJourneyItems
-      : workspaceTab === 'actions'
-        ? actionJourneyItems
-        : workspaceTab === 'findings'
-          ? findingsJourneyItems
-          : workspaceTab === 'services'
-            ? servicesJourneyItems
-            : workspaceTab === 'ai'
-              ? aiJourneyItems
-              : shareJourneyItems;
+      : workspaceTab === 'workspaces'
+        ? workspacesJourneyItems
+        : workspaceTab === 'actions'
+          ? actionJourneyItems
+          : workspaceTab === 'findings'
+            ? findingsJourneyItems
+            : workspaceTab === 'services'
+              ? servicesJourneyItems
+              : workspaceTab === 'ai'
+                ? aiJourneyItems
+                : shareJourneyItems;
   const currentJourneyValue: string =
     workspaceTab === 'overview'
       ? overviewView
-      : workspaceTab === 'actions'
-        ? actionView
-        : workspaceTab === 'findings'
-          ? findingsView
-          : workspaceTab === 'services'
-            ? servicesView
-            : workspaceTab === 'ai'
-              ? aiView
-              : shareView;
-  const currentAreaLabel = workspaceTabs.find((tab) => tab.value === workspaceTab)?.label || 'Workspace';
+      : workspaceTab === 'workspaces'
+        ? 'list'
+        : workspaceTab === 'actions'
+          ? actionView
+          : workspaceTab === 'findings'
+            ? findingsView
+            : workspaceTab === 'services'
+              ? servicesView
+              : workspaceTab === 'ai'
+                ? aiView
+                : shareView;
+  const currentAreaLabel = workspaceTabs.find((tab) => tab.value === workspaceTab)?.label || 'Product Details';
   const currentDetailLabel = currentJourneyItems.find((item) => item.value === currentJourneyValue)?.label || currentAreaLabel;
 
   return {

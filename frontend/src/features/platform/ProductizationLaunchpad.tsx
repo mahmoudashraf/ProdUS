@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   AddOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Stack } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { deleteJson, getJson, putJson } from './api';
 import { isPlaceholderProduct, sortPackagesForOwner, sortProductsForOwner, sortWorkspacesForOwner } from './displayOrder';
@@ -165,11 +165,27 @@ export default function ProductizationLaunchpad() {
               draftTalent={draftTalent}
               draftBusinessGoal={cart.data?.businessGoal}
               hasMeaningfulDraft={hasMeaningfulDraft}
+              requirementCount={requirements.data?.length || 0}
+              activeWorkspaceCount={activeWorkspaces.length}
+              workspaceCount={workspaceList.length}
               isDeletingDraft={deleteDraftMutation.isPending}
               onDeleteDraft={async () => {
                 await deleteDraftMutation.mutateAsync();
               }}
               cartStatus={cart.data?.status}
+            />
+
+            <LaunchpadFocusPanel
+              value={null}
+              draftServices={draftServices}
+              draftTalent={draftTalent}
+              onSelect={(value) => {
+                if (value === 'plan') {
+                  router.push(PROJECT_START_PLAN_HREF);
+                  return;
+                }
+                openDetail(value);
+              }}
             />
 
             <LaunchpadMetricsStrip
@@ -182,26 +198,10 @@ export default function ProductizationLaunchpad() {
               workspaceCount={workspaceList.length}
             />
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 340px' }, gap: 2.5 }}>
-              <LaunchpadFocusPanel
-                value={null}
-                draftServices={draftServices}
-                draftTalent={draftTalent}
-                productCount={productList.length}
-                activeWorkspaceCount={activeWorkspaces.length}
-                onSelect={(value) => {
-                  if (value === 'plan') {
-                    router.push(PROJECT_START_PLAN_HREF);
-                    return;
-                  }
-                  openDetail(value);
-                }}
-              />
-              <LaunchpadAiNextActionPanel
-                draftServices={draftServices}
-                hasProducts={productList.length > 0}
-              />
-            </Box>
+            <LaunchpadAiNextActionPanel
+              draftServices={draftServices}
+              hasProducts={productList.length > 0}
+            />
           </>
         )}
       </Stack>

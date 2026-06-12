@@ -47,9 +47,9 @@ export default function ProductCreationReviewPanel({
         <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ lg: 'center' }}>
           <Stack spacing={1} sx={{ minWidth: 0, maxWidth: 820 }}>
             <PastelChip label="Final owner check" accent={appleColors.purple} />
-            <Typography variant="h2">Review before ProdUS creates the workspace</Typography>
+            <Typography variant="h2">Review before ProdUS creates the product</Typography>
             <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-              Confirm the product context and selected services. After this, ProdUS creates the product workspace and keeps those choices in Planning.
+              Confirm the product context and selected services. After this, ProdUS creates the product profile, opens its product page, and keeps those choices in Planning.
             </Typography>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
               <PastelChip label={formatLabel(values.businessStage)} accent={appleColors.purple} bg="#f1efff" />
@@ -68,7 +68,7 @@ export default function ProductCreationReviewPanel({
               onClick={onCreate}
               sx={{ minHeight: 44 }}
             >
-              {isCreating ? 'Creating...' : 'Create workspace'}
+              {isCreating ? 'Creating...' : 'Create product'}
             </Button>
           </Stack>
         </Stack>
@@ -76,7 +76,7 @@ export default function ProductCreationReviewPanel({
 
       {!canCreate && (
         <Alert severity="warning" sx={{ borderRadius: 1 }}>
-          Add a product name and outcome before creating the workspace.
+          Add a product name and outcome before creating the product.
         </Alert>
       )}
 
@@ -141,7 +141,7 @@ export default function ProductCreationReviewPanel({
           </Stack>
         ) : (
           <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
-            No services are selected yet. You can still create the product workspace and choose services later.
+            No services are selected yet. You can still create the product and choose services later.
           </Typography>
         )}
         <Button variant="outlined" startIcon={<PlaylistAddCheckOutlined />} onClick={onChangeServices} sx={{ minHeight: 40, mt: 1.5 }}>

@@ -141,6 +141,7 @@ export default function RailswareColorTrialLandingPage() {
                   </Stack>
                 ))}
               </Stack>
+              <MobileHeroProofPreview />
             </Stack>
 
             <RailswareLikeHeroVisual />
@@ -334,6 +335,122 @@ function RailswareLikeHeroVisual() {
       <MetricBubble sx={{ left: '26%', top: '34%', bgcolor: rw.white, color: rw.purple }} label="AI" helper="ideas" />
       <MetricBubble sx={{ left: '47%', top: '34%', bgcolor: rw.amber, color: rw.ink }} label="5" helper="found" />
       <Box sx={{ position: 'absolute', left: '54%', bottom: '8%', color: rw.white, fontWeight: 950, fontSize: 20 }}>Product proof</Box>
+    </Box>
+  );
+}
+
+function MobileHeroProofPreview() {
+  return (
+    <Box
+      sx={{
+        display: { xs: 'block', md: 'none' },
+        position: 'relative',
+        mt: 0.6,
+        height: 254,
+        borderRadius: 4,
+        overflow: 'hidden',
+        bgcolor: '#edf3fb',
+        border: `1px solid ${rw.line}`,
+        boxShadow: '0 20px 48px rgba(24,15,61,0.10)',
+      }}
+    >
+      <Box
+        sx={{
+          position: 'absolute',
+          right: -22,
+          top: 24,
+          width: 248,
+          height: 248,
+          borderRadius: '46% 42% 48% 52%',
+          background: `linear-gradient(150deg, ${rw.amber} 0%, ${rw.orange} 35%, #e000a7 62%, ${rw.violet} 100%)`,
+          transform: 'rotate(-4deg)',
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          right: 102,
+          top: -18,
+          width: 150,
+          height: 150,
+          bgcolor: 'rgba(255,224,137,0.72)',
+          transform: 'rotate(45deg)',
+        }}
+      />
+      <Box
+        component="img"
+        src="/assets/images/cards/card-2.jpg"
+        alt="Product planning desk"
+        sx={{
+          position: 'absolute',
+          left: 16,
+          top: 72,
+          width: 154,
+          height: 128,
+          objectFit: 'cover',
+          borderRadius: '28px 28px 8px 42px',
+          boxShadow: '0 18px 36px rgba(24,15,61,0.18)',
+        }}
+      />
+      <Box
+        component="img"
+        src="/assets/images/widget/dashboard-2.jpg"
+        alt="Founder workspace"
+        sx={{
+          position: 'absolute',
+          right: 20,
+          top: 48,
+          width: 150,
+          height: 118,
+          objectFit: 'cover',
+          borderRadius: '24px 44px 24px 44px',
+          boxShadow: '0 18px 36px rgba(24,15,61,0.16)',
+        }}
+      />
+      <Box
+        component="img"
+        src="/assets/images/cards/card-3.jpg"
+        alt="Product collaboration"
+        sx={{
+          position: 'absolute',
+          right: 16,
+          bottom: 28,
+          width: 124,
+          height: 90,
+          objectFit: 'cover',
+          borderRadius: '34px 12px 34px 12px',
+          boxShadow: '0 16px 32px rgba(24,15,61,0.16)',
+        }}
+      />
+      <MobileMetricBubble sx={{ left: 135, top: 32, bgcolor: rw.ink, color: rw.white }} label="82" helper="ready" />
+      <MobileMetricBubble sx={{ left: 76, top: 94, bgcolor: rw.white, color: rw.purple }} label="AI" helper="ideas" />
+      <MobileMetricBubble sx={{ left: 171, top: 102, bgcolor: rw.amber, color: rw.ink }} label="5" helper="found" />
+      <Box sx={{ position: 'absolute', left: 18, bottom: 18, px: 1.4, py: 0.9, borderRadius: 999, bgcolor: 'rgba(255,255,255,0.94)', border: `1px solid ${rw.line}`, boxShadow: '0 14px 30px rgba(24,15,61,0.12)' }}>
+        <Typography sx={{ color: rw.ink, fontWeight: 950, fontSize: 13, lineHeight: 1 }}>Product proof</Typography>
+      </Box>
+    </Box>
+  );
+}
+
+function MobileMetricBubble({ label, helper, sx }: { label: string; helper: string; sx: object }) {
+  return (
+    <Box
+      sx={{
+        position: 'absolute',
+        width: 64,
+        height: 64,
+        borderRadius: '50%',
+        display: 'grid',
+        placeItems: 'center',
+        textAlign: 'center',
+        boxShadow: '0 16px 32px rgba(24,15,61,0.18)',
+        ...sx,
+      }}
+    >
+      <Box>
+        <Typography sx={{ fontSize: 21, lineHeight: 1, fontWeight: 950 }}>{label}</Typography>
+        <Typography sx={{ fontSize: 9, fontWeight: 900, opacity: 0.82 }}>{helper}</Typography>
+      </Box>
     </Box>
   );
 }

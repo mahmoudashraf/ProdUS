@@ -5,6 +5,7 @@ import { PastelChip, appleColors } from './PlatformComponents';
 import { WorkspaceTab } from './ownerWorkspaceModel';
 
 export type OverviewJourneyView = 'decision' | 'profile' | 'progress' | 'refresh' | 'refresh-review';
+export type WorkspacesJourneyView = 'list';
 export type ActionJourneyView = 'plan' | 'diagnosis' | 'map';
 export type FindingsJourneyView = 'risks' | 'evidence' | 'technical';
 export type ServicesJourneyView = 'recommend' | 'browse' | 'plan' | 'team';
@@ -13,6 +14,7 @@ export type ShareJourneyView = 'create' | 'links' | 'preview';
 
 export const workspaceViewValues: Record<WorkspaceTab, string[]> = {
   overview: ['decision', 'profile', 'progress', 'refresh', 'refresh-review'],
+  workspaces: ['list'],
   actions: ['plan', 'diagnosis', 'map'],
   findings: ['risks', 'evidence', 'technical'],
   services: ['recommend', 'browse', 'plan', 'team'],
@@ -40,6 +42,7 @@ interface OwnerWorkspaceJourneyConfigInput {
 
 export interface OwnerWorkspaceJourneyGroups {
   overviewJourneyItems: JourneyStepItem<OverviewJourneyView>[];
+  workspacesJourneyItems: JourneyStepItem<WorkspacesJourneyView>[];
   actionJourneyItems: JourneyStepItem<ActionJourneyView>[];
   findingsJourneyItems: JourneyStepItem<FindingsJourneyView>[];
   servicesJourneyItems: JourneyStepItem<ServicesJourneyView>[];
@@ -95,6 +98,15 @@ export const buildOwnerWorkspaceJourneyItems = ({
       detail: 'Confidence history and the shareable readiness report.',
       accent: appleColors.cyan,
       meta: <PastelChip label={hasLaunchReadinessReport ? 'Report ready' : 'Report'} accent={appleColors.cyan} bg="#e4f9fd" />,
+    },
+  ],
+  workspacesJourneyItems: [
+    {
+      value: 'list',
+      label: 'Product workspaces',
+      detail: 'Delivery workspaces created from approved Work Plans for this product.',
+      accent: appleColors.green,
+      meta: <PastelChip label="Delivery" accent={appleColors.green} bg="#e7f8ee" />,
     },
   ],
   actionJourneyItems: [

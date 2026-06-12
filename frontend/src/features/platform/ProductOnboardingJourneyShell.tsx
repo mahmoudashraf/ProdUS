@@ -137,11 +137,11 @@ export function ProductCreationManualIntro({
     <Surface sx={{ boxShadow: 'none', background: '#fff' }}>
       <SectionTitle title="Create product profile" action={<Inventory2Outlined sx={{ color: appleColors.purple }} />} />
       <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-        Fill the owner-visible product profile. After creation, ProdUS opens the product workspace and preserves any services already chosen in Planning.
+        Fill the owner-visible product profile. After creation, ProdUS opens the product page and preserves any services already chosen in Planning.
       </Typography>
       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
         <PastelChip label={selectedServiceCount ? `${selectedServiceCount} selected services` : 'No selected services yet'} accent={selectedServiceCount ? appleColors.green : appleColors.amber} bg={selectedServiceCount ? '#e7f8ee' : '#fff4dc'} />
-        <PastelChip label="Workspace opens next" accent={appleColors.cyan} bg="#e4f9fd" />
+        <PastelChip label="Product page opens next" accent={appleColors.cyan} bg="#e4f9fd" />
       </Stack>
     </Surface>
   );

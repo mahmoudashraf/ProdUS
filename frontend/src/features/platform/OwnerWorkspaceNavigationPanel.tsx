@@ -31,7 +31,7 @@ export default function OwnerWorkspaceNavigationPanel({
 }) {
   const isOverviewHome = workspaceTab === 'overview' && !workspaceDetailOpen;
   const isAiAreaHome = workspaceTab === 'ai' && !workspaceDetailOpen;
-  const hasCustomAreaHub = workspaceTab === 'findings' && !workspaceDetailOpen;
+  const hasCustomAreaHub = (workspaceTab === 'findings' || workspaceTab === 'workspaces') && !workspaceDetailOpen;
   const visibleJourneyItems =
     isOverviewHome
       ? currentJourneyItems.filter((item) => item.value !== 'refresh' && item.value !== 'refresh-review')
@@ -39,7 +39,7 @@ export default function OwnerWorkspaceNavigationPanel({
         ? currentJourneyItems.filter((item) => item.value !== 'refresh-review')
       : currentJourneyItems;
   const breadcrumbItems = [
-    { label: 'Workspace', onClick: () => onAreaChange('overview') },
+    { label: 'Product Details', onClick: () => onAreaChange('overview') },
     ...(workspaceTab === 'overview'
       ? []
       : [{ label: currentAreaLabel, onClick: () => onAreaHub(workspaceTab) }]),
@@ -94,7 +94,7 @@ export function ProductAreaNavigation({
         component="nav"
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(6, minmax(0, 1fr))' },
+          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(7, minmax(0, 1fr))' },
           gap: 0.75,
           minWidth: 0,
         }}

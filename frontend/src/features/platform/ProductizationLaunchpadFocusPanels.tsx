@@ -16,15 +16,11 @@ import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 export function LaunchpadFocusPanel({
   draftServices,
   draftTalent,
-  productCount,
-  activeWorkspaceCount,
   value,
   onSelect,
 }: {
   draftServices: number;
   draftTalent: number;
-  productCount: number;
-  activeWorkspaceCount: number;
   value: LaunchpadJourneyValue | null;
   onSelect: (value: LaunchpadJourneyValue) => void;
 }) {
@@ -35,20 +31,6 @@ export function LaunchpadFocusPanel({
       detail: 'Approve services and talent before opening a delivery workspace.',
       accent: appleColors.purple,
       meta: <PastelChip label={`${draftServices + draftTalent} selected`} accent={appleColors.purple} bg="#f1efff" />,
-    },
-    {
-      value: 'products',
-      label: 'Products',
-      detail: 'Open product profiles and continue the readiness path.',
-      accent: appleColors.cyan,
-      meta: <PastelChip label={`${productCount}`} accent={appleColors.cyan} bg="#e4f9fd" />,
-    },
-    {
-      value: 'workspaces',
-      label: 'Workspaces',
-      detail: 'Review active delivery spaces only when you need operations.',
-      accent: appleColors.green,
-      meta: <PastelChip label={`${activeWorkspaceCount} active`} accent={appleColors.green} bg="#e7f8ee" />,
     },
   ];
 
