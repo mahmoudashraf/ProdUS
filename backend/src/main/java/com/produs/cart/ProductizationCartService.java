@@ -116,8 +116,8 @@ public class ProductizationCartService {
 
         for (ProductizationCart cart : drafts) {
             requireCartOwner(owner, cart);
-            serviceItemRepository.deleteAll(services(cart));
-            talentItemRepository.deleteAll(talent(cart));
+            serviceItemRepository.deleteByCartId(cart.getId());
+            talentItemRepository.deleteByCartId(cart.getId());
             cart.setProductProfile(null);
             cart.setBusinessGoal(null);
             cart.setTitle("Product Plan");
