@@ -1954,8 +1954,9 @@ Do not mark ProdUS LoomAI integration complete until these pass:
 - ProdUS backend can call `/api/chat/me/auth-context` with private-runtime assertion and receives expected verified context.
 - ProdUS backend can query LoomAI through the direct private runtime adapter.
 - ProdUS frontend and backend use `query`, `conversationId`, and `context` as the canonical assistant payload.
-- `POST /api/ai/assistant/query` returns `provider=LOOMAI`, `mode=LIVE` for an authorized owner.
-- `POST /api/ai/assistant/suggestions` returns `provider=LOOMAI`, `mode=LIVE`.
+- `POST /api/ai/assistant/query` returns `provider=LOOMAI`, `mode=thinker`, `success=true`, and no fallback/error for an authorized owner.
+- `POST /api/ai/assistant/query-once` returns `provider=LOOMAI`, `mode=thinker`, `success=true`, and no fallback/error for an authorized owner.
+- `POST /api/ai/assistant/suggestions` returns non-empty owner-safe suggestions for an authorized owner.
 - `GET /api/ai/loomai/status` shows enabled/configured for admin.
 - `GET /api/ai/loomai/knowledge-preview` returns only safe records.
 - `POST /api/ai/loomai/knowledge-sync` indexes safe records or clearly reports a supported skipped/blocked reason.
