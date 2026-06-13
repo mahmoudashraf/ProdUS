@@ -17,6 +17,7 @@ import {
   appleColors,
   formatLabel,
 } from './PlatformComponents';
+import OwnerWorkspaceActiveWorkspacesHeroHook from './OwnerWorkspaceActiveWorkspacesHeroHook';
 import OwnerWorkspaceAiOpportunityHeroHook from './OwnerWorkspaceAiOpportunityHeroHook';
 import OwnerWorkspaceScannerProofAction, { type OwnerScannerProofSummary } from './OwnerWorkspaceScannerProofAction';
 import { ownerCategoryFromSignal, ownerProofLine, type OwnerLaunchStatus } from './ownerWorkspaceModel';
@@ -51,8 +52,11 @@ interface OwnerWorkspaceProductHeroProps {
   onViewProof: () => void;
   onExportReport: () => void;
   onOpenAiOpportunities: () => void;
+  onOpenWorkspaces: () => void;
   navigationSlot?: ReactNode | undefined;
   isExporting?: boolean;
+  activeWorkspaceCount: number;
+  totalWorkspaceCount: number;
 }
 
 export default function OwnerWorkspaceProductHero({
@@ -67,8 +71,11 @@ export default function OwnerWorkspaceProductHero({
   onViewProof,
   onExportReport,
   onOpenAiOpportunities,
+  onOpenWorkspaces,
   navigationSlot,
   isExporting,
+  activeWorkspaceCount,
+  totalWorkspaceCount,
 }: OwnerWorkspaceProductHeroProps) {
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 55%, #f6fff9 100%)' }}>
@@ -114,9 +121,16 @@ export default function OwnerWorkspaceProductHero({
           </Box>
         </Stack>
       </Stack>
-      <OwnerWorkspaceAiOpportunityHeroHook
-        onOpen={onOpenAiOpportunities}
-      />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' }, gap: 1.25, mt: 2.25 }}>
+        <OwnerWorkspaceActiveWorkspacesHeroHook
+          activeWorkspaceCount={activeWorkspaceCount}
+          totalWorkspaceCount={totalWorkspaceCount}
+          onOpen={onOpenWorkspaces}
+        />
+        <OwnerWorkspaceAiOpportunityHeroHook
+          onOpen={onOpenAiOpportunities}
+        />
+      </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)' }, gap: 1.5, mt: 2.25 }}>
         <Box sx={{ p: 1.5, borderRadius: 1, border: '1px solid', borderColor: `${launchStatus.accent}35`, bgcolor: '#fff' }}>
           <Typography variant="caption" color="text.secondary">

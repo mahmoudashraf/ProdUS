@@ -126,6 +126,9 @@ export default function OwnerProductizationWorkspace({
   const productWorkspaces = (workspaces.data || []).filter(
     (workspace) => workspace.packageInstance?.productProfile?.id === selectedProduct?.id
   );
+  const activeProductWorkspaceCount = productWorkspaces.filter(
+    (workspace) => workspace.status !== 'CLOSED' && workspace.status !== 'DELIVERED'
+  ).length;
   const scannerOperations = useOwnerWorkspaceScannerOperations({
     connectorPermissions: connectorPermissions.data || [],
     evidenceFilter,
@@ -407,12 +410,14 @@ export default function OwnerProductizationWorkspace({
             currentJourneyItems={currentJourneyItems}
             currentJourneyValue={currentJourneyValue}
             evidenceSummaryItems={evidenceSummaryItems}
+            activeWorkspaceCount={activeProductWorkspaceCount}
             isExporting={createEvidenceExport.isPending}
             isProductHome={isProductHome}
             launchStatus={launchStatus}
             product={selectedProduct}
             scannerProofSummary={scannerProofSummary}
             topOwnerRisks={topOwnerRisks}
+            totalWorkspaceCount={productWorkspaces.length}
             workspaceDetailOpen={workspaceDetailOpen}
             workspaceTab={workspaceTab}
             onAreaChange={openWorkspaceArea}
@@ -422,6 +427,7 @@ export default function OwnerProductizationWorkspace({
             onExportReport={() => createEvidenceExport.mutate()}
             onPrimaryAction={() => topOwnerRisks.length ? openActionView('plan') : openServicesView('recommend')}
             onOpenAiOpportunities={() => openAiView('opportunities')}
+            onOpenWorkspaces={() => openWorkspaceAreaHub('workspaces')}
             onRefreshBrief={() => openWorkspaceDetail('overview', 'refresh')}
             onViewProof={() => openWorkspaceAreaHub('findings')}
           />

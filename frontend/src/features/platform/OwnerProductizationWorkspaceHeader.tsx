@@ -77,6 +77,7 @@ export function OwnerProductizationWorkspaceLead({
   currentJourneyItems,
   currentJourneyValue,
   evidenceSummaryItems,
+  activeWorkspaceCount,
   isExporting,
   isProductHome,
   launchStatus,
@@ -86,12 +87,14 @@ export function OwnerProductizationWorkspaceLead({
   onEditProfile,
   onExportReport,
   onOpenAiOpportunities,
+  onOpenWorkspaces,
   onPrimaryAction,
   onRefreshBrief,
   onViewProof,
   product,
   scannerProofSummary,
   topOwnerRisks,
+  totalWorkspaceCount,
   workspaceDetailOpen,
   workspaceTab,
 }: {
@@ -100,6 +103,7 @@ export function OwnerProductizationWorkspaceLead({
   currentJourneyItems: JourneyStepItem<string>[];
   currentJourneyValue: string;
   evidenceSummaryItems: ProductHeroProps['evidenceSummaryItems'];
+  activeWorkspaceCount: number;
   isExporting?: boolean | undefined;
   isProductHome: boolean;
   launchStatus: ProductHeroProps['launchStatus'];
@@ -109,12 +113,14 @@ export function OwnerProductizationWorkspaceLead({
   onEditProfile: () => void;
   onExportReport: () => void;
   onOpenAiOpportunities: () => void;
+  onOpenWorkspaces: () => void;
   onPrimaryAction: () => void;
   onRefreshBrief: () => void;
   onViewProof: () => void;
   product?: ProductProfile | undefined;
   scannerProofSummary: ProductHeroProps['scannerProofSummary'];
   topOwnerRisks: ProductHeroProps['topOwnerRisks'];
+  totalWorkspaceCount: number;
   workspaceDetailOpen: boolean;
   workspaceTab: WorkspaceTab;
 }) {
@@ -150,6 +156,9 @@ export function OwnerProductizationWorkspaceLead({
           onViewProof={onViewProof}
           onExportReport={onExportReport}
           onOpenAiOpportunities={onOpenAiOpportunities}
+          onOpenWorkspaces={onOpenWorkspaces}
+          activeWorkspaceCount={activeWorkspaceCount}
+          totalWorkspaceCount={totalWorkspaceCount}
           navigationSlot={areaNavigation}
           isExporting={Boolean(isExporting)}
         />

@@ -177,21 +177,6 @@ function WorkspaceCard({ productId, workspace }: { productId: string; workspace:
           {planStatus && <PastelChip label={`Plan ${formatLabel(planStatus)}`} accent={appleColors.green} bg="#e7f8ee" />}
           {productStage && <PastelChip label={formatLabel(productStage)} accent={appleColors.purple} bg="#f1efff" />}
         </Stack>
-
-        <Button
-          component="span"
-          variant="outlined"
-          endIcon={<ArrowForwardOutlined />}
-          sx={{
-            minHeight: 40,
-            alignSelf: 'flex-start',
-            borderColor: `${accent}45`,
-            color: accent,
-            '&:hover': { borderColor: accent, bgcolor: `${accent}0f` },
-          }}
-        >
-          Open inside product
-        </Button>
       </Stack>
     </Box>
   );

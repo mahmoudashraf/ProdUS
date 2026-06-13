@@ -12,7 +12,6 @@ export default function OwnerWorkspaceAiOpportunityHeroHook({
   return (
     <Box
       sx={{
-        mt: 2.25,
         p: { xs: 1.35, md: 1.5 },
         borderRadius: 1,
         border: '1px solid',
