@@ -36,7 +36,12 @@ const recordTime = (record: { updatedAt?: string; createdAt?: string }) =>
 
 export const isPlaceholderName = (name?: string | null) => {
   const normalized = (name || '').trim().toLowerCase();
-  return normalized === 'name' || /^t{3,}$/.test(normalized) || /^redesign smoke \d+/.test(normalized);
+  return normalized === 'name'
+    || /^t{3,}$/.test(normalized)
+    || /^redesign smoke \d+/.test(normalized)
+    || normalized.includes('full ai creation ui')
+    || normalized.includes('cart proof')
+    || /\b20\d{2}-\d{2}-\d{2}t\d{2}:\d{2}:\d{2}/.test(normalized);
 };
 
 export const isPlaceholderProduct = (product?: ProductProfile | null) =>

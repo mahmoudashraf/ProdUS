@@ -73,7 +73,7 @@ export function LaunchpadHeroPanel({
   const primaryLabel = !hasProducts
     ? 'Create first product'
     : productToOpen
-      ? 'Open workspace'
+      ? 'Open product'
       : 'Choose product';
   const headline = !hasProducts
     ? 'Start with your product'
@@ -83,7 +83,7 @@ export function LaunchpadHeroPanel({
   const subtitle = !hasProducts
     ? 'Add a product idea, app link, repo, README, or files. ProdUS will help you understand launch blockers, AI opportunities, and the next work to start.'
     : productToOpen
-      ? 'Open the workspace to see launch readiness, AI opportunities, scanners, services, and the next work to start.'
+      ? 'Open the product to see launch readiness, AI opportunities, scanners, services, and the next work to start.'
       : `You have ${productCount} products. Choose one to open its workspace with launch verdict, scanners, AI opportunities, services, and sharing.`;
 
   const confirmDeleteDraft = async () => {
@@ -96,7 +96,7 @@ export function LaunchpadHeroPanel({
     <Surface sx={{ p: 0, overflow: 'hidden', background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
       <Box sx={{ p: { xs: 2.5, md: 3 }, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.1fr 0.9fr' }, gap: 3, alignItems: 'center', minWidth: 0 }}>
         <Stack spacing={2} sx={{ minWidth: 0 }}>
-          <PastelChip label={!hasProducts ? 'First step' : productToOpen ? 'Selected product' : 'Portfolio'} accent={appleColors.purple} />
+          <PastelChip label={!hasProducts ? 'First step' : productToOpen ? 'Current product' : 'Portfolio'} accent={appleColors.purple} />
           <Box>
             <Typography variant="h1" sx={{ fontSize: { xs: 30, sm: 36, md: 48 }, letterSpacing: 0, mb: 1, overflowWrap: 'anywhere' }}>
               {headline}
@@ -105,21 +105,19 @@ export function LaunchpadHeroPanel({
               <Typography
                 component="p"
                 sx={{
-                  display: 'inline-flex',
                   maxWidth: '100%',
-                  alignItems: 'center',
-                  borderRadius: 1.5,
-                  bgcolor: '#eaf3ff',
-                  color: '#0f172a',
-                  px: 1.4,
-                  py: 0.85,
-                  mb: 1.25,
-                  fontSize: { xs: 20, md: 24 },
+                  color: appleColors.ink,
+                  mb: 1.1,
+                  fontSize: { xs: 23, md: 30 },
                   fontWeight: 950,
-                  lineHeight: 1.25,
+                  lineHeight: 1.15,
+                  display: '-webkit-box',
+                  WebkitBoxOrient: 'vertical',
+                  WebkitLineClamp: 2,
+                  overflow: 'hidden',
                   overflowWrap: 'anywhere',
-                  boxShadow: 'inset 0 0 0 1px rgba(25, 118, 210, 0.16)',
                 }}
+                title={productToOpen.name}
               >
                 {productToOpen.name}
               </Typography>

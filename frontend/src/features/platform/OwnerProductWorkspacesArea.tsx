@@ -8,10 +8,11 @@ import {
   WorkspacesOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
-import WorkspaceCommandPage from './WorkspaceCommandPage';
+import OwnerProductDeliveryWorkspace from './OwnerProductDeliveryWorkspace';
 import {
   EmptyState,
   PastelChip,
+  ProgressRing,
   SectionTitle,
   StatusChip,
   Surface,
@@ -63,13 +64,14 @@ export default function OwnerProductWorkspacesArea({
             <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
               These are the delivery workspaces created from approved Work Plans for {selectedProduct.name}. Product findings, AI opportunities, and services stay attached to the product; delivery milestones live here once work starts.
             </Typography>
+            <DeliveryPath />
           </Stack>
           <Button
             component={NextLink}
             href={PROJECT_START_PLAN_HREF}
             variant="contained"
             endIcon={<ArrowForwardOutlined />}
-            sx={{ minHeight: 44, alignSelf: { xs: 'stretch', md: 'center' } }}
+            sx={{ minHeight: 44, minWidth: { md: 164 }, alignSelf: { xs: 'stretch', md: 'center' }, whiteSpace: 'nowrap' }}
           >
             Open Work Plan
           </Button>
@@ -97,8 +99,12 @@ export default function OwnerProductWorkspacesArea({
 
 function WorkspaceCard({ productId, workspace }: { productId: string; workspace: ProjectWorkspace }) {
   const planName = workspace.packageInstance?.name || 'Approved Work Plan';
+  const planSummary = workspace.packageInstance?.summary;
+  const planStatus = workspace.packageInstance?.status;
   const productStage = workspace.packageInstance?.productProfile?.businessStage;
   const workspaceHref = `/products/${productId}?tab=workspaces&workspace=${workspace.id}`;
+  const progress = workspaceProgressFromStatus(workspace.status);
+  const accent = workspaceStatusAccent(workspace.status);
 
   return (
     <Box
@@ -106,11 +112,11 @@ function WorkspaceCard({ productId, workspace }: { productId: string; workspace:
       href={workspaceHref}
       sx={{
         display: 'block',
-        p: 1.5,
+        p: 1.6,
         border: '1px solid',
-        borderColor: appleColors.line,
+        borderColor: `${accent}36`,
         borderRadius: 1,
-        bgcolor: '#fbfdff',
+        bgcolor: '#fff',
         color: 'inherit',
         minWidth: 0,
         textDecoration: 'none',
@@ -122,31 +128,124 @@ function WorkspaceCard({ productId, workspace }: { productId: string; workspace:
         },
       }}
     >
-      <Stack spacing={1.25}>
-        <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
-          <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 950, overflowWrap: 'anywhere' }}>{workspace.name}</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.55, overflowWrap: 'anywhere' }}>
-              {planName}
-            </Typography>
-          </Box>
-          <WorkspacesOutlined sx={{ color: appleColors.green, flexShrink: 0 }} />
+      <Stack spacing={1.5}>
+        <Stack direction="row" spacing={1.25} alignItems="flex-start" justifyContent="space-between">
+          <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ minWidth: 0 }}>
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: 1,
+                bgcolor: `${accent}12`,
+                color: accent,
+                display: 'grid',
+                flexShrink: 0,
+                placeItems: 'center',
+              }}
+            >
+              <WorkspacesOutlined />
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 950, overflowWrap: 'anywhere' }}>{workspace.name}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.55, overflowWrap: 'anywhere' }}>
+                {planName}
+              </Typography>
+            </Box>
+          </Stack>
+          <ProgressRing value={progress} size={58} color={accent} label="done" />
         </Stack>
+
+        {planSummary && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              display: '-webkit-box',
+              lineHeight: 1.55,
+              overflow: 'hidden',
+              overflowWrap: 'anywhere',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2,
+            }}
+          >
+            {planSummary}
+          </Typography>
+        )}
+
         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
           <StatusChip label={workspace.status} />
+          {planStatus && <PastelChip label={`Plan ${formatLabel(planStatus)}`} accent={appleColors.green} bg="#e7f8ee" />}
           {productStage && <PastelChip label={formatLabel(productStage)} accent={appleColors.purple} bg="#f1efff" />}
         </Stack>
+
         <Button
           component="span"
           variant="outlined"
           endIcon={<ArrowForwardOutlined />}
-          sx={{ minHeight: 40, alignSelf: 'flex-start' }}
+          sx={{
+            minHeight: 40,
+            alignSelf: 'flex-start',
+            borderColor: `${accent}45`,
+            color: accent,
+            '&:hover': { borderColor: accent, bgcolor: `${accent}0f` },
+          }}
         >
           Open inside product
         </Button>
       </Stack>
     </Box>
   );
+}
+
+function DeliveryPath() {
+  const steps = [
+    { label: 'Planning approved', color: appleColors.purple },
+    { label: 'Delivery workspace', color: appleColors.green },
+    { label: 'Fixes and proof', color: appleColors.blue },
+    { label: 'Handoff', color: appleColors.cyan },
+  ];
+
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 0.75, mt: 1 }}>
+      {steps.map((step, index) => (
+        <Box
+          key={step.label}
+          sx={{
+            border: '1px solid',
+            borderColor: `${step.color}2e`,
+            borderRadius: 1,
+            bgcolor: `${step.color}0d`,
+            minWidth: 0,
+            px: 1,
+            py: 0.8,
+          }}
+        >
+          <Typography variant="caption" sx={{ color: step.color, fontWeight: 900 }}>
+            {index + 1}. {step.label}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+function workspaceProgressFromStatus(status: ProjectWorkspace['status']) {
+  if (status === 'CLOSED' || status === 'DELIVERED') return 100;
+  if (status === 'SUPPORT_HANDOFF') return 88;
+  if (status === 'MILESTONE_REVIEW') return 72;
+  if (status === 'ACTIVE_DELIVERY') return 56;
+  if (status === 'SCOPE_NEGOTIATION') return 36;
+  if (status === 'AWAITING_TEAM_PROPOSAL') return 18;
+  if (status === 'BLOCKED') return 42;
+  return 8;
+}
+
+function workspaceStatusAccent(status: ProjectWorkspace['status']) {
+  if (status === 'BLOCKED') return appleColors.red;
+  if (status === 'AWAITING_TEAM_PROPOSAL' || status === 'SCOPE_NEGOTIATION' || status === 'MILESTONE_REVIEW') return appleColors.amber;
+  if (status === 'DELIVERED' || status === 'SUPPORT_HANDOFF' || status === 'CLOSED') return appleColors.green;
+  if (status === 'ACTIVE_DELIVERY') return appleColors.blue;
+  return appleColors.purple;
 }
 
 function ProductWorkspaceDetail({
@@ -176,9 +275,6 @@ function ProductWorkspaceDetail({
       </Stack>
     );
   }
-
-  const productStage = workspace.packageInstance?.productProfile?.businessStage || product.businessStage;
-
   return (
     <Stack spacing={2.5}>
       <Button
@@ -191,42 +287,10 @@ function ProductWorkspaceDetail({
         Back to product workspaces
       </Button>
 
-      <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)' }}>
-        <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-start' }} justifyContent="space-between">
-            <Stack spacing={1} sx={{ minWidth: 0, maxWidth: 820 }}>
-              <PastelChip label="Inside product flow" accent={appleColors.green} bg="#e7f8ee" />
-              <Typography variant="h2" sx={{ overflowWrap: 'anywhere' }}>
-                Workspace delivery
-              </Typography>
-              <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-                {workspace.name} stays inside {product.name}. Use this space for milestones, fixes, proof, people, and handoff without changing product context.
-              </Typography>
-            </Stack>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ md: 'flex-end' }}>
-              <StatusChip label={workspace.status} />
-              <PastelChip label={formatLabel(productStage)} accent={appleColors.purple} bg="#f1efff" />
-            </Stack>
-          </Stack>
-
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <Button
-              component={NextLink}
-              href={PROJECT_START_PLAN_HREF}
-              variant="outlined"
-              endIcon={<ArrowForwardOutlined />}
-              sx={{ minHeight: 44, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
-            >
-              Review Work Plan
-            </Button>
-          </Stack>
-        </Stack>
-      </Surface>
-
-      <WorkspaceCommandPage
-        embedded
-        productId={product.id}
-        selectedWorkspaceId={workspace.id}
+      <OwnerProductDeliveryWorkspace
+        listHref={listHref}
+        product={product}
+        workspace={workspace}
       />
     </Stack>
   );

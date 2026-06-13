@@ -123,6 +123,7 @@ export function OwnerProductizationWorkspaceLead({
   const internalDescription = workspaceDetailOpen
     ? currentDetailText
     : `Choose the next ${currentAreaLabel.toLowerCase()} view for ${product?.name || 'this product'}.`;
+  const showGenericInternalHeader = workspaceTab !== 'workspaces';
   const areaNavigation = (
     <ProductAreaNavigation
       label={isProductHome ? 'More product areas' : 'Product navigation'}
@@ -152,15 +153,17 @@ export function OwnerProductizationWorkspaceLead({
           navigationSlot={areaNavigation}
           isExporting={Boolean(isExporting)}
         />
-      ) : product ? (
+      ) : product && showGenericInternalHeader ? (
         <OwnerWorkspaceInternalPageHeader
           areaLabel={currentAreaLabel}
           detailLabel={internalTitle}
           detailText={internalDescription}
           productName={product.name}
         />
-      ) : (
+      ) : !product ? (
         <EmptyState label="Create a product profile to start the owner product workflow." />
+      ) : (
+        null
       )}
 
       <OwnerWorkspaceNavigationPanel

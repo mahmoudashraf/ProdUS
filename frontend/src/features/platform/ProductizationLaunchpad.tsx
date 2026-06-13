@@ -9,7 +9,7 @@ import {
 import { Button, Stack } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { deleteJson, getJson, putJson } from './api';
-import { isPlaceholderProduct, sortPackagesForOwner, sortProductsForOwner, sortWorkspacesForOwner } from './displayOrder';
+import { isPlaceholderProduct, isPlaceholderWorkspace, sortPackagesForOwner, sortProductsForOwner, sortWorkspacesForOwner } from './displayOrder';
 import {
   PageHeader,
   QueryState,
@@ -84,8 +84,10 @@ export default function ProductizationLaunchpad() {
 
   const packageList = sortPackagesForOwner(packages.data || []);
   const productList = sortProductsForOwner(products.data || [], packageList);
+  const ownerProductList = productList.filter((product) => !isPlaceholderProduct(product));
   const workspaceList = sortWorkspacesForOwner(workspaces.data || []);
-  const activeWorkspaces = workspaceList.filter((workspace) => workspace.status !== 'CLOSED' && workspace.status !== 'DELIVERED');
+  const ownerWorkspaceList = workspaceList.filter((workspace) => !isPlaceholderWorkspace(workspace));
+  const activeWorkspaces = ownerWorkspaceList.filter((workspace) => workspace.status !== 'CLOSED' && workspace.status !== 'DELIVERED');
   const draftServices = cart.data?.serviceItems.length || 0;
   const draftTalent = cart.data?.talentItems.length || 0;
   const averageHealth = packageList.length
@@ -94,10 +96,11 @@ export default function ProductizationLaunchpad() {
       ? 58
       : 0;
   const cartProduct = cart.data?.productProfile;
+  const cartHasPlaceholderProduct = cartProduct ? isPlaceholderProduct(cartProduct) : false;
   const selectedProduct = cartProduct && !isPlaceholderProduct(cartProduct) ? cartProduct : undefined;
-  const nextProduct = selectedProduct || productList[0];
+  const nextProduct = selectedProduct || ownerProductList[0];
   const hasMeaningfulDraft = Boolean(
-    cart.data?.status === 'DRAFT' && (
+    cart.data?.status === 'DRAFT' && !cartHasPlaceholderProduct && (
       selectedProduct ||
       draftServices > 0 ||
       draftTalent > 0 ||
@@ -149,7 +152,7 @@ export default function ProductizationLaunchpad() {
               onOpenHub={openHub}
             />
             {detailView === 'products' ? (
-              <LaunchpadProductsPanel productList={productList} packageList={packageList} />
+              <LaunchpadProductsPanel productList={ownerProductList} packageList={packageList} />
             ) : (
               <LaunchpadActiveWorkspacesPanel activeWorkspaces={activeWorkspaces} />
             )}
@@ -159,7 +162,7 @@ export default function ProductizationLaunchpad() {
             <LaunchpadHeroPanel
               nextProduct={nextProduct}
               selectedProduct={selectedProduct}
-              productCount={productList.length}
+              productCount={ownerProductList.length}
               currentDraftTitle={currentDraftTitle}
               draftServices={draftServices}
               draftTalent={draftTalent}
@@ -167,7 +170,7 @@ export default function ProductizationLaunchpad() {
               hasMeaningfulDraft={hasMeaningfulDraft}
               requirementCount={requirements.data?.length || 0}
               activeWorkspaceCount={activeWorkspaces.length}
-              workspaceCount={workspaceList.length}
+              workspaceCount={ownerWorkspaceList.length}
               isDeletingDraft={deleteDraftMutation.isPending}
               onDeleteDraft={async () => {
                 await deleteDraftMutation.mutateAsync();
@@ -189,18 +192,18 @@ export default function ProductizationLaunchpad() {
             />
 
             <LaunchpadMetricsStrip
-              productCount={productList.length}
+              productCount={ownerProductList.length}
               requirementCount={requirements.data?.length || 0}
               draftServices={draftServices}
               draftTalent={draftTalent}
               averageHealth={averageHealth}
               activeWorkspaceCount={activeWorkspaces.length}
-              workspaceCount={workspaceList.length}
+              workspaceCount={ownerWorkspaceList.length}
             />
 
             <LaunchpadAiNextActionPanel
               draftServices={draftServices}
-              hasProducts={productList.length > 0}
+              hasProducts={ownerProductList.length > 0}
             />
           </>
         )}
