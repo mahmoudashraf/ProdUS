@@ -1,10 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  AutoAwesomeOutlined,
-  SendOutlined,
-} from '@mui/icons-material';
+import { AutoAwesomeOutlined, SendOutlined } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -16,10 +12,12 @@ import {
   Typography,
 } from '@mui/material';
 import { useMutation } from '@tanstack/react-query';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+
 import { postJson } from './api';
 import AssistantMarkdownRenderer from './AssistantMarkdownRenderer';
-import { DotLabel, PastelChip, appleColors, errorMessageFromUnknown } from './PlatformComponents';
 import type { WidgetStatus } from './loomAIMaxModeWidgetRuntime';
+import { DotLabel, PastelChip, appleColors, errorMessageFromUnknown } from './PlatformComponents';
 import type { AssistantContext, AssistantQueryResponse } from './types';
 
 type FixedChatMessage = {
@@ -30,7 +28,7 @@ type FixedChatMessage = {
   error?: boolean;
 };
 
-interface OwnerWorkspaceFixedChatDockProps {
+interface IOwnerWorkspaceFixedChatDockProps {
   conversationId: string;
   requestContext: Record<string, unknown>;
   mode: string;
@@ -54,7 +52,8 @@ Keep the answer practical for a startup, MVP, prototype, or product owner.
 ${prompt}
 `.trim();
 
-const stringValue = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : undefined);
+const stringValue = (value: unknown) =>
+  typeof value === 'string' && value.trim() ? value.trim() : undefined;
 
 const toAssistantContext = (requestContext: Record<string, unknown>): AssistantContext => ({
   pageType: stringValue(requestContext.pageType) || 'product-workspace-fixed-chat',
@@ -75,7 +74,7 @@ export default function OwnerWorkspaceFixedChatDock({
   starterPrompts,
   fullChatStatus,
   onOpenFullChat,
-}: OwnerWorkspaceFixedChatDockProps) {
+}: IOwnerWorkspaceFixedChatDockProps) {
   const [expanded, setExpanded] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<FixedChatMessage[]>([
@@ -94,13 +93,16 @@ export default function OwnerWorkspaceFixedChatDock({
 
   const chatQuery = useMutation({
     mutationFn: (query: string) =>
-      postJson<AssistantQueryResponse, {
-        conversationId: string;
-        query: string;
-        mode: string;
-        position: string;
-        context: AssistantContext;
-      }>('/ai/assistant/query', {
+      postJson<
+        AssistantQueryResponse,
+        {
+          conversationId: string;
+          query: string;
+          mode: string;
+          position: string;
+          context: AssistantContext;
+        }
+      >('/ai/assistant/query', {
         conversationId,
         query: fixedChatPrompt(query),
         mode,
@@ -115,7 +117,10 @@ export default function OwnerWorkspaceFixedChatDock({
           role: 'assistant',
           text: answerText(response),
           response,
-          error: response.provider !== 'LOOMAI' || response.mode === 'FALLBACK' || response.success === false,
+          error:
+            response.provider !== 'LOOMAI' ||
+            response.mode === 'FALLBACK' ||
+            response.success === false,
         },
       ]);
     },
@@ -155,7 +160,9 @@ export default function OwnerWorkspaceFixedChatDock({
 
   const latestResponse = [...messages].reverse().find(message => message.response)?.response;
   const liveStatus = latestResponse
-    ? latestResponse.provider === 'LOOMAI' && latestResponse.mode !== 'FALLBACK' && latestResponse.success !== false
+    ? latestResponse.provider === 'LOOMAI' &&
+      latestResponse.mode !== 'FALLBACK' &&
+      latestResponse.success !== false
     : true;
   const fullChatReady = fullChatStatus === 'ready';
 
@@ -167,7 +174,7 @@ export default function OwnerWorkspaceFixedChatDock({
         position: 'fixed',
         left: '50%',
         bottom: { xs: 8, sm: 14, md: 16 },
-        width: { xs: 'calc(100vw - 16px)', sm: 'min(78rem, calc(100vw - 1rem))' },
+        width: { xs: 'calc(100vw - 16px)', sm: 'min(72rem, calc(100vw - 1rem))' },
         maxWidth: 'calc(100vw - 16px)',
         transform: 'translateX(-50%)',
         zIndex: theme => theme.zIndex.modal + 3,
@@ -177,23 +184,40 @@ export default function OwnerWorkspaceFixedChatDock({
       <Box
         sx={{
           borderRadius: 3,
-          border: '2px solid #2563eb',
+          border: '1px solid #2563eb',
           bgcolor: '#ffffff',
           boxShadow: '0 22px 64px rgba(37, 99, 235, 0.22)',
           overflow: 'hidden',
-          p: 1,
+          p: { xs: 0.7, sm: 0.85 },
         }}
       >
         {expanded && (
           <Stack spacing={1.1} sx={{ mb: 1 }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={0.75}
+              justifyContent="space-between"
+              alignItems={{ sm: 'center' }}
+            >
               <Stack spacing={0.2}>
                 <Typography variant="body2" sx={{ fontWeight: 950 }}>
                   ProdUS AI
                 </Typography>
                 <DotLabel
-                  label={chatQuery.isPending ? 'Thinking' : liveStatus ? 'Live product chat' : 'AI issue shown'}
-                  color={chatQuery.isPending ? appleColors.amber : liveStatus ? appleColors.green : appleColors.amber}
+                  label={
+                    chatQuery.isPending
+                      ? 'Thinking'
+                      : liveStatus
+                        ? 'Live product chat'
+                        : 'AI issue shown'
+                  }
+                  color={
+                    chatQuery.isPending
+                      ? appleColors.amber
+                      : liveStatus
+                        ? appleColors.green
+                        : appleColors.amber
+                  }
                 />
               </Stack>
               <Button
@@ -205,7 +229,10 @@ export default function OwnerWorkspaceFixedChatDock({
                 Hide answer
               </Button>
             </Stack>
-            <Stack spacing={0.85} sx={{ maxHeight: { xs: 230, sm: 300 }, overflowY: 'auto', pr: 0.25 }}>
+            <Stack
+              spacing={0.85}
+              sx={{ maxHeight: { xs: 230, sm: 300 }, overflowY: 'auto', pr: 0.25 }}
+            >
               {messages.map(message => (
                 <Box
                   key={message.id}
@@ -213,8 +240,10 @@ export default function OwnerWorkspaceFixedChatDock({
                     alignSelf: message.role === 'user' ? 'flex-end' : 'stretch',
                     maxWidth: message.role === 'user' ? '84%' : '100%',
                     borderRadius: 1,
-                    border: message.role === 'assistant' ? '1px solid #edf2f7' : '1px solid #dbeafe',
-                    bgcolor: message.role === 'user' ? '#eef6ff' : message.error ? '#fff7ed' : '#fbfdff',
+                    border:
+                      message.role === 'assistant' ? '1px solid #edf2f7' : '1px solid #dbeafe',
+                    bgcolor:
+                      message.role === 'user' ? '#eef6ff' : message.error ? '#fff7ed' : '#fbfdff',
                     p: 0.95,
                   }}
                 >
@@ -225,20 +254,43 @@ export default function OwnerWorkspaceFixedChatDock({
                   )}
                   <AssistantMarkdownRenderer text={message.text} />
                   {message.response && (
-                    <Stack direction="row" spacing={0.65} flexWrap="wrap" useFlexGap sx={{ mt: 0.85 }}>
+                    <Stack
+                      direction="row"
+                      spacing={0.65}
+                      flexWrap="wrap"
+                      useFlexGap
+                      sx={{ mt: 0.85 }}
+                    >
                       <PastelChip
-                        label={message.response.provider === 'LOOMAI' && message.response.mode !== 'FALLBACK' ? 'LoomAI live' : 'AI unavailable'}
+                        label={
+                          message.response.provider === 'LOOMAI' &&
+                          message.response.mode !== 'FALLBACK'
+                            ? 'LoomAI live'
+                            : 'AI unavailable'
+                        }
                         accent={message.error ? appleColors.amber : appleColors.purple}
                         bg={message.error ? '#fff4dc' : '#f1efff'}
                       />
                       {message.response.sources?.length ? (
-                        <PastelChip label={`${message.response.sources.length} sources`} accent={appleColors.green} bg="#e7f8ee" />
+                        <PastelChip
+                          label={`${message.response.sources.length} sources`}
+                          accent={appleColors.green}
+                          bg="#e7f8ee"
+                        />
                       ) : null}
                       {message.response.providerRequestId && (
-                        <PastelChip label={`trace ${message.response.providerRequestId.slice(0, 8)}`} accent={appleColors.cyan} bg="#e4f9fd" />
+                        <PastelChip
+                          label={`trace ${message.response.providerRequestId.slice(0, 8)}`}
+                          accent={appleColors.cyan}
+                          bg="#e4f9fd"
+                        />
                       )}
                       {message.response.fallbackReason && (
-                        <PastelChip label={message.response.fallbackReason} accent={appleColors.amber} bg="#fff4dc" />
+                        <PastelChip
+                          label={message.response.fallbackReason}
+                          accent={appleColors.amber}
+                          bg="#fff4dc"
+                        />
                       )}
                     </Stack>
                   )}
@@ -255,7 +307,13 @@ export default function OwnerWorkspaceFixedChatDock({
               <div ref={messagesEndRef} />
             </Stack>
 
-            <Stack direction="row" spacing={0.65} flexWrap="wrap" useFlexGap sx={{ display: { xs: 'none', sm: 'flex' } }}>
+            <Stack
+              direction="row"
+              spacing={0.65}
+              flexWrap="wrap"
+              useFlexGap
+              sx={{ display: { xs: 'none', sm: 'flex' } }}
+            >
               {starterPrompts.slice(0, 3).map(prompt => (
                 <Button
                   key={prompt}
@@ -288,7 +346,7 @@ export default function OwnerWorkspaceFixedChatDock({
                 minWidth: 0,
                 flex: '1 1 auto',
                 '& .MuiOutlinedInput-root': {
-                  minHeight: 56,
+                  minHeight: { xs: 48, sm: 52 },
                   alignItems: 'center',
                   borderRadius: 2.3,
                   bgcolor: '#fff',
@@ -309,7 +367,7 @@ export default function OwnerWorkspaceFixedChatDock({
               sx={{
                 flex: '0 0 auto',
                 minHeight: { xs: 48, sm: 52 },
-                minWidth: { xs: 96, sm: 104 },
+                minWidth: { xs: 88, sm: 100 },
                 borderRadius: 2,
                 borderColor: '#f0a8ff',
                 bgcolor: '#fff7ff',
