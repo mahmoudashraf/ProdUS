@@ -1,13 +1,14 @@
 'use client';
 
-import type { ReactNode } from 'react';
 import { Stack } from '@mui/material';
-import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+import type { ReactNode } from 'react';
+
+import {
+  OwnerWorkspaceJourneyNav,
+  WorkspaceBreadcrumbs,
+  type JourneyStepItem,
+} from './OwnerWorkspaceJourneyNav';
 import { PastelChip, appleColors } from './PlatformComponents';
-import WorkspaceParticipantsPanel from './WorkspaceParticipantsPanel';
-import WorkspaceRisksPanel from './WorkspaceRisksPanel';
-import WorkspaceCommandSubrouteActions, { type WorkspaceCommandSubrouteItem } from './WorkspaceCommandSubrouteActions';
-import WorkspaceSupportRequestsPanel from './WorkspaceSupportRequestsPanel';
 import type {
   AttachmentScope,
   DisputeCase,
@@ -15,6 +16,9 @@ import type {
   Team,
   WorkspaceParticipant,
 } from './types';
+import WorkspaceCommandSubrouteActions, {
+  type WorkspaceCommandSubrouteItem,
+} from './WorkspaceCommandSubrouteActions';
 import type {
   DisputeFormValues,
   DisputeStatusPayload,
@@ -23,6 +27,10 @@ import type {
   SupportStatusPayload,
   WorkspaceCommandFormController,
 } from './workspaceCommandTeamTypes';
+import WorkspaceParticipantsPanel from './WorkspaceParticipantsPanel';
+import WorkspaceRisksPanel from './WorkspaceRisksPanel';
+import WorkspaceSelectedTeamsPanel from './WorkspaceSelectedTeamsPanel';
+import WorkspaceSupportRequestsPanel from './WorkspaceSupportRequestsPanel';
 
 export type WorkspaceCommandTeamView = 'participants' | 'support' | 'risks';
 
@@ -32,7 +40,7 @@ const teamViewLabel: Record<WorkspaceCommandTeamView, string> = {
   risks: 'Risks',
 };
 
-interface WorkspaceCommandTeamPanelsProps {
+interface IWorkspaceCommandTeamPanelsProps {
   view: WorkspaceCommandTeamView | null;
   canCoordinate: boolean;
   teams: Team[];
@@ -96,44 +104,61 @@ export default function WorkspaceCommandTeamPanels({
   onOpenHub,
   onViewChange,
   evidencePanel,
-}: WorkspaceCommandTeamPanelsProps) {
+}: IWorkspaceCommandTeamPanelsProps) {
   const items: JourneyStepItem<WorkspaceCommandTeamView>[] = [
     {
       value: 'participants',
       label: 'Participants',
       detail: 'Confirm who owns delivery, review, and escalation.',
       accent: appleColors.cyan,
-      meta: <PastelChip label={`${participantList.length} people`} accent={appleColors.cyan} bg="#e4f9fd" />,
+      meta: (
+        <PastelChip
+          label={`${participantList.length} people`}
+          accent={appleColors.cyan}
+          bg="#e4f9fd"
+        />
+      ),
     },
     {
       value: 'support',
       label: 'Support',
       detail: 'Handle owner asks and specialist follow-up.',
       accent: supportList.length ? appleColors.amber : appleColors.green,
-      meta: <PastelChip label={`${supportList.length} requests`} accent={supportList.length ? appleColors.amber : appleColors.green} bg={supportList.length ? '#fff4dc' : '#e7f8ee'} />,
+      meta: (
+        <PastelChip
+          label={`${supportList.length} requests`}
+          accent={supportList.length ? appleColors.amber : appleColors.green}
+          bg={supportList.length ? '#fff4dc' : '#e7f8ee'}
+        />
+      ),
     },
     {
       value: 'risks',
       label: 'Risks',
       detail: 'Resolve blockers before owner handoff.',
       accent: disputeList.length ? appleColors.red : appleColors.green,
-      meta: <PastelChip label={`${disputeList.length} open`} accent={disputeList.length ? appleColors.red : appleColors.green} bg={disputeList.length ? '#fff1f1' : '#e7f8ee'} />,
+      meta: (
+        <PastelChip
+          label={`${disputeList.length} open`}
+          accent={disputeList.length ? appleColors.red : appleColors.green}
+          bg={disputeList.length ? '#fff1f1' : '#e7f8ee'}
+        />
+      ),
     },
   ];
-  const subrouteItems: WorkspaceCommandSubrouteItem<WorkspaceCommandTeamView>[] = items.map((item) => ({
-    value: item.value,
-    label: item.label,
-    accent: item.accent || appleColors.purple,
-  }));
+  const subrouteItems: WorkspaceCommandSubrouteItem<WorkspaceCommandTeamView>[] = items.map(
+    item => ({
+      value: item.value,
+      label: item.label,
+      accent: item.accent || appleColors.purple,
+    })
+  );
 
   return (
     <Stack spacing={2}>
       {view && (
         <WorkspaceBreadcrumbs
-          items={[
-            { label: 'Team And Risks', onClick: onOpenHub },
-            { label: teamViewLabel[view] },
-          ]}
+          items={[{ label: 'Team And Risks', onClick: onOpenHub }, { label: teamViewLabel[view] }]}
           backLabel="Team home"
           onBack={onOpenHub}
         />
@@ -147,12 +172,18 @@ export default function WorkspaceCommandTeamPanels({
           onChange={onViewChange}
         />
       ) : (
-        <OwnerWorkspaceJourneyNav
-          label="Team and risks"
-          value={null}
-          items={items}
-          onChange={onViewChange}
-        />
+        <Stack spacing={2}>
+          <WorkspaceSelectedTeamsPanel
+            supportList={supportList}
+            onChooseTeam={() => onViewChange('support')}
+          />
+          <OwnerWorkspaceJourneyNav
+            label="Team and risks"
+            value={null}
+            items={items}
+            onChange={onViewChange}
+          />
+        </Stack>
       )}
 
       {view === 'participants' && (

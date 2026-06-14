@@ -3,13 +3,14 @@
 import { OwnerWorkspaceJourneyNav, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import { PastelChip, appleColors } from './PlatformComponents';
 
-export type WorkspaceCommandView = 'overview' | 'proof' | 'team' | 'handoff';
+export type WorkspaceCommandView = 'overview' | 'services' | 'proof' | 'team' | 'handoff';
 
-interface WorkspaceCommandJourneyNavProps {
+interface IWorkspaceCommandJourneyNavProps {
   value?: WorkspaceCommandView | null;
   onChange: (value: WorkspaceCommandView) => void;
   priorityFixes: number;
   proofGaps: number;
+  serviceCount?: number;
   milestoneCount: number;
   participantCount: number;
   supportCount: number;
@@ -23,43 +24,80 @@ export default function WorkspaceCommandJourneyNav({
   onChange,
   priorityFixes,
   proofGaps,
+  serviceCount = 0,
   milestoneCount,
   participantCount,
   supportCount,
   riskCount,
   integrationCount,
   hasHandoff,
-}: WorkspaceCommandJourneyNavProps) {
+}: IWorkspaceCommandJourneyNavProps) {
   const items: JourneyStepItem<WorkspaceCommandView>[] = [
     {
       value: 'overview',
       label: 'Workspace answer',
       detail: 'Launch confidence, current status, and the safest next decision.',
       accent: appleColors.green,
-      meta: <PastelChip label={`${milestoneCount} checkpoints`} accent={appleColors.green} bg="#e7f8ee" />,
+      meta: (
+        <PastelChip
+          label={`${milestoneCount} checkpoints`}
+          accent={appleColors.green}
+          bg="#e7f8ee"
+        />
+      ),
+    },
+    {
+      value: 'services',
+      label: 'Services',
+      detail: 'Choose the work this workspace owns before people start fixing it.',
+      accent: serviceCount ? appleColors.purple : appleColors.amber,
+      meta: (
+        <PastelChip
+          label={`${serviceCount} selected`}
+          accent={serviceCount ? appleColors.purple : appleColors.amber}
+          bg={serviceCount ? '#f3edff' : '#fff4dc'}
+        />
+      ),
     },
     {
       value: 'proof',
       label: 'Fixes and proof',
       detail: 'Priority fixes, workspace steps, saved proof, and approval checks.',
       accent: priorityFixes || proofGaps ? appleColors.amber : appleColors.cyan,
-      meta: <PastelChip label={`${priorityFixes + proofGaps} gaps`} accent={priorityFixes ? appleColors.red : appleColors.amber} bg={priorityFixes ? '#fff1f1' : '#fff4dc'} />,
+      meta: (
+        <PastelChip
+          label={`${priorityFixes + proofGaps} gaps`}
+          accent={priorityFixes ? appleColors.red : appleColors.amber}
+          bg={priorityFixes ? '#fff1f1' : '#fff4dc'}
+        />
+      ),
     },
     {
       value: 'team',
       label: 'Team and risks',
       detail: 'People, support requests, delivery risks, and escalation ownership.',
       accent: riskCount || supportCount ? appleColors.amber : appleColors.purple,
-      meta: <PastelChip label={`${participantCount} people`} accent={appleColors.cyan} bg="#e4f9fd" />,
+      meta: (
+        <PastelChip label={`${participantCount} people`} accent={appleColors.cyan} bg="#e4f9fd" />
+      ),
     },
     {
       value: 'handoff',
       label: 'Handoff',
       detail: 'Runbook, health review, integration signals, and owner acceptance.',
       accent: hasHandoff ? appleColors.green : appleColors.blue,
-      meta: <PastelChip label={`${integrationCount} signals`} accent={appleColors.blue} bg="#eaf3ff" />,
+      meta: (
+        <PastelChip label={`${integrationCount} signals`} accent={appleColors.blue} bg="#eaf3ff" />
+      ),
     },
   ];
 
-  return <OwnerWorkspaceJourneyNav label="Workspace delivery journey" value={value ?? null} items={items} onChange={onChange} />;
+  return (
+    <OwnerWorkspaceJourneyNav
+      label="Workspace delivery journey"
+      value={value ?? null}
+      items={items}
+      onChange={onChange}
+    />
+  );
 }

@@ -1,20 +1,26 @@
 'use client';
 
-import type { ComponentProps } from 'react';
 import { LinearProgress } from '@mui/material';
-import WorkspaceCommandHero from './WorkspaceCommandHero';
-import WorkspaceCommandJourneyNav, { type WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
-import WorkspaceCommandSelectedContextPanel from './WorkspaceCommandSelectedContextPanel';
-import WorkspaceCommandProofStepPanel from './WorkspaceCommandProofStepPanel';
-import WorkspaceOverviewDeliveryAnswerPanel from './WorkspaceOverviewDeliveryAnswerPanel';
+import type { ComponentProps } from 'react';
+
 import { WorkspaceBreadcrumbs } from './OwnerWorkspaceJourneyNav';
+import WorkspaceCommandHero from './WorkspaceCommandHero';
+import WorkspaceCommandJourneyNav, {
+  type WorkspaceCommandView,
+} from './WorkspaceCommandJourneyNav';
+import WorkspaceCommandProofStepPanel from './WorkspaceCommandProofStepPanel';
+import WorkspaceCommandSelectedContextPanel from './WorkspaceCommandSelectedContextPanel';
+import WorkspaceOverviewDeliveryAnswerPanel from './WorkspaceOverviewDeliveryAnswerPanel';
 
 type WorkspaceHeroProps = ComponentProps<typeof WorkspaceCommandHero>;
-type WorkspaceJourneyProps = Omit<ComponentProps<typeof WorkspaceCommandJourneyNav>, 'value' | 'onChange'>;
+type WorkspaceJourneyProps = Omit<
+  ComponentProps<typeof WorkspaceCommandJourneyNav>,
+  'value' | 'onChange'
+>;
 type WorkspaceOverviewProps = ComponentProps<typeof WorkspaceOverviewDeliveryAnswerPanel>;
 type WorkspaceProofProps = ComponentProps<typeof WorkspaceCommandProofStepPanel>;
 
-interface WorkspaceCommandSelectedWorkspacePaneProps {
+interface IWorkspaceCommandSelectedWorkspacePaneProps {
   view: WorkspaceCommandView;
   isFetchingWorkspaceDetail: boolean;
   hero: WorkspaceHeroProps;
@@ -27,6 +33,7 @@ interface WorkspaceCommandSelectedWorkspacePaneProps {
 
 const workspaceViewLabels: Record<WorkspaceCommandView, string> = {
   overview: 'Workspace',
+  services: 'Services',
   proof: 'Fixes and proof',
   team: 'Team and risks',
   handoff: 'Handoff',
@@ -41,7 +48,7 @@ export default function WorkspaceCommandSelectedWorkspacePane({
   proof,
   onViewChange,
   onOpenHub,
-}: WorkspaceCommandSelectedWorkspacePaneProps) {
+}: IWorkspaceCommandSelectedWorkspacePaneProps) {
   if (view !== 'overview') {
     return (
       <>
@@ -71,11 +78,7 @@ export default function WorkspaceCommandSelectedWorkspacePane({
 
       <WorkspaceCommandHero {...hero} />
 
-      <WorkspaceCommandJourneyNav
-        value={null}
-        onChange={onViewChange}
-        {...journey}
-      />
+      <WorkspaceCommandJourneyNav value={null} onChange={onViewChange} {...journey} />
     </>
   );
 }

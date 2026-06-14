@@ -1,7 +1,10 @@
 package com.produs.workspace;
 
+import com.produs.catalog.ServiceModule;
+import com.produs.catalog.ServiceModuleRepository;
 import com.produs.dto.PlatformDtos.DeliverableResponse;
 import com.produs.dto.PlatformDtos.MilestoneResponse;
+import com.produs.dto.PlatformDtos.PackageModuleResponse;
 import com.produs.dto.PlatformDtos.ProjectWorkspaceResponse;
 import com.produs.dto.PlatformDtos.WorkspaceParticipantResponse;
 import com.produs.entity.User;
@@ -20,6 +23,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +41,7 @@ import java.util.UUID;
 
 import static com.produs.dto.PlatformDtos.toDeliverableResponse;
 import static com.produs.dto.PlatformDtos.toMilestoneResponse;
+import static com.produs.dto.PlatformDtos.toPackageModuleResponse;
 import static com.produs.dto.PlatformDtos.toProjectWorkspaceResponse;
 import static com.produs.dto.PlatformDtos.toWorkspaceParticipantResponse;
 
@@ -48,6 +53,7 @@ public class WorkspaceController {
     private final ProjectWorkspaceRepository workspaceRepository;
     private final PackageInstanceRepository packageRepository;
     private final PackageModuleRepository packageModuleRepository;
+    private final ServiceModuleRepository serviceModuleRepository;
     private final MilestoneRepository milestoneRepository;
     private final DeliverableRepository deliverableRepository;
     private final WorkspaceParticipantRepository participantRepository;
@@ -228,6 +234,79 @@ public class WorkspaceController {
                 .toList();
     }
 
+    @GetMapping("/{workspaceId}/services")
+    public List<PackageModuleResponse> services(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId
+    ) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceViewer(user, workspace);
+        return packageModuleRepository.findByPackageInstanceIdOrderBySequenceOrderAsc(workspace.getPackageInstance().getId()).stream()
+                .map(module -> toPackageModuleResponse(module))
+                .toList();
+    }
+
+    @PostMapping("/{workspaceId}/services")
+    public PackageModuleResponse addService(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody WorkspaceServiceRequest request
+    ) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceCoordinator(user, workspace);
+        ServiceModule serviceModule = serviceModuleRepository.findById(request.serviceModuleId())
+                .orElseThrow(() -> new IllegalArgumentException("Service module not found"));
+        UUID packageInstanceId = workspace.getPackageInstance().getId();
+        PackageModule module = packageModuleRepository
+                .findByPackageInstanceIdAndServiceModuleId(packageInstanceId, serviceModule.getId())
+                .orElse(null);
+        boolean created = module == null;
+        if (created) {
+            module = new PackageModule();
+            module.setPackageInstance(workspace.getPackageInstance());
+            module.setServiceModule(serviceModule);
+            module.setSequenceOrder(nextServiceSequence(packageInstanceId));
+            module.setStatus(PackageModule.ModuleStatus.PLANNED);
+            module.setDeliverables(serviceModule.getExpectedDeliverables());
+            module.setAcceptanceCriteria(serviceModule.getAcceptanceCriteria());
+        }
+
+        if (created || request.required() != null) {
+            module.setRequired(request.required() == null || request.required());
+        }
+        if (created || hasText(request.rationale())) {
+            module.setRationale(hasText(request.rationale()) ? request.rationale().trim() : "Added from workspace services.");
+        }
+
+        PackageModule savedModule = packageModuleRepository.save(module);
+        if (created && !Boolean.FALSE.equals(request.createMilestone())) {
+            createMilestoneForModule(workspace, savedModule);
+        }
+        return toPackageModuleResponse(savedModule);
+    }
+
+    @DeleteMapping("/{workspaceId}/services/{moduleId}")
+    public List<PackageModuleResponse> removeService(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID moduleId
+    ) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceCoordinator(user, workspace);
+        PackageModule module = packageModuleRepository.findById(moduleId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace service not found"));
+        if (!module.getPackageInstance().getId().equals(workspace.getPackageInstance().getId())) {
+            throw new AccessDeniedException("Service is not attached to this workspace");
+        }
+        packageModuleRepository.delete(module);
+        return packageModuleRepository.findByPackageInstanceIdOrderBySequenceOrderAsc(workspace.getPackageInstance().getId()).stream()
+                .map(packageModule -> toPackageModuleResponse(packageModule))
+                .toList();
+    }
+
     @GetMapping("/{workspaceId}/scanner/risks/current")
     public ScannerRiskSummaryResponse scannerRisks(@AuthenticationPrincipal User user, @PathVariable UUID workspaceId) {
         return scannerService.currentWorkspaceRisks(user, workspaceId);
@@ -298,6 +377,30 @@ public class WorkspaceController {
             milestoneRepository.save(milestone);
             offset += 7;
         }
+    }
+
+    private int nextServiceSequence(UUID packageInstanceId) {
+        return packageModuleRepository.findByPackageInstanceIdOrderBySequenceOrderAsc(packageInstanceId).stream()
+                .map(PackageModule::getSequenceOrder)
+                .filter(sequence -> sequence != null)
+                .max(Integer::compareTo)
+                .orElse(0) + 1;
+    }
+
+    private void createMilestoneForModule(ProjectWorkspace workspace, PackageModule module) {
+        Milestone milestone = new Milestone();
+        milestone.setWorkspace(workspace);
+        milestone.setTitle(module.getServiceModule().getName());
+        milestone.setDescription(hasText(module.getDeliverables())
+                ? module.getDeliverables()
+                : module.getServiceModule().getOwnerOutcome());
+        int sequence = module.getSequenceOrder() == null ? 1 : module.getSequenceOrder();
+        milestone.setDueDate(LocalDate.now().plusDays(Math.max(1, sequence) * 7L));
+        milestoneRepository.save(milestone);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private void requireOwnerOrAdmin(User user, PackageInstance packageInstance) {
@@ -398,5 +501,12 @@ public class WorkspaceController {
     public record WorkspaceParticipantUpdateRequest(
             WorkspaceParticipant.ParticipantRole role,
             Boolean active
+    ) {}
+    public record WorkspaceServiceRequest(
+            @NotNull(message = "Service is required")
+            UUID serviceModuleId,
+            Boolean required,
+            String rationale,
+            Boolean createMilestone
     ) {}
 }

@@ -1,23 +1,27 @@
 'use client';
 
-import { useEffect, useRef, type ComponentProps } from 'react';
 import { Box, Stack } from '@mui/material';
+import { useEffect, useRef, type ComponentProps } from 'react';
+
+import { EmptyState, Surface } from './PlatformComponents';
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
 import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import WorkspaceCommandSelectedWorkspacePane from './WorkspaceCommandSelectedWorkspacePane';
+import WorkspaceCommandServicesPanel from './WorkspaceCommandServicesPanel';
 import WorkspaceCommandSidebar from './WorkspaceCommandSidebar';
 import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
-import { EmptyState, Surface } from './PlatformComponents';
 
 type SidebarProps = ComponentProps<typeof WorkspaceCommandSidebar>;
 type SelectedWorkspacePaneProps = ComponentProps<typeof WorkspaceCommandSelectedWorkspacePane>;
+type ServicesPanelProps = ComponentProps<typeof WorkspaceCommandServicesPanel>;
 type TeamPanelsProps = ComponentProps<typeof WorkspaceCommandTeamPanels>;
 type HandoffPanelsProps = ComponentProps<typeof WorkspaceCommandHandoffPanels>;
 
-interface WorkspaceCommandBoardProps {
+interface IWorkspaceCommandBoardProps {
   workspaceView: WorkspaceCommandView;
   sidebar: SidebarProps;
   selectedWorkspacePane?: SelectedWorkspacePaneProps | undefined;
+  servicesPanel?: ServicesPanelProps | undefined;
   teamPanels?: TeamPanelsProps | undefined;
   handoffPanels?: HandoffPanelsProps | undefined;
 }
@@ -26,10 +30,14 @@ export default function WorkspaceCommandBoard({
   workspaceView,
   sidebar,
   selectedWorkspacePane,
+  servicesPanel,
   teamPanels,
   handoffPanels,
-}: WorkspaceCommandBoardProps) {
-  const showDetailRail = Boolean(selectedWorkspacePane && (workspaceView === 'team' || workspaceView === 'handoff'));
+}: IWorkspaceCommandBoardProps) {
+  const showDetailRail = Boolean(
+    selectedWorkspacePane &&
+      (workspaceView === 'services' || workspaceView === 'team' || workspaceView === 'handoff')
+  );
   const isDetailView = workspaceView !== 'overview';
   const detailRailRef = useRef<HTMLDivElement | null>(null);
 
@@ -68,6 +76,9 @@ export default function WorkspaceCommandBoard({
 
         {showDetailRail && (
           <Stack ref={detailRailRef} spacing={2} sx={{ minWidth: 0 }}>
+            {workspaceView === 'services' && servicesPanel && (
+              <WorkspaceCommandServicesPanel {...servicesPanel} />
+            )}
             {workspaceView === 'team' && teamPanels && (
               <WorkspaceCommandTeamPanels {...teamPanels} />
             )}

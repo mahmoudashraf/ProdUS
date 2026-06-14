@@ -1,12 +1,13 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+
 import type { WorkspaceCommandHandoffView } from './WorkspaceCommandHandoffPanels';
-import type { WorkspaceCommandProofView } from './WorkspaceCommandProofStepPanel';
 import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
+import type { WorkspaceCommandProofView } from './WorkspaceCommandProofStepPanel';
 import type { WorkspaceCommandTeamView } from './WorkspaceCommandTeamPanels';
 
-interface WorkspaceCommandRouteStateOptions {
+interface IWorkspaceCommandRouteStateOptions {
   viewParamName?: string;
   proofViewParamName?: string;
   teamViewParamName?: string;
@@ -14,15 +15,25 @@ interface WorkspaceCommandRouteStateOptions {
 }
 
 const isWorkspaceCommandView = (value: string | null): value is WorkspaceCommandView =>
-  value === 'overview' || value === 'proof' || value === 'team' || value === 'handoff';
+  value === 'overview' ||
+  value === 'services' ||
+  value === 'proof' ||
+  value === 'team' ||
+  value === 'handoff';
 
 const isWorkspaceCommandTeamView = (value: string | null): value is WorkspaceCommandTeamView =>
   value === 'participants' || value === 'support' || value === 'risks';
 
 const isWorkspaceCommandProofView = (value: string | null): value is WorkspaceCommandProofView =>
-  value === 'findings' || value === 'readiness' || value === 'steps' || value === 'proof' || value === 'acceptance';
+  value === 'findings' ||
+  value === 'readiness' ||
+  value === 'steps' ||
+  value === 'proof' ||
+  value === 'acceptance';
 
-const isWorkspaceCommandHandoffView = (value: string | null): value is WorkspaceCommandHandoffView =>
+const isWorkspaceCommandHandoffView = (
+  value: string | null
+): value is WorkspaceCommandHandoffView =>
   value === 'review' || value === 'signals' || value === 'assistant';
 
 export function useWorkspaceCommandRouteState({
@@ -30,7 +41,7 @@ export function useWorkspaceCommandRouteState({
   proofViewParamName = 'proofView',
   teamViewParamName = 'teamView',
   viewParamName = 'view',
-}: WorkspaceCommandRouteStateOptions = {}) {
+}: IWorkspaceCommandRouteStateOptions = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -41,9 +52,16 @@ export function useWorkspaceCommandRouteState({
   const teamViewParam = searchParams?.get(teamViewParamName) || null;
   const handoffViewParam = searchParams?.get(handoffViewParamName) || null;
   const workspaceView = isWorkspaceCommandView(viewParam) ? viewParam : 'overview';
-  const workspaceProofView = workspaceView === 'proof' && isWorkspaceCommandProofView(proofViewParam) ? proofViewParam : null;
-  const workspaceTeamView = workspaceView === 'team' && isWorkspaceCommandTeamView(teamViewParam) ? teamViewParam : null;
-  const workspaceHandoffView = workspaceView === 'handoff' && isWorkspaceCommandHandoffView(handoffViewParam) ? handoffViewParam : null;
+  const workspaceProofView =
+    workspaceView === 'proof' && isWorkspaceCommandProofView(proofViewParam)
+      ? proofViewParam
+      : null;
+  const workspaceTeamView =
+    workspaceView === 'team' && isWorkspaceCommandTeamView(teamViewParam) ? teamViewParam : null;
+  const workspaceHandoffView =
+    workspaceView === 'handoff' && isWorkspaceCommandHandoffView(handoffViewParam)
+      ? handoffViewParam
+      : null;
 
   const pushWorkspaceRoute = (
     view: WorkspaceCommandView,
@@ -52,7 +70,7 @@ export function useWorkspaceCommandRouteState({
       proofView?: WorkspaceCommandProofView;
       teamView?: WorkspaceCommandTeamView;
       handoffView?: WorkspaceCommandHandoffView;
-    },
+    }
   ) => {
     const next = new URLSearchParams(searchParamString);
     if (workspaceId) next.set('workspace', workspaceId);
@@ -66,9 +84,12 @@ export function useWorkspaceCommandRouteState({
     }
     if (view === 'proof' && options?.proofView) next.set(proofViewParamName, options.proofView);
     if (view === 'team' && options?.teamView) next.set(teamViewParamName, options.teamView);
-    if (view === 'handoff' && options?.handoffView) next.set(handoffViewParamName, options.handoffView);
+    if (view === 'handoff' && options?.handoffView)
+      next.set(handoffViewParamName, options.handoffView);
     const suffix = next.toString();
-    router.push(suffix ? `${pathname || '/workspaces'}?${suffix}` : pathname || '/workspaces', { scroll: false });
+    router.push(suffix ? `${pathname || '/workspaces'}?${suffix}` : pathname || '/workspaces', {
+      scroll: false,
+    });
   };
 
   return {

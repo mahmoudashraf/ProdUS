@@ -2,31 +2,38 @@
 
 import { Alert, Button, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
-import { getJson, postJson } from './api';
+
+import { deleteJson, getJson, postJson } from './api';
 import {
-  EmptyState,
-  QueryState,
-  Surface,
-  formatLabel,
-} from './PlatformComponents';
-import { DeliveryHero, DeliveryJourneyCards, DeliveryOverview } from './OwnerProductDeliveryWorkspacePanels';
-import type { WorkspaceCommandHandoffView } from './WorkspaceCommandHandoffPanels';
-import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
-import type { WorkspaceCommandProofView } from './WorkspaceCommandProofStepPanel';
-import WorkspaceCommandProofStepPanel from './WorkspaceCommandProofStepPanel';
-import type { WorkspaceCommandTeamView } from './WorkspaceCommandTeamPanels';
-import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
-import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
+  DeliveryHero,
+  DeliveryJourneyCards,
+  DeliveryOverview,
+} from './OwnerProductDeliveryWorkspacePanels';
+import { EmptyState, QueryState, Surface, formatLabel } from './PlatformComponents';
+import type {
+  CheckFixesResponse,
+  ProductProfile,
+  ProjectWorkspace,
+  ScannerRiskSummary,
+} from './types';
 import { useWorkspaceCommandActions } from './useWorkspaceCommandActions';
 import { useWorkspaceCommandData } from './useWorkspaceCommandData';
 import { useWorkspaceCommandRouteState } from './useWorkspaceCommandRouteState';
 import { useWorkspaceCommandSummary } from './useWorkspaceCommandSummary';
 import { useWorkspaceCommandUiState } from './useWorkspaceCommandUiState';
-import type { CheckFixesResponse, ProductProfile, ProjectWorkspace, ScannerRiskSummary } from './types';
+import type { WorkspaceCommandHandoffView } from './WorkspaceCommandHandoffPanels';
+import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
+import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
+import type { WorkspaceCommandProofView } from './WorkspaceCommandProofStepPanel';
+import WorkspaceCommandProofStepPanel from './WorkspaceCommandProofStepPanel';
+import WorkspaceCommandServicesPanel from './WorkspaceCommandServicesPanel';
+import type { WorkspaceCommandTeamView } from './WorkspaceCommandTeamPanels';
+import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
 
-interface OwnerProductDeliveryWorkspaceProps {
+interface IOwnerProductDeliveryWorkspaceProps {
   listHref: string;
   product: ProductProfile;
   workspace: ProjectWorkspace;
@@ -34,6 +41,7 @@ interface OwnerProductDeliveryWorkspaceProps {
 
 const deliveryViewLabels: Record<WorkspaceCommandView, string> = {
   overview: 'Overview',
+  services: 'Services',
   proof: 'Findings & proof',
   team: 'Team & support',
   handoff: 'Handoff',
@@ -43,7 +51,7 @@ export default function OwnerProductDeliveryWorkspace({
   listHref,
   product,
   workspace,
-}: OwnerProductDeliveryWorkspaceProps) {
+}: IOwnerProductDeliveryWorkspaceProps) {
   const {
     pushWorkspaceRoute,
     workspaceHandoffView,
@@ -59,7 +67,12 @@ export default function OwnerProductDeliveryWorkspace({
   const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const canCoordinate = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
-  const canAttachEvidence = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER, UserRole.SPECIALIST]);
+  const canAttachEvidence = hasRole([
+    UserRole.ADMIN,
+    UserRole.PRODUCT_OWNER,
+    UserRole.TEAM_MANAGER,
+    UserRole.SPECIALIST,
+  ]);
   const {
     deliverableForm,
     disputeForm,
@@ -84,6 +97,7 @@ export default function OwnerProductDeliveryWorkspace({
   } = useWorkspaceCommandUiState();
   const {
     attachmentOpenError,
+    catalogModuleList,
     clearAttachmentOpenError,
     clearSelectedMilestone,
     deliverableList,
@@ -119,18 +133,54 @@ export default function OwnerProductDeliveryWorkspace({
   const workspaceRiskSummary = useQuery({
     queryKey: ['workspace-current-risks', activeWorkspace.id],
     enabled: !!activeWorkspace.id,
-    queryFn: () => getJson<ScannerRiskSummary>(`/workspaces/${activeWorkspace.id}/scanner/risks/current`),
+    queryFn: () =>
+      getJson<ScannerRiskSummary>(`/workspaces/${activeWorkspace.id}/scanner/risks/current`),
   });
   const checkFixes = useMutation({
-    mutationFn: (riskThreadIds: string[]) => postJson<CheckFixesResponse, { riskThreadIds: string[]; mode: 'RELEVANT_TO_FIXES'; authorizationConfirmed: boolean }>(
-      `/workspaces/${activeWorkspace.id}/scanner/check-fixes`,
-      { riskThreadIds, mode: 'RELEVANT_TO_FIXES', authorizationConfirmed: true },
-    ),
+    mutationFn: (riskThreadIds: string[]) =>
+      postJson<
+        CheckFixesResponse,
+        { riskThreadIds: string[]; mode: 'RELEVANT_TO_FIXES'; authorizationConfirmed: boolean }
+      >(`/workspaces/${activeWorkspace.id}/scanner/check-fixes`, {
+        riskThreadIds,
+        mode: 'RELEVANT_TO_FIXES',
+        authorizationConfirmed: true,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', activeWorkspace.id] });
       queryClient.invalidateQueries({ queryKey: ['scanner-current-risks', effectiveProductId] });
       queryClient.invalidateQueries({ queryKey: ['scanner-summary', effectiveProductId] });
-      queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-scanner-readiness', activeWorkspace.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['productization-engine', 'workspace-scanner-readiness', activeWorkspace.id],
+      });
+    },
+  });
+  const assignService = useMutation({
+    mutationFn: (serviceModuleId: string) =>
+      postJson('/workspaces/' + activeWorkspace.id + '/services', {
+        serviceModuleId,
+        required: true,
+        rationale: 'Added from workspace services.',
+        createMilestone: true,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces', activeWorkspace.id, 'services'] });
+      queryClient.invalidateQueries({ queryKey: ['workspaces', activeWorkspace.id, 'milestones'] });
+      queryClient.invalidateQueries({ queryKey: ['packages'] });
+      queryClient.invalidateQueries({
+        queryKey: ['productization-engine', 'workspace-scanner-readiness', activeWorkspace.id],
+      });
+    },
+  });
+  const removeService = useMutation({
+    mutationFn: (packageModuleId: string) =>
+      deleteJson('/workspaces/' + activeWorkspace.id + '/services/' + packageModuleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces', activeWorkspace.id, 'services'] });
+      queryClient.invalidateQueries({ queryKey: ['packages'] });
+      queryClient.invalidateQueries({
+        queryKey: ['productization-engine', 'workspace-scanner-readiness', activeWorkspace.id],
+      });
     },
   });
   const {
@@ -208,12 +258,13 @@ export default function OwnerProductDeliveryWorkspace({
       proofView?: WorkspaceCommandProofView;
       teamView?: WorkspaceCommandTeamView;
       handoffView?: WorkspaceCommandHandoffView;
-    },
+    }
   ) => {
     if (view !== workspaceView) clearSelectedMilestone();
     pushWorkspaceRoute(view, activeWorkspace.id, options);
   };
-  const nextActionView: WorkspaceCommandView = readiness?.blockerCount || missingEvidenceCount ? 'proof' : roughEdgeCount ? 'team' : 'handoff';
+  const nextActionView: WorkspaceCommandView =
+    readiness?.blockerCount || missingEvidenceCount ? 'proof' : roughEdgeCount ? 'team' : 'handoff';
   const assignedFindingCount = workspaceRiskSummary.data?.total || 0;
   const openNextAction = () => {
     if (nextActionView === 'proof') {
@@ -235,7 +286,7 @@ export default function OwnerProductDeliveryWorkspace({
     <Stack spacing={2.5}>
       <QueryState
         isLoading={queriesLoading}
-        error={queryError || actionError}
+        error={queryError || assignService.error || removeService.error || actionError}
       />
       {governanceNotice && (
         <Alert severity="success" onClose={() => setGovernanceNotice('')}>
@@ -257,9 +308,14 @@ export default function OwnerProductDeliveryWorkspace({
             participantList={participantList}
             riskSummary={workspaceRiskSummary.data}
             supportList={supportList}
+            onManageServices={() => openDeliveryView('services')}
             onManageTeam={() => openDeliveryView('team')}
             onPrepareHandoff={() => openDeliveryView(roughEdgeCount ? 'team' : 'handoff')}
-            onReviewProof={() => openDeliveryView('proof', { proofView: assignedFindingCount ? 'findings' : 'readiness' })}
+            onReviewProof={() =>
+              openDeliveryView('proof', {
+                proofView: assignedFindingCount ? 'findings' : 'readiness',
+              })
+            }
           />
 
           <DeliveryHero
@@ -289,6 +345,7 @@ export default function OwnerProductDeliveryWorkspace({
             participantCount={participantCount}
             readinessBlockers={readiness?.blockerCount || 0}
             roughEdgeCount={roughEdgeCount}
+            serviceCount={packageModuleList.length}
             supportCount={supportList.length}
             onChange={openDeliveryView}
           />
@@ -297,18 +354,39 @@ export default function OwnerProductDeliveryWorkspace({
 
       {workspaceView !== 'overview' && (
         <Surface sx={{ py: 1.25 }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} justifyContent="space-between">
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            alignItems={{ sm: 'center' }}
+            justifyContent="space-between"
+          >
             <Stack spacing={0.25}>
               <Typography variant="body2" color="text.secondary">
                 Delivery internal page
               </Typography>
               <Typography variant="h4">{deliveryViewLabels[workspaceView]}</Typography>
             </Stack>
-            <Button variant="outlined" onClick={() => openDeliveryView('overview')} sx={{ minHeight: 40, alignSelf: { xs: 'stretch', sm: 'center' } }}>
+            <Button
+              variant="outlined"
+              onClick={() => openDeliveryView('overview')}
+              sx={{ minHeight: 40, alignSelf: { xs: 'stretch', sm: 'center' } }}
+            >
               Back to delivery overview
             </Button>
           </Stack>
         </Surface>
+      )}
+
+      {workspaceView === 'services' && (
+        <WorkspaceCommandServicesPanel
+          canCoordinate={canCoordinate}
+          catalogModules={catalogModuleList}
+          packageModules={packageModuleList}
+          isAssigningService={assignService.isPending}
+          removingServiceId={removeService.isPending ? String(removeService.variables || '') : null}
+          onAssignService={serviceModuleId => assignService.mutate(serviceModuleId)}
+          onRemoveService={packageModuleId => removeService.mutate(packageModuleId)}
+        />
       )}
 
       {workspaceView === 'proof' && (
@@ -349,9 +427,13 @@ export default function OwnerProductDeliveryWorkspace({
           isUpdatingEvidenceRequirement={updateEvidenceRequirement.isPending}
           isCreatingCheck={createCheck.isPending}
           isReviewingCriterion={reviewCriterion.isPending}
-          canSubmitScannerEvidence={!!effectiveProductId && !!scannerUploadForm.toolName.trim() && !!scannerUploadForm.artifactPayload.trim()}
+          canSubmitScannerEvidence={
+            !!effectiveProductId &&
+            !!scannerUploadForm.toolName.trim() &&
+            !!scannerUploadForm.artifactPayload.trim()
+          }
           lastCheckFixes={checkFixes.data}
-          onCheckFixes={(riskIds) => checkFixes.mutate(riskIds)}
+          onCheckFixes={riskIds => checkFixes.mutate(riskIds)}
           onCreateMilestone={() => createMilestone.mutate()}
           onCreateDeliverable={() => createDeliverable.mutate()}
           onSelectMilestone={setSelectedMilestoneId}
@@ -360,12 +442,16 @@ export default function OwnerProductDeliveryWorkspace({
           onGenerateLaunchReport={() => generateLaunchReadinessReport.mutate()}
           onRefreshReadiness={() => enrichScannerReadiness.mutate()}
           onGenerateCriteria={() => generateCriteria.mutate()}
-          onUpdateEvidenceRequirement={(id, payload) => updateEvidenceRequirement.mutate({ id, payload })}
+          onUpdateEvidenceRequirement={(id, payload) =>
+            updateEvidenceRequirement.mutate({ id, payload })
+          }
           onCreateCheck={(criterionId, payload) => createCheck.mutate({ criterionId, payload })}
-          onReviewCriterion={(criterionId, payload) => reviewCriterion.mutate({ criterionId, payload })}
+          onReviewCriterion={(criterionId, payload) =>
+            reviewCriterion.mutate({ criterionId, payload })
+          }
           evidencePanel={evidencePanel}
           onOpenHub={() => openDeliveryView('proof')}
-          onViewChange={(proofView) => openDeliveryView('proof', { proofView })}
+          onViewChange={proofView => openDeliveryView('proof', { proofView })}
         />
       )}
 
@@ -394,12 +480,20 @@ export default function OwnerProductDeliveryWorkspace({
           onUpdateSupport={(id, payload) => updateSupport.mutate({ id, payload })}
           onCreateDispute={() => createDispute.mutate()}
           onUpdateDispute={(id, payload) => updateDispute.mutate({ id, payload })}
-          onSupportStatusChange={(id, status) => setSupportStatusById((current) => ({ ...current, [id]: status }))}
-          onSupportResolutionChange={(id, resolution) => setSupportResolutionById((current) => ({ ...current, [id]: resolution }))}
-          onDisputeStatusChange={(id, status) => setDisputeStatusById((current) => ({ ...current, [id]: status }))}
-          onDisputeResolutionChange={(id, resolution) => setDisputeResolutionById((current) => ({ ...current, [id]: resolution }))}
+          onSupportStatusChange={(id, status) =>
+            setSupportStatusById(current => ({ ...current, [id]: status }))
+          }
+          onSupportResolutionChange={(id, resolution) =>
+            setSupportResolutionById(current => ({ ...current, [id]: resolution }))
+          }
+          onDisputeStatusChange={(id, status) =>
+            setDisputeStatusById(current => ({ ...current, [id]: status }))
+          }
+          onDisputeResolutionChange={(id, resolution) =>
+            setDisputeResolutionById(current => ({ ...current, [id]: resolution }))
+          }
           onOpenHub={() => openDeliveryView('team')}
-          onViewChange={(teamView) => openDeliveryView('team', { teamView })}
+          onViewChange={teamView => openDeliveryView('team', { teamView })}
           evidencePanel={evidencePanel}
         />
       )}
@@ -410,7 +504,11 @@ export default function OwnerProductDeliveryWorkspace({
           workspace={activeWorkspace}
           productId={effectiveProductId}
           selectedMilestone={selectedMilestone}
-          completedCheckpointCount={milestoneList.filter((milestone) => ['ACCEPTED', 'COMPLETED', 'DONE'].includes(milestone.status)).length}
+          completedCheckpointCount={
+            milestoneList.filter(milestone =>
+              ['ACCEPTED', 'COMPLETED', 'DONE'].includes(milestone.status)
+            ).length
+          }
           milestoneCount={milestoneList.length}
           supportCount={supportList.length}
           riskCount={disputeList.length}
@@ -429,26 +527,38 @@ export default function OwnerProductDeliveryWorkspace({
           onIntegrationProviderChange={setIntegrationProvider}
           onPrepareHandoff={() => upsertHandoff.mutate()}
           onPublishHealthReview={() => createHealthReview.mutate()}
-          onCreateIntegration={(providerType) => createIntegration.mutate({
-            providerType,
-            name: `${formatLabel(providerType)} workspace connection`,
-            externalRef: `${activeWorkspace.name}-${providerType.toLowerCase()}`,
-            scopedAccessNote: 'Workspace-scoped access only; no long-lived broad permissions recorded.',
-            status: 'CONFIGURED',
-          })}
-          onRecordIntegrationSignal={(connectionId) => createIntegrationSignal.mutate({
-            connectionId,
-            payload: {
-              ...(selectedMilestone?.id ? { milestoneId: selectedMilestone.id } : {}),
-              ...(selectedMilestoneCriteria[0]?.id ? { criterionId: selectedMilestoneCriteria[0].id } : {}),
-              signalType: 'workspace-readiness-signal',
-              status: missingEvidenceCount ? 'WARNING' : 'PASSED',
-              summary: missingEvidenceCount ? 'Integration signal recorded with missing acceptance evidence.' : 'Integration signal supports current acceptance evidence.',
-              evidencePayload: JSON.stringify({ workspaceId: activeWorkspace.id, missingEvidenceCount }),
-            },
-          })}
+          onCreateIntegration={providerType =>
+            createIntegration.mutate({
+              providerType,
+              name: `${formatLabel(providerType)} workspace connection`,
+              externalRef: `${activeWorkspace.name}-${providerType.toLowerCase()}`,
+              scopedAccessNote:
+                'Workspace-scoped access only; no long-lived broad permissions recorded.',
+              status: 'CONFIGURED',
+            })
+          }
+          onRecordIntegrationSignal={connectionId =>
+            createIntegrationSignal.mutate({
+              connectionId,
+              payload: {
+                ...(selectedMilestone?.id ? { milestoneId: selectedMilestone.id } : {}),
+                ...(selectedMilestoneCriteria[0]?.id
+                  ? { criterionId: selectedMilestoneCriteria[0].id }
+                  : {}),
+                signalType: 'workspace-readiness-signal',
+                status: missingEvidenceCount ? 'WARNING' : 'PASSED',
+                summary: missingEvidenceCount
+                  ? 'Integration signal recorded with missing acceptance evidence.'
+                  : 'Integration signal supports current acceptance evidence.',
+                evidencePayload: JSON.stringify({
+                  workspaceId: activeWorkspace.id,
+                  missingEvidenceCount,
+                }),
+              },
+            })
+          }
           onOpenHub={() => openDeliveryView('handoff')}
-          onViewChange={(handoffView) => openDeliveryView('handoff', { handoffView })}
+          onViewChange={handoffView => openDeliveryView('handoff', { handoffView })}
         />
       )}
     </Stack>

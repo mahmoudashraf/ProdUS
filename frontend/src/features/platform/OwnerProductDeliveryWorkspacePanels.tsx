@@ -1,13 +1,15 @@
 'use client';
 
-import NextLink from 'next/link';
 import {
   AssignmentTurnedInOutlined,
   FactCheckOutlined,
   GroupsOutlined,
   HandshakeOutlined,
+  LocalOfferOutlined,
 } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
+import NextLink from 'next/link';
+
 import {
   DotLabel,
   PastelChip,
@@ -17,8 +19,6 @@ import {
   appleColors,
 } from './PlatformComponents';
 import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
-import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
-import WorkspaceOverviewFocusPanel from './WorkspaceOverviewFocusPanel';
 import type {
   PackageModule,
   ProductProfile,
@@ -27,7 +27,9 @@ import type {
   SupportRequest,
   WorkspaceParticipant,
 } from './types';
+import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import { workspaceAccent } from './workspaceCommandTeamTypes';
+import WorkspaceOverviewFocusPanel from './WorkspaceOverviewFocusPanel';
 
 export function DeliveryHero({
   activeWorkspace,
@@ -64,19 +66,34 @@ export function DeliveryHero({
 
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f5fbf8 100%)' }}>
-      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} alignItems={{ lg: 'center' }} justifyContent="space-between">
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} sx={{ minWidth: 0 }}>
+      <Stack
+        direction={{ xs: 'column', lg: 'row' }}
+        spacing={2.5}
+        alignItems={{ lg: 'center' }}
+        justifyContent="space-between"
+      >
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
+          alignItems={{ sm: 'center' }}
+          sx={{ minWidth: 0 }}
+        >
           <ProgressRing value={workspaceProgress} size={104} color={accent} label="done" />
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
               <PastelChip label="Product work room" accent={appleColors.green} bg="#e7f8ee" />
               <StatusChip label={activeWorkspace.status} />
             </Stack>
-            <Typography variant="h2" sx={{ mt: 1, fontSize: { xs: 28, md: 34 }, overflowWrap: 'anywhere' }}>
+            <Typography
+              variant="h2"
+              sx={{ mt: 1, fontSize: { xs: 28, md: 34 }, overflowWrap: 'anywhere' }}
+            >
               {activeWorkspace.name}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65, maxWidth: 780 }}>
-              {activeWorkspace.packageInstance?.name || 'Workspace plan'} for {product.name}. This is where selected services, fixes, people, proof, and handoff become practical product work.
+              {activeWorkspace.packageInstance?.name || 'Workspace plan'} for {product.name}. This
+              is where selected services, fixes, people, proof, and handoff become practical product
+              work.
             </Typography>
           </Box>
         </Stack>
@@ -85,7 +102,12 @@ export function DeliveryHero({
           <Button variant="contained" onClick={onNextAction} sx={{ minHeight: 44 }}>
             Next delivery action
           </Button>
-          <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" sx={{ minHeight: 44 }}>
+          <Button
+            component={NextLink}
+            href={PROJECT_START_PLAN_HREF}
+            variant="outlined"
+            sx={{ minHeight: 44 }}
+          >
             Plan work
           </Button>
           {workspaceCount > 1 && (
@@ -97,11 +119,21 @@ export function DeliveryHero({
       </Stack>
 
       <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>
-        <DotLabel label={`${completedMilestones}/${milestoneCount || 0} checkpoints done`} color={accent} />
+        <DotLabel
+          label={`${completedMilestones}/${milestoneCount || 0} checkpoints done`}
+          color={accent}
+        />
         <DotLabel label={`${deliverableCount} fixes`} color={appleColors.green} />
         <DotLabel label={`${proofFileCount} proof files`} color={appleColors.blue} />
         <DotLabel label={`${participantCount} people`} color={appleColors.cyan} />
-        <DotLabel label={`${readinessBlockers + missingEvidenceCount + roughEdgeCount} items need attention`} color={readinessBlockers + missingEvidenceCount + roughEdgeCount ? appleColors.amber : appleColors.green} />
+        <DotLabel
+          label={`${readinessBlockers + missingEvidenceCount + roughEdgeCount} items need attention`}
+          color={
+            readinessBlockers + missingEvidenceCount + roughEdgeCount
+              ? appleColors.amber
+              : appleColors.green
+          }
+        />
       </Stack>
     </Surface>
   );
@@ -117,6 +149,7 @@ export function DeliveryJourneyCards({
   participantCount,
   readinessBlockers,
   roughEdgeCount,
+  serviceCount,
   supportCount,
   onChange,
 }: {
@@ -129,6 +162,7 @@ export function DeliveryJourneyCards({
   participantCount: number;
   readinessBlockers: number;
   roughEdgeCount: number;
+  serviceCount: number;
   supportCount: number;
   onChange: (view: WorkspaceCommandView) => void;
 }) {
@@ -142,13 +176,26 @@ export function DeliveryJourneyCards({
       icon: <AssignmentTurnedInOutlined />,
     },
     {
+      value: 'services' as const,
+      title: 'Services',
+      detail: 'Choose what work belongs in this workspace.',
+      meta: `${serviceCount} selected`,
+      accent: serviceCount ? appleColors.purple : appleColors.amber,
+      icon: <LocalOfferOutlined />,
+    },
+    {
       value: 'proof' as const,
       title: 'Findings & proof',
       detail: 'Assigned scanner findings, fix steps, proof files, and acceptance checks.',
       meta: assignedFindingCount
         ? `${assignedFindingCount} finding${assignedFindingCount === 1 ? '' : 's'}`
         : `${readinessBlockers + missingEvidenceCount} gaps`,
-      accent: assignedFindingCount || readinessBlockers ? appleColors.red : missingEvidenceCount ? appleColors.amber : appleColors.blue,
+      accent:
+        assignedFindingCount || readinessBlockers
+          ? appleColors.red
+          : missingEvidenceCount
+            ? appleColors.amber
+            : appleColors.blue,
       icon: <FactCheckOutlined />,
     },
     {
@@ -170,8 +217,18 @@ export function DeliveryJourneyCards({
   ];
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(4, minmax(0, 1fr))' }, gap: 1.25 }}>
-      {items.map((item) => {
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: '1fr',
+          md: 'repeat(2, minmax(0, 1fr))',
+          xl: 'repeat(5, minmax(0, 1fr))',
+        },
+        gap: 1.25,
+      }}
+    >
+      {items.map(item => {
         const selected = currentView === item.value;
         return (
           <Box
@@ -185,7 +242,9 @@ export function DeliveryJourneyCards({
               borderColor: selected ? `${item.accent}85` : appleColors.line,
               borderRadius: 1.25,
               bgcolor: selected ? `${item.accent}10` : '#ffffff',
-              boxShadow: selected ? `0 18px 34px ${item.accent}16` : '0 10px 24px rgba(15, 23, 42, 0.04)',
+              boxShadow: selected
+                ? `0 18px 34px ${item.accent}16`
+                : '0 10px 24px rgba(15, 23, 42, 0.04)',
               color: 'inherit',
               cursor: 'pointer',
               display: 'block',
@@ -230,6 +289,7 @@ export function DeliveryOverview({
   riskSummary,
   supportList,
   onManageTeam,
+  onManageServices,
   onPrepareHandoff,
   onReviewProof,
 }: {
@@ -240,6 +300,7 @@ export function DeliveryOverview({
   riskSummary?: ScannerRiskSummary | undefined;
   supportList: SupportRequest[];
   onManageTeam: () => void;
+  onManageServices: () => void;
   onPrepareHandoff: () => void;
   onReviewProof: () => void;
 }) {
@@ -253,6 +314,7 @@ export function DeliveryOverview({
       missingEvidenceCount={missingEvidenceCount}
       onOpenFindings={onReviewProof}
       onOpenHandoff={onPrepareHandoff}
+      onOpenServices={onManageServices}
       onOpenTeam={onManageTeam}
     />
   );

@@ -1,7 +1,6 @@
 // third-party
 import {
   IconBriefcase,
-  IconBuildingCommunity,
   IconChecklist,
   IconDashboard,
   IconPackage,
@@ -14,12 +13,11 @@ import {
 } from '@tabler/icons-react';
 
 // type
-import { NavItemType } from 'types';
 import { UserRole } from '@/types/auth';
+import { NavItemType } from 'types';
 
 const icons = {
   IconBriefcase,
-  IconBuildingCommunity,
   IconChecklist,
   IconDashboard,
   IconPackage,
@@ -45,7 +43,7 @@ const produs: NavItemType = {
       url: '/dashboard',
       icon: icons.IconDashboard,
       roles: [UserRole.ADMIN],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'owner-productization',
@@ -54,7 +52,7 @@ const produs: NavItemType = {
       url: '/dashboard',
       icon: icons.IconBriefcase,
       roles: [UserRole.PRODUCT_OWNER],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'team-delivery',
@@ -63,7 +61,7 @@ const produs: NavItemType = {
       url: '/dashboard',
       icon: icons.IconDashboard,
       roles: [UserRole.TEAM_MANAGER, UserRole.SPECIALIST, UserRole.ADVISOR],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'catalog',
@@ -72,7 +70,7 @@ const produs: NavItemType = {
       url: '/catalog',
       icon: icons.IconVocabulary,
       roles: [UserRole.ADMIN, UserRole.PRODUCT_OWNER],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'products',
@@ -81,7 +79,7 @@ const produs: NavItemType = {
       url: '/products',
       icon: icons.IconBriefcase,
       roles: [UserRole.ADMIN],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'requirements',
@@ -90,7 +88,7 @@ const produs: NavItemType = {
       url: '/owner/requirements',
       icon: icons.IconChecklist,
       roles: [UserRole.ADMIN, UserRole.PRODUCT_OWNER],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'packages',
@@ -99,7 +97,7 @@ const produs: NavItemType = {
       url: '/packages',
       icon: icons.IconPackage,
       roles: [UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'expert-network',
@@ -108,7 +106,7 @@ const produs: NavItemType = {
       url: '/expert-network',
       icon: icons.IconSparkles,
       roles: [UserRole.ADMIN, UserRole.TEAM_MANAGER, UserRole.SPECIALIST, UserRole.ADVISOR],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'teams',
@@ -117,16 +115,7 @@ const produs: NavItemType = {
       url: '/teams',
       icon: icons.IconUsers,
       roles: [UserRole.ADMIN, UserRole.TEAM_MANAGER, UserRole.SPECIALIST, UserRole.ADVISOR],
-      breadcrumbs: true
-    },
-    {
-      id: 'workspaces',
-      title: 'Active Workspaces',
-      type: 'item',
-      url: '/workspaces',
-      icon: icons.IconBuildingCommunity,
-      roles: [UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER, UserRole.SPECIALIST, UserRole.ADVISOR],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'admin-catalog',
@@ -135,7 +124,7 @@ const produs: NavItemType = {
       url: '/admin/catalog',
       icon: icons.IconSettings,
       roles: [UserRole.ADMIN],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'ai-recommendations',
@@ -144,7 +133,7 @@ const produs: NavItemType = {
       url: '/admin/recommendations',
       icon: icons.IconRobot,
       roles: [UserRole.ADMIN],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'scanner-operations',
@@ -153,7 +142,7 @@ const produs: NavItemType = {
       url: '/admin/scanners',
       icon: icons.IconScan,
       roles: [UserRole.ADMIN],
-      breadcrumbs: true
+      breadcrumbs: true,
     },
     {
       id: 'diagnosis-quality',
@@ -162,9 +151,9 @@ const produs: NavItemType = {
       url: '/admin/diagnosis-quality',
       icon: icons.IconChecklist,
       roles: [UserRole.ADMIN],
-      breadcrumbs: true
-    }
-  ]
+      breadcrumbs: true,
+    },
+  ],
 };
 
 export default produs;

@@ -226,6 +226,14 @@ When a service is added:
 This adds API Security Review to this workspace and creates a matching milestone.
 ```
 
+Current implementation path:
+
+- Read selected services from `GET /api/workspaces/{workspaceId}/services`.
+- Add a service with `POST /api/workspaces/{workspaceId}/services`.
+- Remove a service with `DELETE /api/workspaces/{workspaceId}/services/{packageModuleId}`.
+- Store the selected service as the workspace package module for now, so product summary and workspace scope do not drift apart.
+- Create a matching milestone when a new service is added, unless the caller explicitly opts out.
+
 ### Team
 
 Purpose:
@@ -247,6 +255,13 @@ Add someone who can handle this work.
 ```
 
 Avoid enterprise labels like `resource allocation`, `change request`, or `governance`.
+
+Current implementation path:
+
+- Show the selected team inside Workspace > Team.
+- Use workspace support/team requests as the current source of attached teams until a dedicated workspace-team assignment table is needed.
+- Provide a direct link from each selected team to its team profile page.
+- Keep participant editing in the same Team area, because owners should not need a separate admin page to adjust who is helping.
 
 ### Fixes
 

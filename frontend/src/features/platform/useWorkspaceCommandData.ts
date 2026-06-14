@@ -1,10 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
+
 import { getJson } from './api';
-import { useWorkspaceCommandMilestoneSelection, useWorkspaceCommandSelection } from './useWorkspaceCommandSelection';
-import { useWorkspaceEvidenceAttachmentControls } from './useWorkspaceEvidenceAttachmentControls';
 import type {
   Deliverable,
   DisputeCase,
@@ -14,6 +13,7 @@ import type {
   PackageModule,
   ProjectWorkspace,
   ScannerEvidenceItem,
+  ServiceModule,
   ShipConfidenceHistory,
   SupportRequest,
   Team,
@@ -21,42 +21,59 @@ import type {
   WorkspaceParticipant,
   WorkspaceScannerReadiness,
 } from './types';
+import {
+  useWorkspaceCommandMilestoneSelection,
+  useWorkspaceCommandSelection,
+} from './useWorkspaceCommandSelection';
+import { useWorkspaceEvidenceAttachmentControls } from './useWorkspaceEvidenceAttachmentControls';
 
-interface WorkspaceCommandDataInput {
+interface IWorkspaceCommandDataInput {
   canAttachEvidence: boolean;
   productId?: string | undefined;
   selectedWorkspaceId?: string | null;
 }
 
-export function useWorkspaceCommandData({ canAttachEvidence, productId, selectedWorkspaceId }: WorkspaceCommandDataInput) {
-  const packages = useQuery({ queryKey: ['packages'], queryFn: () => getJson<PackageInstance[]>('/packages') });
-  const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: () => getJson<ProjectWorkspace[]>('/workspaces') });
+export function useWorkspaceCommandData({
+  canAttachEvidence,
+  productId,
+  selectedWorkspaceId,
+}: IWorkspaceCommandDataInput) {
+  const packages = useQuery({
+    queryKey: ['packages'],
+    queryFn: () => getJson<PackageInstance[]>('/packages'),
+  });
+  const workspaces = useQuery({
+    queryKey: ['workspaces'],
+    queryFn: () => getJson<ProjectWorkspace[]>('/workspaces'),
+  });
   const teams = useQuery({ queryKey: ['teams'], queryFn: () => getJson<Team[]>('/teams') });
+  const catalogModules = useQuery({
+    queryKey: ['catalog-modules'],
+    queryFn: () => getJson<ServiceModule[]>('/catalog/modules'),
+  });
   const allPackages = packages.data || [];
   const allWorkspaces = workspaces.data || [];
   const packageList = useMemo(
-    () => productId
-      ? allPackages.filter((item) => item.productProfile?.id === productId)
-      : allPackages,
+    () =>
+      productId ? allPackages.filter(item => item.productProfile?.id === productId) : allPackages,
     [allPackages, productId]
   );
   const productWorkspaceList = useMemo(
-    () => productId
-      ? allWorkspaces.filter((workspace) => workspace.packageInstance?.productProfile?.id === productId)
-      : allWorkspaces,
+    () =>
+      productId
+        ? allWorkspaces.filter(
+            workspace => workspace.packageInstance?.productProfile?.id === productId
+          )
+        : allWorkspaces,
     [allWorkspaces, productId]
   );
 
-  const {
-    selectedWorkspace,
-    selectedWorkspaceProductId,
-    setSelectedWorkspaceId,
-    workspaceList,
-  } = useWorkspaceCommandSelection(productWorkspaceList, selectedWorkspaceId);
+  const { selectedWorkspace, selectedWorkspaceProductId, setSelectedWorkspaceId, workspaceList } =
+    useWorkspaceCommandSelection(productWorkspaceList, selectedWorkspaceId);
   const packageModules = useQuery({
-    queryKey: ['packages', selectedWorkspace?.packageInstance?.id, 'modules'],
-    enabled: !!selectedWorkspace?.packageInstance?.id,
-    queryFn: () => getJson<PackageModule[]>(`/packages/${selectedWorkspace?.packageInstance?.id}/modules`),
+    queryKey: ['workspaces', selectedWorkspace?.id, 'services'],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () => getJson<PackageModule[]>(`/workspaces/${selectedWorkspace?.id}/services`),
   });
 
   const milestones = useQuery({
@@ -65,26 +82,26 @@ export function useWorkspaceCommandData({ canAttachEvidence, productId, selected
     queryFn: () => getJson<Milestone[]>(`/workspaces/${selectedWorkspace?.id}/milestones`),
   });
   const milestoneList = milestones.data || [];
-  const {
-    clearSelectedMilestone,
-    selectedMilestone,
-    setSelectedMilestoneId,
-  } = useWorkspaceCommandMilestoneSelection(milestoneList);
+  const { clearSelectedMilestone, selectedMilestone, setSelectedMilestoneId } =
+    useWorkspaceCommandMilestoneSelection(milestoneList);
 
   const deliverables = useQuery({
     queryKey: ['workspaces', 'milestones', selectedMilestone?.id, 'deliverables'],
     enabled: !!selectedMilestone?.id,
-    queryFn: () => getJson<Deliverable[]>(`/workspaces/milestones/${selectedMilestone?.id}/deliverables`),
+    queryFn: () =>
+      getJson<Deliverable[]>(`/workspaces/milestones/${selectedMilestone?.id}/deliverables`),
   });
   const participants = useQuery({
     queryKey: ['workspaces', selectedWorkspace?.id, 'participants'],
     enabled: !!selectedWorkspace?.id,
-    queryFn: () => getJson<WorkspaceParticipant[]>(`/workspaces/${selectedWorkspace?.id}/participants`),
+    queryFn: () =>
+      getJson<WorkspaceParticipant[]>(`/workspaces/${selectedWorkspace?.id}/participants`),
   });
   const supportRequests = useQuery({
     queryKey: ['commerce-support-requests', selectedWorkspace?.id],
     enabled: !!selectedWorkspace?.id,
-    queryFn: () => getJson<SupportRequest[]>(`/commerce/workspaces/${selectedWorkspace?.id}/support-requests`),
+    queryFn: () =>
+      getJson<SupportRequest[]>(`/commerce/workspaces/${selectedWorkspace?.id}/support-requests`),
   });
   const disputes = useQuery({
     queryKey: ['commerce-disputes', selectedWorkspace?.id],
@@ -98,22 +115,32 @@ export function useWorkspaceCommandData({ canAttachEvidence, productId, selected
   const governance = useQuery({
     queryKey: ['productization-engine', 'workspace-governance', selectedWorkspace?.id],
     enabled: !!selectedWorkspace?.id,
-    queryFn: () => getJson<WorkspaceGovernance>(`/productization-engine/workspaces/${selectedWorkspace?.id}/governance`),
+    queryFn: () =>
+      getJson<WorkspaceGovernance>(
+        `/productization-engine/workspaces/${selectedWorkspace?.id}/governance`
+      ),
   });
   const scannerEvidence = useQuery({
     queryKey: ['scanner-evidence', selectedWorkspace?.id],
     enabled: !!selectedWorkspace?.id,
-    queryFn: () => getJson<ScannerEvidenceItem[]>(`/scanner/evidence?workspaceId=${selectedWorkspace?.id}`),
+    queryFn: () =>
+      getJson<ScannerEvidenceItem[]>(`/scanner/evidence?workspaceId=${selectedWorkspace?.id}`),
   });
   const workspaceScannerReadiness = useQuery({
     queryKey: ['productization-engine', 'workspace-scanner-readiness', selectedWorkspace?.id],
     enabled: !!selectedWorkspace?.id,
-    queryFn: () => getJson<WorkspaceScannerReadiness>(`/productization-engine/workspaces/${selectedWorkspace?.id}/scanner-readiness`),
+    queryFn: () =>
+      getJson<WorkspaceScannerReadiness>(
+        `/productization-engine/workspaces/${selectedWorkspace?.id}/scanner-readiness`
+      ),
   });
   const shipConfidence = useQuery({
     queryKey: ['productization-engine', 'workspace-ship-confidence', selectedWorkspace?.id],
     enabled: !!selectedWorkspace?.id,
-    queryFn: () => getJson<ShipConfidenceHistory>(`/productization-engine/workspaces/${selectedWorkspace?.id}/ship-confidence`),
+    queryFn: () =>
+      getJson<ShipConfidenceHistory>(
+        `/productization-engine/workspaces/${selectedWorkspace?.id}/ship-confidence`
+      ),
   });
   const launchReadinessReport = useQuery({
     queryKey: ['productization-engine', 'workspace-launch-readiness-report', selectedWorkspace?.id],
@@ -121,9 +148,14 @@ export function useWorkspaceCommandData({ canAttachEvidence, productId, selected
     retry: false,
     queryFn: async () => {
       try {
-        return await getJson<LaunchReadinessReport>(`/productization-engine/workspaces/${selectedWorkspace?.id}/launch-readiness-report/latest`);
+        return await getJson<LaunchReadinessReport>(
+          `/productization-engine/workspaces/${selectedWorkspace?.id}/launch-readiness-report/latest`
+        );
       } catch (error: any) {
-        if (error?.response?.status === 400 && String(error?.response?.data?.detail || '').includes('No launch readiness report')) {
+        if (
+          error?.response?.status === 400 &&
+          String(error?.response?.data?.detail || '').includes('No launch readiness report')
+        ) {
           return null;
         }
         throw error;
@@ -132,6 +164,7 @@ export function useWorkspaceCommandData({ canAttachEvidence, productId, selected
   });
 
   const deliverableList = deliverables.data || [];
+  const catalogModuleList = catalogModules.data || [];
   const packageModuleList = packageModules.data || [];
   const participantList = participants.data || [];
   const supportList = supportRequests.data || [];
@@ -142,6 +175,7 @@ export function useWorkspaceCommandData({ canAttachEvidence, productId, selected
     packages,
     workspaces,
     teams,
+    catalogModules,
     packageModules,
     milestones,
     deliverables,
@@ -159,6 +193,8 @@ export function useWorkspaceCommandData({ canAttachEvidence, productId, selected
   return {
     ...attachmentControls,
     clearSelectedMilestone,
+    catalogModuleList,
+    catalogModules,
     deliverableList,
     deliverables,
     disputeList,
@@ -173,8 +209,8 @@ export function useWorkspaceCommandData({ canAttachEvidence, productId, selected
     packages,
     participantList,
     participants,
-    queriesLoading: queries.some((query) => query.isLoading),
-    queryError: queries.find((query) => query.error)?.error,
+    queriesLoading: queries.some(query => query.isLoading),
+    queryError: queries.find(query => query.error)?.error,
     readiness,
     scannerEvidence,
     scannerEvidenceList,

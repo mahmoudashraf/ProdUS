@@ -1,10 +1,11 @@
 'use client';
 
-import type { ReactNode } from 'react';
 import GroupsOutlined from '@mui/icons-material/GroupsOutlined';
 import LocalOfferOutlined from '@mui/icons-material/LocalOfferOutlined';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
 import { Box, Button, Stack, Typography } from '@mui/material';
+import type { ReactNode } from 'react';
+
 import { PastelChip, Surface, appleColors, formatLabel } from './PlatformComponents';
 import type {
   PackageModule,
@@ -16,9 +17,16 @@ import type {
   WorkspaceParticipant,
 } from './types';
 
-const activeRiskStates: ScannerRiskState[] = ['NEW', 'STILL_OPEN', 'RETURNED', 'READY_TO_CHECK', 'NEEDS_PROOF', 'INCOMPLETE_CHECK'];
+const activeRiskStates: ScannerRiskState[] = [
+  'NEW',
+  'STILL_OPEN',
+  'RETURNED',
+  'READY_TO_CHECK',
+  'NEEDS_PROOF',
+  'INCOMPLETE_CHECK',
+];
 
-interface WorkspaceOverviewFocusPanelProps {
+interface IWorkspaceOverviewFocusPanelProps {
   workspace: ProjectWorkspace;
   packageModules: PackageModule[];
   participantList: WorkspaceParticipant[];
@@ -27,6 +35,7 @@ interface WorkspaceOverviewFocusPanelProps {
   missingEvidenceCount: number;
   onOpenFindings: () => void;
   onOpenHandoff: () => void;
+  onOpenServices: () => void;
   onOpenTeam: () => void;
 }
 
@@ -39,19 +48,20 @@ export default function WorkspaceOverviewFocusPanel({
   missingEvidenceCount,
   onOpenFindings,
   onOpenHandoff,
+  onOpenServices,
   onOpenTeam,
-}: WorkspaceOverviewFocusPanelProps) {
-  const risks = riskSummary?.groups.flatMap((group) => group.risks) || [];
-  const activeRisks = risks.filter((risk) => activeRiskStates.includes(risk.currentState));
-  const fixedRisks = risks.filter((risk) => risk.currentState === 'FIXED_BY_LATEST_SCAN');
+}: IWorkspaceOverviewFocusPanelProps) {
+  const risks = riskSummary?.groups.flatMap(group => group.risks) || [];
+  const activeRisks = risks.filter(risk => activeRiskStates.includes(risk.currentState));
+  const fixedRisks = risks.filter(risk => risk.currentState === 'FIXED_BY_LATEST_SCAN');
   const recentRisks = [...activeRisks, ...fixedRisks]
     .sort((a, b) => timestamp(b.updatedAt || b.createdAt) - timestamp(a.updatedAt || a.createdAt))
     .slice(0, 3);
   const visibleModules = [...packageModules]
     .sort((a, b) => a.sequenceOrder - b.sequenceOrder)
     .slice(0, 4);
-  const requiredModuleCount = packageModules.filter((module) => module.required).length;
-  const activeParticipants = participantList.filter((participant) => participant.active);
+  const requiredModuleCount = packageModules.filter(module => module.required).length;
+  const activeParticipants = participantList.filter(participant => participant.active);
   const supportTeams = uniqueSupportTeams(supportList);
   const hasPeople = activeParticipants.length > 0 || supportTeams.length > 0;
   const answer = answerForWorkspace({
@@ -64,7 +74,12 @@ export default function WorkspaceOverviewFocusPanel({
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
       <Stack spacing={2}>
-        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ lg: 'flex-start' }}>
+        <Stack
+          direction={{ xs: 'column', lg: 'row' }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ lg: 'flex-start' }}
+        >
           <Box sx={{ minWidth: 0 }}>
             <PastelChip label="Workspace answer" accent={answer.accent} bg={answer.bg} />
             <Typography variant="h3" sx={{ mt: 0.9, fontSize: { xs: 24, md: 30 }, maxWidth: 760 }}>
@@ -74,8 +89,24 @@ export default function WorkspaceOverviewFocusPanel({
               {answer.detail}
             </Typography>
           </Box>
-          <Stack direction={{ xs: 'column', sm: 'row', lg: 'column' }} spacing={1} sx={{ width: { xs: '100%', lg: 230 }, flex: '0 0 auto' }}>
-            <Button variant="contained" onClick={answer.primaryAction === 'team' ? onOpenTeam : answer.primaryAction === 'handoff' ? onOpenHandoff : onOpenFindings} sx={{ minHeight: 42 }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row', lg: 'column' }}
+            spacing={1}
+            sx={{ width: { xs: '100%', lg: 230 }, flex: '0 0 auto' }}
+          >
+            <Button
+              variant="contained"
+              onClick={
+                answer.primaryAction === 'team'
+                  ? onOpenTeam
+                  : answer.primaryAction === 'handoff'
+                    ? onOpenHandoff
+                    : answer.primaryAction === 'services'
+                      ? onOpenServices
+                      : onOpenFindings
+              }
+              sx={{ minHeight: 42 }}
+            >
               {answer.button}
             </Button>
             <Button variant="outlined" onClick={onOpenTeam} sx={{ minHeight: 42 }}>
@@ -84,11 +115,23 @@ export default function WorkspaceOverviewFocusPanel({
           </Stack>
         </Stack>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.15fr 1fr 1fr' }, gap: 1.25 }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: '1.15fr 1fr 1fr' },
+            gap: 1.25,
+          }}
+        >
           <AnswerBlock
             icon={<WarningAmberOutlined fontSize="small" />}
             title="Findings in this workspace"
-            accent={activeRisks.length ? appleColors.red : fixedRisks.length ? appleColors.green : appleColors.blue}
+            accent={
+              activeRisks.length
+                ? appleColors.red
+                : fixedRisks.length
+                  ? appleColors.green
+                  : appleColors.blue
+            }
             actionLabel="Open findings"
             onAction={onOpenFindings}
             chips={[
@@ -98,7 +141,9 @@ export default function WorkspaceOverviewFocusPanel({
           >
             {recentRisks.length ? (
               <Stack spacing={0.8}>
-                {recentRisks.map((risk) => <FindingLine key={risk.id} risk={risk} />)}
+                {recentRisks.map(risk => (
+                  <FindingLine key={risk.id} risk={risk} />
+                ))}
               </Stack>
             ) : (
               <EmptyCopy text="No scanner findings have been assigned to this workspace yet." />
@@ -109,6 +154,8 @@ export default function WorkspaceOverviewFocusPanel({
             icon={<LocalOfferOutlined fontSize="small" />}
             title="Services included"
             accent={packageModules.length ? appleColors.purple : appleColors.amber}
+            actionLabel="Manage services"
+            onAction={onOpenServices}
             chips={[
               packageModules.length ? `${packageModules.length} selected` : 'No service list',
               requiredModuleCount ? `${requiredModuleCount} required` : '',
@@ -116,17 +163,22 @@ export default function WorkspaceOverviewFocusPanel({
           >
             {visibleModules.length ? (
               <Stack spacing={0.8}>
-                {visibleModules.map((module) => (
+                {visibleModules.map(module => (
                   <Box key={module.id}>
-                    <Typography variant="body2" sx={{ fontWeight: 850 }}>{module.serviceModule.name}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 850 }}>
+                      {module.serviceModule.name}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {formatLabel(module.status)}{module.required ? ' · required' : ''}
+                      {formatLabel(module.status)}
+                      {module.required ? ' · required' : ''}
                     </Typography>
                   </Box>
                 ))}
               </Stack>
             ) : (
-              <EmptyCopy text={workspace.packageInstance?.name || 'Service scope is not attached yet.'} />
+              <EmptyCopy
+                text={workspace.packageInstance?.name || 'Service scope is not attached yet.'}
+              />
             )}
           </AnswerBlock>
 
@@ -138,21 +190,31 @@ export default function WorkspaceOverviewFocusPanel({
             onAction={onOpenTeam}
             chips={[
               `${activeParticipants.length} participants`,
-              supportTeams.length ? `${supportTeams.length} team${supportTeams.length === 1 ? '' : 's'}` : '',
+              supportTeams.length
+                ? `${supportTeams.length} team${supportTeams.length === 1 ? '' : 's'}`
+                : '',
             ].filter(Boolean)}
           >
             {hasPeople ? (
               <Stack spacing={0.8}>
-                {activeParticipants.slice(0, 3).map((participant) => (
+                {activeParticipants.slice(0, 3).map(participant => (
                   <Box key={participant.id}>
-                    <Typography variant="body2" sx={{ fontWeight: 850, overflowWrap: 'anywhere' }}>{participant.user.email}</Typography>
-                    <Typography variant="caption" color="text.secondary">{formatLabel(participant.role)}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 850, overflowWrap: 'anywhere' }}>
+                      {participant.user.email}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatLabel(participant.role)}
+                    </Typography>
                   </Box>
                 ))}
-                {supportTeams.slice(0, 2).map((team) => (
+                {supportTeams.slice(0, 2).map(team => (
                   <Box key={team.id}>
-                    <Typography variant="body2" sx={{ fontWeight: 850 }}>{team.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">Support team</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 850 }}>
+                      {team.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Support team
+                    </Typography>
                   </Box>
                 ))}
               </Stack>
@@ -184,17 +246,41 @@ function AnswerBlock({
   title: string;
 }) {
   return (
-    <Box sx={{ border: '1px solid', borderColor: `${accent}35`, borderRadius: 1, bgcolor: '#fff', p: 1.25, minHeight: 246 }}>
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: `${accent}35`,
+        borderRadius: 1,
+        bgcolor: '#fff',
+        p: 1.25,
+        minHeight: 246,
+      }}
+    >
       <Stack spacing={1.1}>
         <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
-          <Box sx={{ width: 36, height: 36, borderRadius: 1, bgcolor: `${accent}12`, color: accent, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: 1,
+              bgcolor: `${accent}12`,
+              color: accent,
+              display: 'grid',
+              placeItems: 'center',
+              flex: '0 0 auto',
+            }}
+          >
             {icon}
           </Box>
           <Stack direction="row" spacing={0.5} flexWrap="wrap" justifyContent="flex-end" useFlexGap>
-            {chips.map((chip) => <PastelChip key={chip} label={chip} accent={accent} bg={`${accent}12`} />)}
+            {chips.map(chip => (
+              <PastelChip key={chip} label={chip} accent={accent} bg={`${accent}12`} />
+            ))}
           </Stack>
         </Stack>
-        <Typography variant="subtitle1" sx={{ fontWeight: 950 }}>{title}</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 950 }}>
+          {title}
+        </Typography>
         {children}
         {actionLabel && onAction && (
           <Button variant="text" onClick={onAction} sx={{ alignSelf: 'flex-start', px: 0 }}>
@@ -208,15 +294,27 @@ function AnswerBlock({
 
 function FindingLine({ risk }: { risk: ScannerRiskThread }) {
   const fixed = risk.currentState === 'FIXED_BY_LATEST_SCAN';
-  const accent = fixed ? appleColors.green : risk.severity === 'CRITICAL' || risk.severity === 'HIGH' ? appleColors.red : appleColors.amber;
+  const accent = fixed
+    ? appleColors.green
+    : risk.severity === 'CRITICAL' || risk.severity === 'HIGH'
+      ? appleColors.red
+      : appleColors.amber;
   return (
     <Box sx={{ borderTop: '1px solid', borderColor: appleColors.line, pt: 0.8 }}>
       <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="space-between">
-        <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.35 }}>{risk.title}</Typography>
-        <PastelChip label={fixed ? 'Fixed' : formatLabel(risk.currentState)} accent={accent} bg={`${accent}12`} />
+        <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.35 }}>
+          {risk.title}
+        </Typography>
+        <PastelChip
+          label={fixed ? 'Fixed' : formatLabel(risk.currentState)}
+          accent={accent}
+          bg={`${accent}12`}
+        />
       </Stack>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-        {[risk.sourceTool, risk.recommendedModule?.name, risk.affectedComponent].filter(Boolean).join(' · ') || risk.severity}
+        {[risk.sourceTool, risk.recommendedModule?.name, risk.affectedComponent]
+          .filter(Boolean)
+          .join(' · ') || risk.severity}
       </Typography>
     </Box>
   );
@@ -236,7 +334,7 @@ function timestamp(value?: string) {
 
 function uniqueSupportTeams(supportList: SupportRequest[]) {
   const byId = new Map<string, SupportRequest['team']>();
-  supportList.forEach((request) => {
+  supportList.forEach(request => {
     if (request.team?.id) byId.set(request.team.id, request.team);
   });
   return Array.from(byId.values());
@@ -278,8 +376,9 @@ function answerForWorkspace({
       accent: appleColors.amber,
       bg: '#fff4dc',
       button: 'Review services',
-      detail: 'This workspace does not yet show a clear service scope. Confirm what work belongs here before assigning people or calling it delivery-ready.',
-      primaryAction: 'findings' as const,
+      detail:
+        'This workspace does not yet show a clear service scope. Confirm what work belongs here before assigning people or calling it delivery-ready.',
+      primaryAction: 'services' as const,
       title: 'Confirm the work scope.',
     };
   }
@@ -288,7 +387,8 @@ function answerForWorkspace({
       accent: appleColors.amber,
       bg: '#fff4dc',
       button: 'Assign people',
-      detail: 'The work scope is visible, but no team, expert, or participant is assigned yet. Add the people who will own the fixes and proof.',
+      detail:
+        'The work scope is visible, but no team, expert, or participant is assigned yet. Add the people who will own the fixes and proof.',
       primaryAction: 'team' as const,
       title: 'Assign the people who will do the work.',
     };
@@ -297,7 +397,8 @@ function answerForWorkspace({
     accent: appleColors.green,
     bg: '#e7f8ee',
     button: 'Prepare handoff',
-    detail: 'The workspace has findings, service scope, and people in one place. Keep proof current and prepare the next owner handoff when the work is ready.',
+    detail:
+      'The workspace has findings, service scope, and people in one place. Keep proof current and prepare the next owner handoff when the work is ready.',
     primaryAction: 'handoff' as const,
     title: 'This workspace has a clear next path.',
   };
