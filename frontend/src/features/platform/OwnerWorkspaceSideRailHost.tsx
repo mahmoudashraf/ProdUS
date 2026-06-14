@@ -137,7 +137,7 @@ export default function OwnerWorkspaceSideRailHost({
     <OwnerWorkspaceSideRailPane
       control={product ? {
         status: launchStatus,
-        primaryAction: launchStatus.blockerCount ? 'Open action plan' : topRecommendedServiceName ? 'Review service path' : 'Open proof',
+        primaryAction: launchStatus.blockerCount ? 'Plan fixes' : topRecommendedServiceName ? 'Review service path' : 'Open proof',
         lastScanLabel,
         evidenceLabel: `${latestCompletedTools}/${scanToolOptions.length} checks`,
         onPrimaryAction: () => launchStatus.blockerCount ? onOpenActionPlan() : topRecommendedServiceName ? onOpenServicesRecommend() : onOpenFindingsEvidence(),

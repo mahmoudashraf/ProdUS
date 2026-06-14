@@ -43,6 +43,7 @@ export default function OwnerProductWorkspacesArea({
     ? workspaces.find((workspace) => workspace.id === selectedWorkspaceId)
     : undefined;
   const listHref = `/products/${selectedProduct.id}?tab=workspaces`;
+  const productHomeHref = `/products/${selectedProduct.id}`;
 
   if (selectedWorkspaceId) {
     return (
@@ -56,13 +57,23 @@ export default function OwnerProductWorkspacesArea({
 
   return (
     <Stack spacing={2.5}>
+      <Button
+        component={NextLink}
+        href={productHomeHref}
+        variant="text"
+        startIcon={<KeyboardBackspaceOutlined />}
+        sx={{ alignSelf: 'flex-start', minHeight: 40 }}
+      >
+        Back to Product Details
+      </Button>
+
       <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)' }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }} justifyContent="space-between">
           <Stack spacing={1} sx={{ minWidth: 0, maxWidth: 820 }}>
-            <PastelChip label="Delivery after Planning" accent={appleColors.green} bg="#e7f8ee" />
-            <Typography variant="h2">Product Workspaces</Typography>
+            <PastelChip label="Workspace field" accent={appleColors.green} bg="#e7f8ee" />
+            <Typography variant="h2">{workspaces.length === 1 ? 'Product workspace' : 'Product workspaces'}</Typography>
             <Typography color="text.secondary" sx={{ lineHeight: 1.65 }}>
-              These are the delivery workspaces created from approved Work Plans for {selectedProduct.name}. Product findings, AI opportunities, and services stay attached to the product; delivery milestones live here once work starts.
+              This is where {selectedProduct.name} turns scanner risks, selected services, people, proof, and handoff into practical work. The product keeps the evidence history; the workspace is where the work moves.
             </Typography>
             <DeliveryPath />
           </Stack>
@@ -73,14 +84,14 @@ export default function OwnerProductWorkspacesArea({
             endIcon={<ArrowForwardOutlined />}
             sx={{ minHeight: 44, minWidth: { md: 164 }, alignSelf: { xs: 'stretch', md: 'center' }, whiteSpace: 'nowrap' }}
           >
-            Open Work Plan
+            Plan work
           </Button>
         </Stack>
       </Surface>
 
       <Surface>
         <SectionTitle
-          title="Assigned workspaces"
+          title={workspaces.length === 1 ? 'Active workspace' : 'Active workspaces'}
           action={<PastelChip label={isLoading ? 'Loading' : `${workspaces.length} found`} accent={workspaces.length ? appleColors.green : appleColors.muted} bg={workspaces.length ? '#e7f8ee' : '#f8fafc'} />}
         />
         {workspaces.length ? (
@@ -90,7 +101,7 @@ export default function OwnerProductWorkspacesArea({
             ))}
           </Box>
         ) : (
-          <EmptyState label="No delivery workspace has been started for this product yet. Approve Planning when the product is ready for delivery work, then the workspace will appear here." />
+          <EmptyState label="No workspace has been started for this product yet. Create a plan when you are ready to turn services, fixes, and people into workspace work." />
         )}
       </Surface>
     </Stack>
@@ -98,7 +109,7 @@ export default function OwnerProductWorkspacesArea({
 }
 
 function WorkspaceCard({ productId, workspace }: { productId: string; workspace: ProjectWorkspace }) {
-  const planName = workspace.packageInstance?.name || 'Approved Work Plan';
+  const planName = workspace.packageInstance?.name || 'Workspace plan';
   const planSummary = workspace.packageInstance?.summary;
   const planStatus = workspace.packageInstance?.status;
   const productStage = workspace.packageInstance?.productProfile?.businessStage;
@@ -184,8 +195,8 @@ function WorkspaceCard({ productId, workspace }: { productId: string; workspace:
 
 function DeliveryPath() {
   const steps = [
-    { label: 'Planning approved', color: appleColors.purple },
-    { label: 'Delivery workspace', color: appleColors.green },
+    { label: 'Plan work', color: appleColors.purple },
+    { label: 'Workspace', color: appleColors.green },
     { label: 'Fixes and proof', color: appleColors.blue },
     { label: 'Handoff', color: appleColors.cyan },
   ];
@@ -252,10 +263,10 @@ function ProductWorkspaceDetail({
           startIcon={<KeyboardBackspaceOutlined />}
           sx={{ alignSelf: 'flex-start', minHeight: 40 }}
         >
-          Back to product workspaces
+          Back to workspace list
         </Button>
         <Surface>
-          <EmptyState label="This workspace is not assigned to this product anymore. Go back to the product workspace list to choose the current delivery workspace." />
+          <EmptyState label="This workspace is not assigned to this product anymore. Go back to the workspace list to choose the current product workspace." />
         </Surface>
       </Stack>
     );
@@ -269,7 +280,7 @@ function ProductWorkspaceDetail({
         startIcon={<KeyboardBackspaceOutlined />}
         sx={{ alignSelf: 'flex-start', minHeight: 40 }}
       >
-        Back to product workspaces
+        Back to workspace list
       </Button>
 
       <OwnerProductDeliveryWorkspace

@@ -10,6 +10,10 @@ import com.produs.packages.PackageInstanceRepository;
 import com.produs.packages.PackageModule;
 import com.produs.packages.PackageModuleRepository;
 import com.produs.repository.UserRepository;
+import com.produs.scanner.ScannerService;
+import com.produs.scanner.ScannerService.CheckFixesRequest;
+import com.produs.scanner.ScannerService.CheckFixesResponse;
+import com.produs.scanner.ScannerService.ScannerRiskSummaryResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -48,6 +52,7 @@ public class WorkspaceController {
     private final DeliverableRepository deliverableRepository;
     private final WorkspaceParticipantRepository participantRepository;
     private final UserRepository userRepository;
+    private final ScannerService scannerService;
 
     @GetMapping
     public List<ProjectWorkspaceResponse> list(@AuthenticationPrincipal User user) {
@@ -221,6 +226,20 @@ public class WorkspaceController {
         return participantRepository.findByWorkspaceIdOrderByCreatedAtAsc(workspaceId).stream()
                 .map(participant -> toWorkspaceParticipantResponse(participant))
                 .toList();
+    }
+
+    @GetMapping("/{workspaceId}/scanner/risks/current")
+    public ScannerRiskSummaryResponse scannerRisks(@AuthenticationPrincipal User user, @PathVariable UUID workspaceId) {
+        return scannerService.currentWorkspaceRisks(user, workspaceId);
+    }
+
+    @PostMapping("/{workspaceId}/scanner/check-fixes")
+    public CheckFixesResponse checkFixes(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody CheckFixesRequest request
+    ) {
+        return scannerService.checkWorkspaceFixes(user, workspaceId, request);
     }
 
     @PostMapping("/{workspaceId}/participants")

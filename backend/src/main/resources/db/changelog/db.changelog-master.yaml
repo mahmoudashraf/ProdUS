@@ -57,3 +57,5 @@ databaseChangeLog:
       file: db/changelog/V028__product_share_links.yaml
   - include:
       file: db/changelog/V029__product_share_viewer_actions.yaml
+  - include:
+      file: db/changelog/V030__scanner_risk_threads.yaml

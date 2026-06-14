@@ -55,7 +55,7 @@ export default function OwnerWorkspaceActiveWorkspacesHeroHook({
             Continue delivery work
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45, lineHeight: 1.55 }}>
-            Open the product workspaces created from approved Planning. Milestones, proof, people, and handoff stay inside this product.
+            Open the product workspaces created from an approved work plan. Milestones, proof, people, and handoff stay inside this product.
           </Typography>
         </Box>
         <Button

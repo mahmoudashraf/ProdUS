@@ -1,0 +1,154 @@
+databaseChangeLog:
+  - changeSet:
+      id: 3000
+      author: produs
+      changes:
+        - createTable:
+            tableName: scanner_risk_threads
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+              - column:
+                  name: product_profile_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: workspace_id
+                  type: UUID
+              - column:
+                  name: fingerprint
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: severity
+                  type: VARCHAR(30)
+                  defaultValue: MEDIUM
+                  constraints:
+                    nullable: false
+              - column:
+                  name: current_state
+                  type: VARCHAR(40)
+                  defaultValue: NEW
+                  constraints:
+                    nullable: false
+              - column:
+                  name: first_seen_scan_run_id
+                  type: UUID
+              - column:
+                  name: last_seen_scan_run_id
+                  type: UUID
+              - column:
+                  name: last_fixed_scan_run_id
+                  type: UUID
+              - column:
+                  name: current_finding_id
+                  type: UUID
+              - column:
+                  name: recommended_module_id
+                  type: UUID
+              - column:
+                  name: source_tool
+                  type: VARCHAR(255)
+              - column:
+                  name: source_rule_id
+                  type: VARCHAR(255)
+              - column:
+                  name: affected_component
+                  type: VARCHAR(1000)
+              - column:
+                  name: readiness_area
+                  type: VARCHAR(255)
+              - column:
+                  name: business_risk
+                  type: TEXT
+              - column:
+                  name: evidence_required
+                  type: TEXT
+              - column:
+                  name: accepted_reason
+                  type: TEXT
+              - column:
+                  name: review_due_on
+                  type: DATE
+        - addForeignKeyConstraint:
+            baseTableName: scanner_risk_threads
+            baseColumnNames: product_profile_id
+            constraintName: fk_scanner_risk_threads_product
+            referencedTableName: product_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_risk_threads
+            baseColumnNames: workspace_id
+            constraintName: fk_scanner_risk_threads_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_risk_threads
+            baseColumnNames: first_seen_scan_run_id
+            constraintName: fk_scanner_risk_threads_first_scan
+            referencedTableName: scan_runs
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_risk_threads
+            baseColumnNames: last_seen_scan_run_id
+            constraintName: fk_scanner_risk_threads_last_scan
+            referencedTableName: scan_runs
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_risk_threads
+            baseColumnNames: last_fixed_scan_run_id
+            constraintName: fk_scanner_risk_threads_fixed_scan
+            referencedTableName: scan_runs
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_risk_threads
+            baseColumnNames: current_finding_id
+            constraintName: fk_scanner_risk_threads_current_finding
+            referencedTableName: normalized_findings
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_risk_threads
+            baseColumnNames: recommended_module_id
+            constraintName: fk_scanner_risk_threads_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+        - addUniqueConstraint:
+            tableName: scanner_risk_threads
+            columnNames: product_profile_id, fingerprint
+            constraintName: uq_scanner_risk_threads_product_fingerprint
+        - createIndex:
+            tableName: scanner_risk_threads
+            indexName: idx_scanner_risk_threads_product_state
+            columns:
+              - column: { name: product_profile_id }
+              - column: { name: current_state }
+        - createIndex:
+            tableName: scanner_risk_threads
+            indexName: idx_scanner_risk_threads_workspace_state
+            columns:
+              - column: { name: workspace_id }
+              - column: { name: current_state }

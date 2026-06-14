@@ -4,6 +4,8 @@ import com.produs.entity.User;
 import com.produs.scanner.ScannerService.CiEvidenceUploadRequest;
 import com.produs.scanner.ScannerService.CiTemplateResponse;
 import com.produs.scanner.ScannerService.CiTemplateType;
+import com.produs.scanner.ScannerService.CheckFixesRequest;
+import com.produs.scanner.ScannerService.CheckFixesResponse;
 import com.produs.scanner.ScannerService.ConnectorPermissionResponse;
 import com.produs.scanner.ScannerService.CreateScannerScheduleRequest;
 import com.produs.scanner.ScannerService.CreateScanSourceRequest;
@@ -13,14 +15,18 @@ import com.produs.scanner.ScannerService.FindingStatusRequest;
 import com.produs.scanner.ScannerService.FullHostedScanResponse;
 import com.produs.scanner.ScannerService.NormalizedFindingResponse;
 import com.produs.scanner.ScannerService.ProductScannerSummaryResponse;
+import com.produs.scanner.ScannerService.RiskWorkspaceAssignmentRequest;
 import com.produs.scanner.ScannerService.RescanRequest;
 import com.produs.scanner.ScannerService.ScanCancelRequest;
+import com.produs.scanner.ScannerService.ScanComparisonResponse;
 import com.produs.scanner.ScannerService.ScanRunResponse;
 import com.produs.scanner.ScannerService.ScanSourceResponse;
 import com.produs.scanner.ScannerService.ScannerScheduleResponse;
 import com.produs.scanner.ScannerService.ScannerAdminHealthResponse;
 import com.produs.scanner.ScannerService.ScannerEvidenceItemResponse;
 import com.produs.scanner.ScannerService.ScannerImportRunResponse;
+import com.produs.scanner.ScannerService.ScannerRiskSummaryResponse;
+import com.produs.scanner.ScannerService.ScannerRiskThreadResponse;
 import com.produs.scanner.ScannerService.StartFullHostedScanRequest;
 import com.produs.scanner.ScannerService.StartHostedScanRequest;
 import com.produs.scanner.ScannerService.ToolRunResponse;
@@ -190,6 +196,11 @@ public class ScannerController {
         return scannerService.listRunFindings(user, runId);
     }
 
+    @GetMapping("/runs/{runId}/comparison")
+    public ScanComparisonResponse compareRun(@AuthenticationPrincipal User user, @PathVariable UUID runId) {
+        return scannerService.compareScanRun(user, runId);
+    }
+
     @GetMapping("/findings/{findingId}")
     public NormalizedFindingResponse getFinding(@AuthenticationPrincipal User user, @PathVariable UUID findingId) {
         return scannerService.getFinding(user, findingId);
@@ -202,6 +213,20 @@ public class ScannerController {
             @Valid @RequestBody FindingStatusRequest request
     ) {
         return scannerService.updateFindingStatus(user, findingId, request);
+    }
+
+    @GetMapping("/products/{productId}/risks/current")
+    public ScannerRiskSummaryResponse currentRisks(@AuthenticationPrincipal User user, @PathVariable UUID productId) {
+        return scannerService.currentProductRisks(user, productId);
+    }
+
+    @PostMapping("/risks/{riskThreadId}/assign-workspace")
+    public ScannerRiskThreadResponse assignRiskToWorkspace(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID riskThreadId,
+            @Valid @RequestBody RiskWorkspaceAssignmentRequest request
+    ) {
+        return scannerService.assignRiskToWorkspace(user, riskThreadId, request);
     }
 
     @GetMapping("/evidence")
@@ -226,5 +251,14 @@ public class ScannerController {
     @GetMapping("/admin/health")
     public ScannerAdminHealthResponse adminHealth(@AuthenticationPrincipal User user) {
         return scannerService.adminHealth(user);
+    }
+
+    @PostMapping("/workspaces/{workspaceId}/check-fixes")
+    public CheckFixesResponse checkFixes(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @Valid @RequestBody CheckFixesRequest request
+    ) {
+        return scannerService.checkWorkspaceFixes(user, workspaceId, request);
     }
 }

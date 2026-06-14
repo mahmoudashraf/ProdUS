@@ -4,8 +4,8 @@ export type WorkspaceTab = 'overview' | 'workspaces' | 'actions' | 'findings' | 
 
 export const workspaceTabs: { value: WorkspaceTab; label: string }[] = [
   { value: 'overview', label: 'Product Details' },
-  { value: 'workspaces', label: 'Workspaces' },
-  { value: 'actions', label: 'Action Plan' },
+  { value: 'workspaces', label: 'Workspace' },
+  { value: 'actions', label: 'Plan Work' },
   { value: 'findings', label: 'Scanners' },
   { value: 'ai', label: 'AI Opportunities' },
   { value: 'services', label: 'Services' },

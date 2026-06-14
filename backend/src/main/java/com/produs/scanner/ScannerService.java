@@ -69,6 +69,8 @@ public class ScannerService {
     private final ScannerImportRunRepository importRunRepository;
     private final ScannerEvidenceItemRepository evidenceRepository;
     private final NormalizedFindingRepository findingRepository;
+    private final ScannerRiskThreadRepository riskThreadRepository;
+    private final ScannerRiskLifecycleService riskLifecycleService;
     private final S3Service s3Service;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
@@ -357,6 +359,7 @@ public class ScannerService {
             savedImport.setStorageKey(storageKey);
             ScannerImportRun completedImport = importRunRepository.save(savedImport);
             productizationEngineService.syncScannerReadinessDiagnosisForScanRun(actor, savedRun.getId());
+            riskLifecycleService.syncCompletedRun(savedRun);
             audit(actor, "SCANNER_EXTERNAL_IMPORT_COMPLETED", "SCANNER_IMPORT_RUN", completedImport.getId(), AuditEvent.RiskLevel.MEDIUM,
                     "Imported %s evidence for product %s with %d normalized findings".formatted(provider, product.getId(), normalizedCount));
             return toImportRunResponse(completedImport);
@@ -474,6 +477,7 @@ public class ScannerService {
             savedRun.setStatus(ScanRun.RunStatus.COMPLETED);
             scanRunRepository.save(savedRun);
             productizationEngineService.syncScannerReadinessDiagnosisForScanRun(actor, savedRun.getId());
+            riskLifecycleService.syncCompletedRun(savedRun);
             audit(actor, "SCANNER_EVIDENCE_UPLOADED", "SCAN_RUN", savedRun.getId(), AuditEvent.RiskLevel.MEDIUM,
                     "Uploaded %s evidence for product %s with %d normalized findings".formatted(request.format(), product.getId(), normalizedCount));
             return toScanRunResponse(savedRun, List.of(savedTool));
@@ -795,9 +799,125 @@ public class ScannerService {
         finding.setReviewedBy(actor);
         finding.setReviewedAt(LocalDateTime.now());
         NormalizedFinding saved = findingRepository.save(finding);
+        syncRiskThreadManualStatus(saved);
         audit(actor, "SCANNER_FINDING_STATUS_CHANGED", "NORMALIZED_FINDING", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
                 "Changed finding status to " + saved.getStatus() + " for product " + saved.getProductProfile().getId());
         return toFindingResponse(saved);
+    }
+
+    @Transactional
+    public ScannerRiskSummaryResponse currentProductRisks(User actor, UUID productId) {
+        ProductProfile product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product profile not found"));
+        requireProductOwnerOrAdmin(actor, product);
+        List<ScannerRiskThread> risks = riskLifecycleService.currentProductRisks(productId);
+        return riskSummary(productId, null, risks);
+    }
+
+    @Transactional
+    public ScannerRiskSummaryResponse currentWorkspaceRisks(User actor, UUID workspaceId) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
+        requireWorkspaceRead(actor, workspace);
+        List<ScannerRiskThread> risks = riskLifecycleService.currentWorkspaceRisks(workspaceId);
+        return riskSummary(workspaceProduct(workspace).getId(), workspaceId, risks);
+    }
+
+    @Transactional(readOnly = true)
+    public ScanComparisonResponse compareScanRun(User actor, UUID runId) {
+        ScanRun run = scanRunRepository.findById(runId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scan run not found"));
+        requireProductOrWorkspaceRead(actor, run.getProductProfile(), run.getWorkspace());
+        ScannerRiskLifecycleService.ScanComparison comparison = riskLifecycleService.compareRun(run);
+        return new ScanComparisonResponse(
+                run.getId(),
+                comparison.baselineRun() == null ? null : comparison.baselineRun().getId(),
+                run.getProductProfile().getId(),
+                run.getWorkspace() == null ? null : run.getWorkspace().getId(),
+                comparison.complete(),
+                comparison.incompleteReason(),
+                comparison.fixed().stream().map(this::toFindingResponse).toList(),
+                comparison.stillOpen().stream().map(this::toFindingResponse).toList(),
+                comparison.newlySeen().stream().map(this::toFindingResponse).toList(),
+                comparison.returned().stream().map(this::toFindingResponse).toList()
+        );
+    }
+
+    @Transactional
+    public ScannerRiskThreadResponse assignRiskToWorkspace(User actor, UUID riskThreadId, RiskWorkspaceAssignmentRequest request) {
+        ScannerRiskThread thread = riskThreadRepository.findById(riskThreadId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scanner risk not found"));
+        ProjectWorkspace workspace = workspaceRepository.findById(request.workspaceId())
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
+        if (!workspaceProduct(workspace).getId().equals(thread.getProductProfile().getId())) {
+            throw new IllegalArgumentException("Workspace belongs to another product");
+        }
+        requireProductOrWorkspaceWrite(actor, thread.getProductProfile(), workspace);
+        ScannerRiskThread saved = riskLifecycleService.assignWorkspace(thread, workspace);
+        audit(actor, "SCANNER_RISK_ASSIGNED_WORKSPACE", "SCANNER_RISK_THREAD", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Assigned scanner risk to workspace " + workspace.getId());
+        return toRiskThreadResponse(saved);
+    }
+
+    @Transactional
+    public CheckFixesResponse checkWorkspaceFixes(User actor, UUID workspaceId, CheckFixesRequest request) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
+        requireProductOrWorkspaceWrite(actor, workspaceProduct(workspace), workspace);
+        if (request == null || !request.authorizationConfirmed()) {
+            throw new IllegalArgumentException("Check fixes requires scanner authorization confirmation");
+        }
+        List<ScannerRiskThread> risks = selectedWorkspaceRisks(workspace, request.riskThreadIds());
+        if (risks.isEmpty()) {
+            throw new IllegalArgumentException("Select at least one workspace risk to check");
+        }
+        CheckFixesMode mode = request.mode() == null ? CheckFixesMode.RELEVANT_TO_FIXES : request.mode();
+        CheckFixPlan plan = buildCheckFixPlan(workspace, risks, mode);
+        if (mode == CheckFixesMode.FULL_SUITE) {
+            FullHostedScanResponse fullSuite = startFullHostedScan(actor, new StartFullHostedScanRequest(
+                    workspaceProduct(workspace).getId(),
+                    workspace.getId(),
+                    plan.sourceId(),
+                    plan.branchRef(),
+                    plan.runtimeTargetUrl(),
+                    plan.containerImageRef(),
+                    true,
+                    !isBlank(plan.runtimeTargetUrl()),
+                    "Owner requested full scanner suite from workspace Check fixes"
+            ));
+            return new CheckFixesResponse(workspaceProduct(workspace).getId(), workspace.getId(), mode, risks.stream().map(ScannerRiskThread::getId).toList(), plan.preview(), fullSuite.queuedRuns(), fullSuite.skippedTargets());
+        }
+        List<ScanRunResponse> queued = new ArrayList<>();
+        List<SkippedScanTargetResponse> skipped = new ArrayList<>();
+        for (CheckFixRunPlan runPlan : plan.runPlans()) {
+            if (!runPlan.limitations().isEmpty()) {
+                skipped.add(new SkippedScanTargetResponse(runPlan.depth(), runPlan.toolKeys(), String.join("; ", runPlan.limitations())));
+                continue;
+            }
+            try {
+                ScanRunResponse run = startHostedScan(actor, new StartHostedScanRequest(
+                        workspaceProduct(workspace).getId(),
+                        workspace.getId(),
+                        runPlan.sourceId(),
+                        runPlan.depth(),
+                        runPlan.toolKeys(),
+                        runPlan.branchRef(),
+                        runPlan.runtimeTargetUrl(),
+                        runPlan.containerImageRef(),
+                        true,
+                        runPlan.depth() == ScanRun.ScanDepth.RUNTIME_BASELINE,
+                        "Check fixes for selected workspace risks",
+                        runPlan.comparisonBaseRunId()
+                ));
+                persistCheckFixScanPlan(run.id(), workspace, risks, mode, runPlan);
+                queued.add(getRun(actor, run.id()));
+            } catch (RuntimeException ex) {
+                skipped.add(new SkippedScanTargetResponse(runPlan.depth(), runPlan.toolKeys(), safeScannerFailure(ex)));
+            }
+        }
+        audit(actor, "SCANNER_CHECK_FIXES_QUEUED", "PROJECT_WORKSPACE", workspace.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Queued Check fixes for " + risks.size() + " risk(s), runs=" + queued.size());
+        return new CheckFixesResponse(workspaceProduct(workspace).getId(), workspace.getId(), mode, risks.stream().map(ScannerRiskThread::getId).toList(), plan.preview(), queued, skipped);
     }
 
     @Transactional(readOnly = true)
@@ -1107,6 +1227,7 @@ public class ScannerService {
         scanRunRepository.save(run);
         if (run.getStatus() == ScanRun.RunStatus.COMPLETED) {
             productizationEngineService.syncScannerReadinessDiagnosisForScanRun(run.getRequestedBy(), run.getId());
+            riskLifecycleService.syncCompletedRun(run);
         }
         audit(run.getRequestedBy(), "SCANNER_RUN_FINISHED", "SCAN_RUN", run.getId(), failed ? AuditEvent.RiskLevel.HIGH : AuditEvent.RiskLevel.MEDIUM,
                 "Scanner run finished with status " + run.getStatus());
@@ -2318,6 +2439,221 @@ public class ScannerService {
         return NormalizedFinding.FindingStatus.OPEN;
     }
 
+    private void syncRiskThreadManualStatus(NormalizedFinding finding) {
+        riskThreadRepository.findByProductProfileIdAndFingerprint(finding.getProductProfile().getId(), finding.getFingerprint())
+                .ifPresent(thread -> {
+                    ScannerRiskThread.RiskState state = switch (finding.getStatus()) {
+                        case ACCEPTED_RISK -> ScannerRiskThread.RiskState.ACCEPTED_RISK;
+                        case FALSE_POSITIVE -> ScannerRiskThread.RiskState.FALSE_POSITIVE;
+                        case INSUFFICIENT_EVIDENCE -> ScannerRiskThread.RiskState.NEEDS_PROOF;
+                        case RESOLVED -> ScannerRiskThread.RiskState.READY_TO_CHECK;
+                        case REGRESSED -> ScannerRiskThread.RiskState.RETURNED;
+                        case NEW -> ScannerRiskThread.RiskState.NEW;
+                        case OPEN -> ScannerRiskThread.RiskState.STILL_OPEN;
+                    };
+                    thread.setCurrentState(state);
+                    thread.setCurrentFinding(finding);
+                    thread.setAcceptedReason(finding.getRiskAcceptanceReason());
+                    thread.setReviewDueOn(finding.getRiskReviewDueOn());
+                    riskThreadRepository.save(thread);
+                });
+    }
+
+    private ScannerRiskSummaryResponse riskSummary(UUID productId, UUID workspaceId, List<ScannerRiskThread> risks) {
+        Map<ScannerRiskThread.RiskState, List<ScannerRiskThreadResponse>> groups = new LinkedHashMap<>();
+        for (ScannerRiskThread.RiskState state : ScannerRiskThread.RiskState.values()) {
+            groups.put(state, new ArrayList<>());
+        }
+        risks.stream().map(this::toRiskThreadResponse).forEach(risk -> groups.get(risk.currentState()).add(risk));
+        return new ScannerRiskSummaryResponse(
+                productId,
+                workspaceId,
+                risks.size(),
+                groups.entrySet().stream()
+                        .map(entry -> new ScannerRiskGroupResponse(entry.getKey(), entry.getValue().size(), entry.getValue()))
+                        .toList()
+        );
+    }
+
+    private List<ScannerRiskThread> selectedWorkspaceRisks(ProjectWorkspace workspace, List<UUID> riskThreadIds) {
+        List<ScannerRiskThread> risks = riskThreadIds == null || riskThreadIds.isEmpty()
+                ? riskThreadRepository.findByWorkspaceIdOrderBySeverityDescUpdatedAtDesc(workspace.getId())
+                : riskThreadRepository.findByIdIn(riskThreadIds);
+        UUID productId = workspaceProduct(workspace).getId();
+        return risks.stream()
+                .filter(risk -> risk.getProductProfile().getId().equals(productId))
+                .filter(risk -> risk.getWorkspace() != null && risk.getWorkspace().getId().equals(workspace.getId()))
+                .toList();
+    }
+
+    private CheckFixPlan buildCheckFixPlan(ProjectWorkspace workspace, List<ScannerRiskThread> risks, CheckFixesMode mode) {
+        if (mode == CheckFixesMode.FULL_SUITE) {
+            ProductProfile product = workspaceProduct(workspace);
+            ScanSource source = firstScanSourceForRisks(risks).orElseGet(() ->
+                    firstAuthorizedSource(sourceRepository.findByProductProfileIdOrderByCreatedAtDesc(product.getId()),
+                            ScanSource.ProviderType.GITHUB, ScanSource.ProviderType.GITLAB, ScanSource.ProviderType.RUNTIME_URL, ScanSource.ProviderType.EXTERNAL_TOOL)
+            );
+            CheckFixPreview preview = new CheckFixPreview(
+                    "ProdUS will run the full scanner suite for this workspace.",
+                    List.of("Full scanner suite"),
+                    source == null ? null : source.getId(),
+                    null,
+                    null,
+                    null,
+                    List.of()
+            );
+            return new CheckFixPlan(source == null ? null : source.getId(), null, null, null, preview, List.of());
+        }
+
+        Map<String, CheckFixRunPlanBuilder> builders = new LinkedHashMap<>();
+        List<String> globalLimitations = new ArrayList<>();
+        for (ScannerRiskThread risk : risks) {
+            NormalizedFinding finding = risk.getCurrentFinding();
+            if (finding == null || finding.getToolRun() == null || finding.getScanRun() == null) {
+                globalLimitations.add(risk.getTitle() + " needs proof or a new scanner source before ProdUS can verify it.");
+                continue;
+            }
+            String toolKey = toolKeyForRisk(risk, finding);
+            if (isBlank(toolKey) || scannerProperties.tool(toolKey) == null) {
+                globalLimitations.add(risk.getTitle() + " came from " + defaultString(risk.getSourceTool(), "an unknown source") + ", but no matching hosted scanner is configured.");
+                continue;
+            }
+            ScannerProperties.ToolProperties tool = scannerProperties.tool(toolKey);
+            ScanRun.ScanDepth depth = defaultDepthForTool(tool);
+            ScanSource source = sourceForRisk(workspaceProduct(workspace), finding.getScanRun(), depth);
+            if (source == null) {
+                globalLimitations.add(risk.getTitle() + " needs an authorized " + defaultString(tool.getTargetType(), "scanner") + " source.");
+                continue;
+            }
+            String runtimeTargetUrl = depth == ScanRun.ScanDepth.RUNTIME_BASELINE
+                    ? firstNonBlank(finding.getScanRun().getRuntimeTargetUrl(), source.getExternalReference(), workspaceProduct(workspace).getProductUrl())
+                    : null;
+            String containerImageRef = depth == ScanRun.ScanDepth.DEPENDENCY_CONTAINER
+                    ? firstNonBlank(finding.getScanRun().getContainerImageRef(), source.getExternalReference())
+                    : null;
+            if (depth == ScanRun.ScanDepth.RUNTIME_BASELINE && isBlank(runtimeTargetUrl)) {
+                globalLimitations.add(risk.getTitle() + " needs a runtime URL before ProdUS can rerun " + tool.getDisplayName() + ".");
+                continue;
+            }
+            if (depth == ScanRun.ScanDepth.DEPENDENCY_CONTAINER && isBlank(containerImageRef)) {
+                globalLimitations.add(risk.getTitle() + " needs a container image target before ProdUS can rerun " + tool.getDisplayName() + ".");
+                continue;
+            }
+            UUID baselineRunId = risk.getLastSeenScanRun() == null ? finding.getScanRun().getId() : risk.getLastSeenScanRun().getId();
+            String key = depth.name() + "|" + source.getId() + "|" + defaultString(finding.getScanRun().getBranchRef(), "") + "|"
+                    + defaultString(runtimeTargetUrl, "") + "|" + defaultString(containerImageRef, "") + "|" + baselineRunId;
+            CheckFixRunPlanBuilder builder = builders.computeIfAbsent(key, ignored -> new CheckFixRunPlanBuilder(
+                    source.getId(),
+                    depth,
+                    finding.getScanRun().getBranchRef(),
+                    runtimeTargetUrl,
+                    containerImageRef,
+                    baselineRunId
+            ));
+            builder.addTool(toolKey);
+            builder.addRisk(risk, finding);
+        }
+        List<CheckFixRunPlan> runPlans = builders.values().stream().map(CheckFixRunPlanBuilder::build).toList();
+        List<String> toolPreview = runPlans.stream()
+                .flatMap(plan -> plan.toolKeys().stream())
+                .distinct()
+                .map(toolKey -> defaultString(scannerProperties.tool(toolKey).getDisplayName(), toolKey))
+                .toList();
+        List<String> limitations = new ArrayList<>(globalLimitations);
+        runPlans.stream().flatMap(plan -> plan.limitations().stream()).forEach(limitations::add);
+        CheckFixPreview preview = new CheckFixPreview(
+                "ProdUS will rerun the smallest scanner set for selected workspace fixes.",
+                toolPreview,
+                runPlans.isEmpty() ? null : runPlans.get(0).sourceId(),
+                runPlans.isEmpty() ? null : runPlans.get(0).branchRef(),
+                runPlans.stream().map(CheckFixRunPlan::runtimeTargetUrl).filter(value -> !isBlank(value)).findFirst().orElse(null),
+                runPlans.stream().map(CheckFixRunPlan::containerImageRef).filter(value -> !isBlank(value)).findFirst().orElse(null),
+                limitations
+        );
+        return new CheckFixPlan(runPlans.isEmpty() ? null : runPlans.get(0).sourceId(), preview.branchRef(), preview.runtimeTargetUrl(), preview.containerImageRef(), preview, runPlans);
+    }
+
+    private Optional<ScanSource> firstScanSourceForRisks(List<ScannerRiskThread> risks) {
+        return risks.stream()
+                .map(ScannerRiskThread::getCurrentFinding)
+                .filter(finding -> finding != null && finding.getScanRun() != null)
+                .map(finding -> finding.getScanRun().getScanSource())
+                .findFirst();
+    }
+
+    private ScanSource sourceForRisk(ProductProfile product, ScanRun previousRun, ScanRun.ScanDepth depth) {
+        List<ScanSource> sources = sourceRepository.findByProductProfileIdOrderByCreatedAtDesc(product.getId());
+        ScanSource previousSource = previousRun.getScanSource();
+        if (previousSource != null) {
+            boolean compatible = switch (depth) {
+                case SAFE_STATIC, DEEP_REVIEW -> sourceSupportsRepositoryScan(previousSource);
+                case DEPENDENCY_CONTAINER -> sourceHasProvider(previousSource, ScanSource.ProviderType.EXTERNAL_TOOL);
+                case RUNTIME_BASELINE -> sourceHasProvider(previousSource, ScanSource.ProviderType.RUNTIME_URL);
+                case CI_EVIDENCE -> false;
+            };
+            if (compatible) return previousSource;
+        }
+        return sourceForDepth(depth, null, sources);
+    }
+
+    private String toolKeyForRisk(ScannerRiskThread risk, NormalizedFinding finding) {
+        if (finding.getToolRun() != null && !isBlank(finding.getToolRun().getToolKey())) {
+            return finding.getToolRun().getToolKey();
+        }
+        String source = defaultString(firstNonBlank(risk.getSourceTool(), finding.getSourceTool()), "").toLowerCase(Locale.ROOT);
+        if (source.contains("gitleaks")) return "gitleaks";
+        if (source.contains("zap")) return "zap-baseline";
+        if (source.contains("semgrep")) return "semgrep";
+        if (source.contains("checkov")) return "checkov";
+        if (source.contains("osv")) return "osv-scanner";
+        if (source.contains("grype")) return "grype";
+        if (source.contains("trivy") && source.contains("image")) return "trivy-image";
+        if (source.contains("trivy")) return "trivy-fs";
+        if (source.contains("syft")) return "syft";
+        return null;
+    }
+
+    private void persistCheckFixScanPlan(UUID runId, ProjectWorkspace workspace, List<ScannerRiskThread> risks, CheckFixesMode mode, CheckFixRunPlan runPlan) {
+        scanRunRepository.findById(runId).ifPresent(run -> {
+            Map<String, Object> plan = new LinkedHashMap<>();
+            plan.put("intent", "CHECK_FIXES");
+            plan.put("mode", mode.name());
+            plan.put("workspaceId", workspace.getId().toString());
+            plan.put("riskThreadIds", risks.stream().map(risk -> risk.getId().toString()).toList());
+            plan.put("findingIds", risks.stream()
+                    .map(ScannerRiskThread::getCurrentFinding)
+                    .filter(finding -> finding != null && finding.getId() != null)
+                    .map(finding -> finding.getId().toString())
+                    .toList());
+            plan.put("baselineRunId", runPlan.comparisonBaseRunId() == null ? null : runPlan.comparisonBaseRunId().toString());
+            plan.put("toolKeys", runPlan.toolKeys());
+            plan.put("branchRef", runPlan.branchRef());
+            plan.put("runtimeTargetUrl", runPlan.runtimeTargetUrl());
+            plan.put("containerImageRef", runPlan.containerImageRef());
+            plan.put("hints", runPlan.hints());
+            plan.put("limitations", runPlan.limitations());
+            try {
+                run.setScanPlan(objectMapper.writeValueAsString(plan));
+            } catch (Exception ex) {
+                run.setScanPlan("Check fixes for workspace " + workspace.getId() + " using " + runPlan.toolKeys());
+            }
+            scanRunRepository.save(run);
+        });
+    }
+
+    private ProductProfile workspaceProduct(ProjectWorkspace workspace) {
+        return workspace.getPackageInstance().getProductProfile();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (!isBlank(value)) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
     private String scannerFailureSummary(List<ToolRun> tools) {
         List<String> failed = tools.stream()
                 .filter(tool -> tool.getStatus() == ToolRun.ToolStatus.FAILED)
@@ -2723,6 +3059,35 @@ public class ScannerService {
         );
     }
 
+    private ScannerRiskThreadResponse toRiskThreadResponse(ScannerRiskThread risk) {
+        NormalizedFinding finding = risk.getCurrentFinding();
+        return new ScannerRiskThreadResponse(
+                risk.getId(),
+                risk.getCreatedAt(),
+                risk.getUpdatedAt(),
+                risk.getProductProfile().getId(),
+                risk.getWorkspace() == null ? null : risk.getWorkspace().getId(),
+                risk.getFingerprint(),
+                risk.getTitle(),
+                risk.getDescription(),
+                risk.getSeverity(),
+                risk.getCurrentState(),
+                risk.getFirstSeenScanRun() == null ? null : risk.getFirstSeenScanRun().getId(),
+                risk.getLastSeenScanRun() == null ? null : risk.getLastSeenScanRun().getId(),
+                risk.getLastFixedScanRun() == null ? null : risk.getLastFixedScanRun().getId(),
+                finding == null ? null : finding.getId(),
+                risk.getRecommendedModule() == null ? null : toServiceModuleResponse(risk.getRecommendedModule()),
+                risk.getSourceTool(),
+                risk.getSourceRuleId(),
+                risk.getAffectedComponent(),
+                risk.getReadinessArea(),
+                risk.getBusinessRisk(),
+                risk.getEvidenceRequired(),
+                risk.getAcceptedReason(),
+                risk.getReviewDueOn()
+        );
+    }
+
     private ScannerEvidenceItemResponse toEvidenceResponse(ScannerEvidenceItem evidence) {
         return new ScannerEvidenceItemResponse(
                 evidence.getId(),
@@ -2854,11 +3219,93 @@ public class ScannerService {
         auditService.logAction(actor == null ? null : actor.getId(), action, entityType, entityId, riskLevel, details);
     }
 
+    private record CheckFixPlan(
+            UUID sourceId,
+            String branchRef,
+            String runtimeTargetUrl,
+            String containerImageRef,
+            CheckFixPreview preview,
+            List<CheckFixRunPlan> runPlans
+    ) {}
+
+    private record CheckFixRunPlan(
+            UUID sourceId,
+            ScanRun.ScanDepth depth,
+            List<String> toolKeys,
+            String branchRef,
+            String runtimeTargetUrl,
+            String containerImageRef,
+            UUID comparisonBaseRunId,
+            List<CheckFixRiskHint> hints,
+            List<String> limitations
+    ) {}
+
+    private record CheckFixRiskHint(
+            UUID riskThreadId,
+            UUID findingId,
+            String sourceTool,
+            String sourceRuleId,
+            String affectedComponent
+    ) {}
+
+    private class CheckFixRunPlanBuilder {
+        private final UUID sourceId;
+        private final ScanRun.ScanDepth depth;
+        private final String branchRef;
+        private final String runtimeTargetUrl;
+        private final String containerImageRef;
+        private final UUID comparisonBaseRunId;
+        private final List<String> toolKeys = new ArrayList<>();
+        private final List<CheckFixRiskHint> hints = new ArrayList<>();
+        private final List<String> limitations = new ArrayList<>();
+
+        private CheckFixRunPlanBuilder(
+                UUID sourceId,
+                ScanRun.ScanDepth depth,
+                String branchRef,
+                String runtimeTargetUrl,
+                String containerImageRef,
+                UUID comparisonBaseRunId
+        ) {
+            this.sourceId = sourceId;
+            this.depth = depth;
+            this.branchRef = branchRef;
+            this.runtimeTargetUrl = runtimeTargetUrl;
+            this.containerImageRef = containerImageRef;
+            this.comparisonBaseRunId = comparisonBaseRunId;
+        }
+
+        private void addTool(String toolKey) {
+            if (!toolKeys.contains(toolKey)) {
+                toolKeys.add(toolKey);
+            }
+        }
+
+        private void addRisk(ScannerRiskThread risk, NormalizedFinding finding) {
+            hints.add(new CheckFixRiskHint(
+                    risk.getId(),
+                    finding.getId(),
+                    firstNonBlank(risk.getSourceTool(), finding.getSourceTool()),
+                    firstNonBlank(risk.getSourceRuleId(), finding.getSourceRuleId()),
+                    firstNonBlank(risk.getAffectedComponent(), finding.getAffectedComponent())
+            ));
+        }
+
+        private CheckFixRunPlan build() {
+            return new CheckFixRunPlan(sourceId, depth, toolKeys, branchRef, runtimeTargetUrl, containerImageRef, comparisonBaseRunId, hints, limitations);
+        }
+    }
+
     public enum CiEvidenceFormat {
         SARIF,
         JSON,
         JUNIT,
         LOG
+    }
+
+    public enum CheckFixesMode {
+        RELEVANT_TO_FIXES,
+        FULL_SUITE
     }
 
     public record CreateScanSourceRequest(
@@ -2963,6 +3410,86 @@ public class ScannerService {
             @NotNull NormalizedFinding.FindingStatus status,
             String reason,
             LocalDate reviewDueOn
+    ) {}
+
+    public record RiskWorkspaceAssignmentRequest(@NotNull UUID workspaceId) {}
+
+    public record CheckFixesRequest(
+            List<UUID> riskThreadIds,
+            CheckFixesMode mode,
+            boolean authorizationConfirmed
+    ) {}
+
+    public record CheckFixPreview(
+            String summary,
+            List<String> tools,
+            UUID sourceId,
+            String branchRef,
+            String runtimeTargetUrl,
+            String containerImageRef,
+            List<String> limitations
+    ) {}
+
+    public record CheckFixesResponse(
+            UUID productProfileId,
+            UUID workspaceId,
+            CheckFixesMode mode,
+            List<UUID> riskThreadIds,
+            CheckFixPreview preview,
+            List<ScanRunResponse> queuedRuns,
+            List<SkippedScanTargetResponse> skippedTargets
+    ) {}
+
+    public record ScannerRiskSummaryResponse(
+            UUID productProfileId,
+            UUID workspaceId,
+            int total,
+            List<ScannerRiskGroupResponse> groups
+    ) {}
+
+    public record ScannerRiskGroupResponse(
+            ScannerRiskThread.RiskState state,
+            int count,
+            List<ScannerRiskThreadResponse> risks
+    ) {}
+
+    public record ScannerRiskThreadResponse(
+            UUID id,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            UUID productProfileId,
+            UUID workspaceId,
+            String fingerprint,
+            String title,
+            String description,
+            NormalizedFinding.FindingSeverity severity,
+            ScannerRiskThread.RiskState currentState,
+            UUID firstSeenScanRunId,
+            UUID lastSeenScanRunId,
+            UUID lastFixedScanRunId,
+            UUID currentFindingId,
+            ServiceModuleResponse recommendedModule,
+            String sourceTool,
+            String sourceRuleId,
+            String affectedComponent,
+            String readinessArea,
+            String businessRisk,
+            String evidenceRequired,
+            String acceptedReason,
+            LocalDate reviewDueOn
+    ) {}
+
+    public record ScanComparisonResponse(
+            UUID scanRunId,
+            UUID baselineScanRunId,
+            UUID productProfileId,
+            UUID workspaceId,
+            boolean complete,
+            String incompleteReason,
+            List<NormalizedFindingResponse> fixed,
+            List<NormalizedFindingResponse> stillOpen,
+            List<NormalizedFindingResponse> newlySeen,
+            List<NormalizedFindingResponse> returned
     ) {}
 
     public record ScannerAdminHealthResponse(

@@ -712,6 +712,90 @@ export interface ProductScannerSummary {
   toolCoverage: ScannerToolCoverage[];
 }
 
+export type ScannerRiskState =
+  | 'NEW'
+  | 'STILL_OPEN'
+  | 'READY_TO_CHECK'
+  | 'FIXED_BY_LATEST_SCAN'
+  | 'RETURNED'
+  | 'ACCEPTED_RISK'
+  | 'FALSE_POSITIVE'
+  | 'NEEDS_PROOF'
+  | 'INCOMPLETE_CHECK';
+
+export interface ScannerRiskThread extends BaseRecord {
+  productProfileId: string;
+  workspaceId?: string;
+  fingerprint: string;
+  title: string;
+  description: string;
+  severity: NormalizedFinding['severity'];
+  currentState: ScannerRiskState;
+  firstSeenScanRunId?: string;
+  lastSeenScanRunId?: string;
+  lastFixedScanRunId?: string;
+  currentFindingId?: string;
+  recommendedModule?: ServiceModule;
+  sourceTool?: string;
+  sourceRuleId?: string;
+  affectedComponent?: string;
+  readinessArea?: string;
+  businessRisk?: string;
+  evidenceRequired?: string;
+  acceptedReason?: string;
+  reviewDueOn?: string;
+}
+
+export interface ScannerRiskGroup {
+  state: ScannerRiskState;
+  count: number;
+  risks: ScannerRiskThread[];
+}
+
+export interface ScannerRiskSummary {
+  productProfileId: string;
+  workspaceId?: string;
+  total: number;
+  groups: ScannerRiskGroup[];
+}
+
+export interface ScanComparison {
+  scanRunId: string;
+  baselineScanRunId?: string;
+  productProfileId: string;
+  workspaceId?: string;
+  complete: boolean;
+  incompleteReason?: string;
+  fixed: NormalizedFinding[];
+  stillOpen: NormalizedFinding[];
+  newlySeen: NormalizedFinding[];
+  returned: NormalizedFinding[];
+}
+
+export interface CheckFixPreview {
+  summary: string;
+  tools: string[];
+  sourceId?: string;
+  branchRef?: string;
+  runtimeTargetUrl?: string;
+  containerImageRef?: string;
+  limitations: string[];
+}
+
+export interface CheckFixesResponse {
+  productProfileId: string;
+  workspaceId: string;
+  mode: 'RELEVANT_TO_FIXES' | 'FULL_SUITE';
+  riskThreadIds: string[];
+  preview: CheckFixPreview;
+  queuedRuns: ScanRun[];
+  skippedTargets: {
+    depth: ScanRun['depth'];
+    toolKeys: string[];
+    reason: string;
+  }[];
+}
+
 export type RepoSignalType =
   | 'REPOSITORY_SOURCE'
   | 'SOURCE_AUTHORIZATION'

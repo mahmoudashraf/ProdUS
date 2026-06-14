@@ -15,7 +15,7 @@ import {
   appleColors,
 } from './PlatformComponents';
 import { shortDateTime } from './ownerProductizationWorkspaceConfig';
-import type { ProductScannerSummary, ScannerToolCoverage } from './types';
+import type { ProductScannerSummary, ScannerRiskSummary, ScannerToolCoverage } from './types';
 
 interface ScannerCounts {
   critical?: number;
@@ -32,6 +32,7 @@ interface OwnerWorkspaceScannersOverviewProps {
   latestMappedToolFindings: number;
   scannerToolCoverage: ScannerToolCoverage[];
   scannerSummary?: ProductScannerSummary | undefined;
+  riskSummary?: ScannerRiskSummary | undefined;
   storedProofCount: number;
   isFetching?: boolean | undefined;
   onOpenRisks: () => void;
@@ -47,6 +48,7 @@ export default function OwnerWorkspaceScannersOverview({
   latestMappedToolFindings,
   scannerToolCoverage,
   scannerSummary,
+  riskSummary,
   storedProofCount,
   isFetching,
   onOpenRisks,
@@ -56,6 +58,10 @@ export default function OwnerWorkspaceScannersOverview({
   const latestCompletedRun = scannerSummary?.recentRuns.find((run) => run.status === 'COMPLETED');
   const latestRun = latestCompletedRun || scannerSummary?.recentRuns[0];
   const openFindings = scannerCounts?.open || 0;
+  const riskCount = (state: string) => riskSummary?.groups.find((group) => group.state === state)?.count || 0;
+  const currentOpenRisks = riskCount('NEW') + riskCount('STILL_OPEN') + riskCount('RETURNED') + riskCount('NEEDS_PROOF') + riskCount('INCOMPLETE_CHECK');
+  const fixedRisks = riskCount('FIXED_BY_LATEST_SCAN');
+  const riskTotal = riskSummary?.total ?? openFindings;
   const priorityFindings = (scannerCounts?.critical || 0) + (scannerCounts?.high || 0);
   const completedSuite = totalTools > 0 && latestCoveredTools === totalTools;
   const latestLabel = latestRun?.completedAt || latestRun?.startedAt
@@ -102,10 +108,10 @@ export default function OwnerWorkspaceScannersOverview({
             icon={<FactCheckOutlined />}
           />
           <MetricTile
-            label="Open risks"
-            value={openFindings}
-            detail={priorityFindings ? `${priorityFindings} critical/high` : 'No critical/high visible'}
-            accent={priorityFindings ? appleColors.red : openFindings ? appleColors.amber : appleColors.green}
+            label="Current risks"
+            value={currentOpenRisks}
+            detail={riskSummary ? `${fixedRisks} fixed in latest checks` : `${priorityFindings} critical/high historical findings`}
+            accent={priorityFindings || riskCount('RETURNED') ? appleColors.red : currentOpenRisks ? appleColors.amber : appleColors.green}
             icon={<FactCheckOutlined />}
           />
           <MetricTile
@@ -121,10 +127,10 @@ export default function OwnerWorkspaceScannersOverview({
           <ScannerJourneyCard
             eyebrow="Decision"
             title="Risks to fix"
-            detail="Review blockers, improvements, handled risks, and the scan source behind each one."
+            detail="Review current blockers, returned risks, fixed checks, and the scan source behind each one."
             actionLabel="Review risks"
-            accent={priorityFindings ? appleColors.red : openFindings ? appleColors.amber : appleColors.green}
-            countLabel={openFindings ? `${openFindings} open` : 'No open risks'}
+            accent={priorityFindings || riskCount('RETURNED') ? appleColors.red : currentOpenRisks ? appleColors.amber : appleColors.green}
+            countLabel={riskTotal ? `${currentOpenRisks} current` : 'No current risks'}
             icon={<ShieldOutlined />}
             onOpen={onOpenRisks}
           />

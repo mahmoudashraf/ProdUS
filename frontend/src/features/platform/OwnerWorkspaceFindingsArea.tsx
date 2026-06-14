@@ -1,9 +1,13 @@
 'use client';
 
 import type { ComponentProps } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getJson, postJson } from './api';
 import OwnerFindingsEvidencePanel from './OwnerFindingsEvidencePanel';
 import OwnerFindingsRiskPanel from './OwnerFindingsRiskPanel';
+import OwnerProductScannerRiskThreadPanel from './OwnerProductScannerRiskThreadPanel';
 import OwnerWorkspaceEvidenceArea from './OwnerWorkspaceEvidenceArea';
+import OwnerWorkspaceFixesRiskThreadPanel from './OwnerWorkspaceFixesRiskThreadPanel';
 import OwnerWorkspaceRiskArea from './OwnerWorkspaceRiskArea';
 import OwnerWorkspaceScannersOverview from './OwnerWorkspaceScannersOverview';
 import OwnerWorkspaceTechnicalProofArea from './OwnerWorkspaceTechnicalProofArea';
@@ -17,7 +21,7 @@ import type { ScannerProofOperationView } from './scannerProofOperationModel';
 import type { WorkspaceTab } from './ownerWorkspaceModel';
 import type { useOwnerWorkspaceProductActions } from './useOwnerWorkspaceProductActions';
 import type { useOwnerWorkspaceScannerOperations } from './useOwnerWorkspaceScannerOperations';
-import type { NormalizedFinding } from './types';
+import type { CheckFixesResponse, NormalizedFinding, ScannerRiskSummary, ScannerRiskThread } from './types';
 
 type RiskProps = ComponentProps<typeof OwnerFindingsRiskPanel>;
 type EvidenceProps = ComponentProps<typeof OwnerFindingsEvidencePanel>;
@@ -150,6 +154,41 @@ export default function OwnerWorkspaceFindingsArea({
   onAddService,
   onRecordFindingDecision,
 }: OwnerWorkspaceFindingsAreaProps) {
+  const queryClient = useQueryClient();
+  const selectedProductId = selectedProduct?.id;
+  const selectedWorkspaceId = selectedWorkspace?.id;
+  const productRiskSummary = useQuery({
+    queryKey: ['scanner-current-risks', selectedProductId],
+    enabled: !!selectedProductId && workspaceTab === 'findings',
+    queryFn: () => getJson<ScannerRiskSummary>(`/scanner/products/${selectedProductId}/risks/current`),
+  });
+  const workspaceRiskSummary = useQuery({
+    queryKey: ['workspace-current-risks', selectedWorkspaceId],
+    enabled: !!selectedWorkspaceId && workspaceTab === 'findings',
+    queryFn: () => getJson<ScannerRiskSummary>(`/workspaces/${selectedWorkspaceId}/scanner/risks/current`),
+  });
+  const checkFixes = useMutation({
+    mutationFn: (riskThreadIds: string[]) => postJson<CheckFixesResponse, { riskThreadIds: string[]; mode: 'RELEVANT_TO_FIXES'; authorizationConfirmed: boolean }>(
+      `/workspaces/${selectedWorkspaceId}/scanner/check-fixes`,
+      { riskThreadIds, mode: 'RELEVANT_TO_FIXES', authorizationConfirmed: true },
+    ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', selectedWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['scanner-current-risks', selectedProductId] });
+      queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProductId] });
+    },
+  });
+  const assignRiskToWorkspace = useMutation({
+    mutationFn: (riskThreadId: string) => postJson<ScannerRiskThread, { workspaceId: string }>(
+      `/scanner/risks/${riskThreadId}/assign-workspace`,
+      { workspaceId: selectedWorkspaceId || '' },
+    ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', selectedWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['scanner-current-risks', selectedProductId] });
+      queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProductId] });
+    },
+  });
   if (!selectedProduct || workspaceTab !== 'findings') return null;
 
   if (!detailOpen) {
@@ -162,8 +201,9 @@ export default function OwnerWorkspaceFindingsArea({
         latestMappedToolFindings={latestMappedToolFindings}
         scannerToolCoverage={scannerToolCoverage}
         scannerSummary={scannerSummaryData || undefined}
+        riskSummary={productRiskSummary.data}
         storedProofCount={scannerOperations.filteredScannerEvidence.length}
-        isFetching={scannerSummaryFetching}
+        isFetching={scannerSummaryFetching || productRiskSummary.isFetching}
         onOpenRisks={() => onOpenFindingsView('risks')}
         onOpenProofLibrary={() => onOpenFindingsView('evidence')}
         onOpenScannerTools={() => onOpenFindingsView('technical')}
@@ -244,16 +284,34 @@ export default function OwnerWorkspaceFindingsArea({
   }
 
   return (
-    <OwnerWorkspaceRiskArea
-      groups={groupedFindings}
-      totalFindingCount={scannerSummaryData?.findings.length || 0}
-      openGroups={openFindingGroups}
-      activeGroupView={riskGroupView}
-      onGroupToggle={onToggleFindingGroup}
-      onReviewFinding={onReviewFinding}
-      onOpenHub={onOpenRiskGroupHub}
-      onOpenGroupView={onOpenRiskGroupView}
-      onOpenTechnicalProof={() => onOpenFindingsView('technical')}
-    />
+    <>
+      <OwnerProductScannerRiskThreadPanel
+        riskSummary={productRiskSummary.data}
+        selectedWorkspace={selectedWorkspace || undefined}
+        isLoading={productRiskSummary.isFetching}
+        isAssigning={assignRiskToWorkspace.isPending}
+        onAssignRisk={(riskId) => {
+          if (selectedWorkspaceId) assignRiskToWorkspace.mutate(riskId);
+        }}
+      />
+      <OwnerWorkspaceFixesRiskThreadPanel
+        riskSummary={workspaceRiskSummary.data}
+        isLoading={workspaceRiskSummary.isFetching}
+        isChecking={checkFixes.isPending}
+        lastCheck={checkFixes.data}
+        onCheckFixes={(riskIds) => checkFixes.mutate(riskIds)}
+      />
+      <OwnerWorkspaceRiskArea
+        groups={groupedFindings}
+        totalFindingCount={scannerSummaryData?.findings.length || 0}
+        openGroups={openFindingGroups}
+        activeGroupView={riskGroupView}
+        onGroupToggle={onToggleFindingGroup}
+        onReviewFinding={onReviewFinding}
+        onOpenHub={onOpenRiskGroupHub}
+        onOpenGroupView={onOpenRiskGroupView}
+        onOpenTechnicalProof={() => onOpenFindingsView('technical')}
+      />
+    </>
   );
 }

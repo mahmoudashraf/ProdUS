@@ -68,7 +68,7 @@ export function DeliveryHero({
               {activeWorkspace.name}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65, maxWidth: 780 }}>
-              {activeWorkspace.packageInstance?.name || 'Approved Work Plan'} for {product.name}. This is where the product delivery work becomes checkpoints, proof, people, and handoff.
+              {activeWorkspace.packageInstance?.name || 'Workspace plan'} for {product.name}. This is where selected services, fixes, people, proof, and handoff become practical product work.
             </Typography>
           </Box>
         </Stack>
@@ -78,7 +78,7 @@ export function DeliveryHero({
             Next delivery action
           </Button>
           <Button component={NextLink} href={PROJECT_START_PLAN_HREF} variant="outlined" sx={{ minHeight: 44 }}>
-            Review Planning
+            Plan work
           </Button>
           {workspaceCount > 1 && (
             <Button component={NextLink} href={listHref} variant="text" sx={{ minHeight: 40 }}>

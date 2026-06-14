@@ -144,7 +144,7 @@ export default function OwnerWorkspaceProductHero({
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 1.5 }}>
             <Button variant="contained" startIcon={<RocketLaunchOutlined />} onClick={onPrimaryAction} sx={{ minHeight: 42, flex: { sm: '1 1 220px' }, whiteSpace: 'normal' }}>
-              {topOwnerRisks.length ? 'Open action plan' : 'Review service path'}
+              {topOwnerRisks.length ? 'Plan fixes' : 'Review service path'}
             </Button>
             <Button variant="outlined" startIcon={<ShieldOutlined />} onClick={onViewProof} sx={{ minHeight: 42, flex: { sm: '1 1 160px' }, whiteSpace: 'normal' }}>
               Go to scanners

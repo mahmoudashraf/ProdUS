@@ -421,6 +421,132 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(jsonPath("$[0].severity").value("HIGH"))
                 .andExpect(jsonPath("$[0].description", not(containsString("ghp_"))))
                 .andExpect(jsonPath("$[0].description").value(containsString("[REDACTED_SECRET]")));
+
+        MvcResult risksResult = mockMvc.perform(get("/api/scanner/products/{productId}/risks/current", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.groups[0].state").value("NEW"))
+                .andReturn();
+        UUID riskThreadId = UUID.fromString(objectMapper.readTree(risksResult.getResponse().getContentAsString())
+                .get("groups").get(0).get("risks").get(0).get("id").asText());
+
+        ProjectWorkspace workspace = createWorkspaceWithModule(owner, productId, "security.secrets_scan");
+        mockMvc.perform(post("/api/scanner/risks/{riskThreadId}/assign-workspace", riskThreadId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "workspaceId": "%s" }
+                                """.formatted(workspace.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workspaceId").value(workspace.getId().toString()));
+
+        mockMvc.perform(post("/api/workspaces/{workspaceId}/scanner/check-fixes", workspace.getId())
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "riskThreadIds": ["%s"],
+                                  "mode": "RELEVANT_TO_FIXES",
+                                  "authorizationConfirmed": true
+                                }
+                                """.formatted(riskThreadId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mode").value("RELEVANT_TO_FIXES"))
+                .andExpect(jsonPath("$.preview.tools[0]").value("Gitleaks"))
+                .andExpect(jsonPath("$.queuedRuns[0].workspaceId").value(workspace.getId().toString()))
+                .andExpect(jsonPath("$.queuedRuns[0].toolRuns[0].toolKey").value("gitleaks"));
+    }
+
+    @Test
+    void hostedSafeStaticScanComparisonMarksMissingRiskFixed(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
+        assumeGitAvailable();
+        User owner = saveUser("scanner-comparison-owner@produs.test", User.UserRole.PRODUCT_OWNER);
+        UUID productId = createProduct(owner);
+        Path repo = createGitRepository(tempDir.resolve("repo"));
+        Path leakyScanner = createFakeGitleaksScanner(tempDir.resolve("fake-gitleaks-leaky.sh"));
+        ScannerProperties.ToolProperties gitleaks = scannerProperties.getTools().get("gitleaks");
+        gitleaks.setCommand("'" + leakyScanner + "' {target} {output}");
+        gitleaks.setVersionCommand("'" + leakyScanner + "' --version");
+        gitleaks.setEnabled(true);
+
+        MvcResult sourceResult = mockMvc.perform(post("/api/scanner/sources")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "providerType": "GITHUB",
+                                  "displayName": "Local authorized repository",
+                                  "externalReference": "%s",
+                                  "scopeNote": "Test repository authorized for scanner comparison."
+                                }
+                                """.formatted(productId, repo.toUri())))
+                .andExpect(status().isOk())
+                .andReturn();
+        UUID sourceId = readId(sourceResult);
+
+        MvcResult firstRunResult = mockMvc.perform(post("/api/scanner/runs/hosted")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "sourceId": "%s",
+                                  "depth": "SAFE_STATIC",
+                                  "toolKeys": ["gitleaks"],
+                                  "authorizationConfirmed": true,
+                                  "reason": "Initial scanner baseline."
+                                }
+                                """.formatted(productId, sourceId)))
+                .andExpect(status().isOk())
+                .andReturn();
+        UUID firstRunId = readId(firstRunResult);
+        org.assertj.core.api.Assertions.assertThat(scannerWorker.executeNextQueuedJob()).isTrue();
+
+        mockMvc.perform(get("/api/scanner/products/{productId}/risks/current", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1));
+
+        Path cleanScanner = createCleanFakeGitleaksScanner(tempDir.resolve("fake-gitleaks-clean.sh"));
+        gitleaks.setCommand("'" + cleanScanner + "' {target} {output}");
+        gitleaks.setVersionCommand("'" + cleanScanner + "' --version");
+
+        MvcResult secondRunResult = mockMvc.perform(post("/api/scanner/runs/hosted")
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "sourceId": "%s",
+                                  "depth": "SAFE_STATIC",
+                                  "toolKeys": ["gitleaks"],
+                                  "authorizationConfirmed": true,
+                                  "comparisonBaseRunId": "%s",
+                                  "reason": "Verify the secret was removed."
+                                }
+                                """.formatted(productId, sourceId, firstRunId)))
+                .andExpect(status().isOk())
+                .andReturn();
+        UUID secondRunId = readId(secondRunResult);
+        org.assertj.core.api.Assertions.assertThat(scannerWorker.executeNextQueuedJob()).isTrue();
+
+        MvcResult comparisonResult = mockMvc.perform(get("/api/scanner/runs/{runId}/comparison", secondRunId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.complete").value(true))
+                .andExpect(jsonPath("$.fixed.length()").value(1))
+                .andExpect(jsonPath("$.stillOpen.length()").value(0))
+                .andReturn();
+        org.assertj.core.api.Assertions.assertThat(objectMapper.readTree(comparisonResult.getResponse().getContentAsString())
+                .get("baselineScanRunId").asText()).isEqualTo(firstRunId.toString());
+
+        JsonNode risks = objectMapper.readTree(mockMvc.perform(get("/api/scanner/products/{productId}/risks/current", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+        org.assertj.core.api.Assertions.assertThat(riskCountForState(risks, "FIXED_BY_LATEST_SCAN")).isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(riskCountForState(risks, "STILL_OPEN")).isEqualTo(0);
+        org.assertj.core.api.Assertions.assertThat(riskCountForState(risks, "NEW")).isEqualTo(0);
     }
 
     @Test
@@ -1073,6 +1199,15 @@ class ScannerEvidenceIntegrationTest {
         throw new AssertionError("No scanner tool coverage found for " + toolKey);
     }
 
+    private int riskCountForState(JsonNode summary, String state) {
+        for (JsonNode group : summary.get("groups")) {
+            if (state.equals(group.get("state").asText())) {
+                return group.get("count").asInt();
+            }
+        }
+        throw new AssertionError("No scanner risk group found for " + state);
+    }
+
     private void assumeGitAvailable() {
         try {
             Process process = new ProcessBuilder("git", "--version").start();
@@ -1108,6 +1243,23 @@ class ScannerEvidenceIntegrationTest {
                   "File": "config.env",
                   "StartLine": 1
                 }]
+                JSON
+                exit 0
+                """);
+        script.toFile().setExecutable(true);
+        return script;
+    }
+
+    private Path createCleanFakeGitleaksScanner(Path script) throws Exception {
+        Files.writeString(script, """
+                #!/bin/sh
+                if [ "$1" = "--version" ]; then
+                  echo "fake-gitleaks 1.0.0"
+                  exit 0
+                fi
+                output="$2"
+                cat > "$output" <<'JSON'
+                []
                 JSON
                 exit 0
                 """);

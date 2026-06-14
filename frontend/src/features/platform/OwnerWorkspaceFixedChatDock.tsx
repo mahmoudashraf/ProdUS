@@ -3,9 +3,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AutoAwesomeOutlined,
-  ChatBubbleOutlineOutlined,
-  CloseFullscreenOutlined,
-  OpenInFullOutlined,
   SendOutlined,
 } from '@mui/icons-material';
 import {
@@ -14,10 +11,8 @@ import {
   Button,
   CircularProgress,
   IconButton,
-  InputAdornment,
   Stack,
   TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import { useMutation } from '@tanstack/react-query';
@@ -167,123 +162,49 @@ export default function OwnerWorkspaceFixedChatDock({
   return (
     <Box
       data-testid="owner-workspace-fixed-chat-window"
+      aria-label="ProdUS AI"
       sx={{
         position: 'fixed',
-        right: { xs: 12, md: 22, xl: 30 },
-        bottom: { xs: 12, md: 22 },
-        width: expanded
-          ? { xs: 'calc(100vw - 24px)', sm: 390, xl: 410 }
-          : { xs: 54, sm: 280, xl: 300 },
-        maxWidth: 'calc(100vw - 24px)',
+        left: '50%',
+        bottom: { xs: 8, sm: 14, md: 16 },
+        width: { xs: 'calc(100vw - 16px)', sm: 'min(78rem, calc(100vw - 1rem))' },
+        maxWidth: 'calc(100vw - 16px)',
+        transform: 'translateX(-50%)',
         zIndex: theme => theme.zIndex.modal + 3,
         pointerEvents: 'auto',
       }}
     >
       <Box
         sx={{
-          borderRadius: 1,
-          borderTopLeftRadius: !expanded ? { xs: 999, sm: 1 } : 1,
-          borderTopRightRadius: !expanded ? { xs: 999, sm: 1 } : 1,
-          borderBottomLeftRadius: !expanded ? { xs: 999, sm: 1 } : 1,
-          borderBottomRightRadius: !expanded ? { xs: 999, sm: 1 } : 1,
-          border: '1px solid #dbe4f0',
+          borderRadius: 3,
+          border: '2px solid #2563eb',
           bgcolor: '#ffffff',
-          boxShadow: '0 22px 60px rgba(15, 23, 42, 0.18)',
+          boxShadow: '0 22px 64px rgba(37, 99, 235, 0.22)',
           overflow: 'hidden',
+          p: 1,
         }}
       >
-        <Stack
-          direction="row"
-          spacing={1}
-          alignItems="center"
-          justifyContent={expanded ? 'space-between' : { xs: 'center', sm: 'space-between' }}
-          sx={{
-            px: expanded ? 1.15 : { xs: 0.8, sm: 1.15 },
-            py: expanded ? 1 : { xs: 0.8, sm: 1 },
-            borderBottom: expanded ? '1px solid #edf2f7' : 'none',
-            cursor: expanded ? 'default' : 'pointer',
-          }}
-          onClick={() => {
-            if (!expanded) setExpanded(true);
-          }}
-        >
-          <Stack direction="row" spacing={0.9} alignItems="center" sx={{ minWidth: 0 }}>
-            <Box
-              sx={{
-                width: expanded ? 34 : { xs: 30, sm: 34 },
-                height: expanded ? 34 : { xs: 30, sm: 34 },
-                borderRadius: 1,
-                bgcolor: '#f1efff',
-                color: appleColors.purple,
-                display: 'grid',
-                placeItems: 'center',
-                flex: '0 0 auto',
-              }}
-            >
-              <ChatBubbleOutlineOutlined sx={{ fontSize: 19 }} />
-            </Box>
-            <Box sx={{ minWidth: 0, display: { xs: expanded ? 'block' : 'none', sm: 'block' } }}>
-              <Typography variant="body2" sx={{ fontWeight: 950 }} noWrap>
-                {expanded ? (
-                  'ProdUS AI'
-                ) : (
-                  <>
-                    <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
-                      Ask AI
-                    </Box>
-                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
-                      ProdUS AI
-                    </Box>
-                  </>
-                )}
-              </Typography>
-              <Box sx={{ display: { xs: expanded ? 'block' : 'none', sm: 'block' } }}>
+        {expanded && (
+          <Stack spacing={1.1} sx={{ mb: 1 }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+              <Stack spacing={0.2}>
+                <Typography variant="body2" sx={{ fontWeight: 950 }}>
+                  ProdUS AI
+                </Typography>
                 <DotLabel
                   label={chatQuery.isPending ? 'Thinking' : liveStatus ? 'Live product chat' : 'AI issue shown'}
                   color={chatQuery.isPending ? appleColors.amber : liveStatus ? appleColors.green : appleColors.amber}
                 />
-              </Box>
-            </Box>
-          </Stack>
-          <Stack
-            direction="row"
-            spacing={0.25}
-            alignItems="center"
-            sx={{ display: { xs: expanded ? 'flex' : 'none', sm: 'flex' } }}
-          >
-            <Tooltip title={fullChatReady ? 'Open full chat' : 'Full chat is loading'}>
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={event => {
-                    event.stopPropagation();
-                    onOpenFullChat();
-                  }}
-                  disabled={!fullChatReady}
-                  aria-label="Open full ProdUS AI chat"
-                  sx={{ display: { xs: expanded ? 'inline-flex' : 'none', sm: 'inline-flex' } }}
-                >
-                  {fullChatReady ? <OpenInFullOutlined sx={{ fontSize: 18 }} /> : <CircularProgress size={16} />}
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={expanded ? 'Collapse chat' : 'Show chat'}>
-              <IconButton
+              </Stack>
+              <Button
                 size="small"
-                onClick={event => {
-                  event.stopPropagation();
-                  setExpanded(value => !value);
-                }}
-                aria-label={expanded ? 'Collapse ProdUS AI chat' : 'Show ProdUS AI chat'}
+                variant="text"
+                onClick={() => setExpanded(false)}
+                sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, minHeight: 30 }}
               >
-                {expanded ? <CloseFullscreenOutlined sx={{ fontSize: 18 }} /> : <AutoAwesomeOutlined sx={{ fontSize: 18 }} />}
-              </IconButton>
-            </Tooltip>
-          </Stack>
-        </Stack>
-
-        {expanded && (
-          <Stack spacing={1} sx={{ p: 1.15 }}>
+                Hide answer
+              </Button>
+            </Stack>
             <Stack spacing={0.85} sx={{ maxHeight: { xs: 230, sm: 300 }, overflowY: 'auto', pr: 0.25 }}>
               {messages.map(message => (
                 <Box
@@ -334,7 +255,7 @@ export default function OwnerWorkspaceFixedChatDock({
               <div ref={messagesEndRef} />
             </Stack>
 
-            <Stack direction="row" spacing={0.65} flexWrap="wrap" useFlexGap>
+            <Stack direction="row" spacing={0.65} flexWrap="wrap" useFlexGap sx={{ display: { xs: 'none', sm: 'flex' } }}>
               {starterPrompts.slice(0, 3).map(prompt => (
                 <Button
                   key={prompt}
@@ -348,64 +269,83 @@ export default function OwnerWorkspaceFixedChatDock({
                 </Button>
               ))}
             </Stack>
-
-            <Box component="form" onSubmit={submit}>
-              <TextField
-                fullWidth
-                size="small"
-                value={input}
-                placeholder="Ask about this product..."
-                onChange={event => setInput(event.target.value)}
-                disabled={chatQuery.isPending}
-                inputProps={{ 'aria-label': 'Ask ProdUS AI about this product' }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        edge="end"
-                        type="submit"
-                        disabled={!input.trim() || chatQuery.isPending}
-                        aria-label="Send ProdUS AI chat message"
-                        sx={{ color: appleColors.purple }}
-                      >
-                        <SendOutlined sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Box>
           </Stack>
         )}
 
-        {!expanded && (
-          <Box component="form" onSubmit={submit} sx={{ px: 1.15, pb: 1.15, display: { xs: 'none', sm: 'block' } }}>
+        <Box component="form" onSubmit={submit}>
+          <Stack direction="row" spacing={1} alignItems="flex-end">
             <TextField
               fullWidth
-              size="small"
+              multiline
+              minRows={1}
+              maxRows={4}
               value={input}
-              placeholder="Ask ProdUS AI..."
+              placeholder="Ask me anything..."
               onChange={event => setInput(event.target.value)}
               disabled={chatQuery.isPending}
-              inputProps={{ 'aria-label': 'Ask ProdUS AI about this product' }}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      edge="end"
-                      type="submit"
-                      disabled={!input.trim() || chatQuery.isPending}
-                      aria-label="Send ProdUS AI chat message"
-                      sx={{ color: appleColors.purple }}
-                    >
-                      <SendOutlined sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  </InputAdornment>
-                ),
+              inputProps={{ 'aria-label': 'Ask ProdUS AI' }}
+              sx={{
+                minWidth: 0,
+                flex: '1 1 auto',
+                '& .MuiOutlinedInput-root': {
+                  minHeight: 56,
+                  alignItems: 'center',
+                  borderRadius: 2.3,
+                  bgcolor: '#fff',
+                  boxShadow: 'inset 0 1px 8px rgba(15, 23, 42, 0.06)',
+                  '& fieldset': { borderColor: '#dbe4f0' },
+                },
+                '& textarea': {
+                  lineHeight: 1.55,
+                  fontSize: { xs: 15, sm: 16 },
+                },
               }}
             />
-          </Box>
-        )}
+            <Button
+              variant="outlined"
+              startIcon={fullChatReady ? <AutoAwesomeOutlined /> : <CircularProgress size={16} />}
+              disabled={!fullChatReady}
+              onClick={onOpenFullChat}
+              sx={{
+                flex: '0 0 auto',
+                minHeight: { xs: 48, sm: 52 },
+                minWidth: { xs: 96, sm: 104 },
+                borderRadius: 2,
+                borderColor: '#f0a8ff',
+                bgcolor: '#fff7ff',
+                color: appleColors.purple,
+                fontWeight: 950,
+                '&:hover': {
+                  borderColor: '#d946ef',
+                  bgcolor: '#fdf2ff',
+                },
+              }}
+            >
+              MAX
+            </Button>
+            <IconButton
+              type="submit"
+              disabled={!input.trim() || chatQuery.isPending}
+              aria-label="Send ProdUS AI chat message"
+              sx={{
+                flex: '0 0 auto',
+                width: { xs: 48, sm: 52 },
+                height: { xs: 48, sm: 52 },
+                borderRadius: 2,
+                color: '#fff',
+                bgcolor: '#8fb2f4',
+                '&:hover': { bgcolor: '#6f97e8' },
+                '&.Mui-disabled': {
+                  color: '#fff',
+                  bgcolor: '#a7bff4',
+                  opacity: 0.72,
+                },
+              }}
+            >
+              <SendOutlined />
+            </IconButton>
+          </Stack>
+        </Box>
       </Box>
     </Box>
   );

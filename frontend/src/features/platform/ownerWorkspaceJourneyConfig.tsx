@@ -103,17 +103,17 @@ export const buildOwnerWorkspaceJourneyItems = ({
   workspacesJourneyItems: [
     {
       value: 'list',
-      label: 'Product workspaces',
-      detail: 'Delivery workspaces created from approved Work Plans for this product.',
+      label: 'Workspace',
+      detail: 'Active product work rooms for planning, fixes, proof, people, and handoff.',
       accent: appleColors.green,
-      meta: <PastelChip label="Delivery" accent={appleColors.green} bg="#e7f8ee" />,
+      meta: <PastelChip label="Work field" accent={appleColors.green} bg="#e7f8ee" />,
     },
   ],
   actionJourneyItems: [
     {
       value: 'plan',
-      label: 'Action plan',
-      detail: 'Do now, schedule next, and monitor after launch.',
+      label: 'Plan work',
+      detail: 'Choose what to do now, what to schedule next, and what to watch after launch.',
       accent: appleColors.purple,
       meta: <PastelChip label={`${launchStatus.blockerCount} blockers`} accent={launchStatus.blockerCount ? appleColors.red : appleColors.green} bg={launchStatus.blockerCount ? '#fff1f2' : '#e7f8ee'} />,
     },
@@ -172,15 +172,15 @@ export const buildOwnerWorkspaceJourneyItems = ({
     },
     {
       value: 'plan',
-      label: 'Service plan',
-      detail: 'Turn the selected work into a scoped owner-ready plan.',
+      label: 'Plan work',
+      detail: 'Turn selected services and risks into a practical workspace plan.',
       accent: appleColors.blue,
       meta: <PastelChip label={hasSelectedPackage ? 'Plan exists' : 'Draft'} accent={hasSelectedPackage ? appleColors.green : appleColors.amber} bg={hasSelectedPackage ? '#e7f8ee' : '#fff4dc'} />,
     },
     {
       value: 'team',
-      label: 'Team match',
-      detail: 'Compare teams, experts, workspace handoff, and risk.',
+      label: 'Team',
+      detail: 'Compare teams and experts who can handle the selected workspace work.',
       accent: appleColors.cyan,
       meta: <PastelChip label={`${teamMatchCount} matches`} accent={appleColors.cyan} bg="#e4f9fd" />,
     },
