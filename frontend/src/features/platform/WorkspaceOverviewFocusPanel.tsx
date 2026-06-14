@@ -3,7 +3,7 @@
 import GroupsOutlined from '@mui/icons-material/GroupsOutlined';
 import LocalOfferOutlined from '@mui/icons-material/LocalOfferOutlined';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Avatar, Box, Button, Stack, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 
 import { PastelChip, Surface, appleColors, formatLabel } from './PlatformComponents';
@@ -72,7 +72,7 @@ export default function WorkspaceOverviewFocusPanel({
   });
 
   return (
-    <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
+    <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 58%, #f6fffb 100%)' }}>
       <Stack spacing={2}>
         <Stack
           direction={{ xs: 'column', lg: 'row' }}
@@ -119,12 +119,14 @@ export default function WorkspaceOverviewFocusPanel({
           sx={{
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', lg: '1.15fr 1fr 1fr' },
-            gap: 1.25,
+            gap: 1.35,
+            alignItems: 'start',
           }}
         >
           <AnswerBlock
             icon={<WarningAmberOutlined fontSize="small" />}
-            title="Findings in this workspace"
+            title="Findings"
+            eyebrow="What needs attention"
             accent={
               activeRisks.length
                 ? appleColors.red
@@ -134,6 +136,13 @@ export default function WorkspaceOverviewFocusPanel({
             }
             actionLabel="Open findings"
             onAction={onOpenFindings}
+            summary={
+              activeRisks.length
+                ? `${activeRisks.length} active risk${activeRisks.length === 1 ? '' : 's'} to work through.`
+                : fixedRisks.length
+                  ? `${fixedRisks.length} risk${fixedRisks.length === 1 ? '' : 's'} recently fixed.`
+                  : 'No assigned scanner risks yet.'
+            }
             chips={[
               `${activeRisks.length} current`,
               fixedRisks.length ? `${fixedRisks.length} fixed` : '',
@@ -152,10 +161,16 @@ export default function WorkspaceOverviewFocusPanel({
 
           <AnswerBlock
             icon={<LocalOfferOutlined fontSize="small" />}
-            title="Services included"
+            title="Services"
+            eyebrow="Scope in this workspace"
             accent={packageModules.length ? appleColors.purple : appleColors.amber}
             actionLabel="Manage services"
             onAction={onOpenServices}
+            summary={
+              packageModules.length
+                ? `${packageModules.length} selected service${packageModules.length === 1 ? '' : 's'} define the current work.`
+                : 'No services are attached yet.'
+            }
             chips={[
               packageModules.length ? `${packageModules.length} selected` : 'No service list',
               requiredModuleCount ? `${requiredModuleCount} required` : '',
@@ -164,16 +179,13 @@ export default function WorkspaceOverviewFocusPanel({
             {visibleModules.length ? (
               <Stack spacing={0.8}>
                 {visibleModules.map(module => (
-                  <Box key={module.id}>
-                    <Typography variant="body2" sx={{ fontWeight: 850 }}>
-                      {module.serviceModule.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatLabel(module.status)}
-                      {module.required ? ' · required' : ''}
-                    </Typography>
-                  </Box>
+                  <ServiceLine key={module.id} module={module} />
                 ))}
+                {packageModules.length > visibleModules.length && (
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 750 }}>
+                    +{packageModules.length - visibleModules.length} more in this workspace
+                  </Typography>
+                )}
               </Stack>
             ) : (
               <EmptyCopy
@@ -184,10 +196,16 @@ export default function WorkspaceOverviewFocusPanel({
 
           <AnswerBlock
             icon={<GroupsOutlined fontSize="small" />}
-            title="People assigned"
+            title="People"
+            eyebrow="Team and experts"
             accent={hasPeople ? appleColors.cyan : appleColors.amber}
             actionLabel="Manage people"
             onAction={onOpenTeam}
+            summary={
+              hasPeople
+                ? `${activeParticipants.length + supportTeams.length} person or team assignment${activeParticipants.length + supportTeams.length === 1 ? '' : 's'} visible.`
+                : 'No team, expert, or participant is assigned yet.'
+            }
             chips={[
               `${activeParticipants.length} participants`,
               supportTeams.length
@@ -198,24 +216,20 @@ export default function WorkspaceOverviewFocusPanel({
             {hasPeople ? (
               <Stack spacing={0.8}>
                 {activeParticipants.slice(0, 3).map(participant => (
-                  <Box key={participant.id}>
-                    <Typography variant="body2" sx={{ fontWeight: 850, overflowWrap: 'anywhere' }}>
-                      {participant.user.email}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatLabel(participant.role)}
-                    </Typography>
-                  </Box>
+                  <PersonLine
+                    key={participant.id}
+                    label={participant.user.email}
+                    role={formatLabel(participant.role)}
+                    accent={appleColors.cyan}
+                  />
                 ))}
                 {supportTeams.slice(0, 2).map(team => (
-                  <Box key={team.id}>
-                    <Typography variant="body2" sx={{ fontWeight: 850 }}>
-                      {team.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Support team
-                    </Typography>
-                  </Box>
+                  <PersonLine
+                    key={team.id}
+                    label={team.name}
+                    role="Support team"
+                    accent={appleColors.green}
+                  />
                 ))}
               </Stack>
             ) : (
@@ -233,36 +247,52 @@ function AnswerBlock({
   accent,
   children,
   chips,
+  eyebrow,
   icon,
   onAction,
+  summary,
   title,
 }: {
   actionLabel?: string;
   accent: string;
   children: ReactNode;
   chips: string[];
+  eyebrow: string;
   icon: ReactNode;
   onAction?: () => void;
+  summary: string;
   title: string;
 }) {
   return (
     <Box
       sx={{
+        position: 'relative',
+        overflow: 'hidden',
         border: '1px solid',
-        borderColor: `${accent}35`,
-        borderRadius: 1,
-        bgcolor: '#fff',
-        p: 1.25,
-        minHeight: 246,
+        borderColor: `${accent}24`,
+        borderRadius: 1.25,
+        bgcolor: 'rgba(255, 255, 255, 0.92)',
+        p: { xs: 1.4, md: 1.55 },
+        height: { xs: 'auto', lg: 430 },
+        boxShadow: '0 18px 42px rgba(15, 23, 42, 0.055)',
       }}
     >
-      <Stack spacing={1.1}>
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: '0 auto 0 0',
+          width: 4,
+          bgcolor: accent,
+          opacity: 0.84,
+        }}
+      />
+      <Stack spacing={1.25} sx={{ pl: 0.25, height: '100%' }}>
         <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
           <Box
             sx={{
-              width: 36,
-              height: 36,
-              borderRadius: 1,
+              width: 38,
+              height: 38,
+              borderRadius: 1.2,
               bgcolor: `${accent}12`,
               color: accent,
               display: 'grid',
@@ -278,12 +308,61 @@ function AnswerBlock({
             ))}
           </Stack>
         </Stack>
-        <Typography variant="subtitle1" sx={{ fontWeight: 950 }}>
-          {title}
+
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: accent,
+              display: 'block',
+              fontWeight: 850,
+              letterSpacing: 0,
+              textTransform: 'none',
+            }}
+          >
+            {eyebrow}
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 950, lineHeight: 1.15 }}>
+            {title}
+          </Typography>
+        </Box>
+
+        <Typography color="text.secondary" sx={{ fontSize: 14, lineHeight: 1.55 }}>
+          {summary}
         </Typography>
-        {children}
+
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: { xs: 'visible', lg: 'auto' },
+            pr: { xs: 0, lg: 0.35 },
+            scrollbarWidth: 'thin',
+            '&::-webkit-scrollbar': { width: 6 },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: `${accent}35`,
+              borderRadius: 999,
+            },
+          }}
+        >
+          {children}
+        </Box>
+
         {actionLabel && onAction && (
-          <Button variant="text" onClick={onAction} sx={{ alignSelf: 'flex-start', px: 0 }}>
+          <Button
+            variant="outlined"
+            onClick={onAction}
+            sx={{
+              alignSelf: 'flex-start',
+              borderColor: `${accent}42`,
+              color: accent,
+              mt: 'auto',
+              '&:hover': {
+                borderColor: accent,
+                bgcolor: `${accent}10`,
+              },
+            }}
+          >
             {actionLabel}
           </Button>
         )}
@@ -300,9 +379,18 @@ function FindingLine({ risk }: { risk: ScannerRiskThread }) {
       ? appleColors.red
       : appleColors.amber;
   return (
-    <Box sx={{ borderTop: '1px solid', borderColor: appleColors.line, pt: 0.8 }}>
-      <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="space-between">
-        <Typography variant="body2" sx={{ fontWeight: 850, lineHeight: 1.35 }}>
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: appleColors.line,
+        bgcolor: `${accent}08`,
+        borderRadius: 1,
+        px: 1,
+        py: 0.85,
+      }}
+    >
+      <Stack direction="row" spacing={0.85} alignItems="flex-start" justifyContent="space-between">
+        <Typography variant="body2" sx={{ fontWeight: 900, lineHeight: 1.35, minWidth: 0 }}>
           {risk.title}
         </Typography>
         <PastelChip
@@ -322,10 +410,117 @@ function FindingLine({ risk }: { risk: ScannerRiskThread }) {
 
 function EmptyCopy({ text }: { text: string }) {
   return (
-    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
-      {text}
-    </Typography>
+    <Box
+      sx={{
+        border: '1px dashed',
+        borderColor: appleColors.line,
+        borderRadius: 1,
+        bgcolor: 'rgba(248, 250, 252, 0.68)',
+        px: 1,
+        py: 1,
+      }}
+    >
+      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+        {text}
+      </Typography>
+    </Box>
   );
+}
+
+function ServiceLine({ module }: { module: PackageModule }) {
+  const accepted = module.status === 'ACCEPTED';
+  const accent = accepted ? appleColors.green : appleColors.purple;
+
+  return (
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: appleColors.line,
+        borderRadius: 1,
+        px: 1,
+        py: 0.85,
+        bgcolor: '#fbfbff',
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body2" sx={{ fontWeight: 900, lineHeight: 1.35 }}>
+            {module.serviceModule.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {formatLabel(module.status)}
+            {module.required ? ' · required' : ''}
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            width: 9,
+            height: 9,
+            borderRadius: '50%',
+            bgcolor: accent,
+            boxShadow: `0 0 0 4px ${accent}14`,
+            mt: 0.55,
+            flex: '0 0 auto',
+          }}
+        />
+      </Stack>
+    </Box>
+  );
+}
+
+function PersonLine({ accent, label, role }: { accent: string; label: string; role: string }) {
+  return (
+    <Stack
+      direction="row"
+      spacing={1}
+      alignItems="center"
+      sx={{
+        border: '1px solid',
+        borderColor: appleColors.line,
+        borderRadius: 1,
+        bgcolor: '#fbfeff',
+        px: 1,
+        py: 0.8,
+      }}
+    >
+      <Avatar
+        sx={{
+          width: 30,
+          height: 30,
+          bgcolor: `${accent}18`,
+          color: accent,
+          fontSize: 12,
+          fontWeight: 950,
+        }}
+      >
+        {initialsFor(label)}
+      </Avatar>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          variant="body2"
+          sx={{ fontWeight: 900, lineHeight: 1.3, overflowWrap: 'anywhere' }}
+        >
+          {label}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {role}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
+
+function initialsFor(value: string) {
+  const clean = value.includes('@') ? value.split('@')[0] || value : value;
+  const parts = clean
+    .replace(/[^a-zA-Z0-9 ]/g, ' ')
+    .split(' ')
+    .filter(Boolean);
+  if (!parts.length) return 'P';
+  return parts
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase())
+    .join('');
 }
 
 function timestamp(value?: string) {

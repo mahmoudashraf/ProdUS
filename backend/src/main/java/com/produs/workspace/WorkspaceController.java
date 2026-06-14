@@ -12,6 +12,8 @@ import com.produs.packages.PackageInstance;
 import com.produs.packages.PackageInstanceRepository;
 import com.produs.packages.PackageModule;
 import com.produs.packages.PackageModuleRepository;
+import com.produs.product.ProductProfile;
+import com.produs.product.ProductProfileRepository;
 import com.produs.repository.UserRepository;
 import com.produs.scanner.ScannerService;
 import com.produs.scanner.ScannerService.CheckFixesRequest;
@@ -52,6 +54,7 @@ public class WorkspaceController {
 
     private final ProjectWorkspaceRepository workspaceRepository;
     private final PackageInstanceRepository packageRepository;
+    private final ProductProfileRepository productProfileRepository;
     private final PackageModuleRepository packageModuleRepository;
     private final ServiceModuleRepository serviceModuleRepository;
     private final MilestoneRepository milestoneRepository;
@@ -90,9 +93,7 @@ public class WorkspaceController {
 
     @PostMapping
     public ProjectWorkspaceResponse create(@AuthenticationPrincipal User owner, @Valid @RequestBody WorkspaceRequest request) {
-        PackageInstance packageInstance = packageRepository.findById(request.packageInstanceId())
-                .orElseThrow(() -> new IllegalArgumentException("Package not found"));
-        requireOwnerOrAdmin(owner, packageInstance);
+        PackageInstance packageInstance = resolveWorkspacePackage(owner, request);
 
         ProjectWorkspace workspace = new ProjectWorkspace();
         workspace.setOwner(owner);
@@ -403,11 +404,45 @@ public class WorkspaceController {
         return value != null && !value.isBlank();
     }
 
+    private PackageInstance resolveWorkspacePackage(User owner, WorkspaceRequest request) {
+        if (request.packageInstanceId() != null) {
+            PackageInstance packageInstance = packageRepository.findById(request.packageInstanceId())
+                    .orElseThrow(() -> new IllegalArgumentException("Package not found"));
+            requireOwnerOrAdmin(owner, packageInstance);
+            return packageInstance;
+        }
+
+        if (request.productProfileId() == null) {
+            throw new IllegalArgumentException("Product is required");
+        }
+        if (!hasText(request.name())) {
+            throw new IllegalArgumentException("Workspace name is required");
+        }
+
+        ProductProfile product = productProfileRepository.findById(request.productProfileId())
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        requireOwnerOrAdmin(owner, product);
+
+        PackageInstance packageInstance = new PackageInstance();
+        packageInstance.setOwner(owner);
+        packageInstance.setProductProfile(product);
+        packageInstance.setName(request.name().trim());
+        packageInstance.setSummary("Empty workspace scope. Add services, team, findings, and proof as the work becomes clear.");
+        return packageRepository.save(packageInstance);
+    }
+
     private void requireOwnerOrAdmin(User user, PackageInstance packageInstance) {
         if (user.getRole() == User.UserRole.ADMIN || packageInstance.getOwner().getId().equals(user.getId())) {
             return;
         }
         throw new AccessDeniedException("Package belongs to another owner");
+    }
+
+    private void requireOwnerOrAdmin(User user, ProductProfile product) {
+        if (user.getRole() == User.UserRole.ADMIN || product.getOwner().getId().equals(user.getId())) {
+            return;
+        }
+        throw new AccessDeniedException("Product belongs to another owner");
     }
 
     private void requireWorkspaceViewer(User user, ProjectWorkspace workspace) {
@@ -473,8 +508,8 @@ public class WorkspaceController {
     }
 
     public record WorkspaceRequest(
-            @NotNull(message = "Package is required")
             UUID packageInstanceId,
+            UUID productProfileId,
             String name,
             ProjectWorkspace.WorkspaceStatus status
     ) {}
