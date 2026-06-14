@@ -860,6 +860,22 @@ public class ScannerService {
     }
 
     @Transactional
+    public ScannerRiskThreadResponse removeRiskFromWorkspace(User actor, UUID riskThreadId) {
+        ScannerRiskThread thread = riskThreadRepository.findById(riskThreadId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scanner risk not found"));
+        ProjectWorkspace workspace = thread.getWorkspace();
+        if (workspace != null) {
+            requireProductOrWorkspaceWrite(actor, thread.getProductProfile(), workspace);
+        } else {
+            requireProductOwnerOrAdmin(actor, thread.getProductProfile());
+        }
+        ScannerRiskThread saved = riskLifecycleService.unassignWorkspace(thread);
+        audit(actor, "SCANNER_RISK_REMOVED_WORKSPACE", "SCANNER_RISK_THREAD", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
+                workspace == null ? "Scanner risk was not assigned to a workspace" : "Removed scanner risk from workspace " + workspace.getId());
+        return toRiskThreadResponse(saved);
+    }
+
+    @Transactional
     public CheckFixesResponse checkWorkspaceFixes(User actor, UUID workspaceId, CheckFixesRequest request) {
         ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));

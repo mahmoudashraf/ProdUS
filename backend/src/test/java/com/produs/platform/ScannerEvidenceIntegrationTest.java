@@ -55,6 +55,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -455,6 +456,11 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(jsonPath("$.preview.tools[0]").value("Gitleaks"))
                 .andExpect(jsonPath("$.queuedRuns[0].workspaceId").value(workspace.getId().toString()))
                 .andExpect(jsonPath("$.queuedRuns[0].toolRuns[0].toolKey").value("gitleaks"));
+
+        mockMvc.perform(delete("/api/scanner/risks/{riskThreadId}/workspace", riskThreadId)
+                        .with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workspaceId").doesNotExist());
     }
 
     @Test

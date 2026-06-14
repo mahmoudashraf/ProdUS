@@ -1,12 +1,13 @@
 'use client';
 
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from 'react';
-import WorkspaceAcceptanceReviewPanel from './WorkspaceAcceptanceReviewPanel';
-import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+
 import OwnerWorkspaceFixesRiskThreadPanel from './OwnerWorkspaceFixesRiskThreadPanel';
-import WorkspaceProofEvidencePanel, { type WorkspaceScannerUploadForm } from './WorkspaceProofEvidencePanel';
-import WorkspaceProofMilestonesPanel from './WorkspaceProofMilestonesPanel';
-import WorkspaceProofReadinessPanel from './WorkspaceProofReadinessPanel';
+import {
+  OwnerWorkspaceJourneyNav,
+  WorkspaceBreadcrumbs,
+  type JourneyStepItem,
+} from './OwnerWorkspaceJourneyNav';
 import { PastelChip, SectionTitle, Surface, appleColors } from './PlatformComponents';
 import type {
   AcceptanceCriterion,
@@ -24,6 +25,12 @@ import type {
   WorkspaceScannerReadiness,
   CheckFixesResponse,
 } from './types';
+import WorkspaceAcceptanceReviewPanel from './WorkspaceAcceptanceReviewPanel';
+import WorkspaceProofEvidencePanel, {
+  type WorkspaceScannerUploadForm,
+} from './WorkspaceProofEvidencePanel';
+import WorkspaceProofMilestonesPanel from './WorkspaceProofMilestonesPanel';
+import WorkspaceProofReadinessPanel from './WorkspaceProofReadinessPanel';
 
 type FormController<TValues> = {
   values: TValues;
@@ -114,7 +121,9 @@ type WorkspaceCommandProofStepPanelProps = {
   isReviewingCriterion: boolean;
   canSubmitScannerEvidence: boolean;
   lastCheckFixes?: CheckFixesResponse | undefined;
-  onCheckFixes: (riskIds: string[]) => void;
+  removingRiskId?: string | null | undefined;
+  onCheckFixes: (riskIds: string[], mode?: CheckFixesResponse['mode']) => void;
+  onRemoveRisk?: ((riskId: string) => void) | undefined;
   onCreateMilestone: () => void;
   onCreateDeliverable: () => void;
   onSelectMilestone: (milestoneId: string) => void;
@@ -170,7 +179,9 @@ export default function WorkspaceCommandProofStepPanel({
   isReviewingCriterion,
   canSubmitScannerEvidence,
   lastCheckFixes,
+  removingRiskId,
   onCheckFixes,
+  onRemoveRisk,
   onCreateMilestone,
   onCreateDeliverable,
   onSelectMilestone,
@@ -187,44 +198,86 @@ export default function WorkspaceCommandProofStepPanel({
   onViewChange,
 }: WorkspaceCommandProofStepPanelProps) {
   const assignedFindingCount = workspaceRiskSummary?.total || 0;
-  const activeFindingCount = workspaceRiskSummary?.groups
-    .filter((group) => !['FIXED_BY_LATEST_SCAN', 'ACCEPTED_RISK', 'FALSE_POSITIVE'].includes(group.state))
-    .reduce((sum, group) => sum + group.count, 0) || 0;
+  const activeFindingCount =
+    workspaceRiskSummary?.groups
+      .filter(
+        group => !['FIXED_BY_LATEST_SCAN', 'ACCEPTED_RISK', 'FALSE_POSITIVE'].includes(group.state)
+      )
+      .reduce((sum, group) => sum + group.count, 0) || 0;
   const proofItems: JourneyStepItem<WorkspaceCommandProofView>[] = [
     {
       value: 'findings',
       label: proofViewLabels.findings,
       detail: 'Scanner risks that have been selected as real work for this workspace.',
       accent: activeFindingCount ? appleColors.amber : appleColors.green,
-      meta: <PastelChip label={`${assignedFindingCount} finding${assignedFindingCount === 1 ? '' : 's'}`} accent={activeFindingCount ? appleColors.amber : appleColors.green} bg={activeFindingCount ? '#fff4dc' : '#e7f8ee'} />,
+      meta: (
+        <PastelChip
+          label={`${assignedFindingCount} finding${assignedFindingCount === 1 ? '' : 's'}`}
+          accent={activeFindingCount ? appleColors.amber : appleColors.green}
+          bg={activeFindingCount ? '#fff4dc' : '#e7f8ee'}
+        />
+      ),
     },
     {
       value: 'readiness',
       label: proofViewLabels.readiness,
       detail: 'Launch confidence, priority fixes, generated snapshot, and AI explanation.',
       accent: readiness?.blockerCount ? appleColors.red : appleColors.cyan,
-      meta: <PastelChip label={`${readiness?.blockerCount || 0} blockers`} accent={readiness?.blockerCount ? appleColors.red : appleColors.cyan} bg={readiness?.blockerCount ? '#fff1f1' : '#e4f9fd'} />,
+      meta: (
+        <PastelChip
+          label={`${readiness?.blockerCount || 0} blockers`}
+          accent={readiness?.blockerCount ? appleColors.red : appleColors.cyan}
+          bg={readiness?.blockerCount ? '#fff1f1' : '#e4f9fd'}
+        />
+      ),
     },
     {
       value: 'steps',
       label: proofViewLabels.steps,
       detail: 'Workspace steps, outputs, selected milestone, and linked output proof.',
       accent: appleColors.purple,
-      meta: <PastelChip label={`${milestoneList.length} steps`} accent={appleColors.purple} bg="#f1efff" />,
+      meta: (
+        <PastelChip
+          label={`${milestoneList.length} steps`}
+          accent={appleColors.purple}
+          bg="#f1efff"
+        />
+      ),
     },
     {
       value: 'proof',
       label: proofViewLabels.proof,
       detail: 'Workspace proof files plus scan proof upload and recent scan records.',
       accent: appleColors.blue,
-      meta: <PastelChip label={`${proofFileCount + scannerEvidenceList.length} records`} accent={appleColors.blue} bg="#eaf3ff" />,
+      meta: (
+        <PastelChip
+          label={`${proofFileCount + scannerEvidenceList.length} records`}
+          accent={appleColors.blue}
+          bg="#eaf3ff"
+        />
+      ),
     },
     {
       value: 'acceptance',
       label: proofViewLabels.acceptance,
       detail: 'Acceptance checklist, proof requirements, checks, and owner review decisions.',
-      accent: totalCriteriaCount === passedCriteriaCount && totalCriteriaCount ? appleColors.green : appleColors.amber,
-      meta: <PastelChip label={`${passedCriteriaCount}/${totalCriteriaCount} passed`} accent={totalCriteriaCount === passedCriteriaCount && totalCriteriaCount ? appleColors.green : appleColors.amber} bg={totalCriteriaCount === passedCriteriaCount && totalCriteriaCount ? '#e7f8ee' : '#fff4dc'} />,
+      accent:
+        totalCriteriaCount === passedCriteriaCount && totalCriteriaCount
+          ? appleColors.green
+          : appleColors.amber,
+      meta: (
+        <PastelChip
+          label={`${passedCriteriaCount}/${totalCriteriaCount} passed`}
+          accent={
+            totalCriteriaCount === passedCriteriaCount && totalCriteriaCount
+              ? appleColors.green
+              : appleColors.amber
+          }
+          bg={
+            totalCriteriaCount === passedCriteriaCount && totalCriteriaCount ? '#e7f8ee' : '#fff4dc'
+          }
+        />
+      ),
     },
   ];
 
@@ -261,8 +314,10 @@ export default function WorkspaceCommandProofStepPanel({
           riskSummary={workspaceRiskSummary}
           isLoading={isWorkspaceRiskLoading}
           isChecking={isCheckingFixes}
+          removingRiskId={removingRiskId}
           lastCheck={lastCheckFixes}
           onCheckFixes={onCheckFixes}
+          onRemoveRisk={onRemoveRisk}
         />
       )}
 

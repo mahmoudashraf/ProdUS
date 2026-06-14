@@ -34,6 +34,7 @@ import com.produs.scanner.ScannerService.UpdateScannerScheduleRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -227,6 +228,14 @@ public class ScannerController {
             @Valid @RequestBody RiskWorkspaceAssignmentRequest request
     ) {
         return scannerService.assignRiskToWorkspace(user, riskThreadId, request);
+    }
+
+    @DeleteMapping("/risks/{riskThreadId}/workspace")
+    public ScannerRiskThreadResponse removeRiskFromWorkspace(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID riskThreadId
+    ) {
+        return scannerService.removeRiskFromWorkspace(user, riskThreadId);
     }
 
     @GetMapping("/evidence")

@@ -65,6 +65,12 @@ public class ScannerRiskLifecycleService {
     }
 
     @Transactional
+    public ScannerRiskThread unassignWorkspace(ScannerRiskThread thread) {
+        thread.setWorkspace(null);
+        return riskThreadRepository.save(thread);
+    }
+
+    @Transactional
     public List<ScannerRiskThread> currentProductRisks(UUID productId) {
         List<ScannerRiskThread> risks = riskThreadRepository.findByProductProfileIdOrderBySeverityDescUpdatedAtDesc(productId);
         if (risks.isEmpty()) {

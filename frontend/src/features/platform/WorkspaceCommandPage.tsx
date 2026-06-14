@@ -130,15 +130,40 @@ export default function WorkspaceCommandPage({
       getJson<ScannerRiskSummary>(`/workspaces/${selectedWorkspace?.id}/scanner/risks/current`),
   });
   const checkFixes = useMutation({
-    mutationFn: (riskThreadIds: string[]) =>
+    mutationFn: ({
+      mode = 'RELEVANT_TO_FIXES',
+      riskThreadIds,
+    }: {
+      mode?: CheckFixesResponse['mode'];
+      riskThreadIds: string[];
+    }) =>
       postJson<
         CheckFixesResponse,
-        { riskThreadIds: string[]; mode: 'RELEVANT_TO_FIXES'; authorizationConfirmed: boolean }
+        {
+          riskThreadIds: string[];
+          mode: CheckFixesResponse['mode'];
+          authorizationConfirmed: boolean;
+        }
       >(`/workspaces/${selectedWorkspace?.id}/scanner/check-fixes`, {
         riskThreadIds,
-        mode: 'RELEVANT_TO_FIXES',
+        mode,
         authorizationConfirmed: true,
       }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['workspace-current-risks', selectedWorkspace?.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['scanner-current-risks', selectedWorkspaceProductId],
+      });
+      queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedWorkspaceProductId] });
+      queryClient.invalidateQueries({
+        queryKey: ['productization-engine', 'workspace-scanner-readiness', selectedWorkspace?.id],
+      });
+    },
+  });
+  const removeRiskFromWorkspace = useMutation({
+    mutationFn: (riskThreadId: string) => deleteJson(`/scanner/risks/${riskThreadId}/workspace`),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['workspace-current-risks', selectedWorkspace?.id],
@@ -451,7 +476,15 @@ export default function WorkspaceCommandPage({
                     !!scannerUploadForm.toolName.trim() &&
                     !!scannerUploadForm.artifactPayload.trim(),
                   lastCheckFixes: checkFixes.data,
-                  onCheckFixes: riskIds => checkFixes.mutate(riskIds),
+                  removingRiskId: removeRiskFromWorkspace.isPending
+                    ? String(removeRiskFromWorkspace.variables || '')
+                    : null,
+                  onCheckFixes: (riskIds, mode) =>
+                    checkFixes.mutate({
+                      riskThreadIds: riskIds,
+                      mode: mode ?? 'RELEVANT_TO_FIXES',
+                    }),
+                  onRemoveRisk: riskId => removeRiskFromWorkspace.mutate(riskId),
                   onCreateMilestone: () => createMilestone.mutate(),
                   onCreateDeliverable: () => createDeliverable.mutate(),
                   onSelectMilestone: setSelectedMilestoneId,

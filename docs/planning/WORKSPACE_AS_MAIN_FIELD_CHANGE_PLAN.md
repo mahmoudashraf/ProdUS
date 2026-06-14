@@ -14,6 +14,60 @@ The product keeps the big picture. The workspace becomes the live field where th
 
 The goal is not an enterprise change-control process. The goal is a flexible working room for prototype, MVP, and startup owners.
 
+## Current Alignment Snapshot
+
+Status as of the latest implementation pass:
+
+- The core direction is now real in code: `Product -> Workspace -> selected findings/fixes/services/people/proof`.
+- Product keeps scanner truth and scan history. Workspace shows the scanner risks selected for active work.
+- Product Workspaces now opens an internal product route, not a separate-feeling workspace app.
+- Workspace can be created directly from the product with only a name, then services, people, findings, and proof can be added inside it.
+- Workspace services can be browsed, added, removed, and turned into milestones from inside Workspace.
+- Scanner risk threads, current risk APIs, scan comparison, risk assignment, and targeted `Check fixes` backend are implemented.
+- Workspace Overview now answers the important owner questions first: findings, services, people, and next move.
+
+What is still intentionally not finished:
+
+- Product nav still has duplicate-feeling `Planning` and `Action Plan` destinations. They must be de-emphasized or folded into Workspace once the Workspace path is fully proven.
+- Workspace currently ships the internal views `Workspace answer`, `Services`, `Fixes and proof`, `Team and risks`, and `Handoff`. Separate `Plan work` and `Milestones` views are still design targets, not finished screens.
+- `Check fixes` runs targeted verification, but the UI still needs a pre-run preview and a clear secondary `Run full scanner suite instead`.
+- Team/expert handling works through participants and support/team records today. It still needs a calmer owner-facing “add expert / invite team / visit team” journey.
+- Product Scanners is improved around current risks, but proof/history/technical scanner surfaces still need one more coherence pass.
+- The full live verification matrix is not complete yet, especially second-scan comparison, returned risks, failed-tool behavior, and mobile checks across all workspace internal views.
+
+## Canonical Owner Journey
+
+The journey should now be documented and built as this:
+
+```text
+Home
+  -> choose or create product
+Product Details
+  -> understand launch status, AI opportunities, scanner status, and active workspace
+Product Scanners
+  -> run scanners, review current product risks, send selected risks into workspace work
+Product Workspace
+  -> choose/create/open workspace
+Workspace Answer
+  -> see what matters now: findings, services, people, proof, next action
+Workspace Services
+  -> add/remove services and create practical work milestones
+Workspace Fixes And Proof
+  -> see selected scanner risks, attach proof, run Check fixes
+Workspace Team And Risks
+  -> see/add people, support teams, and delivery risks
+Workspace Handoff
+  -> prepare owner/team/support handoff when the work is ready
+```
+
+The important product rule:
+
+```text
+Scanners discover risk at product level.
+Workspace turns selected risk into work.
+Check fixes verifies workspace work without forcing a full scan by default.
+```
+
 ## Why This Change
 
 The current system has useful parts, but the owner has to understand too many boundaries:
@@ -138,13 +192,21 @@ Choose workspace
 
 The workspace becomes the main internal product page.
 
-Workspace internal views:
+Current shipped workspace internal views:
 
-- Overview
+- Workspace answer
+- Services
+- Fixes and proof
+- Team and risks
+- Handoff
+
+Design target after the next cleanup pass:
+
+- Workspace answer
 - Plan work
 - Services
-- Team
 - Fixes
+- Team
 - Milestones
 - Proof
 - Handoff
@@ -153,11 +215,17 @@ These should feel like internal pages with clear back paths, not tabs that swap 
 
 ## Workspace Views
 
-### Workspace Overview
+### Workspace Overview / Workspace Answer
 
 Purpose:
 
 Show the current state and the next owner/team move.
+
+Current shipped direction:
+
+- The first card should feel like a workspace answer, not a metrics dashboard.
+- It should lead with findings, services, people, proof/check status, and the next practical move.
+- Avoid showing “stupid metrics” that do not answer what the owner cares about.
 
 First viewport should answer:
 
@@ -185,6 +253,12 @@ Primary actions:
 Purpose:
 
 Replace the separate Planning mental model.
+
+Current status:
+
+- Not fully implemented as a separate Workspace internal view yet.
+- Existing Planning/cart screens still exist for compatibility.
+- The target is to fold the useful parts into Workspace without losing draft-plan capability.
 
 This view shows the workspace plan:
 
@@ -271,6 +345,13 @@ Show scanner findings selected for this workspace and what service/milestone own
 
 This is where the scattered scanner-to-service-to-work bridge becomes clear.
 
+Current shipped direction:
+
+- Workspace uses `Fixes and proof` as the combined internal view.
+- It shows selected scanner risk threads assigned to the workspace.
+- The owner action is `Check fixes`, which queues targeted scanner verification for the selected workspace risks.
+- Product Scanners remains the place to run broad product scans and add risks to the workspace.
+
 Each item should show:
 
 - Plain-language risk.
@@ -295,6 +376,12 @@ Purpose:
 
 Track delivery steps.
 
+Current status:
+
+- Milestones exist and are used by workspace proof/handoff flows.
+- Adding a workspace service can create a matching milestone.
+- A separate owner-polished `Milestones` internal page is still a target, not finished.
+
 Milestones can be created by:
 
 - Adding a service.
@@ -315,6 +402,11 @@ Each milestone should show:
 Purpose:
 
 Keep evidence close to the work.
+
+Current shipped direction:
+
+- Proof is currently combined with fixes in the Workspace `Fixes and proof` view.
+- Scanner evidence and raw technical proof should remain reachable, but they should not be the first thing a startup owner sees.
 
 Proof should include:
 
@@ -643,7 +735,20 @@ ProdUS scanned the product, found launch risks, mapped them to services, and put
 
 ### Left Product Menu
 
-Target product-specific menu:
+Current product-specific menu still includes more than the target:
+
+- Product Details
+- Workspaces
+- AI Opportunities
+- Planning
+- Action Plan
+- Scanners
+- Services
+- Share
+
+This is useful for compatibility while the migration is active, but it still creates the confusion this plan is trying to remove.
+
+Target product-specific menu for the owner journey:
 
 - Product Details
 - Workspace
@@ -661,6 +766,21 @@ Scanners and AI Opportunities can remain product-level because they are product 
 
 Scanners should not be hidden inside Workspace because scan history and product launch risk belong to the product. Workspace should show the selected scanner risks that are being worked on.
 
+Navigation rule:
+
+- Home clears the selected product and shows the generic owner menu.
+- Product pages show selected-product actions only.
+- Product switching happens on Home.
+- Product Details is the product home.
+- Workspace is the working field for the selected product.
+- Workspace internal views must use visible back/breadcrumb actions, not hidden tab switching.
+
+Cleanup rule:
+
+- `Planning` should become compatibility-only or move under Workspace as `Plan work`.
+- `Action Plan` should merge into Workspace `Fixes and proof` and `Plan work`.
+- Product-level `Services` should remain only if it clearly means product-level service recommendations. Active service work belongs in Workspace Services.
+
 ### Rename / Reposition
 
 Current visible label | Target direction
@@ -672,6 +792,8 @@ Open active workspaces | Open workspace
 Fix Path | Suggested fixes / Services from scan findings
 Team & support | Team
 Delivery overview | Workspace overview
+Action Plan | Workspace fixes / Plan work
+Proof library | Product scanner history or Workspace proof, depending on scope
 
 ## Backend / Data Plan
 
@@ -705,19 +827,55 @@ For MVP:
 - Treat existing cart/Planning APIs as draft-plan backing APIs, but hide cart/planning language in the UI.
 - Use `WorkspaceParticipant` for people.
 - Use `Milestone` and `Deliverable` for work.
-- Use `NormalizedFinding.workspace` and scanner acceptance criteria to attach scanner work to a workspace.
+- Use `ScannerRiskThread.workspace` as the owner-facing assignment from product scanner risk into workspace work.
+- Keep `NormalizedFinding.workspace` as per-scan evidence context when a scan/finding was generated from a workspace-scoped run.
 - Treat scan runs and normalized findings as immutable evidence/history.
 - Build the owner-facing current risk picture from stable scanner risk threads, not from all historical normalized findings.
 
-### Needed Backend Additions
+### Backend Status And Remaining Additions
 
-Add lightweight endpoints or service methods:
+The backend is no longer at the “needed additions only” stage. Most of the scanner/workspace bridge now exists.
+
+Implemented:
+
+- `ScannerRiskThread` durable lifecycle table/entity.
+- Current product risk endpoint:
+  - `GET /api/scanner/products/{productId}/risks/current`
+- Current workspace risk endpoint:
+  - `GET /api/workspaces/{workspaceId}/scanner/risks/current`
+- Scan comparison endpoint:
+  - `GET /api/scanner/runs/{runId}/comparison`
+- Risk-to-workspace assignment endpoint:
+  - `POST /api/scanner/risks/{riskThreadId}/assign-workspace`
+- Targeted workspace check endpoint:
+  - `POST /api/workspaces/{workspaceId}/scanner/check-fixes`
+- Workspace creation from product and name:
+  - `POST /api/workspaces`
+- Workspace services:
+  - `GET /api/workspaces/{workspaceId}/services`
+  - `POST /api/workspaces/{workspaceId}/services`
+  - `DELETE /api/workspaces/{workspaceId}/services/{packageModuleId}`
+- Workspace participants:
+  - `GET /api/workspaces/{workspaceId}/participants`
+  - `POST /api/workspaces/{workspaceId}/participants`
+  - `PUT /api/workspaces/participants/{participantId}`
+
+Still needed or still too rough:
+
+- A clean owner-facing “remove risk from workspace” action that does not delete scan history.
+- Direct team/expert assignment semantics, if participant/support records are not enough for the UI.
+- Optional direct milestone-from-service endpoint if the current service-add behavior becomes too hidden.
+- A pre-run `Check fixes` preview endpoint or UI preview mode before queuing scanner jobs.
+- UI exposure for explicit `FULL_SUITE` check mode.
+- Full test coverage for returned risks, failed-tool comparisons, and mixed-tool targeted checks.
+
+Backend object and API notes:
 
 ```text
 ScannerRiskThread
 ```
 
-Add a durable current-risk record, or an equivalent projection, with:
+Durable current-risk record with:
 
 - Product.
 - Optional workspace.
@@ -736,10 +894,22 @@ This prevents old scan rows from polluting current launch risk counts while pres
 GET /scanner/products/{productId}/risks/current
 ```
 
+Implemented as:
+
+```text
+GET /api/scanner/products/{productId}/risks/current
+```
+
 Returns current owner-facing risk threads grouped by `New`, `Still open`, `Ready to check`, `Fixed by latest scan`, `Returned`, `Accepted risk`, `False positive`, and `Needs proof`.
 
 ```text
 GET /scanner/runs/{runId}/comparison
+```
+
+Implemented as:
+
+```text
+GET /api/scanner/runs/{runId}/comparison
 ```
 
 Returns what changed compared with the baseline run:
@@ -755,10 +925,22 @@ Returns what changed compared with the baseline run:
 POST /scanner/risks/{riskThreadId}/assign-workspace
 ```
 
+Implemented as:
+
+```text
+POST /api/scanner/risks/{riskThreadId}/assign-workspace
+```
+
 Assigns a current risk thread to a workspace while keeping scan history at product level.
 
 ```text
 POST /workspaces/{workspaceId}/scanner/check-fixes
+```
+
+Implemented as:
+
+```text
+POST /api/workspaces/{workspaceId}/scanner/check-fixes
 ```
 
 Queues a targeted scanner verification for selected workspace risks.
@@ -786,26 +968,38 @@ Backend behavior:
 POST /workspaces/{workspaceId}/services
 ```
 
+Implemented as:
+
+```text
+POST /api/workspaces/{workspaceId}/services
+```
+
 Adds a service to the workspace plan, creates/updates a package module, and optionally creates a milestone.
 
 ```text
 POST /workspaces/{workspaceId}/findings/{findingId}
 ```
 
-Adds a product finding or risk thread to the workspace and creates a proof/milestone task if needed.
+Not implemented as a separate normalized-finding endpoint. Current implementation uses scanner risk threads:
+
+```text
+POST /api/scanner/risks/{riskThreadId}/assign-workspace
+```
+
+This is the preferred MVP path because the owner works with a current risk thread, not a historical scan row.
 
 ```text
 POST /workspaces/{workspaceId}/teams
 POST /workspaces/{workspaceId}/experts
 ```
 
-Adds teams/experts as workspace participants with owner-friendly roles.
+Not implemented as dedicated team/expert endpoints yet. Current implementation uses workspace participants plus support/team request data. The UI should still present this as `Team and experts`, not as admin-style participant management.
 
 ```text
 POST /workspaces/{workspaceId}/milestones/from-service/{serviceModuleId}
 ```
 
-Creates a milestone from a selected service.
+Not implemented as a standalone endpoint. Current service-add behavior can create the matching milestone directly when a service is added to the workspace.
 
 These endpoints should be simple and reversible. They should not use enterprise change-request language.
 
@@ -953,6 +1147,23 @@ Build the owner journey in layers:
 3. Add targeted `Check fixes`.
 4. Connect selected risks to workspace services/milestones/team.
 5. Remove duplicate destinations after the new path is real.
+
+### Current Sequence Status
+
+Sequence | Status | Notes
+--- | --- | ---
+0. Baseline and safety | Mostly done | Routes and APIs have been inspected repeatedly; keep doing a quick dirty-worktree and verification check before each deploy.
+1. Product and workspace navigation cleanup | Partial | Product internal workspace routes and back paths exist. Product nav still exposes duplicate Planning/Action Plan/Services destinations.
+2. Workspace home without backend rewrite | Mostly done | Workspace now leads with findings, services, people, and next action. Needs mobile and multi-workspace polish after each UI pass.
+3. Scanner risk thread backend | Done for MVP | Durable risk threads, state enum, repository, migration, and lifecycle service exist.
+4. Scan comparison service | Done for MVP | Comparison endpoint exists and fixed-by-latest-scan path is tested. Returned/failed-tool scenarios still need stronger test/live proof.
+5. Targeted Check fixes backend | Done for MVP | Targeted mode chooses relevant scanner tools and stores plan data. Full-suite mode exists backend-side.
+6. Risk assignment to workspace work | Partial | Product risk can be assigned/moved to selected workspace. Removing/unassigning a risk from workspace is still missing.
+7. Product Scanners UI | Partial | Current-risk-first bridge exists. Scan history/proof/technical proof still needs one coherent owner journey.
+8. Workspace Fixes UI | Partial | Workspace fixes answer strip and risk cards exist. Pre-run preview and explicit `Run full scanner suite instead` are still missing.
+9. Services, team, and plan inside Workspace | Partial | Services can be added/removed and create milestones. People/team/expert journey needs stronger owner-facing UI.
+10. Collapse duplicate pages | Pending | Do after Workspace can fully replace Planning/Action Plan without losing capabilities.
+11. Test, deploy, live verify | Partial | Deployed slices were verified. Full matrix is not finished.
 
 ### Sequence 0: Baseline And Safety Pass
 
