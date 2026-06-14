@@ -20,7 +20,7 @@ const isWorkspaceCommandTeamView = (value: string | null): value is WorkspaceCom
   value === 'participants' || value === 'support' || value === 'risks';
 
 const isWorkspaceCommandProofView = (value: string | null): value is WorkspaceCommandProofView =>
-  value === 'readiness' || value === 'steps' || value === 'proof' || value === 'acceptance';
+  value === 'findings' || value === 'readiness' || value === 'steps' || value === 'proof' || value === 'acceptance';
 
 const isWorkspaceCommandHandoffView = (value: string | null): value is WorkspaceCommandHandoffView =>
   value === 'review' || value === 'signals' || value === 'assistant';

@@ -1,8 +1,10 @@
 'use client';
 
 import { Alert } from '@mui/material';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
+import { getJson, postJson } from './api';
 import WorkspaceCommandBoard from './WorkspaceCommandBoard';
 import type { WorkspaceCommandHandoffView } from './WorkspaceCommandHandoffPanels';
 import type { WorkspaceCommandProofView } from './WorkspaceCommandProofStepPanel';
@@ -22,6 +24,7 @@ import {
 import {
   workspaceAccent,
 } from './workspaceCommandTeamTypes';
+import type { CheckFixesResponse, ScannerRiskSummary } from './types';
 
 interface WorkspaceCommandPageProps {
   embedded?: boolean;
@@ -48,6 +51,7 @@ export default function WorkspaceCommandPage({
     viewParamName: 'workspaceView',
   } : undefined);
   const effectiveWorkspaceId = selectedWorkspaceId ?? workspaceParam;
+  const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const canCoordinate = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
   const canAttachEvidence = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER, UserRole.SPECIALIST]);
@@ -88,6 +92,7 @@ export default function WorkspaceCommandPage({
     launchReadinessReport,
     milestoneList,
     milestones,
+    packageModuleList,
     packageList,
     participantList,
     queriesLoading,
@@ -108,6 +113,24 @@ export default function WorkspaceCommandPage({
     workspaceList,
     workspaceScannerReadiness,
   } = useWorkspaceCommandData({ canAttachEvidence, productId, selectedWorkspaceId: effectiveWorkspaceId });
+  const workspaceRiskSummary = useQuery({
+    queryKey: ['workspace-current-risks', selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () => getJson<ScannerRiskSummary>(`/workspaces/${selectedWorkspace?.id}/scanner/risks/current`),
+  });
+  const checkFixes = useMutation({
+    mutationFn: (riskThreadIds: string[]) => postJson<CheckFixesResponse, { riskThreadIds: string[]; mode: 'RELEVANT_TO_FIXES'; authorizationConfirmed: boolean }>(
+      `/workspaces/${selectedWorkspace?.id}/scanner/check-fixes`,
+      { riskThreadIds, mode: 'RELEVANT_TO_FIXES', authorizationConfirmed: true },
+    ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', selectedWorkspace?.id] });
+      queryClient.invalidateQueries({ queryKey: ['scanner-current-risks', selectedWorkspaceProductId] });
+      queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedWorkspaceProductId] });
+      queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-scanner-readiness', selectedWorkspace?.id] });
+    },
+  });
+  const assignedFindingCount = workspaceRiskSummary.data?.total || 0;
 
   const openWorkspaceRoute = (
     view: WorkspaceCommandView,
@@ -131,6 +154,10 @@ export default function WorkspaceCommandPage({
     }
     if (view === 'handoff') {
       openWorkspaceRoute('handoff', workspaceId, { handoffView: 'review' });
+      return;
+    }
+    if (view === 'proof') {
+      openWorkspaceRoute('proof', workspaceId, { proofView: assignedFindingCount ? 'findings' : 'readiness' });
       return;
     }
     openWorkspaceRoute(view, workspaceId);
@@ -295,14 +322,19 @@ export default function WorkspaceCommandPage({
             deliverableList,
             milestoneCount: milestoneList.length,
             missingEvidenceCount,
+            packageModules: packageModuleList,
+            participantList,
             productId: selectedWorkspaceProductId,
             roughEdgeCount,
+            riskSummary: workspaceRiskSummary.data,
             scannerEvidenceCount: scannerEvidenceList.length,
             selectedMilestone,
             selectedMilestoneCriteria,
+            supportList,
             workspace: selectedWorkspace,
+            onManageTeam: () => openFocusedWorkspaceRoute('team'),
             onPrepareHandoff: () => openFocusedWorkspaceRoute(roughEdgeCount ? 'team' : 'handoff'),
-            onReviewProof: () => openWorkspaceRoute('proof'),
+            onReviewProof: () => openWorkspaceRoute('proof', selectedWorkspace.id, { proofView: assignedFindingCount ? 'findings' : 'readiness' }),
           },
           proof: {
             view: workspaceProofView,
@@ -312,6 +344,7 @@ export default function WorkspaceCommandPage({
             milestoneList,
             deliverableList,
             milestoneRiskById,
+            workspaceRiskSummary: workspaceRiskSummary.data,
             milestoneForm,
             deliverableForm,
             scannerEvidenceList,
@@ -334,11 +367,15 @@ export default function WorkspaceCommandPage({
             isScannerLoading: workspaceScannerReadiness.isFetching,
             isShipConfidenceLoading: shipConfidence.isFetching,
             isGovernanceFetching: governance.isFetching,
+            isWorkspaceRiskLoading: workspaceRiskSummary.isFetching,
+            isCheckingFixes: checkFixes.isPending,
             isGeneratingCriteria: generateCriteria.isPending,
             isUpdatingEvidenceRequirement: updateEvidenceRequirement.isPending,
             isCreatingCheck: createCheck.isPending,
             isReviewingCriterion: reviewCriterion.isPending,
             canSubmitScannerEvidence: !!selectedWorkspaceProductId && !!scannerUploadForm.toolName.trim() && !!scannerUploadForm.artifactPayload.trim(),
+            lastCheckFixes: checkFixes.data,
+            onCheckFixes: (riskIds) => checkFixes.mutate(riskIds),
             onCreateMilestone: () => createMilestone.mutate(),
             onCreateDeliverable: () => createDeliverable.mutate(),
             onSelectMilestone: setSelectedMilestoneId,

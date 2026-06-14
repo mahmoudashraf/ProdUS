@@ -1,8 +1,10 @@
 'use client';
 
 import { Alert, Button, Stack, Typography } from '@mui/material';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
+import { getJson, postJson } from './api';
 import {
   EmptyState,
   QueryState,
@@ -22,7 +24,7 @@ import { useWorkspaceCommandData } from './useWorkspaceCommandData';
 import { useWorkspaceCommandRouteState } from './useWorkspaceCommandRouteState';
 import { useWorkspaceCommandSummary } from './useWorkspaceCommandSummary';
 import { useWorkspaceCommandUiState } from './useWorkspaceCommandUiState';
-import type { ProductProfile, ProjectWorkspace } from './types';
+import type { CheckFixesResponse, ProductProfile, ProjectWorkspace, ScannerRiskSummary } from './types';
 
 interface OwnerProductDeliveryWorkspaceProps {
   listHref: string;
@@ -32,7 +34,7 @@ interface OwnerProductDeliveryWorkspaceProps {
 
 const deliveryViewLabels: Record<WorkspaceCommandView, string> = {
   overview: 'Overview',
-  proof: 'Fixes & proof',
+  proof: 'Findings & proof',
   team: 'Team & support',
   handoff: 'Handoff',
 };
@@ -54,6 +56,7 @@ export default function OwnerProductDeliveryWorkspace({
     teamViewParamName: 'workspaceTeamView',
     viewParamName: 'workspaceView',
   });
+  const queryClient = useQueryClient();
   const { hasRole } = useAuth();
   const canCoordinate = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER]);
   const canAttachEvidence = hasRole([UserRole.ADMIN, UserRole.PRODUCT_OWNER, UserRole.TEAM_MANAGER, UserRole.SPECIALIST]);
@@ -89,6 +92,7 @@ export default function OwnerProductDeliveryWorkspace({
     governance,
     launchReadinessReport,
     milestoneList,
+    packageModuleList,
     participantList,
     queriesLoading,
     queryError,
@@ -112,6 +116,23 @@ export default function OwnerProductDeliveryWorkspace({
   });
   const activeWorkspace = selectedWorkspace || workspace;
   const effectiveProductId = selectedWorkspaceProductId || product.id;
+  const workspaceRiskSummary = useQuery({
+    queryKey: ['workspace-current-risks', activeWorkspace.id],
+    enabled: !!activeWorkspace.id,
+    queryFn: () => getJson<ScannerRiskSummary>(`/workspaces/${activeWorkspace.id}/scanner/risks/current`),
+  });
+  const checkFixes = useMutation({
+    mutationFn: (riskThreadIds: string[]) => postJson<CheckFixesResponse, { riskThreadIds: string[]; mode: 'RELEVANT_TO_FIXES'; authorizationConfirmed: boolean }>(
+      `/workspaces/${activeWorkspace.id}/scanner/check-fixes`,
+      { riskThreadIds, mode: 'RELEVANT_TO_FIXES', authorizationConfirmed: true },
+    ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', activeWorkspace.id] });
+      queryClient.invalidateQueries({ queryKey: ['scanner-current-risks', effectiveProductId] });
+      queryClient.invalidateQueries({ queryKey: ['scanner-summary', effectiveProductId] });
+      queryClient.invalidateQueries({ queryKey: ['productization-engine', 'workspace-scanner-readiness', activeWorkspace.id] });
+    },
+  });
   const {
     completedMilestones,
     deliverableCount,
@@ -193,6 +214,14 @@ export default function OwnerProductDeliveryWorkspace({
     pushWorkspaceRoute(view, activeWorkspace.id, options);
   };
   const nextActionView: WorkspaceCommandView = readiness?.blockerCount || missingEvidenceCount ? 'proof' : roughEdgeCount ? 'team' : 'handoff';
+  const assignedFindingCount = workspaceRiskSummary.data?.total || 0;
+  const openNextAction = () => {
+    if (nextActionView === 'proof') {
+      openDeliveryView('proof', { proofView: assignedFindingCount ? 'findings' : 'readiness' });
+      return;
+    }
+    openDeliveryView(nextActionView);
+  };
 
   if (!activeWorkspace) {
     return (
@@ -219,35 +248,52 @@ export default function OwnerProductDeliveryWorkspace({
         </Alert>
       )}
 
-      <DeliveryHero
-        activeWorkspace={activeWorkspace}
-        completedMilestones={completedMilestones}
-        deliverableCount={deliverableCount}
-        listHref={listHref}
-        milestoneCount={milestoneList.length}
-        missingEvidenceCount={missingEvidenceCount}
-        participantCount={participantCount}
-        product={product}
-        proofFileCount={scopedAttachments('WORKSPACE', activeWorkspace.id).length}
-        readinessBlockers={readiness?.blockerCount || 0}
-        roughEdgeCount={roughEdgeCount}
-        workspaceProgress={workspaceProgress}
-        workspaceCount={workspaceList.length}
-        onNextAction={() => openDeliveryView(nextActionView)}
-      />
+      {workspaceView === 'overview' && (
+        <>
+          <DeliveryOverview
+            activeWorkspace={activeWorkspace}
+            missingEvidenceCount={missingEvidenceCount}
+            packageModules={packageModuleList}
+            participantList={participantList}
+            riskSummary={workspaceRiskSummary.data}
+            supportList={supportList}
+            onManageTeam={() => openDeliveryView('team')}
+            onPrepareHandoff={() => openDeliveryView(roughEdgeCount ? 'team' : 'handoff')}
+            onReviewProof={() => openDeliveryView('proof', { proofView: assignedFindingCount ? 'findings' : 'readiness' })}
+          />
 
-      <DeliveryJourneyCards
-        currentView={workspaceView}
-        handoffReady={!!latestHandoff}
-        integrationCount={integrationList.length}
-        milestoneCount={milestoneList.length}
-        missingEvidenceCount={missingEvidenceCount}
-        participantCount={participantCount}
-        readinessBlockers={readiness?.blockerCount || 0}
-        roughEdgeCount={roughEdgeCount}
-        supportCount={supportList.length}
-        onChange={openDeliveryView}
-      />
+          <DeliveryHero
+            activeWorkspace={activeWorkspace}
+            completedMilestones={completedMilestones}
+            deliverableCount={deliverableCount}
+            listHref={listHref}
+            milestoneCount={milestoneList.length}
+            missingEvidenceCount={missingEvidenceCount}
+            participantCount={participantCount}
+            product={product}
+            proofFileCount={scopedAttachments('WORKSPACE', activeWorkspace.id).length}
+            readinessBlockers={readiness?.blockerCount || 0}
+            roughEdgeCount={roughEdgeCount}
+            workspaceProgress={workspaceProgress}
+            workspaceCount={workspaceList.length}
+            onNextAction={openNextAction}
+          />
+
+          <DeliveryJourneyCards
+            assignedFindingCount={assignedFindingCount}
+            currentView={workspaceView}
+            handoffReady={!!latestHandoff}
+            integrationCount={integrationList.length}
+            milestoneCount={milestoneList.length}
+            missingEvidenceCount={missingEvidenceCount}
+            participantCount={participantCount}
+            readinessBlockers={readiness?.blockerCount || 0}
+            roughEdgeCount={roughEdgeCount}
+            supportCount={supportList.length}
+            onChange={openDeliveryView}
+          />
+        </>
+      )}
 
       {workspaceView !== 'overview' && (
         <Surface sx={{ py: 1.25 }}>
@@ -265,23 +311,6 @@ export default function OwnerProductDeliveryWorkspace({
         </Surface>
       )}
 
-      {workspaceView === 'overview' && (
-        <DeliveryOverview
-          activeWorkspace={activeWorkspace}
-          completedMilestones={completedMilestones}
-          deliverableList={deliverableList}
-          milestoneCount={milestoneList.length}
-          missingEvidenceCount={missingEvidenceCount}
-          readinessBlockers={readiness?.blockerCount || 0}
-          scannerEvidenceCount={scannerEvidenceList.length}
-          selectedMilestone={selectedMilestone}
-          selectedMilestoneCriteria={selectedMilestoneCriteria}
-          workspaceProgress={workspaceProgress}
-          onPrepareHandoff={() => openDeliveryView(roughEdgeCount ? 'team' : 'handoff')}
-          onReviewProof={() => openDeliveryView('proof')}
-        />
-      )}
-
       {workspaceView === 'proof' && (
         <WorkspaceCommandProofStepPanel
           view={workspaceProofView}
@@ -291,6 +320,7 @@ export default function OwnerProductDeliveryWorkspace({
           milestoneList={milestoneList}
           deliverableList={deliverableList}
           milestoneRiskById={milestoneRiskById}
+          workspaceRiskSummary={workspaceRiskSummary.data}
           milestoneForm={milestoneForm}
           deliverableForm={deliverableForm}
           scannerEvidenceList={scannerEvidenceList}
@@ -313,11 +343,15 @@ export default function OwnerProductDeliveryWorkspace({
           isScannerLoading={workspaceScannerReadiness.isFetching}
           isShipConfidenceLoading={shipConfidence.isFetching}
           isGovernanceFetching={governance.isFetching}
+          isWorkspaceRiskLoading={workspaceRiskSummary.isFetching}
+          isCheckingFixes={checkFixes.isPending}
           isGeneratingCriteria={generateCriteria.isPending}
           isUpdatingEvidenceRequirement={updateEvidenceRequirement.isPending}
           isCreatingCheck={createCheck.isPending}
           isReviewingCriterion={reviewCriterion.isPending}
           canSubmitScannerEvidence={!!effectiveProductId && !!scannerUploadForm.toolName.trim() && !!scannerUploadForm.artifactPayload.trim()}
+          lastCheckFixes={checkFixes.data}
+          onCheckFixes={(riskIds) => checkFixes.mutate(riskIds)}
           onCreateMilestone={() => createMilestone.mutate()}
           onCreateDeliverable={() => createDeliverable.mutate()}
           onSelectMilestone={setSelectedMilestoneId}

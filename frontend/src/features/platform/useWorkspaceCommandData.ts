@@ -11,6 +11,7 @@ import type {
   LaunchReadinessReport,
   Milestone,
   PackageInstance,
+  PackageModule,
   ProjectWorkspace,
   ScannerEvidenceItem,
   ShipConfidenceHistory,
@@ -52,6 +53,11 @@ export function useWorkspaceCommandData({ canAttachEvidence, productId, selected
     setSelectedWorkspaceId,
     workspaceList,
   } = useWorkspaceCommandSelection(productWorkspaceList, selectedWorkspaceId);
+  const packageModules = useQuery({
+    queryKey: ['packages', selectedWorkspace?.packageInstance?.id, 'modules'],
+    enabled: !!selectedWorkspace?.packageInstance?.id,
+    queryFn: () => getJson<PackageModule[]>(`/packages/${selectedWorkspace?.packageInstance?.id}/modules`),
+  });
 
   const milestones = useQuery({
     queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'],
@@ -126,6 +132,7 @@ export function useWorkspaceCommandData({ canAttachEvidence, productId, selected
   });
 
   const deliverableList = deliverables.data || [];
+  const packageModuleList = packageModules.data || [];
   const participantList = participants.data || [];
   const supportList = supportRequests.data || [];
   const disputeList = disputes.data || [];
@@ -135,6 +142,7 @@ export function useWorkspaceCommandData({ canAttachEvidence, productId, selected
     packages,
     workspaces,
     teams,
+    packageModules,
     milestones,
     deliverables,
     participants,
@@ -159,6 +167,8 @@ export function useWorkspaceCommandData({ canAttachEvidence, productId, selected
     launchReadinessReport,
     milestoneList,
     milestones,
+    packageModuleList,
+    packageModules,
     packageList,
     packages,
     participantList,

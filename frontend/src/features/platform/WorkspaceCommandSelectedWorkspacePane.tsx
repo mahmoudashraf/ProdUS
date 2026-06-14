@@ -65,17 +65,17 @@ export default function WorkspaceCommandSelectedWorkspacePane({
 
   return (
     <>
-      <WorkspaceCommandHero {...hero} />
+      <WorkspaceOverviewDeliveryAnswerPanel {...overview} />
 
       {isFetchingWorkspaceDetail && <LinearProgress />}
+
+      <WorkspaceCommandHero {...hero} />
 
       <WorkspaceCommandJourneyNav
         value={null}
         onChange={onViewChange}
         {...journey}
       />
-
-      <WorkspaceOverviewDeliveryAnswerPanel {...overview} />
     </>
   );
 }

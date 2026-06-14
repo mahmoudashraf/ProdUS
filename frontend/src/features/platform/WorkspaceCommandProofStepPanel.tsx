@@ -3,6 +3,7 @@
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from 'react';
 import WorkspaceAcceptanceReviewPanel from './WorkspaceAcceptanceReviewPanel';
 import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
+import OwnerWorkspaceFixesRiskThreadPanel from './OwnerWorkspaceFixesRiskThreadPanel';
 import WorkspaceProofEvidencePanel, { type WorkspaceScannerUploadForm } from './WorkspaceProofEvidencePanel';
 import WorkspaceProofMilestonesPanel from './WorkspaceProofMilestonesPanel';
 import WorkspaceProofReadinessPanel from './WorkspaceProofReadinessPanel';
@@ -18,8 +19,10 @@ import type {
   ProjectWorkspace,
   ReviewDecision,
   ScannerEvidenceItem,
+  ScannerRiskSummary,
   ShipConfidenceHistory,
   WorkspaceScannerReadiness,
+  CheckFixesResponse,
 } from './types';
 
 type FormController<TValues> = {
@@ -62,9 +65,10 @@ type ReviewPayload = {
 
 type MilestoneRisk = WorkspaceScannerReadiness['milestoneRisks'][number];
 
-export type WorkspaceCommandProofView = 'readiness' | 'steps' | 'proof' | 'acceptance';
+export type WorkspaceCommandProofView = 'findings' | 'readiness' | 'steps' | 'proof' | 'acceptance';
 
 const proofViewLabels: Record<WorkspaceCommandProofView, string> = {
+  findings: 'Assigned findings',
   readiness: 'Fix path',
   steps: 'Steps',
   proof: 'Proof files',
@@ -79,6 +83,7 @@ type WorkspaceCommandProofStepPanelProps = {
   milestoneList: Milestone[];
   deliverableList: Deliverable[];
   milestoneRiskById: Record<string, MilestoneRisk>;
+  workspaceRiskSummary?: ScannerRiskSummary | undefined;
   milestoneForm: FormController<MilestoneFormValues>;
   deliverableForm: FormController<DeliverableFormValues>;
   scannerEvidenceList: ScannerEvidenceItem[];
@@ -101,11 +106,15 @@ type WorkspaceCommandProofStepPanelProps = {
   isScannerLoading: boolean;
   isShipConfidenceLoading: boolean;
   isGovernanceFetching: boolean;
+  isWorkspaceRiskLoading: boolean;
+  isCheckingFixes: boolean;
   isGeneratingCriteria: boolean;
   isUpdatingEvidenceRequirement: boolean;
   isCreatingCheck: boolean;
   isReviewingCriterion: boolean;
   canSubmitScannerEvidence: boolean;
+  lastCheckFixes?: CheckFixesResponse | undefined;
+  onCheckFixes: (riskIds: string[]) => void;
   onCreateMilestone: () => void;
   onCreateDeliverable: () => void;
   onSelectMilestone: (milestoneId: string) => void;
@@ -130,6 +139,7 @@ export default function WorkspaceCommandProofStepPanel({
   milestoneList,
   deliverableList,
   milestoneRiskById,
+  workspaceRiskSummary,
   milestoneForm,
   deliverableForm,
   scannerEvidenceList,
@@ -152,11 +162,15 @@ export default function WorkspaceCommandProofStepPanel({
   isScannerLoading,
   isShipConfidenceLoading,
   isGovernanceFetching,
+  isWorkspaceRiskLoading,
+  isCheckingFixes,
   isGeneratingCriteria,
   isUpdatingEvidenceRequirement,
   isCreatingCheck,
   isReviewingCriterion,
   canSubmitScannerEvidence,
+  lastCheckFixes,
+  onCheckFixes,
   onCreateMilestone,
   onCreateDeliverable,
   onSelectMilestone,
@@ -172,7 +186,18 @@ export default function WorkspaceCommandProofStepPanel({
   onOpenHub,
   onViewChange,
 }: WorkspaceCommandProofStepPanelProps) {
+  const assignedFindingCount = workspaceRiskSummary?.total || 0;
+  const activeFindingCount = workspaceRiskSummary?.groups
+    .filter((group) => !['FIXED_BY_LATEST_SCAN', 'ACCEPTED_RISK', 'FALSE_POSITIVE'].includes(group.state))
+    .reduce((sum, group) => sum + group.count, 0) || 0;
   const proofItems: JourneyStepItem<WorkspaceCommandProofView>[] = [
+    {
+      value: 'findings',
+      label: proofViewLabels.findings,
+      detail: 'Scanner risks that have been selected as real work for this workspace.',
+      accent: activeFindingCount ? appleColors.amber : appleColors.green,
+      meta: <PastelChip label={`${assignedFindingCount} finding${assignedFindingCount === 1 ? '' : 's'}`} accent={activeFindingCount ? appleColors.amber : appleColors.green} bg={activeFindingCount ? '#fff4dc' : '#e7f8ee'} />,
+    },
     {
       value: 'readiness',
       label: proofViewLabels.readiness,
@@ -207,11 +232,11 @@ export default function WorkspaceCommandProofStepPanel({
     return (
       <Surface>
         <SectionTitle
-          title="Choose proof work"
+          title="Choose findings and proof work"
           action={<PastelChip label="One job at a time" accent={appleColors.purple} bg="#f1efff" />}
         />
         <OwnerWorkspaceJourneyNav
-          label="Fixes and proof internal pages"
+          label="Findings and proof internal pages"
           value={null}
           items={proofItems}
           onChange={onViewChange}
@@ -224,12 +249,22 @@ export default function WorkspaceCommandProofStepPanel({
     <>
       <WorkspaceBreadcrumbs
         items={[
-          { label: 'Fixes and proof', onClick: onOpenHub },
+          { label: 'Findings and proof', onClick: onOpenHub },
           { label: proofViewLabels[view] },
         ]}
-        backLabel="Fixes and proof"
+        backLabel="Findings and proof"
         onBack={onOpenHub}
       />
+
+      {view === 'findings' && (
+        <OwnerWorkspaceFixesRiskThreadPanel
+          riskSummary={workspaceRiskSummary}
+          isLoading={isWorkspaceRiskLoading}
+          isChecking={isCheckingFixes}
+          lastCheck={lastCheckFixes}
+          onCheckFixes={onCheckFixes}
+        />
+      )}
 
       {view === 'readiness' && (
         <WorkspaceProofReadinessPanel

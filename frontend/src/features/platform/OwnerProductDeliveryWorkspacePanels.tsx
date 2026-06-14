@@ -7,7 +7,7 @@ import {
   GroupsOutlined,
   HandshakeOutlined,
 } from '@mui/icons-material';
-import { Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import {
   DotLabel,
   PastelChip,
@@ -18,7 +18,15 @@ import {
 } from './PlatformComponents';
 import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
-import type { AcceptanceCriterion, Deliverable, Milestone, ProductProfile, ProjectWorkspace } from './types';
+import WorkspaceOverviewFocusPanel from './WorkspaceOverviewFocusPanel';
+import type {
+  PackageModule,
+  ProductProfile,
+  ProjectWorkspace,
+  ScannerRiskSummary,
+  SupportRequest,
+  WorkspaceParticipant,
+} from './types';
 import { workspaceAccent } from './workspaceCommandTeamTypes';
 
 export function DeliveryHero({
@@ -61,7 +69,7 @@ export function DeliveryHero({
           <ProgressRing value={workspaceProgress} size={104} color={accent} label="done" />
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-              <PastelChip label="Delivery for this product" accent={appleColors.green} bg="#e7f8ee" />
+              <PastelChip label="Product work room" accent={appleColors.green} bg="#e7f8ee" />
               <StatusChip label={activeWorkspace.status} />
             </Stack>
             <Typography variant="h2" sx={{ mt: 1, fontSize: { xs: 28, md: 34 }, overflowWrap: 'anywhere' }}>
@@ -100,6 +108,7 @@ export function DeliveryHero({
 }
 
 export function DeliveryJourneyCards({
+  assignedFindingCount,
   currentView,
   handoffReady,
   integrationCount,
@@ -111,6 +120,7 @@ export function DeliveryJourneyCards({
   supportCount,
   onChange,
 }: {
+  assignedFindingCount: number;
   currentView: WorkspaceCommandView;
   handoffReady: boolean;
   integrationCount: number;
@@ -133,10 +143,12 @@ export function DeliveryJourneyCards({
     },
     {
       value: 'proof' as const,
-      title: 'Fixes & proof',
-      detail: 'Priority fixes, steps, proof files, and acceptance checks.',
-      meta: `${readinessBlockers + missingEvidenceCount} gaps`,
-      accent: readinessBlockers ? appleColors.red : missingEvidenceCount ? appleColors.amber : appleColors.blue,
+      title: 'Findings & proof',
+      detail: 'Assigned scanner findings, fix steps, proof files, and acceptance checks.',
+      meta: assignedFindingCount
+        ? `${assignedFindingCount} finding${assignedFindingCount === 1 ? '' : 's'}`
+        : `${readinessBlockers + missingEvidenceCount} gaps`,
+      accent: assignedFindingCount || readinessBlockers ? appleColors.red : missingEvidenceCount ? appleColors.amber : appleColors.blue,
       icon: <FactCheckOutlined />,
     },
     {
@@ -212,73 +224,36 @@ export function DeliveryJourneyCards({
 
 export function DeliveryOverview({
   activeWorkspace,
-  completedMilestones,
-  deliverableList,
-  milestoneCount,
   missingEvidenceCount,
-  readinessBlockers,
-  scannerEvidenceCount,
-  selectedMilestone,
-  selectedMilestoneCriteria,
-  workspaceProgress,
+  packageModules,
+  participantList,
+  riskSummary,
+  supportList,
+  onManageTeam,
   onPrepareHandoff,
   onReviewProof,
 }: {
   activeWorkspace: ProjectWorkspace;
-  completedMilestones: number;
-  deliverableList: Deliverable[];
-  milestoneCount: number;
   missingEvidenceCount: number;
-  readinessBlockers: number;
-  scannerEvidenceCount: number;
-  selectedMilestone?: Milestone | undefined;
-  selectedMilestoneCriteria: AcceptanceCriterion[];
-  workspaceProgress: number;
+  packageModules: PackageModule[];
+  participantList: WorkspaceParticipant[];
+  riskSummary?: ScannerRiskSummary | undefined;
+  supportList: SupportRequest[];
+  onManageTeam: () => void;
   onPrepareHandoff: () => void;
   onReviewProof: () => void;
 }) {
-  const statusCopy = readinessBlockers
-    ? `${readinessBlockers} priority fix${readinessBlockers === 1 ? '' : 'es'} should be handled before handoff.`
-    : missingEvidenceCount
-      ? `${missingEvidenceCount} proof gap${missingEvidenceCount === 1 ? '' : 's'} still need evidence.`
-      : 'Delivery is on track for the next owner decision.';
-
   return (
-    <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f6fffb 100%)' }}>
-      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} justifyContent="space-between" alignItems={{ lg: 'center' }}>
-        <Box sx={{ minWidth: 0 }}>
-          <PastelChip label="Delivery overview" accent={appleColors.green} bg="#e7f8ee" />
-          <Typography variant="h3" sx={{ mt: 1, fontSize: { xs: 23, md: 28 } }}>
-            {statusCopy}
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.85, lineHeight: 1.65, maxWidth: 760 }}>
-            {selectedMilestone
-              ? `Current checkpoint: ${selectedMilestone.title}. ${selectedMilestoneCriteria.length} acceptance check${selectedMilestoneCriteria.length === 1 ? '' : 's'} are tied to this checkpoint.`
-              : `${activeWorkspace.name} has ${milestoneCount} delivery checkpoint${milestoneCount === 1 ? '' : 's'} recorded.`}
-          </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
-            <PastelChip label={`${workspaceProgress}% complete`} accent={appleColors.green} bg="#e7f8ee" />
-            <PastelChip label={`${completedMilestones}/${milestoneCount || 0} checkpoints done`} accent={appleColors.purple} bg="#f1efff" />
-            <PastelChip label={`${deliverableList.length} fixes`} accent={appleColors.cyan} bg="#e4f9fd" />
-            <PastelChip label={`${scannerEvidenceCount} scan proof`} accent={appleColors.blue} bg="#eaf3ff" />
-          </Stack>
-        </Box>
-        <Stack spacing={1} sx={{ minWidth: { lg: 230 } }}>
-          <Button variant="contained" onClick={onReviewProof} sx={{ minHeight: 42 }}>
-            Review fixes & proof
-          </Button>
-          <Button variant="outlined" onClick={onPrepareHandoff} sx={{ minHeight: 42 }}>
-            Prepare handoff
-          </Button>
-        </Stack>
-      </Stack>
-      {(milestoneCount > 0 || deliverableList.length > 0 || missingEvidenceCount > 0) && (
-        <LinearProgress
-          variant="determinate"
-          value={Math.min(100, Math.max(0, workspaceProgress))}
-          sx={{ mt: 2.25, height: 8, borderRadius: 99, bgcolor: '#e5eef7' }}
-        />
-      )}
-    </Surface>
+    <WorkspaceOverviewFocusPanel
+      workspace={activeWorkspace}
+      packageModules={packageModules}
+      participantList={participantList}
+      riskSummary={riskSummary}
+      supportList={supportList}
+      missingEvidenceCount={missingEvidenceCount}
+      onOpenFindings={onReviewProof}
+      onOpenHandoff={onPrepareHandoff}
+      onOpenTeam={onManageTeam}
+    />
   );
 }
