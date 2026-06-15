@@ -452,7 +452,7 @@ export default function OwnerProductDeliveryWorkspace({
           >
             <Stack spacing={0.25}>
               <Typography variant="body2" color="text.secondary">
-                Workspace page
+                Workspace area
               </Typography>
               <Typography variant="h4">{deliveryViewLabels[workspaceView]}</Typography>
             </Stack>
@@ -461,7 +461,7 @@ export default function OwnerProductDeliveryWorkspace({
               onClick={() => openDeliveryView('overview')}
               sx={{ minHeight: 40, alignSelf: { xs: 'stretch', sm: 'center' } }}
             >
-              Back to delivery overview
+              Back to workspace overview
             </Button>
           </Stack>
         </Surface>

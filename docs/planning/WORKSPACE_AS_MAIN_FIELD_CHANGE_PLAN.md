@@ -33,6 +33,20 @@ Status as of the latest implementation pass:
 - Team handling now reads as owner-facing people/help work: People and experts, Team help, Teams helping this workspace, and Delivery concerns.
 - `Check fixes` has an owner preview before it queues verification, including selected findings, scanner-backed coverage, baseline, scope, and a full-suite alternative.
 
+Latest live evidence:
+
+- Backend/UI shipped through commits `11a22d0`, `30912fc`, and `60bf344`.
+- Coolify live verification passed on ProdUS staging for a scanner-backed product/workspace flow.
+- The live verifier proved:
+  - workspace service browsing shows how many scanner findings each service would move into the workspace before the owner adds it;
+  - adding the service moves matching unassigned current scanner risk threads into the workspace and shows an owner notice with the count;
+  - the selected service card shows how many assigned findings it covers;
+  - assigned workspace findings render in `Fixes and proof`;
+  - workspace chat stores human messages, sender, timestamp, and mentioned assigned findings;
+  - long scanner finding titles stay contained in the chat mention picker;
+  - mobile workspace services renders without horizontal overflow.
+- Final live screenshots are kept in `tmp/live-verification/2026-06-15/*live-60bf344-final.png`.
+
 What is still intentionally not finished:
 
 - The old Planning and Services routes still exist for compatibility and old links, but they should not be primary selected-product navigation.
@@ -1204,10 +1218,10 @@ Sequence | Status | Notes
 5. Targeted Check fixes backend | Done for MVP | Targeted mode chooses relevant scanner tools and stores plan data. Full-suite mode exists backend-side.
 6. Risk assignment to workspace work | Mostly done | Product risk can be assigned/moved to selected workspace, removed from workspace without deleting scan history, and remapped to a different owning service.
 7. Product Scanners UI | Partial | Current-risk-first bridge exists. Scan history/proof/technical proof still needs one coherent owner journey.
-8. Workspace Fixes UI | Mostly done | Workspace fixes answer strip, risk cards, service remap, pre-run preview, and explicit `Run full scanner suite instead` now exist. Still needs stronger latest-check result display, team/milestone ownership on each card, and mobile polish.
-9. Services, team, and plan inside Workspace | Mostly done | Services can be added/removed and create milestones. Plan work, Milestones, People and experts, Team help, selected-team links, and Delivery concerns are now workspace internal views. Dedicated expert-directory assignment can come later.
+8. Workspace Fixes UI | Done for MVP | Workspace fixes answer strip, assigned findings, risk cards, service remap, pre-run preview, and explicit `Run full scanner suite instead` now exist. Later hardening: richer latest-check result display plus team/milestone ownership on every card.
+9. Services, team, chat, and plan inside Workspace | Done for MVP | Services can be added/removed, show scanner-finding impact before add, move matching findings into the workspace, and create milestones. Plan work, Steps, People and help, team links, delivery concerns, and human workspace chat are internal views. Dedicated expert-directory assignment can come later.
 10. Collapse duplicate pages | Partial | Old Planning/Action Plan/Services URLs still resolve for compatibility, but they are no longer primary selected-product navigation.
-11. Test, deploy, live verify | Partial | Local smoke now covers product nav, Plan work, Milestones, People and experts, Check fixes preview, and mobile Plan work. Full live matrix is still larger than this slice.
+11. Test, deploy, live verify | Done for workspace services/chat slice | Local checks and live browser verification passed for scanner-backed service impact, owner notice, assigned findings, workspace chat with finding mentions, and mobile services. Full scanner lifecycle matrix remains future hardening.
 
 ### Sequence 0: Baseline And Safety Pass
 
