@@ -15,8 +15,9 @@ import { memo, useMemo } from 'react';
 
 // project imports
 import { getJson } from '@/features/platform/api';
+import { sortWorkspacesForOwner } from '@/features/platform/displayOrder';
 import { productWorkspaceRoute } from '@/features/platform/ownerWorkspaceModel';
-import type { ProductProfile, ProductizationCart } from '@/features/platform/types';
+import type { ProductProfile, ProductizationCart, ProjectWorkspace } from '@/features/platform/types';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 import { HORIZONTAL_MAX_ITEM } from 'config';
@@ -93,13 +94,29 @@ const MenuList = () => {
   });
   const selectedProductName =
     routeProduct.data?.name || (selectedProductId === globalProductId ? globalProductName : '');
+  const productWorkspaces = useQuery({
+    queryKey: ['workspaces'],
+    enabled: isProductOwner && !!selectedProductId && isProductContextRoute,
+    queryFn: () => getJson<ProjectWorkspace[]>('/workspaces'),
+    staleTime: 30_000,
+  });
+  const selectedProductWorkspaces = useMemo(
+    () =>
+      sortWorkspacesForOwner(
+        (productWorkspaces.data || []).filter(
+          workspace => workspace.packageInstance?.productProfile?.id === selectedProductId
+        )
+      ),
+    [productWorkspaces.data, selectedProductId]
+  );
   const visibleMenuItems = useMemo(
     () =>
       isProductOwner && selectedProductId && isProductContextRoute
         ? buildOwnerProductWorkspaceMenu(
             roleVisibleMenuItems,
             selectedProductId,
-            selectedProductName
+            selectedProductName,
+            selectedProductWorkspaces
           )
         : roleVisibleMenuItems,
     [
@@ -108,6 +125,7 @@ const MenuList = () => {
       roleVisibleMenuItems,
       selectedProductId,
       selectedProductName,
+      selectedProductWorkspaces,
     ]
   );
 
@@ -177,10 +195,32 @@ export default memo(MenuList);
 function buildOwnerProductWorkspaceMenu(
   items: NavItemType[],
   productId: string,
-  productName?: string
+  productName?: string,
+  workspaces: ProjectWorkspace[] = []
 ): NavItemType[] {
   const platform = items.find(item => item.id === 'platform') || items[0];
   if (!platform) return items;
+  const workspaceChildren: NavItemType[] = [
+    {
+      id: 'product-workspaces-all',
+      title: workspaces.length ? 'All workspaces' : 'No workspace yet',
+      caption: workspaces.length
+        ? `${workspaces.length} workspace${workspaces.length === 1 ? '' : 's'} in this product`
+        : 'Create one from the workspace page',
+      type: 'item',
+      url: productWorkspaceRoute(productId, 'workspaces'),
+      breadcrumbs: true,
+    },
+    ...workspaces.map(workspace => ({
+      id: `product-workspace-${workspace.id}`,
+      title: shortWorkspaceName(workspace.name),
+      caption: workspaceStatusCaption(workspace.status),
+      type: 'item',
+      url: `${productWorkspaceRoute(productId, 'workspaces')}&workspace=${workspace.id}`,
+      breadcrumbs: true,
+    })),
+  ];
+
   return [
     {
       ...platform,
@@ -206,10 +246,11 @@ function buildOwnerProductWorkspaceMenu(
         {
           id: 'product-workspaces',
           title: 'Workspaces',
-          type: 'item',
+          type: 'collapse',
           url: productWorkspaceRoute(productId, 'workspaces'),
           icon: IconBuildingCommunity,
           breadcrumbs: true,
+          children: workspaceChildren,
         },
         {
           id: 'product-ai-opportunities',
@@ -238,4 +279,19 @@ function buildOwnerProductWorkspaceMenu(
       ],
     },
   ];
+}
+
+function shortWorkspaceName(name: string) {
+  const trimmed = name.trim();
+  if (trimmed.length <= 34) return trimmed;
+  return `${trimmed.slice(0, 31)}...`;
+}
+
+function workspaceStatusCaption(status?: ProjectWorkspace['status']) {
+  if (!status) return 'Workspace';
+  return status
+    .toLowerCase()
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }

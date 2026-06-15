@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
 import { IconChevronDown, IconChevronRight, IconMinusVertical } from '@tabler/icons-react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
 // material-ui
@@ -30,6 +30,7 @@ import Transitions from 'ui-component/extended/Transitions';
 
 import NavCollapse from '../NavCollapse';
 import NavItem from '../NavItem';
+import { isMenuUrlActive } from '../menuUrlActive';
 
 // types
 
@@ -74,6 +75,9 @@ const NavGroup = ({ item, lastItem, remItems, lastItemId }: NavGroupProps) => {
   const theme = useTheme();
 
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamString = searchParams?.toString() || '';
+  const currentPathWithSearch = `${pathname || ''}${searchParamString ? `?${searchParamString}` : ''}`;
   const { drawerOpen, selectedID } = useMenuState();
   const { setActiveID } = useMenuActions();
   const { layout, borderRadius } = useConfig();
@@ -101,7 +105,7 @@ const NavGroup = ({ item, lastItem, remItems, lastItemId }: NavGroupProps) => {
       if (ele.children?.length) {
         checkOpenForParent(ele.children, currentItem.id!);
       }
-      if (ele.url === pathname) {
+      if (isMenuUrlActive(String(ele.url || ''), pathname || '', currentPathWithSearch)) {
         setActiveID(id);
       }
     });
@@ -113,7 +117,7 @@ const NavGroup = ({ item, lastItem, remItems, lastItemId }: NavGroupProps) => {
       if (itemCheck?.children?.length) {
         checkOpenForParent(itemCheck.children, currentItem.id!);
       }
-      if (itemCheck?.url === pathname) {
+      if (isMenuUrlActive(String(itemCheck?.url || ''), pathname || '', currentPathWithSearch)) {
         setActiveID(currentItem.id!);
       }
     });
@@ -124,7 +128,7 @@ const NavGroup = ({ item, lastItem, remItems, lastItemId }: NavGroupProps) => {
     checkSelectedOnload(currentItem);
     if (openMini) setAnchorEl(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, currentItem]);
+  }, [pathname, searchParamString, currentItem]);
 
   const handleClick = (
     event:

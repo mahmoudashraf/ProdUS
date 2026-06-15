@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
 import { IconChevronDown, IconChevronRight, IconChevronUp } from '@tabler/icons-react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 // material-ui
@@ -27,6 +27,7 @@ import { NavItemType } from 'types';
 import Transitions from 'ui-component/extended/Transitions';
 
 import NavItem from '../NavItem';
+import { isMenuUrlActive } from '../menuUrlActive';
 
 // types
 
@@ -142,10 +143,13 @@ const NavCollapse = ({ menu, level, parentId }: NavCollapseProps) => {
 
   const openMini = Boolean(anchorEl);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamString = searchParams?.toString() || '';
+  const currentPathWithSearch = `${pathname || ''}${searchParamString ? `?${searchParamString}` : ''}`;
 
   const checkOpenForParent = (child: NavItemType[], id: string) => {
     child.forEach((item: NavItemType) => {
-      if (item.url === pathname) {
+      if (isMenuUrlActive(String(item.url || ''), pathname || '', currentPathWithSearch)) {
         setOpen(true);
         setSelected(id);
       }
@@ -168,7 +172,7 @@ const NavCollapse = ({ menu, level, parentId }: NavCollapseProps) => {
             setOpen(true);
           }
         }
-        if (item.url === pathname) {
+        if (isMenuUrlActive(String(item.url || ''), pathname || '', currentPathWithSearch)) {
           setSelected(menu.id);
           setOpen(true);
         }
@@ -176,7 +180,7 @@ const NavCollapse = ({ menu, level, parentId }: NavCollapseProps) => {
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, menu.children]);
+  }, [pathname, searchParamString, menu.children]);
 
   // menu collapse & item
   const menus = menu.children?.map(item => {
