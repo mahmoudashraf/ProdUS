@@ -27,6 +27,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -254,6 +255,7 @@ public class WorkspaceController {
     }
 
     @GetMapping("/{workspaceId}/services/finding-impact")
+    @Transactional
     public List<WorkspaceServiceFindingImpactResponse> serviceFindingImpact(
             @AuthenticationPrincipal User user,
             @PathVariable UUID workspaceId
@@ -265,6 +267,7 @@ public class WorkspaceController {
     }
 
     @PostMapping("/{workspaceId}/services")
+    @Transactional
     public WorkspaceServiceAddResponse addService(
             @AuthenticationPrincipal User user,
             @PathVariable UUID workspaceId,
