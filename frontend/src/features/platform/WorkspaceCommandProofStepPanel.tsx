@@ -17,10 +17,12 @@ import type {
   EvidenceRequirement,
   LaunchReadinessReport,
   Milestone,
+  PackageModule,
   ProjectWorkspace,
   ReviewDecision,
   ScannerEvidenceItem,
   ScannerRiskSummary,
+  ServiceModule,
   ShipConfidenceHistory,
   WorkspaceScannerReadiness,
   CheckFixesResponse,
@@ -89,7 +91,9 @@ type WorkspaceCommandProofStepPanelProps = {
   selectedMilestone: Milestone | undefined;
   milestoneList: Milestone[];
   deliverableList: Deliverable[];
+  catalogModules: ServiceModule[];
   milestoneRiskById: Record<string, MilestoneRisk>;
+  packageModules: PackageModule[];
   workspaceRiskSummary?: ScannerRiskSummary | undefined;
   milestoneForm: FormController<MilestoneFormValues>;
   deliverableForm: FormController<DeliverableFormValues>;
@@ -121,7 +125,11 @@ type WorkspaceCommandProofStepPanelProps = {
   isReviewingCriterion: boolean;
   canSubmitScannerEvidence: boolean;
   lastCheckFixes?: CheckFixesResponse | undefined;
+  changingServiceRiskId?: string | null | undefined;
   removingRiskId?: string | null | undefined;
+  onChangeRiskService?:
+    | ((riskId: string, serviceModuleId: string, note?: string) => void)
+    | undefined;
   onCheckFixes: (riskIds: string[], mode?: CheckFixesResponse['mode']) => void;
   onRemoveRisk?: ((riskId: string) => void) | undefined;
   onCreateMilestone: () => void;
@@ -147,7 +155,9 @@ export default function WorkspaceCommandProofStepPanel({
   selectedMilestone,
   milestoneList,
   deliverableList,
+  catalogModules,
   milestoneRiskById,
+  packageModules,
   workspaceRiskSummary,
   milestoneForm,
   deliverableForm,
@@ -179,7 +189,9 @@ export default function WorkspaceCommandProofStepPanel({
   isReviewingCriterion,
   canSubmitScannerEvidence,
   lastCheckFixes,
+  changingServiceRiskId,
   removingRiskId,
+  onChangeRiskService,
   onCheckFixes,
   onRemoveRisk,
   onCreateMilestone,
@@ -311,11 +323,15 @@ export default function WorkspaceCommandProofStepPanel({
 
       {view === 'findings' && (
         <OwnerWorkspaceFixesRiskThreadPanel
+          catalogModules={catalogModules}
+          packageModules={packageModules}
           riskSummary={workspaceRiskSummary}
           isLoading={isWorkspaceRiskLoading}
           isChecking={isCheckingFixes}
+          changingServiceRiskId={changingServiceRiskId}
           removingRiskId={removingRiskId}
           lastCheck={lastCheckFixes}
+          onChangeRiskService={onChangeRiskService}
           onCheckFixes={onCheckFixes}
           onRemoveRisk={onRemoveRisk}
         />

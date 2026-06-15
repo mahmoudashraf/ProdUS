@@ -29,9 +29,9 @@ export default function WorkspaceSelectedTeamsPanel({
   );
 
   return (
-    <Surface>
+    <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f5fdff 100%)' }}>
       <SectionTitle
-        title="Selected team"
+        title="Teams helping this workspace"
         action={
           <PastelChip
             label={
@@ -43,7 +43,8 @@ export default function WorkspaceSelectedTeamsPanel({
         }
       />
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.55 }}>
-        The team currently attached to this workspace through active support and delivery requests.
+        Teams appear here when they are attached through this workspace&apos;s active help requests.
+        Open a team profile to see who they are and what they can handle.
       </Typography>
 
       {teams.length ? (
@@ -111,7 +112,7 @@ export default function WorkspaceSelectedTeamsPanel({
                   <Button
                     component={NextLink}
                     href={`/teams/${team.id}`}
-                    variant="outlined"
+                    variant="contained"
                     endIcon={<ArrowForwardOutlined />}
                     sx={{ alignSelf: 'flex-start', minHeight: 38 }}
                   >
@@ -124,7 +125,7 @@ export default function WorkspaceSelectedTeamsPanel({
         </Box>
       ) : (
         <Box sx={{ mt: 1.5 }}>
-          <EmptyState label="No team is attached yet. Choose a team when this workspace needs delivery help, support, or specialist review." />
+          <EmptyState label="No team is attached yet. Ask a team for help when this workspace needs delivery, support, or specialist review." />
         </Box>
       )}
 
@@ -144,7 +145,7 @@ export default function WorkspaceSelectedTeamsPanel({
           </Typography>
         </Stack>
         <Button variant="contained" onClick={onChooseTeam} sx={{ minHeight: 40 }}>
-          Choose team
+          Ask a team
         </Button>
       </Stack>
     </Surface>

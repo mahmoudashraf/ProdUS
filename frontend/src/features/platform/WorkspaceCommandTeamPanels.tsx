@@ -35,9 +35,9 @@ import WorkspaceSupportRequestsPanel from './WorkspaceSupportRequestsPanel';
 export type WorkspaceCommandTeamView = 'participants' | 'support' | 'risks';
 
 const teamViewLabel: Record<WorkspaceCommandTeamView, string> = {
-  participants: 'Participants',
-  support: 'Support',
-  risks: 'Risks',
+  participants: 'People And Experts',
+  support: 'Team Help',
+  risks: 'Delivery Concerns',
 };
 
 interface IWorkspaceCommandTeamPanelsProps {
@@ -108,12 +108,12 @@ export default function WorkspaceCommandTeamPanels({
   const items: JourneyStepItem<WorkspaceCommandTeamView>[] = [
     {
       value: 'participants',
-      label: 'Participants',
-      detail: 'Confirm who owns delivery, review, and escalation.',
+      label: 'People and experts',
+      detail: 'Invite the owner, team lead, specialist, advisor, or reviewer.',
       accent: appleColors.cyan,
       meta: (
         <PastelChip
-          label={`${participantList.length} people`}
+          label={`${participantList.length} added`}
           accent={appleColors.cyan}
           bg="#e4f9fd"
         />
@@ -121,12 +121,12 @@ export default function WorkspaceCommandTeamPanels({
     },
     {
       value: 'support',
-      label: 'Support',
-      detail: 'Handle owner asks and specialist follow-up.',
+      label: 'Team help',
+      detail: 'Ask a team or expert group to help with this workspace.',
       accent: supportList.length ? appleColors.amber : appleColors.green,
       meta: (
         <PastelChip
-          label={`${supportList.length} requests`}
+          label={`${supportList.length} asks`}
           accent={supportList.length ? appleColors.amber : appleColors.green}
           bg={supportList.length ? '#fff4dc' : '#e7f8ee'}
         />
@@ -134,8 +134,8 @@ export default function WorkspaceCommandTeamPanels({
     },
     {
       value: 'risks',
-      label: 'Risks',
-      detail: 'Resolve blockers before owner handoff.',
+      label: 'Delivery concerns',
+      detail: 'Track non-scanner concerns that could slow the work.',
       accent: disputeList.length ? appleColors.red : appleColors.green,
       meta: (
         <PastelChip
@@ -158,15 +158,18 @@ export default function WorkspaceCommandTeamPanels({
     <Stack spacing={2}>
       {view && (
         <WorkspaceBreadcrumbs
-          items={[{ label: 'Team And Risks', onClick: onOpenHub }, { label: teamViewLabel[view] }]}
-          backLabel="Team home"
+          items={[
+            { label: 'People And Teams', onClick: onOpenHub },
+            { label: teamViewLabel[view] },
+          ]}
+          backLabel="People home"
           onBack={onOpenHub}
         />
       )}
 
       {view ? (
         <WorkspaceCommandSubrouteActions
-          ariaLabel="Team and risk internal pages"
+          ariaLabel="People and team internal pages"
           currentValue={view}
           items={subrouteItems}
           onChange={onViewChange}
@@ -178,7 +181,7 @@ export default function WorkspaceCommandTeamPanels({
             onChooseTeam={() => onViewChange('support')}
           />
           <OwnerWorkspaceJourneyNav
-            label="Team and risks"
+            label="People and teams"
             value={null}
             items={items}
             onChange={onViewChange}

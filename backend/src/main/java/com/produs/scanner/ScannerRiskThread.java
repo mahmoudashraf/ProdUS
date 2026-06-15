@@ -1,6 +1,7 @@
 package com.produs.scanner;
 
 import com.produs.catalog.ServiceModule;
+import com.produs.entity.User;
 import com.produs.product.ProductProfile;
 import com.produs.shared.BaseEntity;
 import com.produs.workspace.ProjectWorkspace;
@@ -17,6 +18,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -69,6 +71,20 @@ public class ScannerRiskThread extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "recommended_module_id")
     private ServiceModule recommendedModule;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "scanner_suggested_module_id")
+    private ServiceModule scannerSuggestedModule;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "service_mapping_changed_by_id")
+    private User serviceMappingChangedBy;
+
+    @Column(name = "service_mapping_changed_at")
+    private LocalDateTime serviceMappingChangedAt;
+
+    @Column(name = "service_mapping_note", columnDefinition = "TEXT")
+    private String serviceMappingNote;
 
     @Column(name = "source_tool")
     private String sourceTool;

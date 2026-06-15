@@ -27,6 +27,7 @@ import com.produs.scanner.ScannerService.ScannerEvidenceItemResponse;
 import com.produs.scanner.ScannerService.ScannerImportRunResponse;
 import com.produs.scanner.ScannerService.ScannerRiskSummaryResponse;
 import com.produs.scanner.ScannerService.ScannerRiskThreadResponse;
+import com.produs.scanner.ScannerService.RiskServiceMappingRequest;
 import com.produs.scanner.ScannerService.StartFullHostedScanRequest;
 import com.produs.scanner.ScannerService.StartHostedScanRequest;
 import com.produs.scanner.ScannerService.ToolRunResponse;
@@ -236,6 +237,15 @@ public class ScannerController {
             @PathVariable UUID riskThreadId
     ) {
         return scannerService.removeRiskFromWorkspace(user, riskThreadId);
+    }
+
+    @PatchMapping("/risks/{riskThreadId}/service")
+    public ScannerRiskThreadResponse updateRiskServiceMapping(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID riskThreadId,
+            @Valid @RequestBody RiskServiceMappingRequest request
+    ) {
+        return scannerService.updateRiskServiceMapping(user, riskThreadId, request);
     }
 
     @GetMapping("/evidence")

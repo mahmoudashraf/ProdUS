@@ -3,7 +3,14 @@
 import { OwnerWorkspaceJourneyNav, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
 import { PastelChip, appleColors } from './PlatformComponents';
 
-export type WorkspaceCommandView = 'overview' | 'services' | 'proof' | 'team' | 'handoff';
+export type WorkspaceCommandView =
+  | 'overview'
+  | 'plan'
+  | 'services'
+  | 'proof'
+  | 'team'
+  | 'milestones'
+  | 'handoff';
 
 interface IWorkspaceCommandJourneyNavProps {
   value?: WorkspaceCommandView | null;
@@ -47,6 +54,19 @@ export default function WorkspaceCommandJourneyNav({
       ),
     },
     {
+      value: 'plan',
+      label: 'Plan work',
+      detail: 'Services, findings, people, and next steps in one practical plan.',
+      accent: serviceCount || priorityFixes ? appleColors.purple : appleColors.amber,
+      meta: (
+        <PastelChip
+          label={`${serviceCount} services`}
+          accent={serviceCount ? appleColors.purple : appleColors.amber}
+          bg={serviceCount ? '#f3edff' : '#fff4dc'}
+        />
+      ),
+    },
+    {
       value: 'services',
       label: 'Services',
       detail: 'Choose the work this workspace owns before people start fixing it.',
@@ -79,6 +99,19 @@ export default function WorkspaceCommandJourneyNav({
       accent: riskCount || supportCount ? appleColors.amber : appleColors.purple,
       meta: (
         <PastelChip label={`${participantCount} people`} accent={appleColors.cyan} bg="#e4f9fd" />
+      ),
+    },
+    {
+      value: 'milestones',
+      label: 'Milestones',
+      detail: 'Workspace steps, outputs, proof links, and acceptance progress.',
+      accent: milestoneCount ? appleColors.green : appleColors.amber,
+      meta: (
+        <PastelChip
+          label={`${milestoneCount} step${milestoneCount === 1 ? '' : 's'}`}
+          accent={milestoneCount ? appleColors.green : appleColors.amber}
+          bg={milestoneCount ? '#e7f8ee' : '#fff4dc'}
+        />
       ),
     },
     {

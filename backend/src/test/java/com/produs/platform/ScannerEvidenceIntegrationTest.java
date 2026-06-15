@@ -441,6 +441,22 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.workspaceId").value(workspace.getId().toString()));
 
+        ServiceModule apiReview = serviceModuleRepository.findByStableCode("security.api_review").orElseThrow();
+        mockMvc.perform(patch("/api/scanner/risks/{riskThreadId}/service", riskThreadId)
+                        .with(auth(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "serviceModuleId": "%s",
+                                  "note": "This finding needs API/auth review, not only secrets scanning."
+                                }
+                                """.formatted(apiReview.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendedModule.stableCode").value("security.api_review"))
+                .andExpect(jsonPath("$.scannerSuggestedModule.stableCode").value("security.secrets_scan"))
+                .andExpect(jsonPath("$.serviceMappingChangedByEmail").value(owner.getEmail()))
+                .andExpect(jsonPath("$.serviceMappingNote").value("This finding needs API/auth review, not only secrets scanning."));
+
         mockMvc.perform(post("/api/workspaces/{workspaceId}/scanner/check-fixes", workspace.getId())
                         .with(auth(owner))
                         .contentType(MediaType.APPLICATION_JSON)

@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 
-import { deleteJson, getJson, postJson } from './api';
+import { deleteJson, getJson, patchJson, postJson } from './api';
 import {
   DeliveryHero,
   DeliveryJourneyCards,
@@ -27,11 +27,13 @@ import { useWorkspaceCommandUiState } from './useWorkspaceCommandUiState';
 import type { WorkspaceCommandHandoffView } from './WorkspaceCommandHandoffPanels';
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
 import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
+import WorkspaceCommandPlanPanel from './WorkspaceCommandPlanPanel';
 import type { WorkspaceCommandProofView } from './WorkspaceCommandProofStepPanel';
 import WorkspaceCommandProofStepPanel from './WorkspaceCommandProofStepPanel';
 import WorkspaceCommandServicesPanel from './WorkspaceCommandServicesPanel';
 import type { WorkspaceCommandTeamView } from './WorkspaceCommandTeamPanels';
 import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
+import WorkspaceProofMilestonesPanel from './WorkspaceProofMilestonesPanel';
 
 interface IOwnerProductDeliveryWorkspaceProps {
   listHref: string;
@@ -41,9 +43,11 @@ interface IOwnerProductDeliveryWorkspaceProps {
 
 const deliveryViewLabels: Record<WorkspaceCommandView, string> = {
   overview: 'Overview',
+  plan: 'Plan work',
   services: 'Services',
   proof: 'Findings & proof',
   team: 'Team & support',
+  milestones: 'Milestones',
   handoff: 'Handoff',
 };
 
@@ -171,6 +175,28 @@ export default function OwnerProductDeliveryWorkspace({
       queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', activeWorkspace.id] });
       queryClient.invalidateQueries({ queryKey: ['scanner-current-risks', effectiveProductId] });
       queryClient.invalidateQueries({ queryKey: ['scanner-summary', effectiveProductId] });
+      queryClient.invalidateQueries({
+        queryKey: ['productization-engine', 'workspace-scanner-readiness', activeWorkspace.id],
+      });
+    },
+  });
+  const changeRiskService = useMutation({
+    mutationFn: ({
+      note,
+      riskThreadId,
+      serviceModuleId,
+    }: {
+      note?: string | undefined;
+      riskThreadId: string;
+      serviceModuleId: string;
+    }) =>
+      patchJson(`/scanner/risks/${riskThreadId}/service`, {
+        serviceModuleId,
+        note,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', activeWorkspace.id] });
+      queryClient.invalidateQueries({ queryKey: ['scanner-current-risks', effectiveProductId] });
       queryClient.invalidateQueries({
         queryKey: ['productization-engine', 'workspace-scanner-readiness', activeWorkspace.id],
       });
@@ -354,6 +380,7 @@ export default function OwnerProductDeliveryWorkspace({
             workspaceProgress={workspaceProgress}
             workspaceCount={workspaceList.length}
             onNextAction={openNextAction}
+            onPlanWork={() => openDeliveryView('plan')}
           />
 
           <DeliveryJourneyCards
@@ -398,6 +425,25 @@ export default function OwnerProductDeliveryWorkspace({
         </Surface>
       )}
 
+      {workspaceView === 'plan' && (
+        <WorkspaceCommandPlanPanel
+          milestoneList={milestoneList}
+          packageModules={packageModuleList}
+          participantList={participantList}
+          riskSummary={workspaceRiskSummary.data}
+          supportList={supportList}
+          workspace={activeWorkspace}
+          onOpenFindings={() =>
+            openDeliveryView('proof', {
+              proofView: assignedFindingCount ? 'findings' : 'readiness',
+            })
+          }
+          onOpenMilestones={() => openDeliveryView('milestones')}
+          onOpenServices={() => openDeliveryView('services')}
+          onOpenTeam={() => openDeliveryView('team')}
+        />
+      )}
+
       {workspaceView === 'services' && (
         <WorkspaceCommandServicesPanel
           canCoordinate={canCoordinate}
@@ -418,7 +464,9 @@ export default function OwnerProductDeliveryWorkspace({
           selectedMilestone={selectedMilestone}
           milestoneList={milestoneList}
           deliverableList={deliverableList}
+          catalogModules={catalogModuleList}
           milestoneRiskById={milestoneRiskById}
+          packageModules={packageModuleList}
           workspaceRiskSummary={workspaceRiskSummary.data}
           milestoneForm={milestoneForm}
           deliverableForm={deliverableForm}
@@ -454,10 +502,18 @@ export default function OwnerProductDeliveryWorkspace({
             !!scannerUploadForm.artifactPayload.trim()
           }
           lastCheckFixes={checkFixes.data}
+          changingServiceRiskId={
+            changeRiskService.isPending
+              ? String(changeRiskService.variables?.riskThreadId || '')
+              : null
+          }
           removingRiskId={
             removeRiskFromWorkspace.isPending
               ? String(removeRiskFromWorkspace.variables || '')
               : null
+          }
+          onChangeRiskService={(riskId, serviceModuleId, note) =>
+            changeRiskService.mutate({ riskThreadId: riskId, serviceModuleId, note })
           }
           onCheckFixes={(riskIds, mode) =>
             checkFixes.mutate({ riskThreadIds: riskIds, mode: mode ?? 'RELEVANT_TO_FIXES' })
@@ -523,6 +579,23 @@ export default function OwnerProductDeliveryWorkspace({
           }
           onOpenHub={() => openDeliveryView('team')}
           onViewChange={teamView => openDeliveryView('team', { teamView })}
+          evidencePanel={evidencePanel}
+        />
+      )}
+
+      {workspaceView === 'milestones' && (
+        <WorkspaceProofMilestonesPanel
+          milestoneList={milestoneList}
+          selectedMilestone={selectedMilestone}
+          deliverableList={deliverableList}
+          milestoneRiskById={milestoneRiskById}
+          milestoneForm={milestoneForm}
+          deliverableForm={deliverableForm}
+          isCreatingMilestone={createMilestone.isPending}
+          isCreatingDeliverable={createDeliverable.isPending}
+          onCreateMilestone={() => createMilestone.mutate()}
+          onCreateDeliverable={() => createDeliverable.mutate()}
+          onSelectMilestone={setSelectedMilestoneId}
           evidencePanel={evidencePanel}
         />
       )}

@@ -1,33 +1,29 @@
 // material-ui
 import { Box, Divider, List, Typography, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useQuery } from '@tanstack/react-query';
 import {
   IconAlertTriangle,
   IconBuildingCommunity,
-  IconChecklist,
   IconHome,
   IconListDetails,
-  IconPackage,
   IconShare,
   IconSparkles,
 } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { memo, useMemo } from 'react';
 
 // project imports
-import { HORIZONTAL_MAX_ITEM } from 'config';
-import { LAYOUT_CONST } from 'constant';
-import useConfig from 'hooks/useConfig';
-import menuItem from 'menu-items';
-import { useMenuState } from 'contexts/MenuContext';
-import useAuth from '@/hooks/useAuth';
-import { UserRole } from '@/types/auth';
 import { getJson } from '@/features/platform/api';
 import { productWorkspaceRoute } from '@/features/platform/ownerWorkspaceModel';
 import type { ProductProfile, ProductizationCart } from '@/features/platform/types';
-
-// types
+import useAuth from '@/hooks/useAuth';
+import { UserRole } from '@/types/auth';
+import { HORIZONTAL_MAX_ITEM } from 'config';
+import { LAYOUT_CONST } from 'constant';
+import { useMenuState } from 'contexts/MenuContext';
+import useConfig from 'hooks/useConfig';
+import menuItem from 'menu-items';
 import { NavItemType } from 'types';
 
 import NavGroup from './NavGroup';
@@ -57,41 +53,62 @@ const MenuList = () => {
     layout === LAYOUT_CONST.HORIZONTAL_LAYOUT && !matchDownMd ? HORIZONTAL_MAX_ITEM : undefined;
 
   const roleVisibleMenuItems = useMemo(
-    () => menuItem.items
-      .map((item) => {
-        if (!item.children) return item;
-        return {
-          ...item,
-          children: item.children.filter((child) => !child.roles || (user?.role ? child.roles.includes(user.role) : true)),
-        };
-      })
-      .filter((item) => !item.roles || (user?.role ? item.roles.includes(user.role) : true)),
+    () =>
+      menuItem.items
+        .map(item => {
+          if (!item.children) return item;
+          return {
+            ...item,
+            children: item.children.filter(
+              child => !child.roles || (user?.role ? child.roles.includes(user.role) : true)
+            ),
+          };
+        })
+        .filter(item => !item.roles || (user?.role ? item.roles.includes(user.role) : true)),
     [user?.role]
   );
   const productWorkspaceMatch = pathname.match(/^\/products\/([^/]+)$/);
-  const routeProductId = productWorkspaceMatch?.[1] && productWorkspaceMatch[1] !== 'new'
-    ? productWorkspaceMatch[1]
-    : '';
+  const routeProductId =
+    productWorkspaceMatch?.[1] && productWorkspaceMatch[1] !== 'new'
+      ? productWorkspaceMatch[1]
+      : '';
   const productIdParam = searchParams?.get('productId') || '';
   const globalProductId = globalProductContext.data?.productProfile?.id || '';
   const globalProductName = globalProductContext.data?.productProfile?.name || '';
-  const isProductContextRoute = Boolean(routeProductId)
-    || pathname === '/owner/project-cart'
-    || Boolean(productIdParam && (pathname === '/catalog' || pathname === '/services'));
-  const selectedProductId = routeProductId || productIdParam || (isProductContextRoute ? globalProductId : '');
+  const isProductContextRoute =
+    Boolean(routeProductId) ||
+    pathname === '/owner/project-cart' ||
+    Boolean(productIdParam && (pathname === '/catalog' || pathname === '/services'));
+  const selectedProductId =
+    routeProductId || productIdParam || (isProductContextRoute ? globalProductId : '');
   const routeProduct = useQuery({
     queryKey: ['products', selectedProductId, 'menu-context'],
-    enabled: isProductOwner && !!selectedProductId && (!globalProductId || selectedProductId !== globalProductId),
+    enabled:
+      isProductOwner &&
+      !!selectedProductId &&
+      (!globalProductId || selectedProductId !== globalProductId),
     queryFn: () => getJson<ProductProfile>(`/products/${selectedProductId}`),
     staleTime: 60_000,
     retry: false,
   });
-  const selectedProductName = routeProduct.data?.name || (selectedProductId === globalProductId ? globalProductName : '');
+  const selectedProductName =
+    routeProduct.data?.name || (selectedProductId === globalProductId ? globalProductName : '');
   const visibleMenuItems = useMemo(
-    () => isProductOwner && selectedProductId && isProductContextRoute
-      ? buildOwnerProductWorkspaceMenu(roleVisibleMenuItems, selectedProductId, selectedProductName)
-      : roleVisibleMenuItems,
-    [isProductContextRoute, isProductOwner, roleVisibleMenuItems, selectedProductId, selectedProductName]
+    () =>
+      isProductOwner && selectedProductId && isProductContextRoute
+        ? buildOwnerProductWorkspaceMenu(
+            roleVisibleMenuItems,
+            selectedProductId,
+            selectedProductName
+          )
+        : roleVisibleMenuItems,
+    [
+      isProductContextRoute,
+      isProductOwner,
+      roleVisibleMenuItems,
+      selectedProductId,
+      selectedProductName,
+    ]
   );
 
   let lastItemIndex = visibleMenuItems.length - 1;
@@ -134,8 +151,10 @@ const MenuList = () => {
           remItems: remItems,
           lastItemId: lastItemId || '',
         };
-        
-        return <NavGroup key={item.id || `nav-group-${item.title || 'unknown'}`} {...navGroupProps} />;
+
+        return (
+          <NavGroup key={item.id || `nav-group-${item.title || 'unknown'}`} {...navGroupProps} />
+        );
       default:
         return (
           <Typography key={item.id} variant="h6" color="error" align="center">
@@ -155,8 +174,12 @@ const MenuList = () => {
 
 export default memo(MenuList);
 
-function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string, productName?: string): NavItemType[] {
-  const platform = items.find((item) => item.id === 'platform') || items[0];
+function buildOwnerProductWorkspaceMenu(
+  items: NavItemType[],
+  productId: string,
+  productName?: string
+): NavItemType[] {
+  const platform = items.find(item => item.id === 'platform') || items[0];
   if (!platform) return items;
   return [
     {
@@ -197,35 +220,11 @@ function buildOwnerProductWorkspaceMenu(items: NavItemType[], productId: string,
           breadcrumbs: true,
         },
         {
-          id: 'product-start-plan',
-          title: 'Planning',
-          type: 'item',
-          url: '/owner/project-cart',
-          icon: IconPackage,
-          breadcrumbs: true,
-        },
-        {
-          id: 'product-action-plan',
-          title: 'Action Plan',
-          type: 'item',
-          url: productWorkspaceRoute(productId, 'actions'),
-          icon: IconChecklist,
-          breadcrumbs: true,
-        },
-        {
           id: 'product-findings',
           title: 'Scanners',
           type: 'item',
           url: productWorkspaceRoute(productId, 'findings'),
           icon: IconAlertTriangle,
-          breadcrumbs: true,
-        },
-        {
-          id: 'product-services',
-          title: 'Services',
-          type: 'item',
-          url: productWorkspaceRoute(productId, 'services'),
-          icon: IconPackage,
           breadcrumbs: true,
         },
         {

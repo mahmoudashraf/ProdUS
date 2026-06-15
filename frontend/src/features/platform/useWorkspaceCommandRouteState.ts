@@ -16,9 +16,11 @@ interface IWorkspaceCommandRouteStateOptions {
 
 const isWorkspaceCommandView = (value: string | null): value is WorkspaceCommandView =>
   value === 'overview' ||
+  value === 'plan' ||
   value === 'services' ||
   value === 'proof' ||
   value === 'team' ||
+  value === 'milestones' ||
   value === 'handoff';
 
 const isWorkspaceCommandTeamView = (value: string | null): value is WorkspaceCommandTeamView =>

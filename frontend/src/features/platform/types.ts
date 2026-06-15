@@ -736,6 +736,10 @@ export interface ScannerRiskThread extends BaseRecord {
   lastFixedScanRunId?: string;
   currentFindingId?: string;
   recommendedModule?: ServiceModule;
+  scannerSuggestedModule?: ServiceModule;
+  serviceMappingChangedByEmail?: string;
+  serviceMappingChangedAt?: string;
+  serviceMappingNote?: string;
   sourceTool?: string;
   sourceRuleId?: string;
   affectedComponent?: string;

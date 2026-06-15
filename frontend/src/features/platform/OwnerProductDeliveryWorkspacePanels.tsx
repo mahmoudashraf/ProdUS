@@ -18,7 +18,6 @@ import {
   Surface,
   appleColors,
 } from './PlatformComponents';
-import { PROJECT_START_PLAN_HREF } from './projectStartPlanLinks';
 import type {
   PackageModule,
   ProductProfile,
@@ -46,6 +45,7 @@ export function DeliveryHero({
   workspaceCount,
   workspaceProgress,
   onNextAction,
+  onPlanWork,
 }: {
   activeWorkspace: ProjectWorkspace;
   completedMilestones: number;
@@ -61,6 +61,7 @@ export function DeliveryHero({
   workspaceCount: number;
   workspaceProgress: number;
   onNextAction: () => void;
+  onPlanWork: () => void;
 }) {
   const accent = workspaceAccent(activeWorkspace.status);
 
@@ -102,12 +103,7 @@ export function DeliveryHero({
           <Button variant="contained" onClick={onNextAction} sx={{ minHeight: 44 }}>
             Next delivery action
           </Button>
-          <Button
-            component={NextLink}
-            href={PROJECT_START_PLAN_HREF}
-            variant="outlined"
-            sx={{ minHeight: 44 }}
-          >
+          <Button variant="outlined" onClick={onPlanWork} sx={{ minHeight: 44 }}>
             Plan work
           </Button>
           {workspaceCount > 1 && (
@@ -176,6 +172,14 @@ export function DeliveryJourneyCards({
       icon: <AssignmentTurnedInOutlined />,
     },
     {
+      value: 'plan' as const,
+      title: 'Plan work',
+      detail: 'See services, findings, people, and steps together before changing scope.',
+      meta: `${serviceCount} services`,
+      accent: serviceCount || assignedFindingCount ? appleColors.purple : appleColors.amber,
+      icon: <AssignmentTurnedInOutlined />,
+    },
+    {
       value: 'services' as const,
       title: 'Services',
       detail: 'Choose what work belongs in this workspace.',
@@ -207,6 +211,14 @@ export function DeliveryJourneyCards({
       icon: <GroupsOutlined />,
     },
     {
+      value: 'milestones' as const,
+      title: 'Milestones',
+      detail: 'Workspace steps, outputs, proof links, and acceptance progress.',
+      meta: `${milestoneCount} steps`,
+      accent: milestoneCount ? appleColors.green : appleColors.amber,
+      icon: <AssignmentTurnedInOutlined />,
+    },
+    {
       value: 'handoff' as const,
       title: 'Handoff',
       detail: 'Runbook, health review, integration signals, and acceptance.',
@@ -223,7 +235,7 @@ export function DeliveryJourneyCards({
         gridTemplateColumns: {
           xs: '1fr',
           md: 'repeat(2, minmax(0, 1fr))',
-          xl: 'repeat(5, minmax(0, 1fr))',
+          xl: 'repeat(4, minmax(0, 1fr))',
         },
         gap: 1.25,
       }}

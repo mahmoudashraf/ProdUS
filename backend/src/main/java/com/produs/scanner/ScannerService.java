@@ -876,6 +876,30 @@ public class ScannerService {
     }
 
     @Transactional
+    public ScannerRiskThreadResponse updateRiskServiceMapping(User actor, UUID riskThreadId, RiskServiceMappingRequest request) {
+        ScannerRiskThread thread = riskThreadRepository.findById(riskThreadId)
+                .orElseThrow(() -> new ResourceNotFoundException("Scanner risk not found"));
+        ServiceModule selectedModule = moduleRepository.findById(request.serviceModuleId())
+                .orElseThrow(() -> new ResourceNotFoundException("Service module not found"));
+        ProjectWorkspace workspace = thread.getWorkspace();
+        if (workspace != null) {
+            requireProductOrWorkspaceWrite(actor, thread.getProductProfile(), workspace);
+        } else {
+            requireProductOwnerOrAdmin(actor, thread.getProductProfile());
+        }
+        ServiceModule previousModule = thread.getRecommendedModule();
+        ScannerRiskThread saved = riskLifecycleService.updateServiceMapping(
+                thread,
+                selectedModule,
+                actor,
+                trimToNull(request.note())
+        );
+        audit(actor, "SCANNER_RISK_SERVICE_MAPPING_CHANGED", "SCANNER_RISK_THREAD", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
+                "Mapped scanner risk service from " + serviceModuleLabel(previousModule) + " to " + serviceModuleLabel(selectedModule));
+        return toRiskThreadResponse(saved);
+    }
+
+    @Transactional
     public CheckFixesResponse checkWorkspaceFixes(User actor, UUID workspaceId, CheckFixesRequest request) {
         ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
@@ -3093,6 +3117,10 @@ public class ScannerService {
                 risk.getLastFixedScanRun() == null ? null : risk.getLastFixedScanRun().getId(),
                 finding == null ? null : finding.getId(),
                 risk.getRecommendedModule() == null ? null : toServiceModuleResponse(risk.getRecommendedModule()),
+                risk.getScannerSuggestedModule() == null ? null : toServiceModuleResponse(risk.getScannerSuggestedModule()),
+                risk.getServiceMappingChangedBy() == null ? null : risk.getServiceMappingChangedBy().getEmail(),
+                risk.getServiceMappingChangedAt(),
+                risk.getServiceMappingNote(),
                 risk.getSourceTool(),
                 risk.getSourceRuleId(),
                 risk.getAffectedComponent(),
@@ -3218,6 +3246,13 @@ public class ScannerService {
 
     private String defaultString(String value, String fallback) {
         return isBlank(value) ? fallback : value.trim();
+    }
+
+    private String serviceModuleLabel(ServiceModule module) {
+        if (module == null) {
+            return "none";
+        }
+        return firstNonBlank(module.getStableCode(), module.getSlug(), module.getName(), module.getId().toString());
     }
 
     private boolean isBlank(String value) {
@@ -3430,6 +3465,11 @@ public class ScannerService {
 
     public record RiskWorkspaceAssignmentRequest(@NotNull UUID workspaceId) {}
 
+    public record RiskServiceMappingRequest(
+            @NotNull UUID serviceModuleId,
+            String note
+    ) {}
+
     public record CheckFixesRequest(
             List<UUID> riskThreadIds,
             CheckFixesMode mode,
@@ -3485,6 +3525,10 @@ public class ScannerService {
             UUID lastFixedScanRunId,
             UUID currentFindingId,
             ServiceModuleResponse recommendedModule,
+            ServiceModuleResponse scannerSuggestedModule,
+            String serviceMappingChangedByEmail,
+            LocalDateTime serviceMappingChangedAt,
+            String serviceMappingNote,
             String sourceTool,
             String sourceRuleId,
             String affectedComponent,

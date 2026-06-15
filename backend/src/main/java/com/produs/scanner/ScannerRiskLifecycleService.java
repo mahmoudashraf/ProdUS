@@ -2,6 +2,8 @@ package com.produs.scanner;
 
 import com.produs.product.ProductProfile;
 import com.produs.workspace.ProjectWorkspace;
+import com.produs.catalog.ServiceModule;
+import com.produs.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,6 +69,23 @@ public class ScannerRiskLifecycleService {
     @Transactional
     public ScannerRiskThread unassignWorkspace(ScannerRiskThread thread) {
         thread.setWorkspace(null);
+        return riskThreadRepository.save(thread);
+    }
+
+    @Transactional
+    public ScannerRiskThread updateServiceMapping(
+            ScannerRiskThread thread,
+            ServiceModule selectedModule,
+            User actor,
+            String note
+    ) {
+        if (thread.getScannerSuggestedModule() == null) {
+            thread.setScannerSuggestedModule(thread.getRecommendedModule());
+        }
+        thread.setRecommendedModule(selectedModule);
+        thread.setServiceMappingChangedBy(actor);
+        thread.setServiceMappingChangedAt(LocalDateTime.now());
+        thread.setServiceMappingNote(note);
         return riskThreadRepository.save(thread);
     }
 
@@ -140,7 +159,10 @@ public class ScannerRiskLifecycleService {
         }
         thread.setLastSeenScanRun(run);
         thread.setCurrentFinding(finding);
-        thread.setRecommendedModule(finding.getRecommendedModule());
+        thread.setScannerSuggestedModule(finding.getRecommendedModule());
+        if (thread.getServiceMappingChangedAt() == null) {
+            thread.setRecommendedModule(finding.getRecommendedModule());
+        }
         thread.setCurrentState(nextSeenState(previous, finding));
         riskThreadRepository.save(thread);
     }

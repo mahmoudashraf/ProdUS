@@ -1,0 +1,35 @@
+databaseChangeLog:
+  - changeSet:
+      id: 3100
+      author: produs
+      changes:
+        - addColumn:
+            tableName: scanner_risk_threads
+            columns:
+              - column:
+                  name: scanner_suggested_module_id
+                  type: UUID
+              - column:
+                  name: service_mapping_changed_by_id
+                  type: UUID
+              - column:
+                  name: service_mapping_changed_at
+                  type: TIMESTAMP
+              - column:
+                  name: service_mapping_note
+                  type: TEXT
+        - sql:
+            sql: "UPDATE scanner_risk_threads SET scanner_suggested_module_id = recommended_module_id WHERE scanner_suggested_module_id IS NULL"
+        - addForeignKeyConstraint:
+            baseTableName: scanner_risk_threads
+            baseColumnNames: scanner_suggested_module_id
+            constraintName: fk_scanner_risk_threads_scanner_module
+            referencedTableName: service_modules
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_risk_threads
+            baseColumnNames: service_mapping_changed_by_id
+            constraintName: fk_scanner_risk_threads_mapping_user
+            referencedTableName: users
+            referencedColumnNames: id
+

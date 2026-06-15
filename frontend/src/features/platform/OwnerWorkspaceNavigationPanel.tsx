@@ -2,9 +2,18 @@
 
 import { ChevronRightOutlined, KeyboardBackspaceOutlined } from '@mui/icons-material';
 import { Box, Button, Stack, Typography } from '@mui/material';
-import { OwnerWorkspaceJourneyNav, WorkspaceBreadcrumbs, type JourneyStepItem } from './OwnerWorkspaceJourneyNav';
-import { Surface, appleColors } from './PlatformComponents';
+
+import {
+  OwnerWorkspaceJourneyNav,
+  WorkspaceBreadcrumbs,
+  type JourneyStepItem,
+} from './OwnerWorkspaceJourneyNav';
 import { WorkspaceTab, workspaceTabs } from './ownerWorkspaceModel';
+import { Surface, appleColors } from './PlatformComponents';
+
+const primaryProductTabs = workspaceTabs.filter(
+  tab => tab.value !== 'actions' && tab.value !== 'services'
+);
 
 export default function OwnerWorkspaceNavigationPanel({
   currentAreaLabel,
@@ -31,12 +40,14 @@ export default function OwnerWorkspaceNavigationPanel({
 }) {
   const isOverviewHome = workspaceTab === 'overview' && !workspaceDetailOpen;
   const isAiAreaHome = workspaceTab === 'ai' && !workspaceDetailOpen;
-  const hasCustomAreaHub = (workspaceTab === 'findings' || workspaceTab === 'workspaces') && !workspaceDetailOpen;
-  const visibleJourneyItems =
-    isOverviewHome
-      ? currentJourneyItems.filter((item) => item.value !== 'refresh' && item.value !== 'refresh-review')
-      : isAiAreaHome
-        ? currentJourneyItems.filter((item) => item.value !== 'refresh-review')
+  const hasCustomAreaHub =
+    (workspaceTab === 'findings' || workspaceTab === 'workspaces') && !workspaceDetailOpen;
+  const visibleJourneyItems = isOverviewHome
+    ? currentJourneyItems.filter(
+        item => item.value !== 'refresh' && item.value !== 'refresh-review'
+      )
+    : isAiAreaHome
+      ? currentJourneyItems.filter(item => item.value !== 'refresh-review')
       : currentJourneyItems;
   const breadcrumbItems = [
     { label: 'Product Details', onClick: () => onAreaChange('overview') },
@@ -49,17 +60,12 @@ export default function OwnerWorkspaceNavigationPanel({
   return (
     <>
       {showProductAreaNavigation && (
-        <ProductAreaNavigation
-          workspaceTab={workspaceTab}
-          onAreaChange={onAreaChange}
-        />
+        <ProductAreaNavigation workspaceTab={workspaceTab} onAreaChange={onAreaChange} />
       )}
 
-      {productName && (
-        workspaceDetailOpen ? (
-          <WorkspaceBreadcrumbs
-            items={breadcrumbItems}
-          />
+      {productName &&
+        (workspaceDetailOpen ? (
+          <WorkspaceBreadcrumbs items={breadcrumbItems} />
         ) : !isOverviewHome && !hasCustomAreaHub ? (
           <OwnerWorkspaceJourneyNav
             label={`${currentAreaLabel} home`}
@@ -67,8 +73,7 @@ export default function OwnerWorkspaceNavigationPanel({
             items={visibleJourneyItems}
             onChange={onDetailChange}
           />
-        ) : null
-      )}
+        ) : null)}
     </>
   );
 }
@@ -94,12 +99,16 @@ export function ProductAreaNavigation({
         component="nav"
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(7, minmax(0, 1fr))' },
+          gridTemplateColumns: {
+            xs: 'repeat(2, minmax(0, 1fr))',
+            sm: 'repeat(3, minmax(0, 1fr))',
+            lg: `repeat(${primaryProductTabs.length}, minmax(0, 1fr))`,
+          },
           gap: 0.75,
           minWidth: 0,
         }}
       >
-        {workspaceTabs.map((tab) => {
+        {primaryProductTabs.map(tab => {
           const selected = workspaceTab === tab.value;
           const isProductHome = tab.value === 'overview';
           const showBackIcon = isProductHome && workspaceTab !== 'overview';

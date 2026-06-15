@@ -8,9 +8,11 @@ import WorkspaceCommandHero from './WorkspaceCommandHero';
 import WorkspaceCommandJourneyNav, {
   type WorkspaceCommandView,
 } from './WorkspaceCommandJourneyNav';
+import WorkspaceCommandPlanPanel from './WorkspaceCommandPlanPanel';
 import WorkspaceCommandProofStepPanel from './WorkspaceCommandProofStepPanel';
 import WorkspaceCommandSelectedContextPanel from './WorkspaceCommandSelectedContextPanel';
 import WorkspaceOverviewDeliveryAnswerPanel from './WorkspaceOverviewDeliveryAnswerPanel';
+import WorkspaceProofMilestonesPanel from './WorkspaceProofMilestonesPanel';
 
 type WorkspaceHeroProps = ComponentProps<typeof WorkspaceCommandHero>;
 type WorkspaceJourneyProps = Omit<
@@ -18,6 +20,7 @@ type WorkspaceJourneyProps = Omit<
   'value' | 'onChange'
 >;
 type WorkspaceOverviewProps = ComponentProps<typeof WorkspaceOverviewDeliveryAnswerPanel>;
+type WorkspacePlanProps = ComponentProps<typeof WorkspaceCommandPlanPanel>;
 type WorkspaceProofProps = ComponentProps<typeof WorkspaceCommandProofStepPanel>;
 
 interface IWorkspaceCommandSelectedWorkspacePaneProps {
@@ -26,6 +29,7 @@ interface IWorkspaceCommandSelectedWorkspacePaneProps {
   hero: WorkspaceHeroProps;
   journey: WorkspaceJourneyProps;
   overview: WorkspaceOverviewProps;
+  plan: WorkspacePlanProps;
   proof: WorkspaceProofProps;
   onViewChange: (view: WorkspaceCommandView) => void;
   onOpenHub: () => void;
@@ -33,9 +37,11 @@ interface IWorkspaceCommandSelectedWorkspacePaneProps {
 
 const workspaceViewLabels: Record<WorkspaceCommandView, string> = {
   overview: 'Workspace',
+  plan: 'Plan work',
   services: 'Services',
   proof: 'Fixes and proof',
   team: 'Team and risks',
+  milestones: 'Milestones',
   handoff: 'Handoff',
 };
 
@@ -45,6 +51,7 @@ export default function WorkspaceCommandSelectedWorkspacePane({
   hero,
   journey,
   overview,
+  plan,
   proof,
   onViewChange,
   onOpenHub,
@@ -65,7 +72,24 @@ export default function WorkspaceCommandSelectedWorkspacePane({
 
         {isFetchingWorkspaceDetail && <LinearProgress />}
 
+        {view === 'plan' && <WorkspaceCommandPlanPanel {...plan} />}
         {view === 'proof' && <WorkspaceCommandProofStepPanel {...proof} />}
+        {view === 'milestones' && (
+          <WorkspaceProofMilestonesPanel
+            milestoneList={proof.milestoneList}
+            selectedMilestone={proof.selectedMilestone}
+            deliverableList={proof.deliverableList}
+            milestoneRiskById={proof.milestoneRiskById}
+            milestoneForm={proof.milestoneForm}
+            deliverableForm={proof.deliverableForm}
+            isCreatingMilestone={proof.isCreatingMilestone}
+            isCreatingDeliverable={proof.isCreatingDeliverable}
+            onCreateMilestone={proof.onCreateMilestone}
+            onCreateDeliverable={proof.onCreateDeliverable}
+            onSelectMilestone={proof.onSelectMilestone}
+            evidencePanel={proof.evidencePanel}
+          />
+        )}
       </>
     );
   }

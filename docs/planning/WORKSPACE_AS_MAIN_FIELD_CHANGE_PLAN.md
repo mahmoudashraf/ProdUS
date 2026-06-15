@@ -25,13 +25,15 @@ Status as of the latest implementation pass:
 - Workspace services can be browsed, added, removed, and turned into milestones from inside Workspace.
 - Scanner risk threads, current risk APIs, scan comparison, risk assignment, and targeted `Check fixes` backend are implemented.
 - Workspace Overview now answers the important owner questions first: findings, services, people, and next move.
+- The selected-product side menu now follows the current journey: Home, Product Details, Workspaces, AI Opportunities, Scanners, and Share. Deprecated product-level Planning, Action Plan, and Services entries are no longer shown there.
+- Workspace now has internal pages for Workspace answer, Plan work, Services, Fixes and proof, Team and support, Milestones, and Handoff.
+- Team handling now reads as owner-facing people/help work: People and experts, Team help, Teams helping this workspace, and Delivery concerns.
+- `Check fixes` has an owner preview before it queues verification, including selected findings, scanner-backed coverage, baseline, scope, and a full-suite alternative.
 
 What is still intentionally not finished:
 
-- Product nav still has duplicate-feeling `Planning` and `Action Plan` destinations. They must be de-emphasized or folded into Workspace once the Workspace path is fully proven.
-- Workspace currently ships the internal views `Workspace answer`, `Services`, `Fixes and proof`, `Team and risks`, and `Handoff`. Separate `Plan work` and `Milestones` views are still design targets, not finished screens.
-- `Check fixes` runs targeted verification, but the UI still needs a pre-run preview and a clear secondary `Run full scanner suite instead`.
-- Team/expert handling works through participants and support/team records today. It still needs a calmer owner-facing “add expert / invite team / visit team” journey.
+- The old Planning and Services routes still exist for compatibility and old links, but they should not be primary selected-product navigation.
+- `Check fixes` still needs broader live proof for mixed tools, failed-tool behavior, and returned risks.
 - Product Scanners is improved around current risks, but proof/history/technical scanner surfaces still need one more coherence pass.
 - The full live verification matrix is not complete yet, especially second-scan comparison, returned risks, failed-tool behavior, and mobile checks across all workspace internal views.
 
@@ -50,12 +52,16 @@ Product Workspace
   -> choose/create/open workspace
 Workspace Answer
   -> see what matters now: findings, services, people, proof, next action
+Workspace Plan Work
+  -> see selected services, selected findings, people, and next steps in one owner answer
 Workspace Services
   -> add/remove services and create practical work milestones
 Workspace Fixes And Proof
   -> see selected scanner risks, attach proof, run Check fixes
-Workspace Team And Risks
-  -> see/add people, support teams, and delivery risks
+Workspace Team And Support
+  -> see/add people, ask teams for help, visit team pages, and track delivery concerns
+Workspace Milestones
+  -> add workspace steps, outputs, and proof-backed checkpoints
 Workspace Handoff
   -> prepare owner/team/support handoff when the work is ready
 ```
@@ -195,9 +201,11 @@ The workspace becomes the main internal product page.
 Current shipped workspace internal views:
 
 - Workspace answer
+- Plan work
 - Services
 - Fixes and proof
-- Team and risks
+- Team and support
+- Milestones
 - Handoff
 
 Design target after the next cleanup pass:
@@ -256,9 +264,9 @@ Replace the separate Planning mental model.
 
 Current status:
 
-- Not fully implemented as a separate Workspace internal view yet.
-- Existing Planning/cart screens still exist for compatibility.
-- The target is to fold the useful parts into Workspace without losing draft-plan capability.
+- Implemented as a separate Workspace internal view.
+- Existing Planning/cart screens still exist for compatibility and old links.
+- The useful owner-facing pieces now live inside Workspace without removing draft-plan compatibility.
 
 This view shows the workspace plan:
 
@@ -336,6 +344,7 @@ Current implementation path:
 - Use workspace support/team requests as the current source of attached teams until a dedicated workspace-team assignment table is needed.
 - Provide a direct link from each selected team to its team profile page.
 - Keep participant editing in the same Team area, because owners should not need a separate admin page to adjust who is helping.
+- Present the journey as `People and experts`, `Team help`, and `Delivery concerns` so it does not feel like enterprise participant administration.
 
 ### Fixes
 
@@ -378,9 +387,10 @@ Track delivery steps.
 
 Current status:
 
+- Implemented as a separate Workspace internal view.
 - Milestones exist and are used by workspace proof/handoff flows.
 - Adding a workspace service can create a matching milestone.
-- A separate owner-polished `Milestones` internal page is still a target, not finished.
+- The page currently supports adding a workspace step, choosing a milestone, adding outputs, and attaching proof to outputs.
 
 Milestones can be created by:
 
@@ -847,6 +857,10 @@ Implemented:
   - `GET /api/scanner/runs/{runId}/comparison`
 - Risk-to-workspace assignment endpoint:
   - `POST /api/scanner/risks/{riskThreadId}/assign-workspace`
+- Risk-to-workspace removal endpoint:
+  - `DELETE /api/scanner/risks/{riskThreadId}/workspace`
+- Owner/team service remap endpoint for an assigned risk:
+  - `PATCH /api/scanner/risks/{riskThreadId}/service`
 - Targeted workspace check endpoint:
   - `POST /api/workspaces/{workspaceId}/scanner/check-fixes`
 - Workspace creation from product and name:
@@ -862,11 +876,9 @@ Implemented:
 
 Still needed or still too rough:
 
-- A clean owner-facing “remove risk from workspace” action that does not delete scan history.
 - Direct team/expert assignment semantics, if participant/support records are not enough for the UI.
 - Optional direct milestone-from-service endpoint if the current service-add behavior becomes too hidden.
-- A pre-run `Check fixes` preview endpoint or UI preview mode before queuing scanner jobs.
-- UI exposure for explicit `FULL_SUITE` check mode.
+- A backend-only preview endpoint is still optional; the owner UI now previews the targeted check before queuing scanner jobs.
 - Full test coverage for returned risks, failed-tool comparisons, and mixed-tool targeted checks.
 
 Backend object and API notes:
@@ -1153,17 +1165,17 @@ Build the owner journey in layers:
 Sequence | Status | Notes
 --- | --- | ---
 0. Baseline and safety | Mostly done | Routes and APIs have been inspected repeatedly; keep doing a quick dirty-worktree and verification check before each deploy.
-1. Product and workspace navigation cleanup | Partial | Product internal workspace routes and back paths exist. Product nav still exposes duplicate Planning/Action Plan/Services destinations.
+1. Product and workspace navigation cleanup | Done for MVP | Product internal workspace routes and back paths exist. Selected-product side menu now hides deprecated Planning/Action Plan/Services destinations.
 2. Workspace home without backend rewrite | Mostly done | Workspace now leads with findings, services, people, and next action. Needs mobile and multi-workspace polish after each UI pass.
 3. Scanner risk thread backend | Done for MVP | Durable risk threads, state enum, repository, migration, and lifecycle service exist.
 4. Scan comparison service | Done for MVP | Comparison endpoint exists and fixed-by-latest-scan path is tested. Returned/failed-tool scenarios still need stronger test/live proof.
 5. Targeted Check fixes backend | Done for MVP | Targeted mode chooses relevant scanner tools and stores plan data. Full-suite mode exists backend-side.
-6. Risk assignment to workspace work | Partial | Product risk can be assigned/moved to selected workspace. Removing/unassigning a risk from workspace is still missing.
+6. Risk assignment to workspace work | Mostly done | Product risk can be assigned/moved to selected workspace, removed from workspace without deleting scan history, and remapped to a different owning service.
 7. Product Scanners UI | Partial | Current-risk-first bridge exists. Scan history/proof/technical proof still needs one coherent owner journey.
-8. Workspace Fixes UI | Partial | Workspace fixes answer strip and risk cards exist. Pre-run preview and explicit `Run full scanner suite instead` are still missing.
-9. Services, team, and plan inside Workspace | Partial | Services can be added/removed and create milestones. People/team/expert journey needs stronger owner-facing UI.
-10. Collapse duplicate pages | Pending | Do after Workspace can fully replace Planning/Action Plan without losing capabilities.
-11. Test, deploy, live verify | Partial | Deployed slices were verified. Full matrix is not finished.
+8. Workspace Fixes UI | Mostly done | Workspace fixes answer strip, risk cards, service remap, pre-run preview, and explicit `Run full scanner suite instead` now exist. Still needs stronger latest-check result display, team/milestone ownership on each card, and mobile polish.
+9. Services, team, and plan inside Workspace | Mostly done | Services can be added/removed and create milestones. Plan work, Milestones, People and experts, Team help, selected-team links, and Delivery concerns are now workspace internal views. Dedicated expert-directory assignment can come later.
+10. Collapse duplicate pages | Partial | Old Planning/Action Plan/Services URLs still resolve for compatibility, but they are no longer primary selected-product navigation.
+11. Test, deploy, live verify | Partial | Local smoke now covers product nav, Plan work, Milestones, People and experts, Check fixes preview, and mobile Plan work. Full live matrix is still larger than this slice.
 
 ### Sequence 0: Baseline And Safety Pass
 
@@ -1995,8 +2007,9 @@ Backend direction:
 Owner-visible actions:
 
 - Add service
-- Add expert
-- Invite team
+- Invite person/expert by email
+- Ask a team for help
+- Open selected team page
 - Add milestone
 - Attach proof
 
@@ -2185,22 +2198,19 @@ Why first:
 
 It improves the mental model immediately before deeper backend changes.
 
-## Open Product Decisions
+## Remaining Product Decisions
 
-- Should a product always have one default workspace?
-- Should multiple workspaces be advanced-only, or visible when they exist?
-- Should product-level Services remain separate after workspace services are added?
-- Should Action Plan merge into Workspace Fixes?
-- Should scanner risk threads be stored as a table or computed as a projection from normalized findings?
-- Should `Check fixes` rerun the full suite or only tools relevant to selected workspace risks?
-- Should existing Planning URL remain as a compatibility route only?
+Resolved in this pass:
 
-Default recommendation:
+- Workspace is the main work field.
+- Product Details summarizes services and verdicts; Workspace manages active services.
+- Action Plan concepts move into Workspace Plan work and Fixes.
+- Scanner risk threads are stored durably.
+- `Check fixes` defaults to relevant tools, with a full-suite option.
+- Existing Planning/Action Plan/Services URLs remain compatibility routes, not primary navigation.
 
-- Yes, one default workspace per product for most startup users.
-- Multiple workspaces should be supported, but not emphasized.
-- Product Details should summarize services; Workspace should manage services.
-- Action Plan should gradually merge into Workspace Fixes.
-- Store scanner risk threads durably; do not compute everything from raw findings on every page load.
-- `Check fixes` should default to relevant tools, with an option to run the full scanner suite.
-- Keep old routes for compatibility while changing the visible journey.
+Still worth deciding later:
+
+- Whether multiple workspaces should be advanced-only or always visible when they exist.
+- Whether every new product should automatically create one default empty workspace.
+- Whether expert assignment should stay as participant invite/team help for MVP, or get a dedicated expert-picker inside Workspace.

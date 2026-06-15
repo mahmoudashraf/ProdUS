@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 
-import { deleteJson, getJson, postJson } from './api';
+import { deleteJson, getJson, patchJson, postJson } from './api';
 import { PageHeader, QueryState, formatLabel } from './PlatformComponents';
 import type { CheckFixesResponse, ScannerRiskSummary } from './types';
 import { useWorkspaceCommandActions } from './useWorkspaceCommandActions';
@@ -172,6 +172,32 @@ export default function WorkspaceCommandPage({
         queryKey: ['scanner-current-risks', selectedWorkspaceProductId],
       });
       queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedWorkspaceProductId] });
+      queryClient.invalidateQueries({
+        queryKey: ['productization-engine', 'workspace-scanner-readiness', selectedWorkspace?.id],
+      });
+    },
+  });
+  const changeRiskService = useMutation({
+    mutationFn: ({
+      note,
+      riskThreadId,
+      serviceModuleId,
+    }: {
+      note?: string | undefined;
+      riskThreadId: string;
+      serviceModuleId: string;
+    }) =>
+      patchJson(`/scanner/risks/${riskThreadId}/service`, {
+        serviceModuleId,
+        note,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['workspace-current-risks', selectedWorkspace?.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['scanner-current-risks', selectedWorkspaceProductId],
+      });
       queryClient.invalidateQueries({
         queryKey: ['productization-engine', 'workspace-scanner-readiness', selectedWorkspace?.id],
       });
@@ -434,6 +460,21 @@ export default function WorkspaceCommandPage({
                       proofView: assignedFindingCount ? 'findings' : 'readiness',
                     }),
                 },
+                plan: {
+                  milestoneList,
+                  packageModules: packageModuleList,
+                  participantList,
+                  riskSummary: workspaceRiskSummary.data,
+                  supportList,
+                  workspace: selectedWorkspace,
+                  onOpenFindings: () =>
+                    openWorkspaceRoute('proof', selectedWorkspace.id, {
+                      proofView: assignedFindingCount ? 'findings' : 'readiness',
+                    }),
+                  onOpenMilestones: () => openWorkspaceRoute('milestones', selectedWorkspace.id),
+                  onOpenServices: () => openFocusedWorkspaceRoute('services'),
+                  onOpenTeam: () => openFocusedWorkspaceRoute('team'),
+                },
                 proof: {
                   view: workspaceProofView,
                   workspace: selectedWorkspace,
@@ -441,7 +482,9 @@ export default function WorkspaceCommandPage({
                   selectedMilestone,
                   milestoneList,
                   deliverableList,
+                  catalogModules: catalogModuleList,
                   milestoneRiskById,
+                  packageModules: packageModuleList,
                   workspaceRiskSummary: workspaceRiskSummary.data,
                   milestoneForm,
                   deliverableForm,
@@ -476,9 +519,14 @@ export default function WorkspaceCommandPage({
                     !!scannerUploadForm.toolName.trim() &&
                     !!scannerUploadForm.artifactPayload.trim(),
                   lastCheckFixes: checkFixes.data,
+                  changingServiceRiskId: changeRiskService.isPending
+                    ? String(changeRiskService.variables?.riskThreadId || '')
+                    : null,
                   removingRiskId: removeRiskFromWorkspace.isPending
                     ? String(removeRiskFromWorkspace.variables || '')
                     : null,
+                  onChangeRiskService: (riskId, serviceModuleId, note) =>
+                    changeRiskService.mutate({ riskThreadId: riskId, serviceModuleId, note }),
                   onCheckFixes: (riskIds, mode) =>
                     checkFixes.mutate({
                       riskThreadIds: riskIds,
