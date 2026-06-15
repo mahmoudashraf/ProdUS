@@ -6,7 +6,7 @@ import {
   DeleteOutline,
   SearchOutlined,
 } from '@mui/icons-material';
-import { Box, Button, InputAdornment, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, InputAdornment, Stack, TextField, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';
 
 import {
@@ -19,13 +19,16 @@ import {
   categoryPalette,
 } from './PlatformComponents';
 import type { PackageModule, ServiceModule } from './types';
+import type { WorkspaceServiceAddResponse, WorkspaceServiceFindingImpact } from './types';
 
 interface IWorkspaceCommandServicesPanelProps {
   canCoordinate: boolean;
   catalogModules: ServiceModule[];
   packageModules: PackageModule[];
   isAssigningService: boolean;
+  lastServiceAdd?: WorkspaceServiceAddResponse | undefined;
   removingServiceId?: string | null;
+  serviceFindingImpacts?: WorkspaceServiceFindingImpact[] | undefined;
   onAssignService: (serviceModuleId: string) => void;
   onRemoveService: (packageModuleId: string) => void;
 }
@@ -35,7 +38,9 @@ export default function WorkspaceCommandServicesPanel({
   catalogModules,
   packageModules,
   isAssigningService,
+  lastServiceAdd,
   removingServiceId,
+  serviceFindingImpacts = [],
   onAssignService,
   onRemoveService,
 }: IWorkspaceCommandServicesPanelProps) {
@@ -49,6 +54,10 @@ export default function WorkspaceCommandServicesPanel({
         module => module.active && module.visible && !selectedServiceIds.has(module.id)
       ),
     [catalogModules, selectedServiceIds]
+  );
+  const impactByServiceId = useMemo(
+    () => new Map(serviceFindingImpacts.map(impact => [impact.serviceModuleId, impact])),
+    [serviceFindingImpacts]
   );
   const [serviceQuery, setServiceQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
@@ -126,6 +135,12 @@ export default function WorkspaceCommandServicesPanel({
 
   return (
     <Stack spacing={2}>
+      {lastServiceAdd?.ownerNotice && (
+        <Alert severity={lastServiceAdd.addedFindingCount ? 'success' : 'info'}>
+          {lastServiceAdd.ownerNotice}
+        </Alert>
+      )}
+
       <Surface>
         <SectionTitle
           title="Workspace services"
@@ -153,7 +168,10 @@ export default function WorkspaceCommandServicesPanel({
           >
             {[...packageModules]
               .sort((a, b) => a.sequenceOrder - b.sequenceOrder)
-              .map(module => (
+              .map(module => {
+                const impact = impactByServiceId.get(module.serviceModule.id);
+                const coveredCount = impact?.findingsAlreadyInWorkspaceCount || 0;
+                return (
                 <Box
                   key={module.id}
                   sx={{
@@ -197,6 +215,15 @@ export default function WorkspaceCommandServicesPanel({
 
                     <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
                       <PastelChip
+                        label={
+                          coveredCount
+                            ? `${coveredCount} finding${coveredCount === 1 ? '' : 's'} covered`
+                            : 'No assigned findings yet'
+                        }
+                        accent={coveredCount ? appleColors.amber : appleColors.muted}
+                        bg={coveredCount ? '#fff4dc' : '#f8fafc'}
+                      />
+                      <PastelChip
                         label={module.required ? 'Required' : 'Optional'}
                         accent={module.required ? appleColors.green : appleColors.blue}
                         bg={module.required ? '#e7f8ee' : '#eaf3ff'}
@@ -235,6 +262,37 @@ export default function WorkspaceCommandServicesPanel({
                       </Box>
                     )}
 
+                    {impact?.findingsAlreadyInWorkspace?.length ? (
+                      <Box
+                        sx={{
+                          border: '1px solid',
+                          borderColor: '#e1e8f4',
+                          borderRadius: 1,
+                          bgcolor: '#fbfdff',
+                          p: 1,
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          sx={{ fontWeight: 900, color: appleColors.ink }}
+                        >
+                          Findings this service is already helping
+                        </Typography>
+                        <Stack spacing={0.5} sx={{ mt: 0.6 }}>
+                          {impact.findingsAlreadyInWorkspace.slice(0, 2).map(finding => (
+                            <Typography
+                              key={finding.id}
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ lineHeight: 1.4, overflowWrap: 'anywhere' }}
+                            >
+                              {finding.title}
+                            </Typography>
+                          ))}
+                        </Stack>
+                      </Box>
+                    ) : null}
+
                     {canCoordinate && (
                       <Button
                         color="error"
@@ -249,7 +307,8 @@ export default function WorkspaceCommandServicesPanel({
                     )}
                   </Stack>
                 </Box>
-              ))}
+                );
+              })}
           </Box>
         ) : (
           <Box sx={{ mt: 1.5 }}>
@@ -360,6 +419,9 @@ export default function WorkspaceCommandServicesPanel({
                       categoryPalette[
                         (categoryIndex >= 0 ? categoryIndex : index) % categoryPalette.length
                       ] ?? categoryPalette[0]!;
+                    const impact = impactByServiceId.get(module.id);
+                    const willAddCount = impact?.findingsWillBeAddedCount || 0;
+                    const alreadyCoveredCount = impact?.findingsAlreadyInWorkspaceCount || 0;
 
                     return (
                       <Box
@@ -420,6 +482,29 @@ export default function WorkspaceCommandServicesPanel({
                           </Typography>
 
                           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                            <PastelChip
+                              label={
+                                willAddCount
+                                  ? `${willAddCount} finding${willAddCount === 1 ? '' : 's'} will be added`
+                                  : alreadyCoveredCount
+                                    ? `${alreadyCoveredCount} already covered`
+                                    : 'No scanner finding match'
+                              }
+                              accent={
+                                willAddCount
+                                  ? appleColors.amber
+                                  : alreadyCoveredCount
+                                    ? appleColors.green
+                                    : appleColors.muted
+                              }
+                              bg={
+                                willAddCount
+                                  ? '#fff4dc'
+                                  : alreadyCoveredCount
+                                    ? '#e7f8ee'
+                                    : '#f8fafc'
+                              }
+                            />
                             {module.timelineRange && (
                               <PastelChip
                                 label={module.timelineRange}
@@ -475,6 +560,49 @@ export default function WorkspaceCommandServicesPanel({
                             </Box>
                           )}
 
+                          {impact?.findingsWillBeAdded?.length ? (
+                            <Box
+                              sx={{
+                                border: '1px solid',
+                                borderColor: '#eadfc1',
+                                borderRadius: 1,
+                                bgcolor: '#fffaf0',
+                                p: 1,
+                              }}
+                            >
+                              <Typography
+                                variant="caption"
+                                sx={{ fontWeight: 900, color: appleColors.ink }}
+                              >
+                                Findings that will move into this workspace
+                              </Typography>
+                              <Stack spacing={0.45} sx={{ mt: 0.65 }}>
+                                {impact.findingsWillBeAdded.slice(0, 3).map(finding => (
+                                  <Typography
+                                    key={finding.id}
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{
+                                      lineHeight: 1.35,
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 2,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                    }}
+                                  >
+                                    {finding.title}
+                                  </Typography>
+                                ))}
+                                {impact.findingsWillBeAdded.length > 3 && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    +{impact.findingsWillBeAdded.length - 3} more matching
+                                    findings
+                                  </Typography>
+                                )}
+                              </Stack>
+                            </Box>
+                          ) : null}
+
                           <Button
                             variant="contained"
                             startIcon={<AddTaskOutlined />}
@@ -488,7 +616,9 @@ export default function WorkspaceCommandServicesPanel({
                               '&:hover': { bgcolor: palette.accent },
                             }}
                           >
-                            Add to workspace
+                            {willAddCount
+                              ? `Add service + ${willAddCount} finding${willAddCount === 1 ? '' : 's'}`
+                              : 'Add to workspace'}
                           </Button>
                         </Stack>
                       </Box>

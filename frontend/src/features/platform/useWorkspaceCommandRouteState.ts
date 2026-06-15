@@ -20,6 +20,7 @@ const isWorkspaceCommandView = (value: string | null): value is WorkspaceCommand
   value === 'services' ||
   value === 'proof' ||
   value === 'team' ||
+  value === 'chat' ||
   value === 'milestones' ||
   value === 'handoff';
 

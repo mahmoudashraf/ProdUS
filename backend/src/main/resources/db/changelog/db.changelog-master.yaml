@@ -61,3 +61,5 @@ databaseChangeLog:
       file: db/changelog/V030__scanner_risk_threads.yaml
   - include:
       file: db/changelog/V031__scanner_risk_service_mapping.yaml
+  - include:
+      file: db/changelog/V032__workspace_chat_mentions.yaml

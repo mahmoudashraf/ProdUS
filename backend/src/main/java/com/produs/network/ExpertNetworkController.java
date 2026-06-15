@@ -740,6 +740,7 @@ public class ExpertNetworkController {
             case FORMATION_POST -> "Formation post conversation";
             case TEAM_JOIN_REQUEST -> "Join request conversation";
             case TRIAL_COLLABORATION -> "Trial collaboration conversation";
+            case WORKSPACE -> "Workspace conversation";
             case DIRECT -> "Direct conversation";
         };
     }

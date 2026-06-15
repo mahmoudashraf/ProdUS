@@ -2,6 +2,7 @@
 
 import {
   AssignmentTurnedInOutlined,
+  ChatBubbleOutlineOutlined,
   FactCheckOutlined,
   GroupsOutlined,
   HandshakeOutlined,
@@ -204,15 +205,23 @@ export function DeliveryJourneyCards({
     },
     {
       value: 'team' as const,
-      title: 'Team & support',
-      detail: 'People, support asks, and delivery risks.',
+      title: 'People & help',
+      detail: 'People, support asks, and delivery concerns.',
       meta: `${participantCount} people`,
       accent: roughEdgeCount || supportCount ? appleColors.amber : appleColors.cyan,
       icon: <GroupsOutlined />,
     },
     {
+      value: 'chat' as const,
+      title: 'Workspace chat',
+      detail: 'Discuss decisions and mention the findings being fixed.',
+      meta: 'Team updates',
+      accent: appleColors.cyan,
+      icon: <ChatBubbleOutlineOutlined />,
+    },
+    {
       value: 'milestones' as const,
-      title: 'Milestones',
+      title: 'Steps',
       detail: 'Workspace steps, outputs, proof links, and acceptance progress.',
       meta: `${milestoneCount} steps`,
       accent: milestoneCount ? appleColors.green : appleColors.amber,

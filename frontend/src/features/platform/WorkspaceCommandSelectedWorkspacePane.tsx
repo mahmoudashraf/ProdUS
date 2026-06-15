@@ -40,8 +40,9 @@ const workspaceViewLabels: Record<WorkspaceCommandView, string> = {
   plan: 'Plan work',
   services: 'Services',
   proof: 'Fixes and proof',
-  team: 'Team and risks',
-  milestones: 'Milestones',
+  team: 'People and help',
+  chat: 'Workspace chat',
+  milestones: 'Steps',
   handoff: 'Handoff',
 };
 

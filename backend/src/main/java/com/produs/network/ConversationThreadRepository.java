@@ -15,6 +15,11 @@ public interface ConversationThreadRepository extends JpaRepository<Conversation
             UUID createdById
     );
 
+    Optional<ConversationThread> findFirstByScopeTypeAndScopeIdOrderByCreatedAtAsc(
+            ConversationThread.ScopeType scopeType,
+            UUID scopeId
+    );
+
     @Query("""
             select thread
             from ConversationThread thread

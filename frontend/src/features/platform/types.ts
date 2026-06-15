@@ -763,6 +763,67 @@ export interface ScannerRiskSummary {
   groups: ScannerRiskGroup[];
 }
 
+export interface WorkspaceFindingBrief {
+  id: string;
+  title: string;
+  severity: NormalizedFinding['severity'];
+  currentState: ScannerRiskState;
+  serviceName?: string;
+  sourceTool?: string;
+  affectedComponent?: string;
+  businessRisk?: string;
+}
+
+export interface WorkspaceServiceFindingImpact {
+  serviceModuleId: string;
+  serviceName: string;
+  findingsAlreadyInWorkspaceCount: number;
+  findingsWillBeAddedCount: number;
+  findingsAlreadyInWorkspace: WorkspaceFindingBrief[];
+  findingsWillBeAdded: WorkspaceFindingBrief[];
+}
+
+export interface WorkspaceServiceAddResponse {
+  service: PackageModule;
+  addedFindings: WorkspaceFindingBrief[];
+  coveredFindings: WorkspaceFindingBrief[];
+  addedFindingCount: number;
+  coveredFindingCount: number;
+  ownerNotice: string;
+}
+
+export interface WorkspaceChatMention {
+  id: string;
+  title: string;
+  severity: NormalizedFinding['severity'];
+  currentState: ScannerRiskState;
+  serviceName?: string;
+  sourceTool?: string;
+  affectedComponent?: string;
+}
+
+export interface WorkspaceChatParticipant {
+  user: CurrentUserSummary;
+  role: string;
+}
+
+export interface WorkspaceChatMessage {
+  id: string;
+  createdAt?: string;
+  sender?: CurrentUserSummary;
+  body: string;
+  mentions: WorkspaceChatMention[];
+}
+
+export interface WorkspaceChat {
+  workspaceId: string;
+  threadId: string;
+  title: string;
+  participants: WorkspaceChatParticipant[];
+  messages: WorkspaceChatMessage[];
+  mentionableFindings: WorkspaceChatMention[];
+}
+
 export interface ScanComparison {
   scanRunId: string;
   baselineScanRunId?: string;

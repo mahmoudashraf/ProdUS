@@ -4,6 +4,7 @@ import { Box, Stack } from '@mui/material';
 import { useEffect, useRef, type ComponentProps } from 'react';
 
 import { EmptyState, Surface } from './PlatformComponents';
+import WorkspaceCommandChatPanel from './WorkspaceCommandChatPanel';
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
 import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import WorkspaceCommandSelectedWorkspacePane from './WorkspaceCommandSelectedWorkspacePane';
@@ -16,6 +17,7 @@ type SelectedWorkspacePaneProps = ComponentProps<typeof WorkspaceCommandSelected
 type ServicesPanelProps = ComponentProps<typeof WorkspaceCommandServicesPanel>;
 type TeamPanelsProps = ComponentProps<typeof WorkspaceCommandTeamPanels>;
 type HandoffPanelsProps = ComponentProps<typeof WorkspaceCommandHandoffPanels>;
+type ChatPanelProps = ComponentProps<typeof WorkspaceCommandChatPanel>;
 
 interface IWorkspaceCommandBoardProps {
   workspaceView: WorkspaceCommandView;
@@ -23,6 +25,7 @@ interface IWorkspaceCommandBoardProps {
   selectedWorkspacePane?: SelectedWorkspacePaneProps | undefined;
   servicesPanel?: ServicesPanelProps | undefined;
   teamPanels?: TeamPanelsProps | undefined;
+  chatPanel?: ChatPanelProps | undefined;
   handoffPanels?: HandoffPanelsProps | undefined;
 }
 
@@ -32,11 +35,15 @@ export default function WorkspaceCommandBoard({
   selectedWorkspacePane,
   servicesPanel,
   teamPanels,
+  chatPanel,
   handoffPanels,
 }: IWorkspaceCommandBoardProps) {
   const showDetailRail = Boolean(
     selectedWorkspacePane &&
-      (workspaceView === 'services' || workspaceView === 'team' || workspaceView === 'handoff')
+      (workspaceView === 'services' ||
+        workspaceView === 'team' ||
+        workspaceView === 'chat' ||
+        workspaceView === 'handoff')
   );
   const isDetailView = workspaceView !== 'overview';
   const detailRailRef = useRef<HTMLDivElement | null>(null);
@@ -81,6 +88,9 @@ export default function WorkspaceCommandBoard({
             )}
             {workspaceView === 'team' && teamPanels && (
               <WorkspaceCommandTeamPanels {...teamPanels} />
+            )}
+            {workspaceView === 'chat' && chatPanel && (
+              <WorkspaceCommandChatPanel {...chatPanel} />
             )}
             {workspaceView === 'handoff' && handoffPanels && (
               <WorkspaceCommandHandoffPanels {...handoffPanels} />

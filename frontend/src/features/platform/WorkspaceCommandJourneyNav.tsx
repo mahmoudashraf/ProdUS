@@ -9,6 +9,7 @@ export type WorkspaceCommandView =
   | 'services'
   | 'proof'
   | 'team'
+  | 'chat'
   | 'milestones'
   | 'handoff';
 
@@ -94,16 +95,25 @@ export default function WorkspaceCommandJourneyNav({
     },
     {
       value: 'team',
-      label: 'Team and risks',
-      detail: 'People, support requests, delivery risks, and escalation ownership.',
+      label: 'People and help',
+      detail: 'Participants, service help, and delivery concerns that need attention.',
       accent: riskCount || supportCount ? appleColors.amber : appleColors.purple,
       meta: (
         <PastelChip label={`${participantCount} people`} accent={appleColors.cyan} bg="#e4f9fd" />
       ),
     },
     {
+      value: 'chat',
+      label: 'Workspace chat',
+      detail: 'Discuss decisions and mention the exact findings being fixed.',
+      accent: appleColors.cyan,
+      meta: (
+        <PastelChip label="Team updates" accent={appleColors.cyan} bg="#e4f9fd" />
+      ),
+    },
+    {
       value: 'milestones',
-      label: 'Milestones',
+      label: 'Steps',
       detail: 'Workspace steps, outputs, proof links, and acceptance progress.',
       accent: milestoneCount ? appleColors.green : appleColors.amber,
       meta: (

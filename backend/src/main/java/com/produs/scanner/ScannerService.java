@@ -3099,6 +3099,10 @@ public class ScannerService {
         );
     }
 
+    public ScannerRiskThreadResponse toScannerRiskThreadResponse(ScannerRiskThread risk) {
+        return toRiskThreadResponse(risk);
+    }
+
     private ScannerRiskThreadResponse toRiskThreadResponse(ScannerRiskThread risk) {
         NormalizedFinding finding = risk.getCurrentFinding();
         return new ScannerRiskThreadResponse(

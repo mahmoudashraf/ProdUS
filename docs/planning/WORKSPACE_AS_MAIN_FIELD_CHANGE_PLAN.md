@@ -23,10 +23,13 @@ Status as of the latest implementation pass:
 - Product Workspaces now opens an internal product route, not a separate-feeling workspace app.
 - Workspace can be created directly from the product with only a name, then services, people, findings, and proof can be added inside it.
 - Workspace services can be browsed, added, removed, and turned into milestones from inside Workspace.
+- Workspace services now show scanner-finding impact before the owner adds a service: how many findings are already covered and how many matching findings will move into the workspace.
+- Adding a workspace service can automatically attach matching unassigned product scanner findings to that workspace, with an owner-visible notice instead of a silent side effect.
+- Workspace now has a human collaboration chat where participants can discuss work and mention assigned scanner findings.
 - Scanner risk threads, current risk APIs, scan comparison, risk assignment, and targeted `Check fixes` backend are implemented.
 - Workspace Overview now answers the important owner questions first: findings, services, people, and next move.
 - The selected-product side menu now follows the current journey: Home, Product Details, Workspaces, AI Opportunities, Scanners, and Share. Deprecated product-level Planning, Action Plan, and Services entries are no longer shown there.
-- Workspace now has internal pages for Workspace answer, Plan work, Services, Fixes and proof, Team and support, Milestones, and Handoff.
+- Workspace now has internal pages for Workspace answer, Plan work, Services, Fixes and proof, People and help, Workspace chat, Steps, and Handoff.
 - Team handling now reads as owner-facing people/help work: People and experts, Team help, Teams helping this workspace, and Delivery concerns.
 - `Check fixes` has an owner preview before it queues verification, including selected findings, scanner-backed coverage, baseline, scope, and a full-suite alternative.
 
@@ -55,12 +58,14 @@ Workspace Answer
 Workspace Plan Work
   -> see selected services, selected findings, people, and next steps in one owner answer
 Workspace Services
-  -> add/remove services and create practical work milestones
+  -> add/remove services, see which findings each service covers, and create practical work milestones
 Workspace Fixes And Proof
   -> see selected scanner risks, attach proof, run Check fixes
-Workspace Team And Support
+Workspace People And Help
   -> see/add people, ask teams for help, visit team pages, and track delivery concerns
-Workspace Milestones
+Workspace Chat
+  -> discuss the work with participants and mention assigned findings
+Workspace Steps
   -> add workspace steps, outputs, and proof-backed checkpoints
 Workspace Handoff
   -> prepare owner/team/support handoff when the work is ready
@@ -204,20 +209,16 @@ Current shipped workspace internal views:
 - Plan work
 - Services
 - Fixes and proof
-- Team and support
-- Milestones
+- People and help
+- Workspace chat
+- Steps
 - Handoff
 
 Design target after the next cleanup pass:
 
-- Workspace answer
-- Plan work
-- Services
-- Fixes
-- Team
-- Milestones
-- Proof
-- Handoff
+- Keep the same internal-page model.
+- Keep findings, services, people, chat, steps, proof, and handoff reachable as separate internal workspace pages.
+- Continue simplifying labels only when the label makes the owner journey clearer.
 
 These should feel like internal pages with clear back paths, not tabs that swap a long lower section.
 
@@ -305,18 +306,21 @@ Actions:
 When a service is added:
 
 ```text
-This adds API Security Review to this workspace and creates a matching milestone.
+This adds API Security Review to this workspace, creates a matching milestone, and moves 2 matching scanner findings into this workspace.
 ```
 
 Current implementation path:
 
 - Read selected services from `GET /api/workspaces/{workspaceId}/services`.
+- Preview scanner-finding impact with `GET /api/workspaces/{workspaceId}/services/finding-impact`.
 - Add a service with `POST /api/workspaces/{workspaceId}/services`.
 - Remove a service with `DELETE /api/workspaces/{workspaceId}/services/{packageModuleId}`.
 - Store the selected service as the workspace package module for now, so product summary and workspace scope do not drift apart.
 - Create a matching milestone when a new service is added, unless the caller explicitly opts out.
+- When `addMatchingFindings` is true, attach current unassigned scanner risk threads whose selected/recommended service matches the added service.
+- Return an owner notice plus the findings added/covered, so the UI can explain what changed.
 
-### Team
+### People And Help
 
 Purpose:
 
@@ -346,6 +350,33 @@ Current implementation path:
 - Keep participant editing in the same Team area, because owners should not need a separate admin page to adjust who is helping.
 - Present the journey as `People and experts`, `Team help`, and `Delivery concerns` so it does not feel like enterprise participant administration.
 
+### Workspace Chat
+
+Purpose:
+
+Give the owner, team, and experts one lightweight discussion place inside the workspace.
+
+This is not the AI assistant. It is human collaboration attached to the workspace.
+
+Current implementation path:
+
+- Chat thread is stored as a `network_conversation_threads` row with `scopeType = WORKSPACE`.
+- Messages are stored in `network_messages`.
+- Participants are synced from the workspace owner and active workspace participants.
+- Finding mentions are persisted in `workspace_chat_message_risk_mentions`.
+- The UI lets the sender choose assigned workspace findings to mention, then shows those mentions on each message.
+
+Implemented endpoints:
+
+- `GET /api/workspaces/{workspaceId}/chat`
+- `POST /api/workspaces/{workspaceId}/chat/messages`
+
+The chat answers:
+
+```text
+Who said what, when, and which finding was it about?
+```
+
 ### Fixes
 
 Purpose:
@@ -360,6 +391,7 @@ Current shipped direction:
 - It shows selected scanner risk threads assigned to the workspace.
 - The owner action is `Check fixes`, which queues targeted scanner verification for the selected workspace risks.
 - Product Scanners remains the place to run broad product scans and add risks to the workspace.
+- Service assignment can now be changed from the workspace finding card.
 
 Each item should show:
 
@@ -379,7 +411,7 @@ Actions:
 - Accept risk
 - Attach proof
 
-### Milestones
+### Steps
 
 Purpose:
 
@@ -745,18 +777,14 @@ ProdUS scanned the product, found launch risks, mapped them to services, and put
 
 ### Left Product Menu
 
-Current product-specific menu still includes more than the target:
+Current product-specific menu has already moved closer to the target:
 
+- Home
 - Product Details
 - Workspaces
 - AI Opportunities
-- Planning
-- Action Plan
 - Scanners
-- Services
 - Share
-
-This is useful for compatibility while the migration is active, but it still creates the confusion this plan is trying to remove.
 
 Target product-specific menu for the owner journey:
 
@@ -800,10 +828,11 @@ Product Workspaces | Workspace, or Workspaces only when multiple exist
 Open Work Plan | Continue plan
 Open active workspaces | Open workspace
 Fix Path | Suggested fixes / Services from scan findings
-Team & support | Team
-Delivery overview | Workspace overview
+Team & support | People and help
+Delivery overview | Workspace overview / Workspace answer
 Action Plan | Workspace fixes / Plan work
 Proof library | Product scanner history or Workspace proof, depending on scope
+Milestones | Steps
 
 ## Backend / Data Plan
 
@@ -867,18 +896,21 @@ Implemented:
   - `POST /api/workspaces`
 - Workspace services:
   - `GET /api/workspaces/{workspaceId}/services`
+  - `GET /api/workspaces/{workspaceId}/services/finding-impact`
   - `POST /api/workspaces/{workspaceId}/services`
   - `DELETE /api/workspaces/{workspaceId}/services/{packageModuleId}`
 - Workspace participants:
   - `GET /api/workspaces/{workspaceId}/participants`
   - `POST /api/workspaces/{workspaceId}/participants`
   - `PUT /api/workspaces/participants/{participantId}`
+- Workspace chat:
+  - `GET /api/workspaces/{workspaceId}/chat`
+  - `POST /api/workspaces/{workspaceId}/chat/messages`
 
 Still needed or still too rough:
 
 - Direct team/expert assignment semantics, if participant/support records are not enough for the UI.
 - Optional direct milestone-from-service endpoint if the current service-add behavior becomes too hidden.
-- A backend-only preview endpoint is still optional; the owner UI now previews the targeted check before queuing scanner jobs.
 - Full test coverage for returned risks, failed-tool comparisons, and mixed-tool targeted checks.
 
 Backend object and API notes:

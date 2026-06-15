@@ -18,6 +18,8 @@ import type {
   ProductProfile,
   ProjectWorkspace,
   ScannerRiskSummary,
+  WorkspaceChat,
+  WorkspaceServiceAddResponse,
 } from './types';
 import { useWorkspaceCommandActions } from './useWorkspaceCommandActions';
 import { useWorkspaceCommandData } from './useWorkspaceCommandData';
@@ -26,6 +28,7 @@ import { useWorkspaceCommandSummary } from './useWorkspaceCommandSummary';
 import { useWorkspaceCommandUiState } from './useWorkspaceCommandUiState';
 import type { WorkspaceCommandHandoffView } from './WorkspaceCommandHandoffPanels';
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
+import WorkspaceCommandChatPanel from './WorkspaceCommandChatPanel';
 import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import WorkspaceCommandPlanPanel from './WorkspaceCommandPlanPanel';
 import type { WorkspaceCommandProofView } from './WorkspaceCommandProofStepPanel';
@@ -46,8 +49,9 @@ const deliveryViewLabels: Record<WorkspaceCommandView, string> = {
   plan: 'Plan work',
   services: 'Services',
   proof: 'Findings & proof',
-  team: 'Team & support',
-  milestones: 'Milestones',
+  team: 'People & help',
+  chat: 'Workspace chat',
+  milestones: 'Steps',
   handoff: 'Handoff',
 };
 
@@ -117,6 +121,7 @@ export default function OwnerProductDeliveryWorkspace({
     readiness,
     scannerEvidenceList,
     scopedAttachments,
+    serviceFindingImpactList,
     selectedMilestone,
     selectedWorkspace,
     selectedWorkspaceProductId,
@@ -139,6 +144,21 @@ export default function OwnerProductDeliveryWorkspace({
     enabled: !!activeWorkspace.id,
     queryFn: () =>
       getJson<ScannerRiskSummary>(`/workspaces/${activeWorkspace.id}/scanner/risks/current`),
+  });
+  const workspaceChat = useQuery({
+    queryKey: ['workspaces', activeWorkspace.id, 'chat'],
+    enabled: !!activeWorkspace.id,
+    queryFn: () => getJson<WorkspaceChat>(`/workspaces/${activeWorkspace.id}/chat`),
+  });
+  const sendWorkspaceChatMessage = useMutation({
+    mutationFn: ({ body, mentionedRiskIds }: { body: string; mentionedRiskIds: string[] }) =>
+      postJson<WorkspaceChat, { body: string; mentionedRiskIds: string[] }>(
+        `/workspaces/${activeWorkspace.id}/chat/messages`,
+        { body, mentionedRiskIds }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces', activeWorkspace.id, 'chat'] });
+    },
   });
   const checkFixes = useMutation({
     mutationFn: ({
@@ -204,15 +224,30 @@ export default function OwnerProductDeliveryWorkspace({
   });
   const assignService = useMutation({
     mutationFn: (serviceModuleId: string) =>
-      postJson('/workspaces/' + activeWorkspace.id + '/services', {
+      postJson<
+        WorkspaceServiceAddResponse,
+        {
+          serviceModuleId: string;
+          required: boolean;
+          rationale: string;
+          createMilestone: boolean;
+          addMatchingFindings: boolean;
+        }
+      >('/workspaces/' + activeWorkspace.id + '/services', {
         serviceModuleId,
         required: true,
         rationale: 'Added from workspace services.',
         createMilestone: true,
+        addMatchingFindings: true,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workspaces', activeWorkspace.id, 'services'] });
       queryClient.invalidateQueries({ queryKey: ['workspaces', activeWorkspace.id, 'milestones'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', activeWorkspace.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['workspaces', activeWorkspace.id, 'services', 'finding-impact'],
+      });
+      queryClient.invalidateQueries({ queryKey: ['workspaces', activeWorkspace.id, 'chat'] });
       queryClient.invalidateQueries({ queryKey: ['packages'] });
       queryClient.invalidateQueries({
         queryKey: ['productization-engine', 'workspace-scanner-readiness', activeWorkspace.id],
@@ -333,7 +368,14 @@ export default function OwnerProductDeliveryWorkspace({
     <Stack spacing={2.5}>
       <QueryState
         isLoading={queriesLoading}
-        error={queryError || assignService.error || removeService.error || actionError}
+        error={
+          queryError ||
+          workspaceChat.error ||
+          sendWorkspaceChatMessage.error ||
+          assignService.error ||
+          removeService.error ||
+          actionError
+        }
       />
       {governanceNotice && (
         <Alert severity="success" onClose={() => setGovernanceNotice('')}>
@@ -410,7 +452,7 @@ export default function OwnerProductDeliveryWorkspace({
           >
             <Stack spacing={0.25}>
               <Typography variant="body2" color="text.secondary">
-                Delivery internal page
+                Workspace page
               </Typography>
               <Typography variant="h4">{deliveryViewLabels[workspaceView]}</Typography>
             </Stack>
@@ -450,9 +492,22 @@ export default function OwnerProductDeliveryWorkspace({
           catalogModules={catalogModuleList}
           packageModules={packageModuleList}
           isAssigningService={assignService.isPending}
+          lastServiceAdd={assignService.data}
           removingServiceId={removeService.isPending ? String(removeService.variables || '') : null}
+          serviceFindingImpacts={serviceFindingImpactList}
           onAssignService={serviceModuleId => assignService.mutate(serviceModuleId)}
           onRemoveService={packageModuleId => removeService.mutate(packageModuleId)}
+        />
+      )}
+
+      {workspaceView === 'chat' && (
+        <WorkspaceCommandChatPanel
+          chat={workspaceChat.data}
+          isLoading={workspaceChat.isFetching}
+          isSending={sendWorkspaceChatMessage.isPending}
+          onSendMessage={(body, mentionedRiskIds) =>
+            sendWorkspaceChatMessage.mutate({ body, mentionedRiskIds })
+          }
         />
       )}
 

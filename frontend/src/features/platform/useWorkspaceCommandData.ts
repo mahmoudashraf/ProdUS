@@ -20,6 +20,7 @@ import type {
   WorkspaceGovernance,
   WorkspaceParticipant,
   WorkspaceScannerReadiness,
+  WorkspaceServiceFindingImpact,
 } from './types';
 import {
   useWorkspaceCommandMilestoneSelection,
@@ -74,6 +75,14 @@ export function useWorkspaceCommandData({
     queryKey: ['workspaces', selectedWorkspace?.id, 'services'],
     enabled: !!selectedWorkspace?.id,
     queryFn: () => getJson<PackageModule[]>(`/workspaces/${selectedWorkspace?.id}/services`),
+  });
+  const serviceFindingImpact = useQuery({
+    queryKey: ['workspaces', selectedWorkspace?.id, 'services', 'finding-impact'],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () =>
+      getJson<WorkspaceServiceFindingImpact[]>(
+        `/workspaces/${selectedWorkspace?.id}/services/finding-impact`
+      ),
   });
 
   const milestones = useQuery({
@@ -167,6 +176,7 @@ export function useWorkspaceCommandData({
   const catalogModuleList = catalogModules.data || [];
   const packageModuleList = packageModules.data || [];
   const participantList = participants.data || [];
+  const serviceFindingImpactList = serviceFindingImpact.data || [];
   const supportList = supportRequests.data || [];
   const disputeList = disputes.data || [];
   const scannerEvidenceList = scannerEvidence.data || [];
@@ -176,6 +186,7 @@ export function useWorkspaceCommandData({
     workspaces,
     teams,
     catalogModules,
+    serviceFindingImpact,
     packageModules,
     milestones,
     deliverables,
@@ -214,6 +225,8 @@ export function useWorkspaceCommandData({
     readiness,
     scannerEvidence,
     scannerEvidenceList,
+    serviceFindingImpact,
+    serviceFindingImpactList,
     selectedMilestone,
     selectedWorkspace,
     selectedWorkspaceProductId,

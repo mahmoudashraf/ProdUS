@@ -51,7 +51,8 @@ public class ConversationThread extends BaseEntity {
         TEAM_OPENING,
         FORMATION_POST,
         TEAM_JOIN_REQUEST,
-        TRIAL_COLLABORATION
+        TRIAL_COLLABORATION,
+        WORKSPACE
     }
 
     public enum ThreadStatus {

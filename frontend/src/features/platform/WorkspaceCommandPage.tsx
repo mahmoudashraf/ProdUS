@@ -8,7 +8,12 @@ import { UserRole } from '@/types/auth';
 
 import { deleteJson, getJson, patchJson, postJson } from './api';
 import { PageHeader, QueryState, formatLabel } from './PlatformComponents';
-import type { CheckFixesResponse, ScannerRiskSummary } from './types';
+import type {
+  CheckFixesResponse,
+  ScannerRiskSummary,
+  WorkspaceChat,
+  WorkspaceServiceAddResponse,
+} from './types';
 import { useWorkspaceCommandActions } from './useWorkspaceCommandActions';
 import { useWorkspaceCommandData } from './useWorkspaceCommandData';
 import { useWorkspaceCommandRouteState } from './useWorkspaceCommandRouteState';
@@ -106,6 +111,7 @@ export default function WorkspaceCommandPage({
     readiness,
     scannerEvidenceList,
     scopedAttachments,
+    serviceFindingImpactList,
     selectedMilestone,
     selectedWorkspace,
     selectedWorkspaceProductId,
@@ -128,6 +134,21 @@ export default function WorkspaceCommandPage({
     enabled: !!selectedWorkspace?.id,
     queryFn: () =>
       getJson<ScannerRiskSummary>(`/workspaces/${selectedWorkspace?.id}/scanner/risks/current`),
+  });
+  const workspaceChat = useQuery({
+    queryKey: ['workspaces', selectedWorkspace?.id, 'chat'],
+    enabled: !!selectedWorkspace?.id,
+    queryFn: () => getJson<WorkspaceChat>(`/workspaces/${selectedWorkspace?.id}/chat`),
+  });
+  const sendWorkspaceChatMessage = useMutation({
+    mutationFn: ({ body, mentionedRiskIds }: { body: string; mentionedRiskIds: string[] }) =>
+      postJson<WorkspaceChat, { body: string; mentionedRiskIds: string[] }>(
+        `/workspaces/${selectedWorkspace?.id}/chat/messages`,
+        { body, mentionedRiskIds }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces', selectedWorkspace?.id, 'chat'] });
+    },
   });
   const checkFixes = useMutation({
     mutationFn: ({
@@ -205,11 +226,21 @@ export default function WorkspaceCommandPage({
   });
   const assignService = useMutation({
     mutationFn: (serviceModuleId: string) =>
-      postJson('/workspaces/' + selectedWorkspace?.id + '/services', {
+      postJson<
+        WorkspaceServiceAddResponse,
+        {
+          serviceModuleId: string;
+          required: boolean;
+          rationale: string;
+          createMilestone: boolean;
+          addMatchingFindings: boolean;
+        }
+      >('/workspaces/' + selectedWorkspace?.id + '/services', {
         serviceModuleId,
         required: true,
         rationale: 'Added from workspace services.',
         createMilestone: true,
+        addMatchingFindings: true,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -217,6 +248,15 @@ export default function WorkspaceCommandPage({
       });
       queryClient.invalidateQueries({
         queryKey: ['workspaces', selectedWorkspace?.id, 'milestones'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['workspace-current-risks', selectedWorkspace?.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['workspaces', selectedWorkspace?.id, 'services', 'finding-impact'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['workspaces', selectedWorkspace?.id, 'chat'],
       });
       queryClient.invalidateQueries({ queryKey: ['packages'] });
       queryClient.invalidateQueries({
@@ -361,6 +401,8 @@ export default function WorkspaceCommandPage({
         isLoading={queriesLoading}
         error={
           queryError ||
+          workspaceChat.error ||
+          sendWorkspaceChatMessage.error ||
           uploadAttachment.error ||
           assignService.error ||
           removeService.error ||
@@ -561,9 +603,11 @@ export default function WorkspaceCommandPage({
                 catalogModules: catalogModuleList,
                 packageModules: packageModuleList,
                 isAssigningService: assignService.isPending,
+                lastServiceAdd: assignService.data,
                 removingServiceId: removeService.isPending
                   ? String(removeService.variables || '')
                   : null,
+                serviceFindingImpacts: serviceFindingImpactList,
                 onAssignService: serviceModuleId => assignService.mutate(serviceModuleId),
                 onRemoveService: packageModuleId => removeService.mutate(packageModuleId),
               }
@@ -606,6 +650,17 @@ export default function WorkspaceCommandPage({
                 onOpenHub: openWorkspaceTeamHub,
                 onViewChange: openWorkspaceTeamView,
                 evidencePanel,
+              }
+            : undefined
+        }
+        chatPanel={
+          selectedWorkspace && workspaceView === 'chat'
+            ? {
+                chat: workspaceChat.data,
+                isLoading: workspaceChat.isFetching,
+                isSending: sendWorkspaceChatMessage.isPending,
+                onSendMessage: (body, mentionedRiskIds) =>
+                  sendWorkspaceChatMessage.mutate({ body, mentionedRiskIds }),
               }
             : undefined
         }

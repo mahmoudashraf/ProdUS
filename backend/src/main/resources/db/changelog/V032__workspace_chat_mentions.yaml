@@ -1,0 +1,39 @@
+databaseChangeLog:
+  - changeSet:
+      id: 3200
+      author: produs
+      changes:
+        - createTable:
+            tableName: workspace_chat_message_risk_mentions
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: message_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: risk_thread_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: workspace_chat_message_risk_mentions
+            columnNames: message_id, risk_thread_id
+            constraintName: uk_workspace_chat_message_risk
+        - addForeignKeyConstraint:
+            baseTableName: workspace_chat_message_risk_mentions
+            baseColumnNames: message_id
+            constraintName: fk_workspace_chat_mentions_message
+            referencedTableName: network_messages
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: workspace_chat_message_risk_mentions
+            baseColumnNames: risk_thread_id
+            constraintName: fk_workspace_chat_mentions_risk
+            referencedTableName: scanner_risk_threads
+            referencedColumnNames: id
+        - createIndex:
+            tableName: workspace_chat_message_risk_mentions
+            indexName: idx_workspace_chat_mentions_message
+            columns:
+              - column: { name: message_id }
+        - createIndex:
+            tableName: workspace_chat_message_risk_mentions
+            indexName: idx_workspace_chat_mentions_risk
+            columns:
+              - column: { name: risk_thread_id }
