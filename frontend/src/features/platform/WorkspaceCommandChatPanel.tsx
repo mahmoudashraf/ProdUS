@@ -185,7 +185,15 @@ export default function WorkspaceCommandChatPanel({
                     <AlternateEmailOutlined fontSize="small" sx={{ color: appleColors.amber }} />
                     <Typography variant="subtitle2">Mention findings</Typography>
                   </Stack>
-                  <Stack direction="row" spacing={0.65} flexWrap="wrap" useFlexGap>
+                  <Stack
+                    spacing={0.65}
+                    sx={{
+                      maxHeight: 230,
+                      minWidth: 0,
+                      overflowY: 'auto',
+                      pr: 0.5,
+                    }}
+                  >
                     {mentionableFindings.slice(0, 8).map(mention => {
                       const selected = selectedMentionSet.has(mention.id);
                       return (
@@ -200,11 +208,44 @@ export default function WorkspaceCommandChatPanel({
                             bgcolor: selected ? appleColors.amber : '#fff',
                             color: selected ? '#fff' : appleColors.ink,
                             justifyContent: 'flex-start',
+                            width: '100%',
                             maxWidth: '100%',
+                            minWidth: 0,
+                            px: 1.1,
+                            py: 0.8,
                             textTransform: 'none',
                           }}
                         >
-                          {mention.title}
+                          <Box component="span" sx={{ minWidth: 0, textAlign: 'left', width: '100%' }}>
+                            <Typography
+                              component="span"
+                              variant="caption"
+                              sx={{
+                                display: 'block',
+                                fontWeight: 900,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {mention.title}
+                            </Typography>
+                            <Typography
+                              component="span"
+                              variant="caption"
+                              sx={{
+                                color: selected ? 'rgba(255,255,255,0.78)' : 'text.secondary',
+                                display: 'block',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {[mention.severity, mention.sourceTool, mention.serviceName]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </Typography>
+                          </Box>
                         </Button>
                       );
                     })}
