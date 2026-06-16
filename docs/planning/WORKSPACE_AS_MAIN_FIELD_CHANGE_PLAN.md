@@ -19,6 +19,7 @@ The goal is not an enterprise change-control process. The goal is a flexible wor
 Status as of the latest implementation pass:
 
 - The core direction is now real in code: `Product -> Workspace -> selected findings/fixes/services/people/proof`.
+- New product-rule refinement: workspace findings should become service-owned, not directly assigned to a workspace. The implementation path is now defined in `docs/planning/SERVICE_OWNED_WORKSPACE_FINDINGS_CHANGE_PLAN.md` and supersedes older direct finding-to-workspace assignment language.
 - Product keeps scanner truth and scan history. Workspace shows the scanner risks selected for active work.
 - Product Workspaces now opens an internal product route, not a separate-feeling workspace app.
 - Workspace can be created directly from the product with only a name, then services, people, findings, and proof can be added inside it.

@@ -77,7 +77,7 @@ export default function WorkspaceCommandBoard({
           <WorkspaceCommandSelectedWorkspacePane {...selectedWorkspacePane} />
         ) : (
           <Surface>
-            <EmptyState label="Open or create a workspace to coordinate milestones, evidence, and delivery participants." />
+            <EmptyState label="Open or create a workspace to coordinate work scope, fixes, proof, and people." />
           </Surface>
         )}
 

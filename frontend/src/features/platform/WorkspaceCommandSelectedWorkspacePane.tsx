@@ -36,13 +36,13 @@ interface IWorkspaceCommandSelectedWorkspacePaneProps {
 }
 
 const workspaceViewLabels: Record<WorkspaceCommandView, string> = {
-  overview: 'Workspace',
-  plan: 'Plan work',
-  services: 'Services',
-  proof: 'Fixes and proof',
-  team: 'People and help',
-  chat: 'Workspace chat',
-  milestones: 'Steps',
+  overview: 'Overview',
+  plan: 'Work scope',
+  services: 'Work scope',
+  proof: 'Fix and verify',
+  team: 'People',
+  chat: 'Discussion / decisions',
+  milestones: 'Work checklist',
   handoff: 'Handoff',
 };
 

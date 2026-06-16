@@ -48,7 +48,7 @@ export function OwnerProductizationWorkspaceHeader({
     <>
       <PageHeader
         title="Product Workspace"
-        description="Selected-product actions only: launch decision, plan work, scanners, services, AI opportunities, and controlled sharing."
+        description="Selected-product actions only: launch decision, workspace scope, scanners, AI opportunities, and controlled sharing."
       />
       <QueryState isLoading={isLoading} error={error} />
 

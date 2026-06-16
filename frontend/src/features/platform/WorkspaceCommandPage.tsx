@@ -13,6 +13,7 @@ import type {
   ScannerRiskSummary,
   WorkspaceChat,
   WorkspaceServiceAddResponse,
+  WorkspaceServiceFindingsUpdateResponse,
 } from './types';
 import { useWorkspaceCommandActions } from './useWorkspaceCommandActions';
 import { useWorkspaceCommandData } from './useWorkspaceCommandData';
@@ -261,6 +262,38 @@ export default function WorkspaceCommandPage({
       queryClient.invalidateQueries({ queryKey: ['packages'] });
       queryClient.invalidateQueries({
         queryKey: ['productization-engine', 'workspace-scanner-readiness', selectedWorkspace?.id],
+      });
+    },
+  });
+  const includeServiceFindings = useMutation({
+    mutationFn: ({
+      includeExcluded = false,
+      riskThreadIds,
+      serviceModuleId,
+    }: {
+      includeExcluded?: boolean;
+      riskThreadIds: string[];
+      serviceModuleId: string;
+    }) =>
+      postJson<
+        WorkspaceServiceFindingsUpdateResponse,
+        { riskThreadIds: string[]; includeExcluded: boolean; note: string }
+      >(`/workspaces/${selectedWorkspace?.id}/services/${serviceModuleId}/findings`, {
+        riskThreadIds,
+        includeExcluded,
+        note: includeExcluded
+          ? 'Owner re-added previously removed findings to this workspace service.'
+          : 'Owner included selected findings in this workspace service.',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['workspaces', selectedWorkspace?.id, 'services'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['workspace-current-risks', selectedWorkspace?.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['workspaces', selectedWorkspace?.id, 'services', 'finding-impact'],
       });
     },
   });
@@ -604,11 +637,19 @@ export default function WorkspaceCommandPage({
                 packageModules: packageModuleList,
                 isAssigningService: assignService.isPending,
                 lastServiceAdd: assignService.data,
+                lastServiceFindingUpdate: includeServiceFindings.data,
                 removingServiceId: removeService.isPending
                   ? String(removeService.variables || '')
                   : null,
                 serviceFindingImpacts: serviceFindingImpactList,
+                isUpdatingServiceFindings: includeServiceFindings.isPending,
                 onAssignService: serviceModuleId => assignService.mutate(serviceModuleId),
+                onIncludeServiceFindings: (serviceModuleId, riskThreadIds, includeExcluded) =>
+                  includeServiceFindings.mutate({
+                    serviceModuleId,
+                    riskThreadIds,
+                    includeExcluded: includeExcluded ?? false,
+                  }),
                 onRemoveService: packageModuleId => removeService.mutate(packageModuleId),
               }
             : undefined

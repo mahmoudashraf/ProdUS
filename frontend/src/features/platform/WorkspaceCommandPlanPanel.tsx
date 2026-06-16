@@ -70,7 +70,7 @@ export default function WorkspaceCommandPlanPanel({
         <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} justifyContent="space-between">
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-              <PastelChip label="Plan work" accent={appleColors.purple} bg="#f3edff" />
+              <PastelChip label="Work scope" accent={appleColors.purple} bg="#f3edff" />
               <PastelChip
                 label={planReady ? 'Ready to coordinate' : 'Needs a next choice'}
                 accent={planReady ? appleColors.green : appleColors.amber}
@@ -79,12 +79,12 @@ export default function WorkspaceCommandPlanPanel({
               <StatusChip label={workspace.status} />
             </Stack>
             <Typography variant="h3" sx={{ mt: 1 }}>
-              What this workspace is doing now
+              What work belongs in this workspace
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.6, lineHeight: 1.6, maxWidth: 820 }}>
-              Keep the plan small and practical: selected services, selected findings, people, and
-              the next workspace steps. Use this page to decide what to add before work moves
-              forward.
+              Keep the scope small and practical: selected services, service-owned findings, people,
+              and the next useful checks. Use this compatibility view only to understand the current
+              scope; active changes now happen in Work scope.
             </Typography>
           </Box>
           <Stack spacing={1} sx={{ minWidth: { lg: 230 } }}>
@@ -93,10 +93,10 @@ export default function WorkspaceCommandPlanPanel({
               onClick={packageModules.length ? onOpenFindings : onOpenServices}
               sx={{ minHeight: 42 }}
             >
-              {packageModules.length ? 'Review selected fixes' : 'Add first service'}
+              {packageModules.length ? 'Fix and verify' : 'Add first service'}
             </Button>
             <Button variant="outlined" onClick={onOpenMilestones} sx={{ minHeight: 40 }}>
-              Open milestones
+              Open work checklist
             </Button>
           </Stack>
         </Stack>
@@ -112,7 +112,7 @@ export default function WorkspaceCommandPlanPanel({
         <PlanAnswerCard
           accent={packageModules.length ? appleColors.purple : appleColors.amber}
           icon={<LocalOfferOutlined />}
-          title="Services selected"
+          title="Work scope"
           value={`${packageModules.length} service${packageModules.length === 1 ? '' : 's'}`}
           detail={
             packageModules.length
@@ -122,13 +122,13 @@ export default function WorkspaceCommandPlanPanel({
                   .join(' · ')
               : 'No services selected yet.'
           }
-          actionLabel={packageModules.length ? 'Manage services' : 'Browse services'}
+          actionLabel={packageModules.length ? 'Manage scope' : 'Add service'}
           onAction={onOpenServices}
         />
         <PlanAnswerCard
           accent={currentRisks.length ? appleColors.amber : appleColors.green}
           icon={<FactCheckOutlined />}
-          title="Findings driving the work"
+          title="Findings in scope"
           value={`${currentRisks.length} current finding${currentRisks.length === 1 ? '' : 's'}`}
           detail={
             currentRisks[0]?.businessRisk ||
@@ -136,7 +136,7 @@ export default function WorkspaceCommandPlanPanel({
             currentRisks[0]?.title ||
             'No active scanner finding is assigned to this workspace.'
           }
-          actionLabel="Open findings"
+          actionLabel="Fix and verify"
           onAction={onOpenFindings}
         />
         <PlanAnswerCard
@@ -157,21 +157,21 @@ export default function WorkspaceCommandPlanPanel({
         <PlanAnswerCard
           accent={milestoneList.length ? appleColors.green : appleColors.amber}
           icon={<AssignmentTurnedInOutlined />}
-          title="Next steps"
+          title="Work checklist"
           value={`${milestoneList.length} milestone${milestoneList.length === 1 ? '' : 's'}`}
           detail={
             firstMilestone
               ? `${firstMilestone.title} · ${formatLabel(firstMilestone.status)}`
               : 'No milestone exists yet. Add one when the next work step is clear.'
           }
-          actionLabel="Open milestones"
+          actionLabel="Open checklist"
           onAction={onOpenMilestones}
         />
       </Box>
 
       <Surface>
         <SectionTitle
-          title="Plan snapshot"
+          title="Scope snapshot"
           action={
             <PastelChip
               label={

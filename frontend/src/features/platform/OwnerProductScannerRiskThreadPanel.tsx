@@ -5,20 +5,30 @@ import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined';
 import CheckCircleOutlineOutlined from '@mui/icons-material/CheckCircleOutlineOutlined';
 import ShieldOutlined from '@mui/icons-material/ShieldOutlined';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { useMemo, useState } from 'react';
 import {
   PastelChip,
   Surface,
   appleColors,
 } from './PlatformComponents';
-import type { ProjectWorkspace, ScannerRiskState, ScannerRiskSummary, ScannerRiskThread } from './types';
+import type {
+  PackageModule,
+  ProjectWorkspace,
+  ScannerRiskState,
+  ScannerRiskSummary,
+  ScannerRiskThread,
+  ServiceModule,
+} from './types';
 
 interface OwnerProductScannerRiskThreadPanelProps {
   riskSummary?: ScannerRiskSummary | undefined;
   selectedWorkspace?: ProjectWorkspace | undefined;
+  catalogModules?: ServiceModule[] | undefined;
+  packageModules?: PackageModule[] | undefined;
   isLoading?: boolean;
   isAssigning?: boolean;
-  onAssignRisk: (riskId: string) => void;
+  onAssignRisk: (riskId: string, serviceModuleId: string, serviceAlreadyInWorkspace: boolean) => void;
 }
 
 const currentStates: ScannerRiskState[] = ['NEW', 'STILL_OPEN', 'RETURNED', 'READY_TO_CHECK', 'NEEDS_PROOF', 'INCOMPLETE_CHECK'];
@@ -26,6 +36,8 @@ const currentStates: ScannerRiskState[] = ['NEW', 'STILL_OPEN', 'RETURNED', 'REA
 export default function OwnerProductScannerRiskThreadPanel({
   riskSummary,
   selectedWorkspace,
+  catalogModules = [],
+  packageModules = [],
   isLoading,
   isAssigning,
   onAssignRisk,
@@ -34,6 +46,10 @@ export default function OwnerProductScannerRiskThreadPanel({
   const currentRisks = risks.filter((risk) => currentStates.includes(risk.currentState));
   const selectedWorkspaceRisks = currentRisks.filter((risk) => risk.workspaceId === selectedWorkspace?.id);
   const unplacedRisks = currentRisks.filter((risk) => !risk.workspaceId);
+  const selectedServiceIds = useMemo(
+    () => new Set(packageModules.map(module => module.serviceModule?.id).filter(Boolean) as string[]),
+    [packageModules]
+  );
   const visibleRisks = [
     ...unplacedRisks,
     ...currentRisks.filter((risk) => risk.workspaceId && risk.workspaceId !== selectedWorkspace?.id),
@@ -79,6 +95,9 @@ export default function OwnerProductScannerRiskThreadPanel({
                 key={risk.id}
                 risk={risk}
                 selectedWorkspace={selectedWorkspace}
+                catalogModules={catalogModules}
+                packageModules={packageModules}
+                selectedServiceIds={selectedServiceIds}
                 disabled={isAssigning || !selectedWorkspace || risk.workspaceId === selectedWorkspace.id}
                 isAssigning={isAssigning}
                 onAssignRisk={onAssignRisk}
@@ -102,17 +121,40 @@ function ProductRiskCard({
   disabled,
   isAssigning,
   onAssignRisk,
+  catalogModules,
+  packageModules,
   risk,
+  selectedServiceIds,
   selectedWorkspace,
 }: {
   disabled: boolean;
   isAssigning?: boolean | undefined;
-  onAssignRisk: (riskId: string) => void;
+  catalogModules: ServiceModule[];
+  packageModules: PackageModule[];
+  onAssignRisk: (riskId: string, serviceModuleId: string, serviceAlreadyInWorkspace: boolean) => void;
   risk: ScannerRiskThread;
+  selectedServiceIds: Set<string>;
   selectedWorkspace?: ProjectWorkspace | undefined;
 }) {
   const inSelectedWorkspace = risk.workspaceId === selectedWorkspace?.id;
   const assignedElsewhere = Boolean(risk.workspaceId && !inSelectedWorkspace);
+  const serviceModuleId = risk.recommendedModule?.id || '';
+  const hasServiceMapping = Boolean(serviceModuleId);
+  const serviceAlreadyInWorkspace = Boolean(serviceModuleId && selectedServiceIds.has(serviceModuleId));
+  const serviceChoices = useMemo(
+    () => {
+      const byId = new Map<string, ServiceModule>();
+      packageModules.forEach(module => {
+        if (module.serviceModule?.id) byId.set(module.serviceModule.id, module.serviceModule);
+      });
+      catalogModules.forEach(module => byId.set(module.id, module));
+      return [...byId.values()].sort((first, second) => first.name.localeCompare(second.name));
+    },
+    [catalogModules, packageModules]
+  );
+  const [chosenServiceId, setChosenServiceId] = useState('');
+  const selectedUnmappedServiceId = chosenServiceId || '';
+  const actionDisabled = disabled || (!hasServiceMapping && !selectedUnmappedServiceId);
   const accent = risk.currentState === 'RETURNED'
     ? appleColors.red
     : risk.currentState === 'READY_TO_CHECK'
@@ -151,21 +193,57 @@ function ProductRiskCard({
           {risk.recommendedModule?.name && <PastelChip label={risk.recommendedModule.name} accent={appleColors.purple} bg="#f0e9ff" />}
           {risk.affectedComponent && <PastelChip label={risk.affectedComponent} accent={appleColors.muted} bg="#f4f7fb" />}
         </Stack>
+        {!hasServiceMapping && (
+          <Box sx={{ border: '1px solid', borderColor: '#dbe7f5', borderRadius: 1, bgcolor: '#f8fbff', p: 0.85 }}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Service for this finding"
+              value={selectedUnmappedServiceId}
+              onChange={event => setChosenServiceId(event.target.value)}
+              helperText="Choose the service that should own this fix."
+            >
+              {serviceChoices.map(service => (
+                <MenuItem key={service.id} value={service.id}>
+                  {service.name}
+                  {selectedServiceIds.has(service.id) ? ' · in workspace' : ''}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+        )}
         <Button
           variant={inSelectedWorkspace ? 'outlined' : 'contained'}
           size="small"
           startIcon={inSelectedWorkspace ? <CheckCircleOutlineOutlined /> : <AddCircleOutlineOutlined />}
           endIcon={!inSelectedWorkspace && selectedWorkspace ? <ArrowForwardOutlined /> : undefined}
-          disabled={disabled}
-          onClick={() => onAssignRisk(risk.id)}
+          disabled={actionDisabled}
+          onClick={() => {
+            const targetServiceId = serviceModuleId || selectedUnmappedServiceId;
+            if (!targetServiceId) return;
+            onAssignRisk(risk.id, targetServiceId, selectedServiceIds.has(targetServiceId));
+          }}
           sx={{ alignSelf: 'flex-start', minHeight: 36 }}
         >
           {inSelectedWorkspace
             ? 'In this workspace'
+            : !hasServiceMapping
+              ? selectedUnmappedServiceId
+                ? selectedServiceIds.has(selectedUnmappedServiceId)
+                  ? 'Choose service and add'
+                  : 'Add service and include'
+                : 'Choose service first'
             : assignedElsewhere
-              ? 'Move to selected workspace'
+              ? serviceAlreadyInWorkspace
+                ? `Add under ${risk.recommendedModule?.name}`
+                : `Add ${risk.recommendedModule?.name} service first`
               : selectedWorkspace
-                ? isAssigning ? 'Adding...' : 'Add to workspace'
+                ? isAssigning
+                  ? 'Adding...'
+                  : serviceAlreadyInWorkspace
+                    ? `Add under ${risk.recommendedModule?.name}`
+                    : `Add ${risk.recommendedModule?.name} service first`
                 : 'Open a workspace first'}
         </Button>
       </Stack>

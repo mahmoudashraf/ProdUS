@@ -779,8 +779,10 @@ export interface WorkspaceServiceFindingImpact {
   serviceName: string;
   findingsAlreadyInWorkspaceCount: number;
   findingsWillBeAddedCount: number;
+  findingsExcludedFromWorkspaceCount: number;
   findingsAlreadyInWorkspace: WorkspaceFindingBrief[];
   findingsWillBeAdded: WorkspaceFindingBrief[];
+  findingsExcludedFromWorkspace: WorkspaceFindingBrief[];
 }
 
 export interface WorkspaceServiceAddResponse {
@@ -789,6 +791,14 @@ export interface WorkspaceServiceAddResponse {
   coveredFindings: WorkspaceFindingBrief[];
   addedFindingCount: number;
   coveredFindingCount: number;
+  ownerNotice: string;
+}
+
+export interface WorkspaceServiceFindingsUpdateResponse {
+  serviceModuleId: string;
+  serviceName: string;
+  findings: WorkspaceFindingBrief[];
+  findingCount: number;
   ownerNotice: string;
 }
 
@@ -859,6 +869,40 @@ export interface CheckFixesResponse {
     toolKeys: string[];
     reason: string;
   }[];
+}
+
+export interface CheckFixProgressRun {
+  runId: string;
+  mode: CheckFixesResponse['mode'];
+  status: ScanRun['status'];
+  depth: ScanRun['depth'];
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  failureSummary?: string;
+  comparisonBaseRunId?: string;
+  riskThreadIds: string[];
+  findingIds: string[];
+  toolKeys: string[];
+  totalTools: number;
+  queuedTools: number;
+  runningTools: number;
+  completedTools: number;
+  failedTools: number;
+  canceledTools: number;
+  skippedTools: number;
+  toolRuns: ToolRun[];
+  hints: string[];
+  limitations: string[];
+}
+
+export interface WorkspaceCheckProgress {
+  productProfileId: string;
+  workspaceId: string;
+  activeCount: number;
+  completedCount: number;
+  failedCount: number;
+  runs: CheckFixProgressRun[];
 }
 
 export type RepoSignalType =

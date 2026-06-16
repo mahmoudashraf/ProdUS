@@ -7,20 +7,26 @@ import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import PlayArrowOutlined from '@mui/icons-material/PlayArrowOutlined';
 import SwapHorizOutlined from '@mui/icons-material/SwapHorizOutlined';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
+import { useQuery } from '@tanstack/react-query';
 import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
+import { getJson } from './api';
 import { PastelChip, Surface, appleColors } from './PlatformComponents';
 import type {
+  CheckFixProgressRun,
   CheckFixesResponse,
   PackageModule,
   ScannerRiskState,
   ScannerRiskSummary,
   ScannerRiskThread,
   ServiceModule,
+  ToolRun,
+  WorkspaceCheckProgress,
 } from './types';
 
 interface IOwnerWorkspaceFixesRiskThreadPanelProps {
+  workspaceId?: string | undefined;
   riskSummary?: ScannerRiskSummary | undefined;
   catalogModules?: ServiceModule[] | undefined;
   packageModules?: PackageModule[] | undefined;
@@ -45,9 +51,12 @@ const activeStates: ScannerRiskState[] = [
   'INCOMPLETE_CHECK',
 ];
 
+type ToolRunLabel = Pick<ToolRun, 'scanRunId' | 'status' | 'toolKey' | 'toolName'>;
+
 export default function OwnerWorkspaceFixesRiskThreadPanel({
   catalogModules = [],
   packageModules = [],
+  workspaceId,
   riskSummary,
   isLoading,
   isChecking,
@@ -59,6 +68,22 @@ export default function OwnerWorkspaceFixesRiskThreadPanel({
   onRemoveRisk,
 }: IOwnerWorkspaceFixesRiskThreadPanelProps) {
   const [previewRiskIds, setPreviewRiskIds] = useState<string[] | null>(null);
+  const checkProgress = useQuery({
+    queryKey: ['workspace-check-progress', workspaceId],
+    enabled: !!workspaceId,
+    queryFn: () =>
+      getJson<WorkspaceCheckProgress>(`/workspaces/${workspaceId}/scanner/check-progress`),
+    refetchInterval: query => {
+      const data = query.state.data as WorkspaceCheckProgress | undefined;
+      return data?.activeCount ? 3500 : false;
+    },
+  });
+
+  useEffect(() => {
+    if (!workspaceId || !lastCheck?.queuedRuns.length) return;
+    void checkProgress.refetch();
+  }, [checkProgress.refetch, lastCheck?.queuedRuns.length, workspaceId]);
+
   const risks = useMemo(
     () => riskSummary?.groups.flatMap(group => group.risks) || [],
     [riskSummary?.groups]
@@ -268,15 +293,11 @@ export default function OwnerWorkspaceFixesRiskThreadPanel({
           />
         </Box>
 
-        {lastCheck && (
-          <Alert severity={lastCheck.queuedRuns.length ? 'success' : 'warning'}>
-            {lastCheck.preview.summary}{' '}
-            {lastCheck.preview.tools.length ? `Tools: ${lastCheck.preview.tools.join(', ')}.` : ''}
-            {lastCheck.skippedTargets.length
-              ? ` ${lastCheck.skippedTargets.length} target${lastCheck.skippedTargets.length === 1 ? '' : 's'} need attention.`
-              : ''}
-          </Alert>
-        )}
+        <CheckProgressPanel
+          isFetching={checkProgress.isFetching}
+          lastCheck={lastCheck}
+          progress={checkProgress.data}
+        />
 
         {isLoading ? (
           <Typography color="text.secondary">Loading assigned findings...</Typography>
@@ -318,6 +339,250 @@ export default function OwnerWorkspaceFixesRiskThreadPanel({
         )}
       </Stack>
     </Surface>
+  );
+}
+
+function CheckProgressPanel({
+  isFetching,
+  lastCheck,
+  progress,
+}: {
+  isFetching: boolean;
+  lastCheck?: CheckFixesResponse | undefined;
+  progress?: WorkspaceCheckProgress | undefined;
+}) {
+  const runs = progress?.runs || [];
+  const latestRun = runs[0];
+  const hasQueuedFeedback = !!lastCheck;
+  const shouldShow = hasQueuedFeedback || runs.length > 0;
+  if (!shouldShow) return null;
+
+  const activeRuns = runs.filter(run => run.status === 'QUEUED' || run.status === 'RUNNING');
+  const headline = activeRuns.length
+    ? 'Checking fixes now'
+    : latestRun
+      ? latestRun.status === 'COMPLETED'
+        ? 'Latest check finished'
+        : 'Latest check needs attention'
+      : 'Check queued';
+  const detail = activeRuns.length
+    ? `${activeRuns.length} scanner run${activeRuns.length === 1 ? '' : 's'} active. ProdUS is comparing the new result against the previous proof.`
+    : latestRun
+      ? latestRun.status === 'COMPLETED'
+        ? 'The latest scanner check completed. Updated finding state appears after scanner proof is normalized.'
+        : latestRun.failureSummary || 'One or more scanner tools did not complete cleanly.'
+      : 'ProdUS accepted the request. Progress appears here as soon as the scanner run is stored.';
+
+  return (
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: activeRuns.length ? '#bfdbfe' : '#dbe7f5',
+        borderRadius: 1,
+        bgcolor: activeRuns.length ? '#f5f9ff' : '#fff',
+        p: 1.15,
+      }}
+    >
+      <Stack spacing={1}>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={1}
+          justifyContent="space-between"
+          alignItems={{ xs: 'stretch', md: 'flex-start' }}
+        >
+          <Box>
+            <Stack direction="row" spacing={0.6} flexWrap="wrap" useFlexGap>
+              <PastelChip
+                label="Check progress"
+                accent={activeRuns.length ? appleColors.blue : appleColors.green}
+                bg={activeRuns.length ? '#eaf3ff' : '#e7f8ee'}
+              />
+              {progress && (
+                <PastelChip
+                  label={`${progress.activeCount} active`}
+                  accent={progress.activeCount ? appleColors.blue : appleColors.muted}
+                  bg={progress.activeCount ? '#eaf3ff' : '#f8fafc'}
+                />
+              )}
+              {isFetching && (
+                <PastelChip label="Updating" accent={appleColors.purple} bg="#f3edff" />
+              )}
+            </Stack>
+            <Typography variant="h4" sx={{ mt: 0.55 }}>
+              {headline}
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.55 }}>
+              {detail}
+            </Typography>
+          </Box>
+          {latestRun && (
+            <Box
+              sx={{
+                border: '1px solid',
+                borderColor: `${statusAccent(latestRun.status)}33`,
+                borderRadius: 1,
+                bgcolor: `${statusAccent(latestRun.status)}0d`,
+                p: 0.85,
+                minWidth: { xs: '100%', md: 220 },
+              }}
+            >
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 850 }}>
+                Latest scanner run
+              </Typography>
+              <Typography variant="subtitle1" sx={{ mt: 0.2 }}>
+                {formatDepth(latestRun.depth)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {formatRunStatus(latestRun.status)} · {formatMode(latestRun.mode)}
+              </Typography>
+            </Box>
+          )}
+        </Stack>
+
+        {lastCheck && (
+          <Alert severity={lastCheck.skippedTargets.length ? 'warning' : 'success'}>
+            {lastCheck.preview.summary}{' '}
+            {lastCheck.preview.tools.length ? `Tools: ${lastCheck.preview.tools.join(', ')}.` : ''}
+            {lastCheck.skippedTargets.length
+              ? ` ${lastCheck.skippedTargets.length} target${lastCheck.skippedTargets.length === 1 ? '' : 's'} need attention before they can run.`
+              : ''}
+          </Alert>
+        )}
+
+        {lastCheck?.skippedTargets.length ? (
+          <Stack spacing={0.65}>
+            {lastCheck.skippedTargets.map(target => (
+              <Box
+                key={`${target.depth}-${target.toolKeys.join('-')}-${target.reason}`}
+                sx={{
+                  border: '1px solid',
+                  borderColor: '#fde68a',
+                  borderRadius: 1,
+                  bgcolor: '#fffbeb',
+                  p: 0.85,
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 850 }}>
+                  {formatDepth(target.depth)} cannot run yet
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                  {target.reason}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
+        ) : null}
+
+        {runs.length > 0 && (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' },
+              gap: 0.85,
+            }}
+          >
+            {runs.slice(0, 4).map(run => (
+              <CheckProgressRunCard key={run.runId} run={run} />
+            ))}
+          </Box>
+        )}
+      </Stack>
+    </Box>
+  );
+}
+
+function CheckProgressRunCard({ run }: { run: CheckFixProgressRun }) {
+  const accent = statusAccent(run.status);
+  const finishedTools =
+    run.completedTools + run.failedTools + run.canceledTools + run.skippedTools;
+  const selectedCount = run.riskThreadIds.length || run.findingIds.length;
+  const shownTools: ToolRunLabel[] = run.toolRuns.length
+    ? run.toolRuns
+    : toolRunsFromKeys(run.toolKeys, run.runId);
+
+  return (
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: `${accent}30`,
+        borderRadius: 1,
+        bgcolor: '#fff',
+        p: 1,
+      }}
+    >
+      <Stack spacing={0.8}>
+        <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle1" sx={{ lineHeight: 1.25 }}>
+              {formatDepth(run.depth)}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.2 }}>
+              {formatMode(run.mode)} · {selectedCount} selected finding
+              {selectedCount === 1 ? '' : 's'}
+            </Typography>
+          </Box>
+          <PastelChip
+            label={formatRunStatus(run.status)}
+            accent={accent}
+            bg={`${accent}12`}
+          />
+        </Stack>
+        <Box
+          sx={{
+            height: 8,
+            borderRadius: 999,
+            bgcolor: '#eef2f7',
+            overflow: 'hidden',
+          }}
+          aria-label={`${finishedTools} of ${run.totalTools} scanner tools finished`}
+        >
+          <Box
+            sx={{
+              width: `${run.totalTools ? Math.min(100, Math.round((finishedTools / run.totalTools) * 100)) : 0}%`,
+              height: '100%',
+              bgcolor: accent,
+              transition: 'width 180ms ease',
+            }}
+          />
+        </Box>
+        <Stack direction="row" spacing={0.55} flexWrap="wrap" useFlexGap>
+          <PastelChip
+            label={`${finishedTools}/${run.totalTools || run.toolRuns.length} tools finished`}
+            accent={accent}
+            bg={`${accent}12`}
+          />
+          {run.comparisonBaseRunId && (
+            <PastelChip
+              label={`Compared to ${compactId(run.comparisonBaseRunId)}`}
+              accent={appleColors.muted}
+              bg="#f8fafc"
+            />
+          )}
+          {run.failedTools > 0 && (
+            <PastelChip
+              label={`${run.failedTools} failed`}
+              accent={appleColors.red}
+              bg="#ffe9e4"
+            />
+          )}
+        </Stack>
+        <Stack direction="row" spacing={0.45} flexWrap="wrap" useFlexGap>
+          {shownTools.map(tool => (
+            <PastelChip
+              key={`${tool.scanRunId || run.runId}-${tool.toolKey || tool.toolName}`}
+              label={`${tool.toolName || tool.toolKey || 'Scanner'} · ${formatToolStatus(tool.status)}`}
+              accent={toolStatusAccent(tool.status)}
+              bg={`${toolStatusAccent(tool.status)}12`}
+            />
+          ))}
+        </Stack>
+        {(run.failureSummary || run.limitations.length > 0) && (
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+            {run.failureSummary || run.limitations.join(' ')}
+          </Typography>
+        )}
+      </Stack>
+    </Box>
   );
 }
 
@@ -647,7 +912,10 @@ function RiskThreadCard({
         : BuildCircleOutlined;
   const canCheckSingle = activeStates.includes(risk.currentState);
   const serviceOptions = useMemo(
-    () => serviceMappingOptions(risk, packageModules, catalogModules),
+    () =>
+      serviceMappingOptions(risk, packageModules, catalogModules).filter(
+        option => option.workspaceAssigned
+      ),
     [catalogModules, packageModules, risk]
   );
   const scannerSuggestedDifferent =
@@ -788,7 +1056,7 @@ function RiskThreadCard({
                 label="Service"
                 value={selectedServiceId}
                 onChange={event => setSelectedServiceId(event.target.value)}
-                helperText="Workspace services are marked. Catalog choices can be used when the right service is not in the workspace yet."
+                helperText="Only services already in this workspace can own workspace findings. Add the service first when the right one is missing."
               >
                 {serviceOptions.map(option => (
                   <MenuItem key={option.service.id} value={option.service.id}>
@@ -846,8 +1114,13 @@ function RiskThreadCard({
               startIcon={<SwapHorizOutlined />}
               disabled={!serviceOptions.length || !!isChangingService}
               onClick={() => {
+                const recommendedServiceInWorkspace = serviceOptions.some(
+                  option => option.service.id === risk.recommendedModule?.id
+                );
                 setSelectedServiceId(
-                  risk.recommendedModule?.id || serviceOptions[0]?.service.id || ''
+                  recommendedServiceInWorkspace
+                    ? risk.recommendedModule?.id || ''
+                    : serviceOptions[0]?.service.id || ''
                 );
                 setServiceEditorOpen(open => !open);
               }}
@@ -946,6 +1219,62 @@ function compactId(value: string) {
 
 function uniqueValues(values: string[]) {
   return [...new Set(values.filter(Boolean))];
+}
+
+function formatDepth(depth: CheckFixProgressRun['depth'] | CheckFixesResponse['skippedTargets'][number]['depth']) {
+  const labels: Record<CheckFixProgressRun['depth'], string> = {
+    CI_EVIDENCE: 'Uploaded proof',
+    SAFE_STATIC: 'Code and repo scan',
+    DEPENDENCY_CONTAINER: 'Dependencies and container',
+    RUNTIME_BASELINE: 'Live app scan',
+    DEEP_REVIEW: 'Deep review',
+  };
+  return labels[depth] || depth;
+}
+
+function formatMode(mode: CheckFixesResponse['mode']) {
+  return mode === 'FULL_SUITE' ? 'Full scanner suite' : 'Targeted check';
+}
+
+function formatRunStatus(status: CheckFixProgressRun['status']) {
+  if (status === 'QUEUED') return 'Waiting';
+  if (status === 'RUNNING') return 'Running';
+  if (status === 'COMPLETED') return 'Finished';
+  if (status === 'FAILED') return 'Needs attention';
+  return 'Canceled';
+}
+
+function statusAccent(status: CheckFixProgressRun['status']) {
+  if (status === 'COMPLETED') return appleColors.green;
+  if (status === 'FAILED' || status === 'CANCELED') return appleColors.red;
+  if (status === 'RUNNING') return appleColors.blue;
+  return appleColors.amber;
+}
+
+function formatToolStatus(status: ToolRun['status']) {
+  if (status === 'QUEUED') return 'waiting';
+  if (status === 'RUNNING') return 'running';
+  if (status === 'COMPLETED') return 'done';
+  if (status === 'FAILED') return 'failed';
+  if (status === 'SKIPPED') return 'skipped';
+  return 'canceled';
+}
+
+function toolStatusAccent(status: ToolRun['status']) {
+  if (status === 'COMPLETED') return appleColors.green;
+  if (status === 'FAILED' || status === 'CANCELED') return appleColors.red;
+  if (status === 'RUNNING') return appleColors.blue;
+  if (status === 'SKIPPED') return appleColors.muted;
+  return appleColors.amber;
+}
+
+function toolRunsFromKeys(toolKeys: string[], runId: string): ToolRunLabel[] {
+  return toolKeys.map(toolKey => ({
+    scanRunId: runId,
+    status: 'QUEUED',
+    toolKey,
+    toolName: toolKey,
+  }));
 }
 
 function serviceMappingOptions(

@@ -23,8 +23,10 @@ import type { StudioAssistantContext } from './StudioAssistantCard';
 import type {
   CheckFixesResponse,
   NormalizedFinding,
+  PackageModule,
   ScannerRiskSummary,
-  ScannerRiskThread,
+  WorkspaceServiceAddResponse,
+  WorkspaceServiceFindingsUpdateResponse,
 } from './types';
 import type { useOwnerWorkspaceProductActions } from './useOwnerWorkspaceProductActions';
 import type { useOwnerWorkspaceScannerOperations } from './useOwnerWorkspaceScannerOperations';
@@ -58,6 +60,7 @@ interface IOwnerWorkspaceFindingsAreaProps {
   scannerSummaryData: OwnerTechnicalProofProps['companion']['scannerSummary'];
   scannerSummaryFetching: boolean;
   catalogModules: OwnerTechnicalProofProps['fixPath']['serviceModules'];
+  packageModules: PackageModule[];
   milestones: OwnerTechnicalProofProps['operations']['milestones'];
   scannerReadiness: OwnerTechnicalProofProps['runway']['scannerReadiness'];
   scannerCounts: IScannerCounts | undefined;
@@ -127,6 +130,7 @@ export default function OwnerWorkspaceFindingsArea({
   scannerSummaryData,
   scannerSummaryFetching,
   catalogModules,
+  packageModules,
   milestones,
   scannerReadiness,
   scannerCounts,
@@ -218,16 +222,62 @@ export default function OwnerWorkspaceFindingsArea({
       queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProductId] });
     },
   });
-  const assignRiskToWorkspace = useMutation({
-    mutationFn: (riskThreadId: string) =>
-      postJson<ScannerRiskThread, { workspaceId: string }>(
-        `/scanner/risks/${riskThreadId}/assign-workspace`,
-        { workspaceId: selectedWorkspaceId || '' }
-      ),
+  const includeRiskInWorkspaceService = useMutation<
+    WorkspaceServiceFindingsUpdateResponse | WorkspaceServiceAddResponse,
+    Error,
+    {
+      riskThreadId: string;
+      serviceAlreadyInWorkspace: boolean;
+      serviceModuleId: string;
+    }
+  >({
+    mutationFn: ({
+      riskThreadId,
+      serviceAlreadyInWorkspace,
+      serviceModuleId,
+    }) => {
+      if (!selectedWorkspaceId) throw new Error('Open a workspace first');
+      if (serviceAlreadyInWorkspace) {
+        return postJson<
+          WorkspaceServiceFindingsUpdateResponse,
+          { riskThreadIds: string[]; includeExcluded: boolean; note: string }
+        >(`/workspaces/${selectedWorkspaceId}/services/${serviceModuleId}/findings`, {
+          riskThreadIds: [riskThreadId],
+          includeExcluded: true,
+          note: 'Owner added this scanner finding under its mapped service.',
+        });
+      }
+      return postJson<
+        WorkspaceServiceAddResponse,
+        {
+          serviceModuleId: string;
+          required: boolean;
+          rationale: string;
+          createMilestone: boolean;
+          addMatchingFindings: boolean;
+          selectedRiskThreadIds: string[];
+          includeExcluded: boolean;
+        }
+      >(`/workspaces/${selectedWorkspaceId}/services`, {
+        serviceModuleId,
+        required: true,
+        rationale: 'Added from product scanner finding.',
+        createMilestone: true,
+        addMatchingFindings: true,
+        selectedRiskThreadIds: [riskThreadId],
+        includeExcluded: true,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', selectedWorkspaceId] });
       queryClient.invalidateQueries({ queryKey: ['scanner-current-risks', selectedProductId] });
       queryClient.invalidateQueries({ queryKey: ['scanner-summary', selectedProductId] });
+      queryClient.invalidateQueries({
+        queryKey: ['workspaces', selectedWorkspaceId, 'services'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['workspaces', selectedWorkspaceId, 'services', 'finding-impact'],
+      });
     },
   });
   if (!selectedProduct || workspaceTab !== 'findings') return null;
@@ -329,13 +379,22 @@ export default function OwnerWorkspaceFindingsArea({
       <OwnerProductScannerRiskThreadPanel
         riskSummary={productRiskSummary.data}
         selectedWorkspace={selectedWorkspace || undefined}
+        catalogModules={catalogModules}
+        packageModules={packageModules}
         isLoading={productRiskSummary.isFetching}
-        isAssigning={assignRiskToWorkspace.isPending}
-        onAssignRisk={riskId => {
-          if (selectedWorkspaceId) assignRiskToWorkspace.mutate(riskId);
+        isAssigning={includeRiskInWorkspaceService.isPending}
+        onAssignRisk={(riskId, serviceModuleId, serviceAlreadyInWorkspace) => {
+          if (selectedWorkspaceId) {
+            includeRiskInWorkspaceService.mutate({
+              riskThreadId: riskId,
+              serviceAlreadyInWorkspace,
+              serviceModuleId,
+            });
+          }
         }}
       />
       <OwnerWorkspaceFixesRiskThreadPanel
+        workspaceId={selectedWorkspaceId}
         riskSummary={workspaceRiskSummary.data}
         isLoading={workspaceRiskSummary.isFetching}
         isChecking={checkFixes.isPending}

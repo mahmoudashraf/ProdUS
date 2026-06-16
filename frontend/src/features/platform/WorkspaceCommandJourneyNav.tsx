@@ -33,7 +33,6 @@ export default function WorkspaceCommandJourneyNav({
   priorityFixes,
   proofGaps,
   serviceCount = 0,
-  milestoneCount,
   participantCount,
   supportCount,
   riskCount,
@@ -43,38 +42,25 @@ export default function WorkspaceCommandJourneyNav({
   const items: JourneyStepItem<WorkspaceCommandView>[] = [
     {
       value: 'overview',
-      label: 'Workspace answer',
-      detail: 'Launch confidence, current status, and the safest next decision.',
+      label: 'Overview',
+      detail: 'Current state, blockers, ownership, and the safest next action.',
       accent: appleColors.green,
       meta: (
         <PastelChip
-          label={`${milestoneCount} checkpoints`}
+          label={`${riskCount} risks`}
           accent={appleColors.green}
           bg="#e7f8ee"
         />
       ),
     },
     {
-      value: 'plan',
-      label: 'Plan work',
-      detail: 'Services, findings, people, and next steps in one practical plan.',
-      accent: serviceCount || priorityFixes ? appleColors.purple : appleColors.amber,
-      meta: (
-        <PastelChip
-          label={`${serviceCount} services`}
-          accent={serviceCount ? appleColors.purple : appleColors.amber}
-          bg={serviceCount ? '#f3edff' : '#fff4dc'}
-        />
-      ),
-    },
-    {
       value: 'services',
-      label: 'Services',
-      detail: 'Choose the work this workspace owns before people start fixing it.',
+      label: 'Work scope',
+      detail: 'Services, included findings, and practical work checklists.',
       accent: serviceCount ? appleColors.purple : appleColors.amber,
       meta: (
         <PastelChip
-          label={`${serviceCount} selected`}
+          label={`${serviceCount} service${serviceCount === 1 ? '' : 's'}`}
           accent={serviceCount ? appleColors.purple : appleColors.amber}
           bg={serviceCount ? '#f3edff' : '#fff4dc'}
         />
@@ -82,12 +68,12 @@ export default function WorkspaceCommandJourneyNav({
     },
     {
       value: 'proof',
-      label: 'Fixes and proof',
-      detail: 'Priority fixes, workspace steps, saved proof, and approval checks.',
+      label: 'Fix and verify',
+      detail: 'Service-owned findings, proof state, and targeted checks.',
       accent: priorityFixes || proofGaps ? appleColors.amber : appleColors.cyan,
       meta: (
         <PastelChip
-          label={`${priorityFixes + proofGaps} gaps`}
+          label={`${priorityFixes + proofGaps} open`}
           accent={priorityFixes ? appleColors.red : appleColors.amber}
           bg={priorityFixes ? '#fff1f1' : '#fff4dc'}
         />
@@ -95,8 +81,8 @@ export default function WorkspaceCommandJourneyNav({
     },
     {
       value: 'team',
-      label: 'People and help',
-      detail: 'Participants, service help, and delivery concerns that need attention.',
+      label: 'People',
+      detail: 'Participants, service owners, team help, and unowned work.',
       accent: riskCount || supportCount ? appleColors.amber : appleColors.purple,
       meta: (
         <PastelChip label={`${participantCount} people`} accent={appleColors.cyan} bg="#e4f9fd" />
@@ -104,30 +90,17 @@ export default function WorkspaceCommandJourneyNav({
     },
     {
       value: 'chat',
-      label: 'Workspace chat',
-      detail: 'Discuss decisions and mention the exact findings being fixed.',
+      label: 'Discussion / decisions',
+      detail: 'Workspace-attached decisions with finding and service mentions.',
       accent: appleColors.cyan,
       meta: (
-        <PastelChip label="Team updates" accent={appleColors.cyan} bg="#e4f9fd" />
-      ),
-    },
-    {
-      value: 'milestones',
-      label: 'Steps',
-      detail: 'Workspace steps, outputs, proof links, and acceptance progress.',
-      accent: milestoneCount ? appleColors.green : appleColors.amber,
-      meta: (
-        <PastelChip
-          label={`${milestoneCount} step${milestoneCount === 1 ? '' : 's'}`}
-          accent={milestoneCount ? appleColors.green : appleColors.amber}
-          bg={milestoneCount ? '#e7f8ee' : '#fff4dc'}
-        />
+        <PastelChip label="Workspace log" accent={appleColors.cyan} bg="#e4f9fd" />
       ),
     },
     {
       value: 'handoff',
       label: 'Handoff',
-      detail: 'Runbook, health review, integration signals, and owner acceptance.',
+      detail: 'Continuity summary once fixes, proof, and ownership are clear.',
       accent: hasHandoff ? appleColors.green : appleColors.blue,
       meta: (
         <PastelChip label={`${integrationCount} signals`} accent={appleColors.blue} bg="#eaf3ff" />

@@ -10,6 +10,7 @@ import com.produs.dto.PlatformDtos.ServiceModuleResponse;
 import com.produs.engine.ProductizationEngineService;
 import com.produs.entity.User;
 import com.produs.exception.ResourceNotFoundException;
+import com.produs.packages.PackageModuleRepository;
 import com.produs.product.ProductProfile;
 import com.produs.product.ProductProfileRepository;
 import com.produs.service.AuditService;
@@ -18,6 +19,9 @@ import com.produs.workspace.Milestone;
 import com.produs.workspace.MilestoneRepository;
 import com.produs.workspace.ProjectWorkspace;
 import com.produs.workspace.ProjectWorkspaceRepository;
+import com.produs.workspace.WorkspaceServiceFinding;
+import com.produs.workspace.WorkspaceServiceFindingRepository;
+import com.produs.workspace.WorkspaceServiceFinding.WorkspaceServiceFindingStatus;
 import com.produs.workspace.WorkspaceParticipant;
 import com.produs.workspace.WorkspaceParticipantRepository;
 import jakarta.validation.constraints.NotBlank;
@@ -61,6 +65,8 @@ public class ScannerService {
     private final WorkspaceParticipantRepository participantRepository;
     private final MilestoneRepository milestoneRepository;
     private final ServiceModuleRepository moduleRepository;
+    private final PackageModuleRepository packageModuleRepository;
+    private final WorkspaceServiceFindingRepository workspaceServiceFindingRepository;
     private final ScanSourceRepository sourceRepository;
     private final ScanRunRepository scanRunRepository;
     private final ToolRunRepository toolRunRepository;
@@ -853,9 +859,19 @@ public class ScannerService {
             throw new IllegalArgumentException("Workspace belongs to another product");
         }
         requireProductOrWorkspaceWrite(actor, thread.getProductProfile(), workspace);
-        ScannerRiskThread saved = riskLifecycleService.assignWorkspace(thread, workspace);
+        ServiceModule serviceModule = resolveWorkspaceServiceForRisk(workspace, thread, request.serviceModuleId(), false);
+        if (thread.getRecommendedModule() == null && request.serviceModuleId() != null) {
+            thread = riskLifecycleService.updateServiceMapping(
+                    thread,
+                    serviceModule,
+                    actor,
+                    "Service selected before adding the finding to workspace work."
+            );
+        }
+        includeRiskInWorkspaceService(actor, workspace, serviceModule, thread, true, "Included from product scanner findings.");
+        ScannerRiskThread saved = riskThreadRepository.findById(riskThreadId).orElse(thread);
         audit(actor, "SCANNER_RISK_ASSIGNED_WORKSPACE", "SCANNER_RISK_THREAD", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
-                "Assigned scanner risk to workspace " + workspace.getId());
+                "Assigned scanner risk to workspace " + workspace.getId() + " through service " + serviceModule.getName());
         return toRiskThreadResponse(saved);
     }
 
@@ -869,7 +885,12 @@ public class ScannerService {
         } else {
             requireProductOwnerOrAdmin(actor, thread.getProductProfile());
         }
-        ScannerRiskThread saved = riskLifecycleService.unassignWorkspace(thread);
+        if (workspace != null) {
+            excludeRiskFromWorkspaceServices(actor, workspace, thread, "Removed from workspace findings.");
+        } else {
+            riskLifecycleService.unassignWorkspace(thread);
+        }
+        ScannerRiskThread saved = riskThreadRepository.findById(riskThreadId).orElse(thread);
         audit(actor, "SCANNER_RISK_REMOVED_WORKSPACE", "SCANNER_RISK_THREAD", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
                 workspace == null ? "Scanner risk was not assigned to a workspace" : "Removed scanner risk from workspace " + workspace.getId());
         return toRiskThreadResponse(saved);
@@ -884,6 +905,9 @@ public class ScannerService {
         ProjectWorkspace workspace = thread.getWorkspace();
         if (workspace != null) {
             requireProductOrWorkspaceWrite(actor, thread.getProductProfile(), workspace);
+            packageModuleRepository
+                    .findByPackageInstanceIdAndServiceModuleId(workspace.getPackageInstance().getId(), selectedModule.getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Add " + selectedModule.getName() + " to this workspace before moving the finding to that service"));
         } else {
             requireProductOwnerOrAdmin(actor, thread.getProductProfile());
         }
@@ -894,6 +918,10 @@ public class ScannerService {
                 actor,
                 trimToNull(request.note())
         );
+        if (workspace != null) {
+            moveWorkspaceFindingToService(actor, workspace, saved, selectedModule, previousModule);
+            saved = riskThreadRepository.findById(riskThreadId).orElse(saved);
+        }
         audit(actor, "SCANNER_RISK_SERVICE_MAPPING_CHANGED", "SCANNER_RISK_THREAD", saved.getId(), AuditEvent.RiskLevel.MEDIUM,
                 "Mapped scanner risk service from " + serviceModuleLabel(previousModule) + " to " + serviceModuleLabel(selectedModule));
         return toRiskThreadResponse(saved);
@@ -925,6 +953,7 @@ public class ScannerService {
                     !isBlank(plan.runtimeTargetUrl()),
                     "Owner requested full scanner suite from workspace Check fixes"
             ));
+            persistFullSuiteCheckFixScanPlans(fullSuite.queuedRuns(), workspace, risks, mode);
             return new CheckFixesResponse(workspaceProduct(workspace).getId(), workspace.getId(), mode, risks.stream().map(ScannerRiskThread::getId).toList(), plan.preview(), fullSuite.queuedRuns(), fullSuite.skippedTargets());
         }
         List<ScanRunResponse> queued = new ArrayList<>();
@@ -958,6 +987,30 @@ public class ScannerService {
         audit(actor, "SCANNER_CHECK_FIXES_QUEUED", "PROJECT_WORKSPACE", workspace.getId(), AuditEvent.RiskLevel.MEDIUM,
                 "Queued Check fixes for " + risks.size() + " risk(s), runs=" + queued.size());
         return new CheckFixesResponse(workspaceProduct(workspace).getId(), workspace.getId(), mode, risks.stream().map(ScannerRiskThread::getId).toList(), plan.preview(), queued, skipped);
+    }
+
+    @Transactional(readOnly = true)
+    public WorkspaceCheckProgressResponse workspaceCheckProgress(User actor, UUID workspaceId) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
+        requireWorkspaceRead(actor, workspace);
+        List<CheckFixProgressRunResponse> runs = scanRunRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
+                .map(run -> readStoredCheckFixPlan(run).map(plan -> toCheckFixProgressRun(run, plan)))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .limit(20)
+                .toList();
+        int activeCount = (int) runs.stream().filter(run -> run.status() == ScanRun.RunStatus.QUEUED || run.status() == ScanRun.RunStatus.RUNNING).count();
+        int completedCount = (int) runs.stream().filter(run -> run.status() == ScanRun.RunStatus.COMPLETED).count();
+        int failedCount = (int) runs.stream().filter(run -> run.status() == ScanRun.RunStatus.FAILED || run.status() == ScanRun.RunStatus.CANCELED).count();
+        return new WorkspaceCheckProgressResponse(
+                workspaceProduct(workspace).getId(),
+                workspace.getId(),
+                activeCount,
+                completedCount,
+                failedCount,
+                runs
+        );
     }
 
     @Transactional(readOnly = true)
@@ -2681,8 +2734,265 @@ public class ScannerService {
         });
     }
 
+    private void persistFullSuiteCheckFixScanPlans(List<ScanRunResponse> queuedRuns, ProjectWorkspace workspace, List<ScannerRiskThread> risks, CheckFixesMode mode) {
+        for (ScanRunResponse queuedRun : queuedRuns) {
+            scanRunRepository.findById(queuedRun.id()).ifPresent(run -> {
+                List<String> toolKeys = queuedRun.toolRuns().stream()
+                        .map(ToolRunResponse::toolKey)
+                        .filter(key -> key != null && !key.isBlank())
+                        .distinct()
+                        .toList();
+                Map<String, Object> plan = new LinkedHashMap<>();
+                plan.put("intent", "CHECK_FIXES");
+                plan.put("mode", mode.name());
+                plan.put("workspaceId", workspace.getId().toString());
+                plan.put("riskThreadIds", risks.stream().map(risk -> risk.getId().toString()).toList());
+                plan.put("findingIds", risks.stream()
+                        .map(ScannerRiskThread::getCurrentFinding)
+                        .filter(finding -> finding != null && finding.getId() != null)
+                        .map(finding -> finding.getId().toString())
+                        .toList());
+                plan.put("baselineRunId", null);
+                plan.put("toolKeys", toolKeys);
+                plan.put("branchRef", run.getBranchRef());
+                plan.put("runtimeTargetUrl", run.getRuntimeTargetUrl());
+                plan.put("containerImageRef", run.getContainerImageRef());
+                plan.put("hints", List.of());
+                plan.put("limitations", List.of());
+                try {
+                    run.setScanPlan(objectMapper.writeValueAsString(plan));
+                } catch (Exception ex) {
+                    run.setScanPlan("Full scanner suite Check fixes for workspace " + workspace.getId());
+                }
+                scanRunRepository.save(run);
+            });
+        }
+    }
+
+    private CheckFixProgressRunResponse toCheckFixProgressRun(ScanRun run, StoredCheckFixScanPlan plan) {
+        List<ToolRun> tools = toolRunRepository.findByScanRunIdOrderByCreatedAtAsc(run.getId());
+        List<String> toolKeys = plan.toolKeys().isEmpty()
+                ? tools.stream()
+                        .map(ToolRun::getToolKey)
+                        .filter(key -> key != null && !key.isBlank())
+                        .distinct()
+                        .toList()
+                : plan.toolKeys();
+        return new CheckFixProgressRunResponse(
+                run.getId(),
+                plan.mode(),
+                run.getStatus(),
+                run.getDepth(),
+                run.getCreatedAt(),
+                run.getStartedAt(),
+                run.getCompletedAt(),
+                run.getFailureSummary(),
+                plan.baselineRunId(),
+                plan.riskThreadIds(),
+                plan.findingIds(),
+                toolKeys,
+                tools.size(),
+                countTools(tools, ToolRun.ToolStatus.QUEUED),
+                countTools(tools, ToolRun.ToolStatus.RUNNING),
+                countTools(tools, ToolRun.ToolStatus.COMPLETED),
+                countTools(tools, ToolRun.ToolStatus.FAILED),
+                countTools(tools, ToolRun.ToolStatus.CANCELED),
+                countTools(tools, ToolRun.ToolStatus.SKIPPED),
+                tools.stream().map(this::toToolRunResponse).toList(),
+                plan.hints(),
+                plan.limitations()
+        );
+    }
+
+    private int countTools(List<ToolRun> tools, ToolRun.ToolStatus status) {
+        return (int) tools.stream().filter(tool -> tool.getStatus() == status).count();
+    }
+
+    private Optional<StoredCheckFixScanPlan> readStoredCheckFixPlan(ScanRun run) {
+        if (isBlank(run.getScanPlan())) {
+            return Optional.empty();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(run.getScanPlan());
+            if (!"CHECK_FIXES".equals(root.path("intent").asText())) {
+                return Optional.empty();
+            }
+            return Optional.of(new StoredCheckFixScanPlan(
+                    checkFixModeFromPlan(root.path("mode").asText(null)),
+                    uuidListFromPlan(root.path("riskThreadIds")),
+                    uuidListFromPlan(root.path("findingIds")),
+                    uuidFromPlan(root.path("baselineRunId")),
+                    stringListFromPlan(root.path("toolKeys")),
+                    stringListFromPlan(root.path("hints")),
+                    stringListFromPlan(root.path("limitations"))
+            ));
+        } catch (Exception ex) {
+            return Optional.empty();
+        }
+    }
+
+    private CheckFixesMode checkFixModeFromPlan(String mode) {
+        if (isBlank(mode)) {
+            return CheckFixesMode.RELEVANT_TO_FIXES;
+        }
+        try {
+            return CheckFixesMode.valueOf(mode);
+        } catch (IllegalArgumentException ex) {
+            return CheckFixesMode.RELEVANT_TO_FIXES;
+        }
+    }
+
+    private List<UUID> uuidListFromPlan(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return List.of();
+        }
+        List<UUID> values = new ArrayList<>();
+        node.forEach(item -> {
+            UUID parsed = uuidFromPlan(item);
+            if (parsed != null) {
+                values.add(parsed);
+            }
+        });
+        return values;
+    }
+
+    private UUID uuidFromPlan(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        String value = trimToNull(node.asText(null));
+        if (value == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private List<String> stringListFromPlan(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        node.forEach(item -> {
+            String value = trimToNull(item.asText(null));
+            if (value != null) {
+                values.add(value);
+            }
+        });
+        return values;
+    }
+
     private ProductProfile workspaceProduct(ProjectWorkspace workspace) {
         return workspace.getPackageInstance().getProductProfile();
+    }
+
+    private ServiceModule resolveWorkspaceServiceForRisk(ProjectWorkspace workspace, ScannerRiskThread thread, UUID requestedServiceModuleId, boolean allowDifferentMapping) {
+        ServiceModule serviceModule;
+        if (requestedServiceModuleId != null) {
+            serviceModule = moduleRepository.findById(requestedServiceModuleId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Service module not found"));
+        } else {
+            serviceModule = thread.getRecommendedModule();
+        }
+        if (serviceModule == null) {
+            throw new IllegalArgumentException("Choose a service for this finding before adding it to workspace work");
+        }
+        if (!allowDifferentMapping && thread.getRecommendedModule() != null && !thread.getRecommendedModule().getId().equals(serviceModule.getId())) {
+            throw new IllegalArgumentException("Finding is mapped to " + thread.getRecommendedModule().getName() + ", not " + serviceModule.getName());
+        }
+        packageModuleRepository
+                .findByPackageInstanceIdAndServiceModuleId(workspace.getPackageInstance().getId(), serviceModule.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Add " + serviceModule.getName() + " to this workspace before adding its findings"));
+        return serviceModule;
+    }
+
+    private void includeRiskInWorkspaceService(User actor, ProjectWorkspace workspace, ServiceModule serviceModule, ScannerRiskThread thread, boolean includeExcluded, String reason) {
+        if (thread.getRecommendedModule() == null) {
+            throw new IllegalArgumentException("Choose a service for this finding before adding it to workspace work");
+        }
+        if (!thread.getRecommendedModule().getId().equals(serviceModule.getId())) {
+            throw new IllegalArgumentException("Finding is mapped to " + thread.getRecommendedModule().getName() + ", not " + serviceModule.getName());
+        }
+        WorkspaceServiceFinding scope = workspaceServiceFindingRepository
+                .findByWorkspaceIdAndServiceModuleIdAndRiskThreadId(workspace.getId(), serviceModule.getId(), thread.getId())
+                .orElseGet(WorkspaceServiceFinding::new);
+        if (scope.getId() != null && scope.getStatus() == WorkspaceServiceFindingStatus.EXCLUDED && !includeExcluded) {
+            throw new IllegalArgumentException("Finding was removed from this service. Confirm re-add before including it again.");
+        }
+        scope.setWorkspace(workspace);
+        scope.setServiceModule(serviceModule);
+        scope.setRiskThread(thread);
+        scope.setStatus(WorkspaceServiceFindingStatus.INCLUDED);
+        scope.setReason(reason);
+        scope.setAddedBy(actor);
+        scope.setRemovedBy(null);
+        workspaceServiceFindingRepository.save(scope);
+        riskLifecycleService.assignWorkspace(thread, workspace);
+    }
+
+    private void moveWorkspaceFindingToService(
+            User actor,
+            ProjectWorkspace workspace,
+            ScannerRiskThread thread,
+            ServiceModule selectedModule,
+            ServiceModule previousModule
+    ) {
+        List<WorkspaceServiceFinding> includedScopes = workspaceServiceFindingRepository
+                .findByWorkspaceIdAndRiskThreadIdAndStatus(workspace.getId(), thread.getId(), WorkspaceServiceFindingStatus.INCLUDED);
+        includedScopes.stream()
+                .filter(scope -> !scope.getServiceModule().getId().equals(selectedModule.getId()))
+                .forEach(scope -> {
+                    scope.setStatus(WorkspaceServiceFindingStatus.EXCLUDED);
+                    scope.setReason("Moved to " + selectedModule.getName() + ".");
+                    scope.setRemovedBy(actor);
+                    workspaceServiceFindingRepository.save(scope);
+                });
+        boolean alreadyIncludedUnderSelectedService = workspaceServiceFindingRepository
+                .findByWorkspaceIdAndServiceModuleIdAndRiskThreadId(workspace.getId(), selectedModule.getId(), thread.getId())
+                .map(scope -> scope.getStatus() == WorkspaceServiceFindingStatus.INCLUDED)
+                .orElse(false);
+        if (!alreadyIncludedUnderSelectedService) {
+            includeRiskInWorkspaceService(
+                    actor,
+                    workspace,
+                    selectedModule,
+                    thread,
+                    true,
+                    previousModule == null
+                            ? "Included after service was chosen for this workspace finding."
+                            : "Moved from " + previousModule.getName() + " to " + selectedModule.getName() + "."
+            );
+        } else {
+            riskLifecycleService.assignWorkspace(thread, workspace);
+        }
+    }
+
+    private void excludeRiskFromWorkspaceServices(User actor, ProjectWorkspace workspace, ScannerRiskThread thread, String reason) {
+        List<WorkspaceServiceFinding> includedScopes = workspaceServiceFindingRepository
+                .findByWorkspaceIdAndRiskThreadIdAndStatus(workspace.getId(), thread.getId(), WorkspaceServiceFindingStatus.INCLUDED);
+        if (includedScopes.isEmpty() && thread.getRecommendedModule() != null) {
+            WorkspaceServiceFinding scope = workspaceServiceFindingRepository
+                    .findByWorkspaceIdAndServiceModuleIdAndRiskThreadId(workspace.getId(), thread.getRecommendedModule().getId(), thread.getId())
+                    .orElseGet(WorkspaceServiceFinding::new);
+            scope.setWorkspace(workspace);
+            scope.setServiceModule(thread.getRecommendedModule());
+            scope.setRiskThread(thread);
+            includedScopes = List.of(scope);
+        }
+        includedScopes.forEach(scope -> {
+            scope.setStatus(WorkspaceServiceFindingStatus.EXCLUDED);
+            scope.setReason(reason);
+            scope.setRemovedBy(actor);
+            workspaceServiceFindingRepository.save(scope);
+        });
+        if (workspaceServiceFindingRepository
+                .findByWorkspaceIdAndRiskThreadIdAndStatus(workspace.getId(), thread.getId(), WorkspaceServiceFindingStatus.INCLUDED)
+                .isEmpty()) {
+            riskLifecycleService.unassignWorkspace(thread);
+        }
     }
 
     private String firstNonBlank(String... values) {
@@ -3295,6 +3605,16 @@ public class ScannerService {
             List<String> limitations
     ) {}
 
+    private record StoredCheckFixScanPlan(
+            CheckFixesMode mode,
+            List<UUID> riskThreadIds,
+            List<UUID> findingIds,
+            UUID baselineRunId,
+            List<String> toolKeys,
+            List<String> hints,
+            List<String> limitations
+    ) {}
+
     private record CheckFixRiskHint(
             UUID riskThreadId,
             UUID findingId,
@@ -3467,7 +3787,10 @@ public class ScannerService {
             LocalDate reviewDueOn
     ) {}
 
-    public record RiskWorkspaceAssignmentRequest(@NotNull UUID workspaceId) {}
+    public record RiskWorkspaceAssignmentRequest(
+            @NotNull UUID workspaceId,
+            UUID serviceModuleId
+    ) {}
 
     public record RiskServiceMappingRequest(
             @NotNull UUID serviceModuleId,
@@ -3498,6 +3821,40 @@ public class ScannerService {
             CheckFixPreview preview,
             List<ScanRunResponse> queuedRuns,
             List<SkippedScanTargetResponse> skippedTargets
+    ) {}
+
+    public record WorkspaceCheckProgressResponse(
+            UUID productProfileId,
+            UUID workspaceId,
+            int activeCount,
+            int completedCount,
+            int failedCount,
+            List<CheckFixProgressRunResponse> runs
+    ) {}
+
+    public record CheckFixProgressRunResponse(
+            UUID runId,
+            CheckFixesMode mode,
+            ScanRun.RunStatus status,
+            ScanRun.ScanDepth depth,
+            LocalDateTime createdAt,
+            LocalDateTime startedAt,
+            LocalDateTime completedAt,
+            String failureSummary,
+            UUID comparisonBaseRunId,
+            List<UUID> riskThreadIds,
+            List<UUID> findingIds,
+            List<String> toolKeys,
+            int totalTools,
+            int queuedTools,
+            int runningTools,
+            int completedTools,
+            int failedTools,
+            int canceledTools,
+            int skippedTools,
+            List<ToolRunResponse> toolRuns,
+            List<String> hints,
+            List<String> limitations
     ) {}
 
     public record ScannerRiskSummaryResponse(

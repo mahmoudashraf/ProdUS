@@ -18,9 +18,11 @@ import com.produs.repository.UserRepository;
 import com.produs.scanner.ScannerService;
 import com.produs.scanner.ScannerService.CheckFixesRequest;
 import com.produs.scanner.ScannerService.CheckFixesResponse;
+import com.produs.scanner.ScannerService.WorkspaceCheckProgressResponse;
 import com.produs.scanner.ScannerService.ScannerRiskSummaryResponse;
 import com.produs.scanner.ScannerRiskLifecycleService;
 import com.produs.scanner.ScannerRiskThread;
+import com.produs.workspace.WorkspaceServiceFinding.WorkspaceServiceFindingStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -43,6 +45,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -68,6 +71,7 @@ public class WorkspaceController {
     private final UserRepository userRepository;
     private final ScannerService scannerService;
     private final ScannerRiskLifecycleService riskLifecycleService;
+    private final WorkspaceServiceFindingRepository workspaceServiceFindingRepository;
 
     @GetMapping
     public List<ProjectWorkspaceResponse> list(@AuthenticationPrincipal User user) {
@@ -307,9 +311,28 @@ public class WorkspaceController {
         WorkspaceServiceFindingBucket findingBucket = serviceFindingBucket(workspace, serviceModule);
         List<ScannerRiskThread> addedFindings = new ArrayList<>();
         if (!Boolean.FALSE.equals(request.addMatchingFindings())) {
-            findingBucket.findingsWillBeAdded().forEach(risk -> {
-                addedFindings.add(riskLifecycleService.assignWorkspace(risk, workspace));
-            });
+            List<ScannerRiskThread> candidateFindings = new ArrayList<>(findingBucket.findingsWillBeAdded());
+            if (Boolean.TRUE.equals(request.includeExcluded())) {
+                candidateFindings.addAll(findingBucket.findingsExcludedFromWorkspace());
+            }
+            candidateFindings.addAll(explicitUnmappedServiceChoices(
+                    workspace,
+                    candidateFindings,
+                    request.selectedRiskThreadIds()
+            ));
+            List<ScannerRiskThread> findingsToAdd = selectServiceFindings(
+                    candidateFindings,
+                    request.selectedRiskThreadIds()
+            );
+            findingsToAdd.forEach(risk -> addedFindings.add(includeFindingInWorkspaceService(
+                    user,
+                    workspace,
+                    serviceModule,
+                    risk,
+                    Boolean.TRUE.equals(request.includeExcluded()),
+                    "Included when " + serviceModule.getName() + " was added to this workspace.",
+                    true
+            )));
         }
         List<ScannerRiskThread> coveredFindings = new ArrayList<>(findingBucket.findingsAlreadyInWorkspace());
         coveredFindings.addAll(addedFindings);
@@ -334,6 +357,7 @@ public class WorkspaceController {
     }
 
     @DeleteMapping("/{workspaceId}/services/{moduleId}")
+    @Transactional
     public List<PackageModuleResponse> removeService(
             @AuthenticationPrincipal User user,
             @PathVariable UUID workspaceId,
@@ -347,10 +371,87 @@ public class WorkspaceController {
         if (!module.getPackageInstance().getId().equals(workspace.getPackageInstance().getId())) {
             throw new AccessDeniedException("Service is not attached to this workspace");
         }
+        excludeIncludedFindingsForService(user, workspace, module.getServiceModule(), "Service removed from this workspace.");
         packageModuleRepository.delete(module);
         return packageModuleRepository.findByPackageInstanceIdOrderBySequenceOrderAsc(workspace.getPackageInstance().getId()).stream()
                 .map(packageModule -> toPackageModuleResponse(packageModule))
                 .toList();
+    }
+
+    @PostMapping("/{workspaceId}/services/{serviceModuleId}/findings")
+    @Transactional
+    public WorkspaceServiceFindingsUpdateResponse includeServiceFindings(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID serviceModuleId,
+            @Valid @RequestBody WorkspaceServiceFindingsRequest request
+    ) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceCoordinator(user, workspace);
+        ServiceModule serviceModule = serviceModuleRepository.findById(serviceModuleId)
+                .orElseThrow(() -> new IllegalArgumentException("Service module not found"));
+        requireServiceInWorkspace(workspace, serviceModule);
+        if (request.riskThreadIds() == null || request.riskThreadIds().isEmpty()) {
+            throw new IllegalArgumentException("Select at least one finding to include");
+        }
+        List<ScannerRiskThread> included = new ArrayList<>();
+        riskLifecycleService.currentProductRisks(workspaceProduct(workspace).getId()).stream()
+                .filter(risk -> request.riskThreadIds().contains(risk.getId()))
+                .forEach(risk -> included.add(includeFindingInWorkspaceService(
+                        user,
+                        workspace,
+                        serviceModule,
+                        risk,
+                        Boolean.TRUE.equals(request.includeExcluded()),
+                        hasText(request.note()) ? request.note().trim() : "Included in workspace service scope.",
+                        false
+                )));
+        if (included.size() != request.riskThreadIds().size()) {
+            throw new IllegalArgumentException("Some selected findings are not available for this product");
+        }
+        return new WorkspaceServiceFindingsUpdateResponse(
+                serviceModule.getId(),
+                serviceModule.getName(),
+                included.stream().map(this::toFindingBrief).toList(),
+                included.size(),
+                included.size() + " finding" + (included.size() == 1 ? "" : "s") + " included under " + serviceModule.getName() + "."
+        );
+    }
+
+    @PostMapping("/{workspaceId}/services/{serviceModuleId}/findings/{riskThreadId}/exclude")
+    @Transactional
+    public WorkspaceServiceFindingsUpdateResponse excludeServiceFinding(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID serviceModuleId,
+            @PathVariable UUID riskThreadId,
+            @Valid @RequestBody WorkspaceServiceFindingExcludeRequest request
+    ) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceCoordinator(user, workspace);
+        ServiceModule serviceModule = serviceModuleRepository.findById(serviceModuleId)
+                .orElseThrow(() -> new IllegalArgumentException("Service module not found"));
+        requireServiceInWorkspace(workspace, serviceModule);
+        ScannerRiskThread risk = riskLifecycleService.currentProductRisks(workspaceProduct(workspace).getId()).stream()
+                .filter(item -> item.getId().equals(riskThreadId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Finding is not available for this product"));
+        excludeFindingFromWorkspaceService(
+                user,
+                workspace,
+                serviceModule,
+                risk,
+                hasText(request.reason()) ? request.reason().trim() : "Removed from this workspace service scope."
+        );
+        return new WorkspaceServiceFindingsUpdateResponse(
+                serviceModule.getId(),
+                serviceModule.getName(),
+                List.of(toFindingBrief(risk)),
+                1,
+                "Finding removed from " + serviceModule.getName() + " in this workspace."
+        );
     }
 
     @GetMapping("/{workspaceId}/scanner/risks/current")
@@ -365,6 +466,14 @@ public class WorkspaceController {
             @Valid @RequestBody CheckFixesRequest request
     ) {
         return scannerService.checkWorkspaceFixes(user, workspaceId, request);
+    }
+
+    @GetMapping("/{workspaceId}/scanner/check-progress")
+    public WorkspaceCheckProgressResponse checkProgress(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId
+    ) {
+        return scannerService.workspaceCheckProgress(user, workspaceId);
     }
 
     @PostMapping("/{workspaceId}/participants")
@@ -462,8 +571,10 @@ public class WorkspaceController {
                         bucket.serviceModule().getName(),
                         bucket.findingsAlreadyInWorkspace().size(),
                         bucket.findingsWillBeAdded().size(),
+                        bucket.findingsExcludedFromWorkspace().size(),
                         bucket.findingsAlreadyInWorkspace().stream().map(this::toFindingBrief).toList(),
-                        bucket.findingsWillBeAdded().stream().map(this::toFindingBrief).toList()
+                        bucket.findingsWillBeAdded().stream().map(this::toFindingBrief).toList(),
+                        bucket.findingsExcludedFromWorkspace().stream().map(this::toFindingBrief).toList()
                 ))
                 .sorted(Comparator
                         .comparingInt(WorkspaceServiceFindingImpactResponse::findingsWillBeAddedCount).reversed()
@@ -487,12 +598,155 @@ public class WorkspaceController {
             List<ScannerRiskThread> matchingRisks
     ) {
         List<ScannerRiskThread> alreadyInWorkspace = matchingRisks.stream()
-                .filter(risk -> risk.getWorkspace() != null && risk.getWorkspace().getId().equals(workspace.getId()))
+                .filter(risk -> isIncludedInWorkspaceService(workspace, serviceModule, risk)
+                        || hasLegacyWorkspaceAssignment(workspace, risk))
                 .toList();
         List<ScannerRiskThread> willBeAdded = matchingRisks.stream()
+                .filter(risk -> !alreadyInWorkspace.contains(risk))
+                .filter(risk -> !isExcludedFromWorkspaceService(workspace, serviceModule, risk))
                 .filter(risk -> risk.getWorkspace() == null)
                 .toList();
-        return new WorkspaceServiceFindingBucket(serviceModule, alreadyInWorkspace, willBeAdded);
+        List<ScannerRiskThread> excluded = matchingRisks.stream()
+                .filter(risk -> isExcludedFromWorkspaceService(workspace, serviceModule, risk))
+                .toList();
+        return new WorkspaceServiceFindingBucket(serviceModule, alreadyInWorkspace, willBeAdded, excluded);
+    }
+
+    private boolean hasLegacyWorkspaceAssignment(ProjectWorkspace workspace, ScannerRiskThread risk) {
+        return risk.getWorkspace() != null && risk.getWorkspace().getId().equals(workspace.getId());
+    }
+
+    private boolean isIncludedInWorkspaceService(ProjectWorkspace workspace, ServiceModule serviceModule, ScannerRiskThread risk) {
+        return workspaceServiceFindingRepository
+                .findByWorkspaceIdAndServiceModuleIdAndRiskThreadId(workspace.getId(), serviceModule.getId(), risk.getId())
+                .map(scope -> scope.getStatus() == WorkspaceServiceFindingStatus.INCLUDED)
+                .orElse(false);
+    }
+
+    private boolean isExcludedFromWorkspaceService(ProjectWorkspace workspace, ServiceModule serviceModule, ScannerRiskThread risk) {
+        return workspaceServiceFindingRepository
+                .findByWorkspaceIdAndServiceModuleIdAndRiskThreadId(workspace.getId(), serviceModule.getId(), risk.getId())
+                .map(scope -> scope.getStatus() == WorkspaceServiceFindingStatus.EXCLUDED)
+                .orElse(false);
+    }
+
+    private List<ScannerRiskThread> selectServiceFindings(List<ScannerRiskThread> candidates, List<UUID> selectedRiskThreadIds) {
+        if (selectedRiskThreadIds == null || selectedRiskThreadIds.isEmpty()) {
+            return candidates;
+        }
+        Set<UUID> selected = Set.copyOf(selectedRiskThreadIds);
+        return candidates.stream()
+                .filter(risk -> selected.contains(risk.getId()))
+                .toList();
+    }
+
+    private List<ScannerRiskThread> explicitUnmappedServiceChoices(
+            ProjectWorkspace workspace,
+            List<ScannerRiskThread> candidates,
+            List<UUID> selectedRiskThreadIds
+    ) {
+        if (selectedRiskThreadIds == null || selectedRiskThreadIds.isEmpty()) {
+            return List.of();
+        }
+        Set<UUID> existingCandidateIds = candidates.stream()
+                .map(ScannerRiskThread::getId)
+                .collect(Collectors.toSet());
+        Set<UUID> selected = Set.copyOf(selectedRiskThreadIds);
+        return riskLifecycleService.currentProductRisks(workspaceProduct(workspace).getId()).stream()
+                .filter(risk -> selected.contains(risk.getId()))
+                .filter(risk -> !existingCandidateIds.contains(risk.getId()))
+                .filter(risk -> risk.getRecommendedModule() == null)
+                .filter(risk -> risk.getWorkspace() == null || hasLegacyWorkspaceAssignment(workspace, risk))
+                .toList();
+    }
+
+    private ScannerRiskThread includeFindingInWorkspaceService(
+            User user,
+            ProjectWorkspace workspace,
+            ServiceModule serviceModule,
+            ScannerRiskThread risk,
+            boolean includeExcluded,
+            String reason,
+            boolean allowServiceChoiceForUnmapped
+    ) {
+        if (allowServiceChoiceForUnmapped && risk.getRecommendedModule() == null) {
+            risk = riskLifecycleService.updateServiceMapping(
+                    risk,
+                    serviceModule,
+                    user,
+                    "Service selected before adding the finding to workspace work."
+            );
+        }
+        validateServiceOwnsRisk(workspace, serviceModule, risk);
+        WorkspaceServiceFinding scope = workspaceServiceFindingRepository
+                .findByWorkspaceIdAndServiceModuleIdAndRiskThreadId(workspace.getId(), serviceModule.getId(), risk.getId())
+                .orElseGet(WorkspaceServiceFinding::new);
+        if (scope.getId() != null && scope.getStatus() == WorkspaceServiceFindingStatus.EXCLUDED && !includeExcluded) {
+            throw new IllegalArgumentException("Finding was removed from this service. Confirm re-add before including it again.");
+        }
+        scope.setWorkspace(workspace);
+        scope.setServiceModule(serviceModule);
+        scope.setRiskThread(risk);
+        scope.setStatus(WorkspaceServiceFindingStatus.INCLUDED);
+        scope.setReason(reason);
+        scope.setAddedBy(user);
+        scope.setRemovedBy(null);
+        workspaceServiceFindingRepository.save(scope);
+        return riskLifecycleService.assignWorkspace(risk, workspace);
+    }
+
+    private void excludeIncludedFindingsForService(User user, ProjectWorkspace workspace, ServiceModule serviceModule, String reason) {
+        workspaceServiceFindingRepository
+                .findByWorkspaceIdAndServiceModuleIdOrderByUpdatedAtDesc(workspace.getId(), serviceModule.getId())
+                .stream()
+                .filter(scope -> scope.getStatus() == WorkspaceServiceFindingStatus.INCLUDED)
+                .forEach(scope -> excludeFindingFromWorkspaceService(user, workspace, serviceModule, scope.getRiskThread(), reason));
+    }
+
+    private void excludeFindingFromWorkspaceService(
+            User user,
+            ProjectWorkspace workspace,
+            ServiceModule serviceModule,
+            ScannerRiskThread risk,
+            String reason
+    ) {
+        validateServiceOwnsRisk(workspace, serviceModule, risk);
+        WorkspaceServiceFinding scope = workspaceServiceFindingRepository
+                .findByWorkspaceIdAndServiceModuleIdAndRiskThreadId(workspace.getId(), serviceModule.getId(), risk.getId())
+                .orElseGet(WorkspaceServiceFinding::new);
+        scope.setWorkspace(workspace);
+        scope.setServiceModule(serviceModule);
+        scope.setRiskThread(risk);
+        scope.setStatus(WorkspaceServiceFindingStatus.EXCLUDED);
+        scope.setReason(reason);
+        scope.setRemovedBy(user);
+        workspaceServiceFindingRepository.save(scope);
+        if (risk.getWorkspace() != null
+                && risk.getWorkspace().getId().equals(workspace.getId())
+                && workspaceServiceFindingRepository
+                .findByWorkspaceIdAndRiskThreadIdAndStatus(workspace.getId(), risk.getId(), WorkspaceServiceFindingStatus.INCLUDED)
+                .isEmpty()) {
+            riskLifecycleService.unassignWorkspace(risk);
+        }
+    }
+
+    private void validateServiceOwnsRisk(ProjectWorkspace workspace, ServiceModule serviceModule, ScannerRiskThread risk) {
+        if (!risk.getProductProfile().getId().equals(workspaceProduct(workspace).getId())) {
+            throw new IllegalArgumentException("Finding belongs to another product");
+        }
+        if (risk.getRecommendedModule() == null) {
+            throw new IllegalArgumentException("Choose a service for this finding before adding it to workspace work");
+        }
+        if (!risk.getRecommendedModule().getId().equals(serviceModule.getId())) {
+            throw new IllegalArgumentException("Finding is mapped to " + risk.getRecommendedModule().getName() + ", not " + serviceModule.getName());
+        }
+        requireServiceInWorkspace(workspace, serviceModule);
+    }
+
+    private void requireServiceInWorkspace(ProjectWorkspace workspace, ServiceModule serviceModule) {
+        packageModuleRepository
+                .findByPackageInstanceIdAndServiceModuleId(workspace.getPackageInstance().getId(), serviceModule.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Add " + serviceModule.getName() + " to this workspace before adding its findings"));
     }
 
     private WorkspaceFindingBriefResponse toFindingBrief(ScannerRiskThread risk) {
@@ -669,12 +923,21 @@ public class WorkspaceController {
             Boolean required,
             String rationale,
             Boolean createMilestone,
-            Boolean addMatchingFindings
+            Boolean addMatchingFindings,
+            List<UUID> selectedRiskThreadIds,
+            Boolean includeExcluded
     ) {}
+    public record WorkspaceServiceFindingsRequest(
+            List<UUID> riskThreadIds,
+            Boolean includeExcluded,
+            String note
+    ) {}
+    public record WorkspaceServiceFindingExcludeRequest(String reason) {}
     private record WorkspaceServiceFindingBucket(
             ServiceModule serviceModule,
             List<ScannerRiskThread> findingsAlreadyInWorkspace,
-            List<ScannerRiskThread> findingsWillBeAdded
+            List<ScannerRiskThread> findingsWillBeAdded,
+            List<ScannerRiskThread> findingsExcludedFromWorkspace
     ) {}
     public record WorkspaceFindingBriefResponse(
             UUID id,
@@ -691,8 +954,10 @@ public class WorkspaceController {
             String serviceName,
             int findingsAlreadyInWorkspaceCount,
             int findingsWillBeAddedCount,
+            int findingsExcludedFromWorkspaceCount,
             List<WorkspaceFindingBriefResponse> findingsAlreadyInWorkspace,
-            List<WorkspaceFindingBriefResponse> findingsWillBeAdded
+            List<WorkspaceFindingBriefResponse> findingsWillBeAdded,
+            List<WorkspaceFindingBriefResponse> findingsExcludedFromWorkspace
     ) {}
     public record WorkspaceServiceAddResponse(
             PackageModuleResponse service,
@@ -700,6 +965,13 @@ public class WorkspaceController {
             List<WorkspaceFindingBriefResponse> coveredFindings,
             int addedFindingCount,
             int coveredFindingCount,
+            String ownerNotice
+    ) {}
+    public record WorkspaceServiceFindingsUpdateResponse(
+            UUID serviceModuleId,
+            String serviceName,
+            List<WorkspaceFindingBriefResponse> findings,
+            int findingCount,
             String ownerNotice
     ) {}
 }

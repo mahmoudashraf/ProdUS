@@ -20,6 +20,7 @@ import type {
   ScannerRiskSummary,
   WorkspaceChat,
   WorkspaceServiceAddResponse,
+  WorkspaceServiceFindingsUpdateResponse,
 } from './types';
 import { useWorkspaceCommandActions } from './useWorkspaceCommandActions';
 import { useWorkspaceCommandData } from './useWorkspaceCommandData';
@@ -30,13 +31,11 @@ import type { WorkspaceCommandHandoffView } from './WorkspaceCommandHandoffPanel
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
 import WorkspaceCommandChatPanel from './WorkspaceCommandChatPanel';
 import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
-import WorkspaceCommandPlanPanel from './WorkspaceCommandPlanPanel';
 import type { WorkspaceCommandProofView } from './WorkspaceCommandProofStepPanel';
 import WorkspaceCommandProofStepPanel from './WorkspaceCommandProofStepPanel';
 import WorkspaceCommandServicesPanel from './WorkspaceCommandServicesPanel';
 import type { WorkspaceCommandTeamView } from './WorkspaceCommandTeamPanels';
 import WorkspaceCommandTeamPanels from './WorkspaceCommandTeamPanels';
-import WorkspaceProofMilestonesPanel from './WorkspaceProofMilestonesPanel';
 
 interface IOwnerProductDeliveryWorkspaceProps {
   listHref: string;
@@ -46,12 +45,12 @@ interface IOwnerProductDeliveryWorkspaceProps {
 
 const deliveryViewLabels: Record<WorkspaceCommandView, string> = {
   overview: 'Overview',
-  plan: 'Plan work',
-  services: 'Services',
-  proof: 'Findings & proof',
-  team: 'People & help',
-  chat: 'Workspace chat',
-  milestones: 'Steps',
+  plan: 'Work scope',
+  services: 'Work scope',
+  proof: 'Fix and verify',
+  team: 'People',
+  chat: 'Discussion / decisions',
+  milestones: 'Work checklist',
   handoff: 'Handoff',
 };
 
@@ -254,6 +253,34 @@ export default function OwnerProductDeliveryWorkspace({
       });
     },
   });
+  const includeServiceFindings = useMutation({
+    mutationFn: ({
+      includeExcluded = false,
+      riskThreadIds,
+      serviceModuleId,
+    }: {
+      includeExcluded?: boolean;
+      riskThreadIds: string[];
+      serviceModuleId: string;
+    }) =>
+      postJson<
+        WorkspaceServiceFindingsUpdateResponse,
+        { riskThreadIds: string[]; includeExcluded: boolean; note: string }
+      >(`/workspaces/${activeWorkspace.id}/services/${serviceModuleId}/findings`, {
+        riskThreadIds,
+        includeExcluded,
+        note: includeExcluded
+          ? 'Owner re-added previously removed findings to this workspace service.'
+          : 'Owner included selected findings in this workspace service.',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces', activeWorkspace.id, 'services'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', activeWorkspace.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['workspaces', activeWorkspace.id, 'services', 'finding-impact'],
+      });
+    },
+  });
   const removeService = useMutation({
     mutationFn: (packageModuleId: string) =>
       deleteJson('/workspaces/' + activeWorkspace.id + '/services/' + packageModuleId),
@@ -267,7 +294,6 @@ export default function OwnerProductDeliveryWorkspace({
   });
   const {
     completedMilestones,
-    deliverableCount,
     governanceCriteria,
     integrationList,
     latestHandoff,
@@ -345,9 +371,15 @@ export default function OwnerProductDeliveryWorkspace({
     if (view !== workspaceView) clearSelectedMilestone();
     pushWorkspaceRoute(view, activeWorkspace.id, options);
   };
-  const nextActionView: WorkspaceCommandView =
-    readiness?.blockerCount || missingEvidenceCount ? 'proof' : roughEdgeCount ? 'team' : 'handoff';
   const assignedFindingCount = workspaceRiskSummary.data?.total || 0;
+  const nextActionView: WorkspaceCommandView =
+    !packageModuleList.length
+      ? 'services'
+      : assignedFindingCount || readiness?.blockerCount || missingEvidenceCount
+        ? 'proof'
+        : !participantCount || roughEdgeCount
+          ? 'team'
+          : 'handoff';
   const openNextAction = () => {
     if (nextActionView === 'proof') {
       openDeliveryView('proof', { proofView: assignedFindingCount ? 'findings' : 'readiness' });
@@ -409,20 +441,20 @@ export default function OwnerProductDeliveryWorkspace({
 
           <DeliveryHero
             activeWorkspace={activeWorkspace}
+            assignedFindingCount={assignedFindingCount}
             completedMilestones={completedMilestones}
-            deliverableCount={deliverableCount}
             listHref={listHref}
             milestoneCount={milestoneList.length}
             missingEvidenceCount={missingEvidenceCount}
             participantCount={participantCount}
             product={product}
-            proofFileCount={scopedAttachments('WORKSPACE', activeWorkspace.id).length}
             readinessBlockers={readiness?.blockerCount || 0}
             roughEdgeCount={roughEdgeCount}
+            serviceCount={packageModuleList.length}
             workspaceProgress={workspaceProgress}
             workspaceCount={workspaceList.length}
             onNextAction={openNextAction}
-            onPlanWork={() => openDeliveryView('plan')}
+            onWorkScope={() => openDeliveryView('services')}
           />
 
           <DeliveryJourneyCards
@@ -430,7 +462,6 @@ export default function OwnerProductDeliveryWorkspace({
             currentView={workspaceView}
             handoffReady={!!latestHandoff}
             integrationCount={integrationList.length}
-            milestoneCount={milestoneList.length}
             missingEvidenceCount={missingEvidenceCount}
             participantCount={participantCount}
             readinessBlockers={readiness?.blockerCount || 0}
@@ -467,25 +498,6 @@ export default function OwnerProductDeliveryWorkspace({
         </Surface>
       )}
 
-      {workspaceView === 'plan' && (
-        <WorkspaceCommandPlanPanel
-          milestoneList={milestoneList}
-          packageModules={packageModuleList}
-          participantList={participantList}
-          riskSummary={workspaceRiskSummary.data}
-          supportList={supportList}
-          workspace={activeWorkspace}
-          onOpenFindings={() =>
-            openDeliveryView('proof', {
-              proofView: assignedFindingCount ? 'findings' : 'readiness',
-            })
-          }
-          onOpenMilestones={() => openDeliveryView('milestones')}
-          onOpenServices={() => openDeliveryView('services')}
-          onOpenTeam={() => openDeliveryView('team')}
-        />
-      )}
-
       {workspaceView === 'services' && (
         <WorkspaceCommandServicesPanel
           canCoordinate={canCoordinate}
@@ -493,9 +505,18 @@ export default function OwnerProductDeliveryWorkspace({
           packageModules={packageModuleList}
           isAssigningService={assignService.isPending}
           lastServiceAdd={assignService.data}
+          lastServiceFindingUpdate={includeServiceFindings.data}
           removingServiceId={removeService.isPending ? String(removeService.variables || '') : null}
           serviceFindingImpacts={serviceFindingImpactList}
+          isUpdatingServiceFindings={includeServiceFindings.isPending}
           onAssignService={serviceModuleId => assignService.mutate(serviceModuleId)}
+          onIncludeServiceFindings={(serviceModuleId, riskThreadIds, includeExcluded) =>
+            includeServiceFindings.mutate({
+              serviceModuleId,
+              riskThreadIds,
+              includeExcluded: includeExcluded ?? false,
+            })
+          }
           onRemoveService={packageModuleId => removeService.mutate(packageModuleId)}
         />
       )}
@@ -634,23 +655,6 @@ export default function OwnerProductDeliveryWorkspace({
           }
           onOpenHub={() => openDeliveryView('team')}
           onViewChange={teamView => openDeliveryView('team', { teamView })}
-          evidencePanel={evidencePanel}
-        />
-      )}
-
-      {workspaceView === 'milestones' && (
-        <WorkspaceProofMilestonesPanel
-          milestoneList={milestoneList}
-          selectedMilestone={selectedMilestone}
-          deliverableList={deliverableList}
-          milestoneRiskById={milestoneRiskById}
-          milestoneForm={milestoneForm}
-          deliverableForm={deliverableForm}
-          isCreatingMilestone={createMilestone.isPending}
-          isCreatingDeliverable={createDeliverable.isPending}
-          onCreateMilestone={() => createMilestone.mutate()}
-          onCreateDeliverable={() => createDeliverable.mutate()}
-          onSelectMilestone={setSelectedMilestoneId}
           evidencePanel={evidencePanel}
         />
       )}

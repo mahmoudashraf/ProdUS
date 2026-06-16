@@ -77,11 +77,11 @@ type MilestoneRisk = WorkspaceScannerReadiness['milestoneRisks'][number];
 export type WorkspaceCommandProofView = 'findings' | 'readiness' | 'steps' | 'proof' | 'acceptance';
 
 const proofViewLabels: Record<WorkspaceCommandProofView, string> = {
-  findings: 'Assigned findings',
-  readiness: 'Fix path',
-  steps: 'Steps',
-  proof: 'Proof files',
-  acceptance: 'Acceptance',
+  findings: 'Service findings',
+  readiness: 'Readiness answer',
+  steps: 'Work checklist',
+  proof: 'Proof records',
+  acceptance: 'Ready checks',
 };
 
 type WorkspaceCommandProofStepPanelProps = {
@@ -220,7 +220,7 @@ export default function WorkspaceCommandProofStepPanel({
     {
       value: 'findings',
       label: proofViewLabels.findings,
-      detail: 'Scanner risks that have been selected as real work for this workspace.',
+      detail: 'Scanner risks selected as service-owned work in this workspace.',
       accent: activeFindingCount ? appleColors.amber : appleColors.green,
       meta: (
         <PastelChip
@@ -233,7 +233,7 @@ export default function WorkspaceCommandProofStepPanel({
     {
       value: 'readiness',
       label: proofViewLabels.readiness,
-      detail: 'Launch confidence, priority fixes, generated snapshot, and AI explanation.',
+      detail: 'Current launch confidence, open blockers, and the safest verification path.',
       accent: readiness?.blockerCount ? appleColors.red : appleColors.cyan,
       meta: (
         <PastelChip
@@ -246,7 +246,7 @@ export default function WorkspaceCommandProofStepPanel({
     {
       value: 'steps',
       label: proofViewLabels.steps,
-      detail: 'Workspace steps, outputs, selected milestone, and linked output proof.',
+      detail: 'Lightweight service/finding checklist items and linked output proof.',
       accent: appleColors.purple,
       meta: (
         <PastelChip
@@ -259,7 +259,7 @@ export default function WorkspaceCommandProofStepPanel({
     {
       value: 'proof',
       label: proofViewLabels.proof,
-      detail: 'Workspace proof files plus scan proof upload and recent scan records.',
+      detail: 'Evidence attached to fixes, checks, services, and handoff decisions.',
       accent: appleColors.blue,
       meta: (
         <PastelChip
@@ -272,7 +272,7 @@ export default function WorkspaceCommandProofStepPanel({
     {
       value: 'acceptance',
       label: proofViewLabels.acceptance,
-      detail: 'Acceptance checklist, proof requirements, checks, and owner review decisions.',
+      detail: 'Final ready checks, proof requirements, and owner review decisions.',
       accent:
         totalCriteriaCount === passedCriteriaCount && totalCriteriaCount
           ? appleColors.green
@@ -297,11 +297,11 @@ export default function WorkspaceCommandProofStepPanel({
     return (
       <Surface>
         <SectionTitle
-          title="Choose findings and proof work"
+          title="Choose fix and verification work"
           action={<PastelChip label="One job at a time" accent={appleColors.purple} bg="#f1efff" />}
         />
         <OwnerWorkspaceJourneyNav
-          label="Findings and proof internal pages"
+          label="Fix and verify internal pages"
           value={null}
           items={proofItems}
           onChange={onViewChange}
@@ -314,15 +314,16 @@ export default function WorkspaceCommandProofStepPanel({
     <>
       <WorkspaceBreadcrumbs
         items={[
-          { label: 'Findings and proof', onClick: onOpenHub },
+          { label: 'Fix and verify', onClick: onOpenHub },
           { label: proofViewLabels[view] },
         ]}
-        backLabel="Findings and proof"
+        backLabel="Fix and verify"
         onBack={onOpenHub}
       />
 
       {view === 'findings' && (
         <OwnerWorkspaceFixesRiskThreadPanel
+          workspaceId={workspace.id}
           catalogModules={catalogModules}
           packageModules={packageModules}
           riskSummary={workspaceRiskSummary}

@@ -54,7 +54,11 @@ export function useWorkspaceCommandRouteState({
   const proofViewParam = searchParams?.get(proofViewParamName) || null;
   const teamViewParam = searchParams?.get(teamViewParamName) || null;
   const handoffViewParam = searchParams?.get(handoffViewParamName) || null;
-  const workspaceView = isWorkspaceCommandView(viewParam) ? viewParam : 'overview';
+  const parsedWorkspaceView = isWorkspaceCommandView(viewParam) ? viewParam : 'overview';
+  const workspaceView: WorkspaceCommandView =
+    parsedWorkspaceView === 'plan' || parsedWorkspaceView === 'milestones'
+      ? 'services'
+      : parsedWorkspaceView;
   const workspaceProofView =
     workspaceView === 'proof' && isWorkspaceCommandProofView(proofViewParam)
       ? proofViewParam

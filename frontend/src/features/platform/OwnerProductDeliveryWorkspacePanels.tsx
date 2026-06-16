@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  AssignmentTurnedInOutlined,
   ChatBubbleOutlineOutlined,
   FactCheckOutlined,
   GroupsOutlined,
@@ -34,40 +33,54 @@ import WorkspaceOverviewFocusPanel from './WorkspaceOverviewFocusPanel';
 export function DeliveryHero({
   activeWorkspace,
   completedMilestones,
-  deliverableCount,
+  assignedFindingCount,
   listHref,
   milestoneCount,
   missingEvidenceCount,
   participantCount,
   product,
-  proofFileCount,
   readinessBlockers,
   roughEdgeCount,
+  serviceCount,
   workspaceCount,
   workspaceProgress,
   onNextAction,
-  onPlanWork,
+  onWorkScope,
 }: {
   activeWorkspace: ProjectWorkspace;
   completedMilestones: number;
-  deliverableCount: number;
+  assignedFindingCount: number;
   listHref: string;
   milestoneCount: number;
   missingEvidenceCount: number;
   participantCount: number;
   product: ProductProfile;
-  proofFileCount: number;
   readinessBlockers: number;
   roughEdgeCount: number;
+  serviceCount: number;
   workspaceCount: number;
   workspaceProgress: number;
   onNextAction: () => void;
-  onPlanWork: () => void;
+  onWorkScope: () => void;
 }) {
   const accent = workspaceAccent(activeWorkspace.status);
+  const attentionCount = readinessBlockers + missingEvidenceCount + roughEdgeCount;
+  const nextActionLabel = nextActionForWorkspace({
+    assignedFindingCount,
+    missingEvidenceCount,
+    participantCount,
+    roughEdgeCount,
+    serviceCount,
+  });
+  const phaseLabel = phaseForWorkspace({
+    assignedFindingCount,
+    missingEvidenceCount,
+    participantCount,
+    serviceCount,
+  });
 
   return (
-    <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f5fbf8 100%)' }}>
+    <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f7fbff 100%)' }}>
       <Stack
         direction={{ xs: 'column', lg: 'row' }}
         spacing={2.5}
@@ -80,10 +93,11 @@ export function DeliveryHero({
           alignItems={{ sm: 'center' }}
           sx={{ minWidth: 0 }}
         >
-          <ProgressRing value={workspaceProgress} size={104} color={accent} label="done" />
+          <ProgressRing value={workspaceProgress} size={104} color={accent} label="verified" />
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-              <PastelChip label="Product work room" accent={appleColors.green} bg="#e7f8ee" />
+              <PastelChip label="Workspace operating room" accent={appleColors.green} bg="#e7f8ee" />
+              <PastelChip label={phaseLabel} accent={attentionCount ? appleColors.amber : appleColors.green} bg={attentionCount ? '#fff4dc' : '#e7f8ee'} />
               <StatusChip label={activeWorkspace.status} />
             </Stack>
             <Typography
@@ -93,19 +107,24 @@ export function DeliveryHero({
               {activeWorkspace.name}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65, maxWidth: 780 }}>
-              {activeWorkspace.packageInstance?.name || 'Workspace plan'} for {product.name}. This
-              is where selected services, fixes, people, proof, and handoff become practical product
-              work.
+              {summaryForWorkspace({
+                activeWorkspace,
+                assignedFindingCount,
+                missingEvidenceCount,
+                participantCount,
+                productName: product.name,
+                serviceCount,
+              })}
             </Typography>
           </Box>
         </Stack>
 
         <Stack spacing={1} sx={{ minWidth: { lg: 240 } }}>
           <Button variant="contained" onClick={onNextAction} sx={{ minHeight: 44 }}>
-            Next delivery action
+            {nextActionLabel}
           </Button>
-          <Button variant="outlined" onClick={onPlanWork} sx={{ minHeight: 44 }}>
-            Plan work
+          <Button variant="outlined" onClick={onWorkScope} sx={{ minHeight: 44 }}>
+            Adjust work scope
           </Button>
           {workspaceCount > 1 && (
             <Button component={NextLink} href={listHref} variant="text" sx={{ minHeight: 40 }}>
@@ -117,18 +136,19 @@ export function DeliveryHero({
 
       <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>
         <DotLabel
-          label={`${completedMilestones}/${milestoneCount || 0} checkpoints done`}
+          label={`${assignedFindingCount} finding${assignedFindingCount === 1 ? '' : 's'} in scope`}
           color={accent}
         />
-        <DotLabel label={`${deliverableCount} fixes`} color={appleColors.green} />
-        <DotLabel label={`${proofFileCount} proof files`} color={appleColors.blue} />
+        <DotLabel label={`${serviceCount} service${serviceCount === 1 ? '' : 's'}`} color={appleColors.purple} />
         <DotLabel label={`${participantCount} people`} color={appleColors.cyan} />
         <DotLabel
-          label={`${readinessBlockers + missingEvidenceCount + roughEdgeCount} items need attention`}
+          label={`${completedMilestones}/${milestoneCount || 0} ready checks`}
+          color={completedMilestones ? appleColors.green : appleColors.muted}
+        />
+        <DotLabel
+          label={`${attentionCount} item${attentionCount === 1 ? '' : 's'} need attention`}
           color={
-            readinessBlockers + missingEvidenceCount + roughEdgeCount
-              ? appleColors.amber
-              : appleColors.green
+            attentionCount ? appleColors.amber : appleColors.green
           }
         />
       </Stack>
@@ -141,7 +161,6 @@ export function DeliveryJourneyCards({
   currentView,
   handoffReady,
   integrationCount,
-  milestoneCount,
   missingEvidenceCount,
   participantCount,
   readinessBlockers,
@@ -154,7 +173,6 @@ export function DeliveryJourneyCards({
   currentView: WorkspaceCommandView;
   handoffReady: boolean;
   integrationCount: number;
-  milestoneCount: number;
   missingEvidenceCount: number;
   participantCount: number;
   readinessBlockers: number;
@@ -165,33 +183,17 @@ export function DeliveryJourneyCards({
 }) {
   const items = [
     {
-      value: 'overview' as const,
-      title: 'Overview',
-      detail: 'Current delivery status and the safest next move.',
-      meta: `${milestoneCount} checkpoints`,
-      accent: appleColors.green,
-      icon: <AssignmentTurnedInOutlined />,
-    },
-    {
-      value: 'plan' as const,
-      title: 'Plan work',
-      detail: 'See services, findings, people, and steps together before changing scope.',
-      meta: `${serviceCount} services`,
-      accent: serviceCount || assignedFindingCount ? appleColors.purple : appleColors.amber,
-      icon: <AssignmentTurnedInOutlined />,
-    },
-    {
       value: 'services' as const,
-      title: 'Services',
-      detail: 'Choose what work belongs in this workspace.',
-      meta: `${serviceCount} selected`,
+      title: 'Work scope',
+      detail: 'Services, included findings, and lightweight checklists for this workspace.',
+      meta: `${serviceCount} service${serviceCount === 1 ? '' : 's'}`,
       accent: serviceCount ? appleColors.purple : appleColors.amber,
       icon: <LocalOfferOutlined />,
     },
     {
       value: 'proof' as const,
-      title: 'Findings & proof',
-      detail: 'Assigned scanner findings, fix steps, proof files, and acceptance checks.',
+      title: 'Fix and verify',
+      detail: 'Service-owned findings, proof state, and targeted Check fixes.',
       meta: assignedFindingCount
         ? `${assignedFindingCount} finding${assignedFindingCount === 1 ? '' : 's'}`
         : `${readinessBlockers + missingEvidenceCount} gaps`,
@@ -205,32 +207,24 @@ export function DeliveryJourneyCards({
     },
     {
       value: 'team' as const,
-      title: 'People & help',
-      detail: 'People, support asks, and delivery concerns.',
+      title: 'People',
+      detail: 'Owners, participants, team help, and unowned work.',
       meta: `${participantCount} people`,
       accent: roughEdgeCount || supportCount ? appleColors.amber : appleColors.cyan,
       icon: <GroupsOutlined />,
     },
     {
       value: 'chat' as const,
-      title: 'Workspace chat',
-      detail: 'Discuss decisions and mention the findings being fixed.',
-      meta: 'Team updates',
+      title: 'Discussion / decisions',
+      detail: 'Workspace-attached decisions with finding and service mentions.',
+      meta: 'Workspace log',
       accent: appleColors.cyan,
       icon: <ChatBubbleOutlineOutlined />,
     },
     {
-      value: 'milestones' as const,
-      title: 'Steps',
-      detail: 'Workspace steps, outputs, proof links, and acceptance progress.',
-      meta: `${milestoneCount} steps`,
-      accent: milestoneCount ? appleColors.green : appleColors.amber,
-      icon: <AssignmentTurnedInOutlined />,
-    },
-    {
       value: 'handoff' as const,
       title: 'Handoff',
-      detail: 'Runbook, health review, integration signals, and acceptance.',
+      detail: 'Final continuity notes once fixes, proof, and ownership are clear.',
       meta: handoffReady ? 'Ready' : `${integrationCount} signals`,
       accent: handoffReady ? appleColors.green : appleColors.purple,
       icon: <HandshakeOutlined />,
@@ -244,7 +238,7 @@ export function DeliveryJourneyCards({
         gridTemplateColumns: {
           xs: '1fr',
           md: 'repeat(2, minmax(0, 1fr))',
-          xl: 'repeat(4, minmax(0, 1fr))',
+          xl: 'repeat(5, minmax(0, 1fr))',
         },
         gap: 1.25,
       }}
@@ -269,7 +263,7 @@ export function DeliveryJourneyCards({
               color: 'inherit',
               cursor: 'pointer',
               display: 'block',
-              minHeight: 156,
+              minHeight: 142,
               minWidth: 0,
               p: 1.5,
               textAlign: 'left',
@@ -300,6 +294,74 @@ export function DeliveryJourneyCards({
       })}
     </Box>
   );
+}
+
+function phaseForWorkspace({
+  assignedFindingCount,
+  missingEvidenceCount,
+  participantCount,
+  serviceCount,
+}: {
+  assignedFindingCount: number;
+  missingEvidenceCount: number;
+  participantCount: number;
+  serviceCount: number;
+}) {
+  if (!serviceCount) return 'Scope planning';
+  if (assignedFindingCount) return 'Fix and verify';
+  if (missingEvidenceCount) return 'Proof needed';
+  if (!participantCount) return 'Needs owner';
+  return 'Handoff prep';
+}
+
+function nextActionForWorkspace({
+  assignedFindingCount,
+  missingEvidenceCount,
+  participantCount,
+  roughEdgeCount,
+  serviceCount,
+}: {
+  assignedFindingCount: number;
+  missingEvidenceCount: number;
+  participantCount: number;
+  roughEdgeCount: number;
+  serviceCount: number;
+}) {
+  if (!serviceCount) return 'Choose work scope';
+  if (assignedFindingCount || missingEvidenceCount) return 'Fix and verify';
+  if (!participantCount || roughEdgeCount) return 'Assign people';
+  return 'Prepare handoff';
+}
+
+function summaryForWorkspace({
+  activeWorkspace,
+  assignedFindingCount,
+  missingEvidenceCount,
+  participantCount,
+  productName,
+  serviceCount,
+}: {
+  activeWorkspace: ProjectWorkspace;
+  assignedFindingCount: number;
+  missingEvidenceCount: number;
+  participantCount: number;
+  productName: string;
+  serviceCount: number;
+}) {
+  const planName = activeWorkspace.packageInstance?.name || 'Workspace plan';
+  if (!serviceCount) {
+    return `${planName} for ${productName}. Start by choosing the services this workspace owns, then bring findings under those services.`;
+  }
+  if (assignedFindingCount) {
+    return `${planName} for ${productName}. ${assignedFindingCount} finding${assignedFindingCount === 1 ? '' : 's'} are in scope across ${serviceCount} service${serviceCount === 1 ? '' : 's'}; verify the fixes before handoff.`;
+  }
+  if (missingEvidenceCount) {
+    return `${planName} for ${productName}. The work scope is selected, but ${missingEvidenceCount} proof item${missingEvidenceCount === 1 ? '' : 's'} still need evidence or a check.`;
+  }
+  if (!participantCount) {
+    return `${planName} for ${productName}. The work scope is selected; assign people or team help before work moves forward.`;
+  }
+  return `${planName} for ${productName}. Scope, people, and proof are organized enough to prepare the next handoff decision.`;
 }
 
 export function DeliveryOverview({

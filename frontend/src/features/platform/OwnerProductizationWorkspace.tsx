@@ -514,6 +514,7 @@ export default function OwnerProductizationWorkspace({
             onReviewFinding={openFindingReview}
             onToggleFindingGroup={setFindingGroupOpen}
             openFindingGroups={openFindingGroups}
+            packageModules={packageModules.data || []}
             productActions={productActions}
             repoSignalsData={repoSignals.data}
             repoSignalsFetching={repoSignals.isFetching}

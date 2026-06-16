@@ -46,15 +46,15 @@ export default function WorkspaceCommandHero({
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
               <StatusChip label={workspace.status} />
-              <PastelChip label={`${milestoneCount} milestones`} accent={appleColors.purple} />
-              <PastelChip label={`${participantCount} participants`} accent={appleColors.cyan} bg="#e4f9fd" />
+              <PastelChip label={`${milestoneCount} ready checks`} accent={appleColors.purple} />
+              <PastelChip label={`${participantCount} people`} accent={appleColors.cyan} bg="#e4f9fd" />
             </Stack>
           </Box>
         </Stack>
         <Stack direction={{ xs: 'row', xl: 'column' }} spacing={0.75} flexWrap="wrap" useFlexGap>
-          <DotLabel label={`${deliverableCount} fixes in focus`} color={appleColors.green} />
-          <DotLabel label={`${proofFileCount} proof files`} color={appleColors.purple} />
-          <DotLabel label={`${roughEdgeCount} open rough edges`} color={roughEdgeCount ? appleColors.amber : appleColors.green} />
+          <DotLabel label={`${deliverableCount} fix records`} color={appleColors.green} />
+          <DotLabel label={`${proofFileCount} proof item${proofFileCount === 1 ? '' : 's'}`} color={appleColors.purple} />
+          <DotLabel label={`${roughEdgeCount} item${roughEdgeCount === 1 ? '' : 's'} need attention`} color={roughEdgeCount ? appleColors.amber : appleColors.green} />
         </Stack>
       </Stack>
     </Surface>

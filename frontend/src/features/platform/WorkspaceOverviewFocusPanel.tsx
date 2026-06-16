@@ -70,6 +70,16 @@ export default function WorkspaceOverviewFocusPanel({
     packageModuleCount: packageModules.length,
     peopleAssigned: hasPeople,
   });
+  const needsAttention = [
+    activeRisks.length
+      ? `${activeRisks.length} finding${activeRisks.length === 1 ? '' : 's'} need fix verification.`
+      : '',
+    missingEvidenceCount
+      ? `${missingEvidenceCount} proof item${missingEvidenceCount === 1 ? '' : 's'} still need evidence or a check.`
+      : '',
+    packageModules.length ? '' : 'No service scope is selected yet.',
+    hasPeople ? '' : 'No person, team, or expert owns the work yet.',
+  ].filter(Boolean);
 
   return (
     <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 58%, #f6fffb 100%)' }}>
@@ -110,10 +120,33 @@ export default function WorkspaceOverviewFocusPanel({
               {answer.button}
             </Button>
             <Button variant="outlined" onClick={onOpenTeam} sx={{ minHeight: 42 }}>
-              People and help
+              People
             </Button>
           </Stack>
         </Stack>
+
+        <Box
+          sx={{
+            border: '1px solid',
+            borderColor: needsAttention.length ? '#ffdba8' : '#bfe9d2',
+            borderRadius: 1.25,
+            bgcolor: needsAttention.length ? '#fffaf1' : '#f4fff8',
+            p: 1.25,
+          }}
+        >
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ md: 'center' }}>
+            <PastelChip
+              label={needsAttention.length ? 'Needs attention' : 'No urgent gaps'}
+              accent={needsAttention.length ? appleColors.amber : appleColors.green}
+              bg={needsAttention.length ? '#fff4dc' : '#e7f8ee'}
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+              {needsAttention.length
+                ? needsAttention.join(' ')
+                : 'Workspace scope, people, and current risk state are organized enough for the next handoff decision.'}
+            </Typography>
+          </Stack>
+        </Box>
 
         <Box
           sx={{
@@ -134,7 +167,7 @@ export default function WorkspaceOverviewFocusPanel({
                   ? appleColors.green
                   : appleColors.blue
             }
-            actionLabel="Open findings"
+            actionLabel="Fix and verify"
             onAction={onOpenFindings}
             summary={
               activeRisks.length
@@ -161,10 +194,10 @@ export default function WorkspaceOverviewFocusPanel({
 
           <AnswerBlock
             icon={<LocalOfferOutlined fontSize="small" />}
-            title="Services"
+            title="Work scope"
             eyebrow="Scope in this workspace"
             accent={packageModules.length ? appleColors.purple : appleColors.amber}
-            actionLabel="Manage services"
+            actionLabel="Work scope"
             onAction={onOpenServices}
             summary={
               packageModules.length
@@ -199,7 +232,7 @@ export default function WorkspaceOverviewFocusPanel({
             title="People"
             eyebrow="Team and experts"
             accent={hasPeople ? appleColors.cyan : appleColors.amber}
-            actionLabel="Manage people"
+            actionLabel="People"
             onAction={onOpenTeam}
             summary={
               hasPeople
@@ -550,7 +583,7 @@ function answerForWorkspace({
     return {
       accent: appleColors.red,
       bg: '#fff1f1',
-      button: 'Review findings',
+      button: 'Fix and verify',
       detail: `${activeRiskCount} scanner finding${activeRiskCount === 1 ? '' : 's'} are assigned to this workspace. Handle these before treating the workspace as launch-ready.`,
       primaryAction: 'findings' as const,
       title: 'Fix the assigned findings first.',
@@ -560,7 +593,7 @@ function answerForWorkspace({
     return {
       accent: appleColors.amber,
       bg: '#fff4dc',
-      button: 'Review proof',
+      button: 'Fix and verify',
       detail: `${missingEvidenceCount} proof item${missingEvidenceCount === 1 ? '' : 's'} still need evidence. The next useful move is to attach or verify proof for the work already selected.`,
       primaryAction: 'findings' as const,
       title: 'Close the proof gaps before handoff.',
@@ -570,7 +603,7 @@ function answerForWorkspace({
     return {
       accent: appleColors.amber,
       bg: '#fff4dc',
-      button: 'Review services',
+      button: 'Choose work scope',
       detail:
         'This workspace does not yet show a clear service scope. Confirm what work belongs here before assigning people or calling it delivery-ready.',
       primaryAction: 'services' as const,

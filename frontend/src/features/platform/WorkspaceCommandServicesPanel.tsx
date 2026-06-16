@@ -19,7 +19,11 @@ import {
   categoryPalette,
 } from './PlatformComponents';
 import type { PackageModule, ServiceModule } from './types';
-import type { WorkspaceServiceAddResponse, WorkspaceServiceFindingImpact } from './types';
+import type {
+  WorkspaceServiceAddResponse,
+  WorkspaceServiceFindingImpact,
+  WorkspaceServiceFindingsUpdateResponse,
+} from './types';
 
 interface IWorkspaceCommandServicesPanelProps {
   canCoordinate: boolean;
@@ -27,9 +31,12 @@ interface IWorkspaceCommandServicesPanelProps {
   packageModules: PackageModule[];
   isAssigningService: boolean;
   lastServiceAdd?: WorkspaceServiceAddResponse | undefined;
+  lastServiceFindingUpdate?: WorkspaceServiceFindingsUpdateResponse | undefined;
   removingServiceId?: string | null;
   serviceFindingImpacts?: WorkspaceServiceFindingImpact[] | undefined;
+  isUpdatingServiceFindings?: boolean;
   onAssignService: (serviceModuleId: string) => void;
+  onIncludeServiceFindings?: (serviceModuleId: string, riskThreadIds: string[], includeExcluded?: boolean) => void;
   onRemoveService: (packageModuleId: string) => void;
 }
 
@@ -39,9 +46,12 @@ export default function WorkspaceCommandServicesPanel({
   packageModules,
   isAssigningService,
   lastServiceAdd,
+  lastServiceFindingUpdate,
   removingServiceId,
   serviceFindingImpacts = [],
+  isUpdatingServiceFindings,
   onAssignService,
+  onIncludeServiceFindings,
   onRemoveService,
 }: IWorkspaceCommandServicesPanelProps) {
   const selectedServiceIds = useMemo(
@@ -140,10 +150,13 @@ export default function WorkspaceCommandServicesPanel({
           {lastServiceAdd.ownerNotice}
         </Alert>
       )}
+      {lastServiceFindingUpdate?.ownerNotice && (
+        <Alert severity="success">{lastServiceFindingUpdate.ownerNotice}</Alert>
+      )}
 
       <Surface>
         <SectionTitle
-          title="Workspace services"
+          title="Work scope"
           action={
             <PastelChip
               label={`${packageModules.length} selected`}
@@ -153,8 +166,8 @@ export default function WorkspaceCommandServicesPanel({
           }
         />
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.55 }}>
-          The services this workspace is responsible for delivering. Add or remove work here before
-          assigning people and checking proof.
+          The services this workspace owns. Findings should enter the workspace through these
+          services, then people and checks can be attached to the work.
         </Typography>
 
         {packageModules.length ? (
@@ -171,6 +184,7 @@ export default function WorkspaceCommandServicesPanel({
               .map(module => {
                 const impact = impactByServiceId.get(module.serviceModule.id);
                 const coveredCount = impact?.findingsAlreadyInWorkspaceCount || 0;
+                const excludedCount = impact?.findingsExcludedFromWorkspaceCount || 0;
                 return (
                 <Box
                   key={module.id}
@@ -223,6 +237,13 @@ export default function WorkspaceCommandServicesPanel({
                         accent={coveredCount ? appleColors.amber : appleColors.muted}
                         bg={coveredCount ? '#fff4dc' : '#f8fafc'}
                       />
+                      {excludedCount > 0 && (
+                        <PastelChip
+                          label={`${excludedCount} removed`}
+                          accent={appleColors.red}
+                          bg="#fff1f2"
+                        />
+                      )}
                       <PastelChip
                         label={module.required ? 'Required' : 'Optional'}
                         accent={module.required ? appleColors.green : appleColors.blue}
@@ -293,6 +314,56 @@ export default function WorkspaceCommandServicesPanel({
                       </Box>
                     ) : null}
 
+                    {impact?.findingsExcludedFromWorkspace?.length ? (
+                      <Box
+                        sx={{
+                          border: '1px solid',
+                          borderColor: '#ffd7cc',
+                          borderRadius: 1,
+                          bgcolor: '#fff8f5',
+                          p: 1,
+                        }}
+                      >
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          spacing={0.75}
+                          alignItems={{ sm: 'center' }}
+                          justifyContent="space-between"
+                        >
+                          <Box>
+                            <Typography
+                              variant="caption"
+                              sx={{ fontWeight: 900, color: appleColors.ink }}
+                            >
+                              Removed from this workspace
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                              {impact.findingsExcludedFromWorkspace.length} finding
+                              {impact.findingsExcludedFromWorkspace.length === 1 ? '' : 's'} can
+                              be re-added under this service.
+                            </Typography>
+                          </Box>
+                          {onIncludeServiceFindings && (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              disabled={!!isUpdatingServiceFindings}
+                              onClick={() =>
+                                onIncludeServiceFindings(
+                                  module.serviceModule.id,
+                                  impact.findingsExcludedFromWorkspace.map(finding => finding.id),
+                                  true
+                                )
+                              }
+                              sx={{ minHeight: 36, flex: '0 0 auto' }}
+                            >
+                              Re-add
+                            </Button>
+                          )}
+                        </Stack>
+                      </Box>
+                    ) : null}
+
                     {canCoordinate && (
                       <Button
                         color="error"
@@ -324,7 +395,7 @@ export default function WorkspaceCommandServicesPanel({
         >
           <Stack spacing={1.5}>
             <SectionTitle
-              title="Browse services"
+              title="Add work to this scope"
               action={
                 <PastelChip
                   label={`${availableModules.length} available`}
@@ -334,8 +405,8 @@ export default function WorkspaceCommandServicesPanel({
               }
             />
             <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
-              Add more delivery work to this workspace without leaving the workspace context. Choose
-              a focused service, assign it, then come back to people and proof.
+              Add more productionization work without leaving the workspace. Each service previews
+              which scanner findings it can bring into scope before you add it.
             </Typography>
 
             {availableModules.length ? (
@@ -422,6 +493,7 @@ export default function WorkspaceCommandServicesPanel({
                     const impact = impactByServiceId.get(module.id);
                     const willAddCount = impact?.findingsWillBeAddedCount || 0;
                     const alreadyCoveredCount = impact?.findingsAlreadyInWorkspaceCount || 0;
+                    const excludedCount = impact?.findingsExcludedFromWorkspaceCount || 0;
 
                     return (
                       <Box
@@ -486,6 +558,8 @@ export default function WorkspaceCommandServicesPanel({
                               label={
                                 willAddCount
                                   ? `${willAddCount} finding${willAddCount === 1 ? '' : 's'} will be added`
+                                  : excludedCount
+                                    ? `${excludedCount} removed finding${excludedCount === 1 ? '' : 's'}`
                                   : alreadyCoveredCount
                                     ? `${alreadyCoveredCount} already covered`
                                     : 'No scanner finding match'
@@ -493,6 +567,8 @@ export default function WorkspaceCommandServicesPanel({
                               accent={
                                 willAddCount
                                   ? appleColors.amber
+                                  : excludedCount
+                                    ? appleColors.red
                                   : alreadyCoveredCount
                                     ? appleColors.green
                                     : appleColors.muted
@@ -500,6 +576,8 @@ export default function WorkspaceCommandServicesPanel({
                               bg={
                                 willAddCount
                                   ? '#fff4dc'
+                                  : excludedCount
+                                    ? '#fff1f2'
                                   : alreadyCoveredCount
                                     ? '#e7f8ee'
                                     : '#f8fafc'

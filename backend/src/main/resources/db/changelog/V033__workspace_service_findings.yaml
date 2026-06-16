@@ -1,0 +1,108 @@
+databaseChangeLog:
+  - changeSet:
+      id: 3300
+      author: produs
+      changes:
+        - createTable:
+            tableName: workspace_service_findings
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP }
+              - column: { name: workspace_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: service_module_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: risk_thread_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(30), defaultValue: INCLUDED, constraints: { nullable: false } }
+              - column: { name: reason, type: TEXT }
+              - column: { name: added_by_id, type: UUID }
+              - column: { name: removed_by_id, type: UUID }
+        - addUniqueConstraint:
+            tableName: workspace_service_findings
+            columnNames: workspace_id, service_module_id, risk_thread_id
+            constraintName: uk_workspace_service_finding_scope
+        - addForeignKeyConstraint:
+            baseTableName: workspace_service_findings
+            baseColumnNames: workspace_id
+            constraintName: fk_workspace_service_findings_workspace
+            referencedTableName: project_workspaces
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: workspace_service_findings
+            baseColumnNames: service_module_id
+            constraintName: fk_workspace_service_findings_service
+            referencedTableName: service_modules
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: workspace_service_findings
+            baseColumnNames: risk_thread_id
+            constraintName: fk_workspace_service_findings_risk
+            referencedTableName: scanner_risk_threads
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: workspace_service_findings
+            baseColumnNames: added_by_id
+            constraintName: fk_workspace_service_findings_added_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: workspace_service_findings
+            baseColumnNames: removed_by_id
+            constraintName: fk_workspace_service_findings_removed_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: workspace_service_findings
+            indexName: idx_workspace_service_findings_workspace
+            columns:
+              - column: { name: workspace_id }
+        - createIndex:
+            tableName: workspace_service_findings
+            indexName: idx_workspace_service_findings_service
+            columns:
+              - column: { name: service_module_id }
+        - createIndex:
+            tableName: workspace_service_findings
+            indexName: idx_workspace_service_findings_risk
+            columns:
+              - column: { name: risk_thread_id }
+
+  - changeSet:
+      id: 3301
+      author: produs
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              INSERT INTO workspace_service_findings (
+                  id,
+                  created_at,
+                  updated_at,
+                  workspace_id,
+                  service_module_id,
+                  risk_thread_id,
+                  status,
+                  reason
+              )
+              SELECT
+                  CAST(md5(random()::text || clock_timestamp()::text || risk.id::text) AS uuid),
+                  CURRENT_TIMESTAMP,
+                  CURRENT_TIMESTAMP,
+                  risk.workspace_id,
+                  risk.recommended_module_id,
+                  risk.id,
+                  'INCLUDED',
+                  'Backfilled from existing workspace finding assignment.'
+              FROM scanner_risk_threads risk
+              JOIN project_workspaces workspace ON workspace.id = risk.workspace_id
+              JOIN package_modules package_module
+                ON package_module.package_instance_id = workspace.package_instance_id
+               AND package_module.service_module_id = risk.recommended_module_id
+              WHERE risk.workspace_id IS NOT NULL
+                AND risk.recommended_module_id IS NOT NULL
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM workspace_service_findings existing
+                  WHERE existing.workspace_id = risk.workspace_id
+                    AND existing.service_module_id = risk.recommended_module_id
+                    AND existing.risk_thread_id = risk.id
+                )

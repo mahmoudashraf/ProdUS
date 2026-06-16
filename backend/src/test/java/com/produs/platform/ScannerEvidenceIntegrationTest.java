@@ -441,7 +441,7 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.workspaceId").value(workspace.getId().toString()));
 
-        ServiceModule apiReview = serviceModuleRepository.findByStableCode("security.api_review").orElseThrow();
+        ServiceModule apiReview = addWorkspaceModule(workspace, "security.api_review", 2);
         mockMvc.perform(patch("/api/scanner/risks/{riskThreadId}/service", riskThreadId)
                         .with(auth(owner))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -1196,6 +1196,20 @@ class ScannerEvidenceIntegrationTest {
         workspace.setName("Scanner readiness workspace");
         workspace.setStatus(ProjectWorkspace.WorkspaceStatus.ACTIVE_DELIVERY);
         return workspaceRepository.save(workspace);
+    }
+
+    private ServiceModule addWorkspaceModule(ProjectWorkspace workspace, String serviceModuleCode, int sequenceOrder) {
+        ServiceModule serviceModule = serviceModuleRepository.findByStableCode(serviceModuleCode).orElseThrow();
+        PackageModule packageModule = new PackageModule();
+        packageModule.setPackageInstance(workspace.getPackageInstance());
+        packageModule.setServiceModule(serviceModule);
+        packageModule.setSequenceOrder(sequenceOrder);
+        packageModule.setRequired(true);
+        packageModule.setRationale("Scanner readiness mapping requires this service.");
+        packageModule.setDeliverables(serviceModule.getExpectedDeliverables());
+        packageModule.setAcceptanceCriteria(serviceModule.getAcceptanceCriteria());
+        packageModuleRepository.save(packageModule);
+        return serviceModule;
     }
 
     private Milestone createMilestone(ProjectWorkspace workspace, String title) {
