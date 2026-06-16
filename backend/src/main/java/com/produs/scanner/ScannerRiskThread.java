@@ -110,6 +110,20 @@ public class ScannerRiskThread extends BaseEntity {
     @Column(name = "review_due_on")
     private LocalDate reviewDueOn;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private User owner;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_assigned_by_id")
+    private User ownerAssignedBy;
+
+    @Column(name = "owner_assigned_at")
+    private LocalDateTime ownerAssignedAt;
+
+    @Column(name = "owner_note", columnDefinition = "TEXT")
+    private String ownerNote;
+
     public enum RiskState {
         NEW,
         STILL_OPEN,

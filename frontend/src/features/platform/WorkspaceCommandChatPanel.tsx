@@ -32,15 +32,45 @@ export default function WorkspaceCommandChatPanel({
   const [body, setBody] = useState('');
   const [selectedMentionIds, setSelectedMentionIds] = useState<string[]>([]);
   const selectedMentionSet = useMemo(() => new Set(selectedMentionIds), [selectedMentionIds]);
-  const mentionableFindings = chat?.mentionableFindings || [];
-  const messages = chat?.messages || [];
+  const mentionableFindings = useMemo(
+    () => chat?.mentionableFindings || [],
+    [chat?.mentionableFindings]
+  );
+  const messages = useMemo(() => chat?.messages || [], [chat?.messages]);
+  const mentionedServices = useMemo(
+    () =>
+      uniqueValues(
+        messages.flatMap(
+          message =>
+            message.mentions.map(mention => mention.serviceName).filter(Boolean) as string[]
+        )
+      ),
+    [messages]
+  );
+  const decisionMessages = useMemo(
+    () =>
+      messages.filter(message =>
+        /\b(decision|decided|approve|approved|accept|accepted|block|blocked|owner|handoff|ship)\b/i.test(
+          message.body
+        )
+      ),
+    [messages]
+  );
+  const selectedMentionServices = useMemo(
+    () =>
+      uniqueValues(
+        mentionableFindings
+          .filter(mention => selectedMentionSet.has(mention.id))
+          .map(mention => mention.serviceName)
+          .filter(Boolean) as string[]
+      ),
+    [mentionableFindings, selectedMentionSet]
+  );
   const canSend = body.trim().length > 0 && !isSending;
 
   const toggleMention = (findingId: string) => {
     setSelectedMentionIds(current =>
-      current.includes(findingId)
-        ? current.filter(id => id !== findingId)
-        : [...current, findingId]
+      current.includes(findingId) ? current.filter(id => id !== findingId) : [...current, findingId]
     );
   };
 
@@ -55,14 +85,14 @@ export default function WorkspaceCommandChatPanel({
   return (
     <Stack spacing={2}>
       <Surface sx={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)' }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          justifyContent="space-between"
-        >
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between">
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-              <PastelChip label="Workspace chat" accent={appleColors.cyan} bg="#e4f9fd" />
+              <PastelChip
+                label="Workspace discussion / decisions"
+                accent={appleColors.cyan}
+                bg="#e4f9fd"
+              />
               <PastelChip
                 label={`${chat?.participants.length || 0} people`}
                 accent={appleColors.purple}
@@ -75,11 +105,11 @@ export default function WorkspaceCommandChatPanel({
               />
             </Stack>
             <Typography variant="h3" sx={{ mt: 1 }}>
-              Discuss the work where the work lives
+              Workspace discussion / decisions
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.55, lineHeight: 1.6, maxWidth: 820 }}>
-              Use this for owner, team, and expert coordination. Mention findings so everyone can
-              see exactly which risk, service, or proof item the message is about.
+              Keep decisions attached to the current workspace. Mention findings so the related
+              service, proof, or check context stays visible with the message.
             </Typography>
           </Box>
           {isLoading && (
@@ -103,7 +133,7 @@ export default function WorkspaceCommandChatPanel({
       >
         <Surface>
           <SectionTitle
-            title="Conversation"
+            title="Discussion log"
             action={
               <PastelChip
                 label={`${messages.length} message${messages.length === 1 ? '' : 's'}`}
@@ -158,6 +188,43 @@ export default function WorkspaceCommandChatPanel({
                         ))}
                       </Stack>
                     )}
+                    {message.mentions.some(mention => mention.serviceName) && (
+                      <Box
+                        sx={{
+                          borderTop: '1px solid',
+                          borderColor: appleColors.line,
+                          pt: 0.75,
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontWeight: 850 }}
+                        >
+                          Related service
+                        </Typography>
+                        <Stack
+                          direction="row"
+                          spacing={0.55}
+                          flexWrap="wrap"
+                          useFlexGap
+                          sx={{ mt: 0.45 }}
+                        >
+                          {uniqueValues(
+                            message.mentions
+                              .map(mention => mention.serviceName)
+                              .filter(Boolean) as string[]
+                          ).map(serviceName => (
+                            <PastelChip
+                              key={serviceName}
+                              label={serviceName}
+                              accent={appleColors.purple}
+                              bg="#f3edff"
+                            />
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
                   </Stack>
                 </Box>
               ))
@@ -169,13 +236,46 @@ export default function WorkspaceCommandChatPanel({
 
         <Stack spacing={2}>
           <Surface>
-            <SectionTitle title="Send update" />
+            <SectionTitle title="Decision context" />
+            <Stack spacing={1} sx={{ mt: 1.15 }}>
+              <DecisionFact
+                label="Decision notes"
+                value={`${decisionMessages.length}`}
+                detail={
+                  decisionMessages.length
+                    ? 'Messages with decision, owner, blocker, accepted risk, ship, or handoff language.'
+                    : 'No explicit decision note yet.'
+                }
+              />
+              <DecisionFact
+                label="Mentioned services"
+                value={`${mentionedServices.length}`}
+                detail={
+                  mentionedServices.length
+                    ? mentionedServices.slice(0, 3).join(' · ')
+                    : 'Mention a finding to attach service context.'
+                }
+              />
+              <DecisionFact
+                label="Selected for next message"
+                value={`${selectedMentionIds.length} finding${selectedMentionIds.length === 1 ? '' : 's'}`}
+                detail={
+                  selectedMentionServices.length
+                    ? selectedMentionServices.join(' · ')
+                    : 'Choose findings below to attach context.'
+                }
+              />
+            </Stack>
+          </Surface>
+
+          <Surface>
+            <SectionTitle title="Send decision or update" />
             <Stack spacing={1.25} sx={{ mt: 1.25 }}>
               <TextField
-                label="Message"
+                label="Decision or update"
                 value={body}
                 onChange={event => setBody(event.target.value)}
-                placeholder="Tell the team what changed, what is blocked, or what needs review."
+                placeholder="Record what changed, what is blocked, who owns it, or what needs review."
                 multiline
                 minRows={4}
               />
@@ -216,7 +316,10 @@ export default function WorkspaceCommandChatPanel({
                             textTransform: 'none',
                           }}
                         >
-                          <Box component="span" sx={{ minWidth: 0, textAlign: 'left', width: '100%' }}>
+                          <Box
+                            component="span"
+                            sx={{ minWidth: 0, textAlign: 'left', width: '100%' }}
+                          >
                             <Typography
                               component="span"
                               variant="caption"
@@ -259,7 +362,7 @@ export default function WorkspaceCommandChatPanel({
                 onClick={send}
                 sx={{ minHeight: 42, alignSelf: 'flex-start' }}
               >
-                {isSending ? 'Sending...' : 'Send message'}
+                {isSending ? 'Sending...' : 'Send decision/update'}
               </Button>
             </Stack>
           </Surface>
@@ -267,7 +370,9 @@ export default function WorkspaceCommandChatPanel({
           <Surface>
             <SectionTitle
               title="People here"
-              action={<ChatBubbleOutlineOutlined fontSize="small" sx={{ color: appleColors.cyan }} />}
+              action={
+                <ChatBubbleOutlineOutlined fontSize="small" sx={{ color: appleColors.cyan }} />
+              }
             />
             <Stack spacing={0.85} sx={{ mt: 1.2 }}>
               {(chat?.participants || []).map(participant => (
@@ -297,6 +402,30 @@ export default function WorkspaceCommandChatPanel({
   );
 }
 
+function DecisionFact({ detail, label, value }: { detail: string; label: string; value: string }) {
+  return (
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: '#e2e8f0',
+        borderRadius: 1,
+        bgcolor: '#f8fafc',
+        p: 0.9,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 850 }}>
+        {label}
+      </Typography>
+      <Typography variant="h5" sx={{ mt: 0.25 }}>
+        {value}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.4 }}>
+        {detail}
+      </Typography>
+    </Box>
+  );
+}
+
 function FindingMentionChip({ mention }: { mention: WorkspaceChatMention }) {
   const accent =
     mention.severity === 'CRITICAL' || mention.severity === 'HIGH'
@@ -308,7 +437,13 @@ function FindingMentionChip({ mention }: { mention: WorkspaceChatMention }) {
     <PastelChip
       label={`${mention.title}${mention.serviceName ? ` · ${mention.serviceName}` : ''}`}
       accent={accent}
-      bg={accent === appleColors.red ? '#fff1f1' : accent === appleColors.amber ? '#fff4dc' : '#eaf3ff'}
+      bg={
+        accent === appleColors.red
+          ? '#fff1f1'
+          : accent === appleColors.amber
+            ? '#fff4dc'
+            : '#eaf3ff'
+      }
     />
   );
 }
@@ -323,4 +458,8 @@ function formatChatTime(value?: string) {
     minute: '2-digit',
     month: 'short',
   });
+}
+
+function uniqueValues(values: string[]) {
+  return [...new Set(values.filter(Boolean))];
 }

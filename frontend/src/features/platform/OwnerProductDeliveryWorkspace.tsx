@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 
-import { deleteJson, getJson, patchJson, postJson } from './api';
+import { deleteJson, getJson, patchJson, postJson, putJson } from './api';
 import {
   DeliveryHero,
   DeliveryJourneyCards,
@@ -15,9 +15,11 @@ import {
 import { EmptyState, QueryState, Surface, formatLabel } from './PlatformComponents';
 import type {
   CheckFixesResponse,
+  PackageModule,
   ProductProfile,
   ProjectWorkspace,
   ScannerRiskSummary,
+  ScannerRiskThread,
   WorkspaceChat,
   WorkspaceServiceAddResponse,
   WorkspaceServiceFindingsUpdateResponse,
@@ -27,9 +29,9 @@ import { useWorkspaceCommandData } from './useWorkspaceCommandData';
 import { useWorkspaceCommandRouteState } from './useWorkspaceCommandRouteState';
 import { useWorkspaceCommandSummary } from './useWorkspaceCommandSummary';
 import { useWorkspaceCommandUiState } from './useWorkspaceCommandUiState';
+import WorkspaceCommandChatPanel from './WorkspaceCommandChatPanel';
 import type { WorkspaceCommandHandoffView } from './WorkspaceCommandHandoffPanels';
 import WorkspaceCommandHandoffPanels from './WorkspaceCommandHandoffPanels';
-import WorkspaceCommandChatPanel from './WorkspaceCommandChatPanel';
 import type { WorkspaceCommandView } from './WorkspaceCommandJourneyNav';
 import type { WorkspaceCommandProofView } from './WorkspaceCommandProofStepPanel';
 import WorkspaceCommandProofStepPanel from './WorkspaceCommandProofStepPanel';
@@ -221,6 +223,34 @@ export default function OwnerProductDeliveryWorkspace({
       });
     },
   });
+  const assignServiceOwner = useMutation({
+    mutationFn: ({ moduleId, ownerUserId }: { moduleId: string; ownerUserId: string }) =>
+      putJson<PackageModule, { ownerUserId: string; note: string }>(
+        `/workspaces/${activeWorkspace.id}/services/${moduleId}/owner`,
+        {
+          ownerUserId,
+          note: 'Assigned from Work scope.',
+        }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces', activeWorkspace.id, 'services'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', activeWorkspace.id] });
+    },
+  });
+  const assignFindingOwner = useMutation({
+    mutationFn: ({ riskThreadId, ownerUserId }: { riskThreadId: string; ownerUserId: string }) =>
+      putJson<ScannerRiskThread, { ownerUserId: string; note: string }>(
+        `/workspaces/${activeWorkspace.id}/scanner/risks/${riskThreadId}/owner`,
+        {
+          ownerUserId,
+          note: 'Assigned from Fix and verify.',
+        }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-current-risks', activeWorkspace.id] });
+      queryClient.invalidateQueries({ queryKey: ['scanner-current-risks', effectiveProductId] });
+    },
+  });
   const assignService = useMutation({
     mutationFn: (serviceModuleId: string) =>
       postJson<
@@ -372,14 +402,13 @@ export default function OwnerProductDeliveryWorkspace({
     pushWorkspaceRoute(view, activeWorkspace.id, options);
   };
   const assignedFindingCount = workspaceRiskSummary.data?.total || 0;
-  const nextActionView: WorkspaceCommandView =
-    !packageModuleList.length
-      ? 'services'
-      : assignedFindingCount || readiness?.blockerCount || missingEvidenceCount
-        ? 'proof'
-        : !participantCount || roughEdgeCount
-          ? 'team'
-          : 'handoff';
+  const nextActionView: WorkspaceCommandView = !packageModuleList.length
+    ? 'services'
+    : assignedFindingCount || readiness?.blockerCount || missingEvidenceCount
+      ? 'proof'
+      : !participantCount || roughEdgeCount
+        ? 'team'
+        : 'handoff';
   const openNextAction = () => {
     if (nextActionView === 'proof') {
       openDeliveryView('proof', { proofView: assignedFindingCount ? 'findings' : 'readiness' });
@@ -397,7 +426,7 @@ export default function OwnerProductDeliveryWorkspace({
   }
 
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={2.5} sx={{ pb: { xs: 13, sm: 14, md: 15 } }}>
       <QueryState
         isLoading={queriesLoading}
         error={
@@ -405,6 +434,8 @@ export default function OwnerProductDeliveryWorkspace({
           workspaceChat.error ||
           sendWorkspaceChatMessage.error ||
           assignService.error ||
+          assignServiceOwner.error ||
+          assignFindingOwner.error ||
           removeService.error ||
           actionError
         }
@@ -503,6 +534,13 @@ export default function OwnerProductDeliveryWorkspace({
           canCoordinate={canCoordinate}
           catalogModules={catalogModuleList}
           packageModules={packageModuleList}
+          participantList={participantList}
+          participantCount={participantCount}
+          assigningOwnerModuleId={
+            assignServiceOwner.isPending
+              ? String(assignServiceOwner.variables?.moduleId || '')
+              : null
+          }
           isAssigningService={assignService.isPending}
           lastServiceAdd={assignService.data}
           lastServiceFindingUpdate={includeServiceFindings.data}
@@ -510,6 +548,9 @@ export default function OwnerProductDeliveryWorkspace({
           serviceFindingImpacts={serviceFindingImpactList}
           isUpdatingServiceFindings={includeServiceFindings.isPending}
           onAssignService={serviceModuleId => assignService.mutate(serviceModuleId)}
+          onAssignServiceOwner={(moduleId, ownerUserId) =>
+            assignServiceOwner.mutate({ moduleId, ownerUserId })
+          }
           onIncludeServiceFindings={(serviceModuleId, riskThreadIds, includeExcluded) =>
             includeServiceFindings.mutate({
               serviceModuleId,
@@ -517,6 +558,14 @@ export default function OwnerProductDeliveryWorkspace({
               includeExcluded: includeExcluded ?? false,
             })
           }
+          onOpenFixAndVerify={() =>
+            openDeliveryView('proof', {
+              proofView: assignedFindingCount ? 'findings' : 'readiness',
+            })
+          }
+          onOpenChecklist={() => openDeliveryView('proof', { proofView: 'steps' })}
+          onOpenPeople={() => openDeliveryView('team')}
+          evidencePanel={evidencePanel}
           onRemoveService={packageModuleId => removeService.mutate(packageModuleId)}
         />
       )}
@@ -543,6 +592,7 @@ export default function OwnerProductDeliveryWorkspace({
           catalogModules={catalogModuleList}
           milestoneRiskById={milestoneRiskById}
           packageModules={packageModuleList}
+          participantList={participantList}
           workspaceRiskSummary={workspaceRiskSummary.data}
           milestoneForm={milestoneForm}
           deliverableForm={deliverableForm}
@@ -583,6 +633,11 @@ export default function OwnerProductDeliveryWorkspace({
               ? String(changeRiskService.variables?.riskThreadId || '')
               : null
           }
+          assigningFindingOwnerId={
+            assignFindingOwner.isPending
+              ? String(assignFindingOwner.variables?.riskThreadId || '')
+              : null
+          }
           removingRiskId={
             removeRiskFromWorkspace.isPending
               ? String(removeRiskFromWorkspace.variables || '')
@@ -590,6 +645,9 @@ export default function OwnerProductDeliveryWorkspace({
           }
           onChangeRiskService={(riskId, serviceModuleId, note) =>
             changeRiskService.mutate({ riskThreadId: riskId, serviceModuleId, note })
+          }
+          onAssignFindingOwner={(riskThreadId, ownerUserId) =>
+            assignFindingOwner.mutate({ riskThreadId, ownerUserId })
           }
           onCheckFixes={(riskIds, mode) =>
             checkFixes.mutate({ riskThreadIds: riskIds, mode: mode ?? 'RELEVANT_TO_FIXES' })
@@ -624,6 +682,9 @@ export default function OwnerProductDeliveryWorkspace({
           participantList={participantList}
           supportList={supportList}
           disputeList={disputeList}
+          packageModules={packageModuleList}
+          riskSummary={workspaceRiskSummary.data}
+          missingEvidenceCount={missingEvidenceCount}
           participantForm={participantForm}
           supportForm={supportForm}
           disputeForm={disputeForm}
@@ -654,6 +715,12 @@ export default function OwnerProductDeliveryWorkspace({
             setDisputeResolutionById(current => ({ ...current, [id]: resolution }))
           }
           onOpenHub={() => openDeliveryView('team')}
+          onOpenFindings={() =>
+            openDeliveryView('proof', {
+              proofView: assignedFindingCount ? 'findings' : 'readiness',
+            })
+          }
+          onOpenServices={() => openDeliveryView('services')}
           onViewChange={teamView => openDeliveryView('team', { teamView })}
           evidencePanel={evidencePanel}
         />
@@ -674,6 +741,10 @@ export default function OwnerProductDeliveryWorkspace({
           supportCount={supportList.length}
           riskCount={disputeList.length}
           missingEvidenceCount={missingEvidenceCount}
+          participantCount={participantCount}
+          packageModules={packageModuleList}
+          riskSummary={workspaceRiskSummary.data}
+          serviceCount={packageModuleList.length}
           workspaceProgress={workspaceProgress}
           canCoordinate={canCoordinate}
           latestHandoff={latestHandoff}
@@ -718,7 +789,13 @@ export default function OwnerProductDeliveryWorkspace({
               },
             })
           }
+          onOpenFixAndVerify={() =>
+            openDeliveryView('proof', {
+              proofView: assignedFindingCount ? 'findings' : 'readiness',
+            })
+          }
           onOpenHub={() => openDeliveryView('handoff')}
+          onOpenPeople={() => openDeliveryView('team')}
           onViewChange={handoffView => openDeliveryView('handoff', { handoffView })}
         />
       )}

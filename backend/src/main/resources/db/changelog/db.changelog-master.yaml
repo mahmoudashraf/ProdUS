@@ -65,3 +65,5 @@ databaseChangeLog:
       file: db/changelog/V032__workspace_chat_mentions.yaml
   - include:
       file: db/changelog/V033__workspace_service_findings.yaml
+  - include:
+      file: db/changelog/V034__workspace_owner_and_contextual_proof.yaml

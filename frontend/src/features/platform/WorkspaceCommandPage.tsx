@@ -6,11 +6,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useAuth from '@/hooks/useAuth';
 import { UserRole } from '@/types/auth';
 
-import { deleteJson, getJson, patchJson, postJson } from './api';
+import { deleteJson, getJson, patchJson, postJson, putJson } from './api';
 import { PageHeader, QueryState, formatLabel } from './PlatformComponents';
 import type {
   CheckFixesResponse,
+  PackageModule,
   ScannerRiskSummary,
+  ScannerRiskThread,
   WorkspaceChat,
   WorkspaceServiceAddResponse,
   WorkspaceServiceFindingsUpdateResponse,
@@ -222,6 +224,42 @@ export default function WorkspaceCommandPage({
       });
       queryClient.invalidateQueries({
         queryKey: ['productization-engine', 'workspace-scanner-readiness', selectedWorkspace?.id],
+      });
+    },
+  });
+  const assignServiceOwner = useMutation({
+    mutationFn: ({ moduleId, ownerUserId }: { moduleId: string; ownerUserId: string }) =>
+      putJson<PackageModule, { ownerUserId: string; note: string }>(
+        `/workspaces/${selectedWorkspace?.id}/services/${moduleId}/owner`,
+        {
+          ownerUserId,
+          note: 'Assigned from Work scope.',
+        }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['workspaces', selectedWorkspace?.id, 'services'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['workspace-current-risks', selectedWorkspace?.id],
+      });
+    },
+  });
+  const assignFindingOwner = useMutation({
+    mutationFn: ({ riskThreadId, ownerUserId }: { riskThreadId: string; ownerUserId: string }) =>
+      putJson<ScannerRiskThread, { ownerUserId: string; note: string }>(
+        `/workspaces/${selectedWorkspace?.id}/scanner/risks/${riskThreadId}/owner`,
+        {
+          ownerUserId,
+          note: 'Assigned from Fix and verify.',
+        }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['workspace-current-risks', selectedWorkspace?.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['scanner-current-risks', selectedWorkspaceProductId],
       });
     },
   });
@@ -438,6 +476,8 @@ export default function WorkspaceCommandPage({
           sendWorkspaceChatMessage.error ||
           uploadAttachment.error ||
           assignService.error ||
+          assignServiceOwner.error ||
+          assignFindingOwner.error ||
           removeService.error ||
           actionError
         }
@@ -560,6 +600,7 @@ export default function WorkspaceCommandPage({
                   catalogModules: catalogModuleList,
                   milestoneRiskById,
                   packageModules: packageModuleList,
+                  participantList,
                   workspaceRiskSummary: workspaceRiskSummary.data,
                   milestoneForm,
                   deliverableForm,
@@ -597,9 +638,14 @@ export default function WorkspaceCommandPage({
                   changingServiceRiskId: changeRiskService.isPending
                     ? String(changeRiskService.variables?.riskThreadId || '')
                     : null,
+                  assigningFindingOwnerId: assignFindingOwner.isPending
+                    ? String(assignFindingOwner.variables?.riskThreadId || '')
+                    : null,
                   removingRiskId: removeRiskFromWorkspace.isPending
                     ? String(removeRiskFromWorkspace.variables || '')
                     : null,
+                  onAssignFindingOwner: (riskThreadId, ownerUserId) =>
+                    assignFindingOwner.mutate({ riskThreadId, ownerUserId }),
                   onChangeRiskService: (riskId, serviceModuleId, note) =>
                     changeRiskService.mutate({ riskThreadId: riskId, serviceModuleId, note }),
                   onCheckFixes: (riskIds, mode) =>
@@ -635,6 +681,11 @@ export default function WorkspaceCommandPage({
                 canCoordinate,
                 catalogModules: catalogModuleList,
                 packageModules: packageModuleList,
+                participantList,
+                participantCount: participantList.length,
+                assigningOwnerModuleId: assignServiceOwner.isPending
+                  ? String(assignServiceOwner.variables?.moduleId || '')
+                  : null,
                 isAssigningService: assignService.isPending,
                 lastServiceAdd: assignService.data,
                 lastServiceFindingUpdate: includeServiceFindings.data,
@@ -644,12 +695,22 @@ export default function WorkspaceCommandPage({
                 serviceFindingImpacts: serviceFindingImpactList,
                 isUpdatingServiceFindings: includeServiceFindings.isPending,
                 onAssignService: serviceModuleId => assignService.mutate(serviceModuleId),
+                onAssignServiceOwner: (moduleId, ownerUserId) =>
+                  assignServiceOwner.mutate({ moduleId, ownerUserId }),
                 onIncludeServiceFindings: (serviceModuleId, riskThreadIds, includeExcluded) =>
                   includeServiceFindings.mutate({
                     serviceModuleId,
                     riskThreadIds,
                     includeExcluded: includeExcluded ?? false,
                   }),
+                onOpenFixAndVerify: () =>
+                  openWorkspaceRoute('proof', selectedWorkspace.id, {
+                    proofView: assignedFindingCount ? 'findings' : 'readiness',
+                  }),
+                onOpenChecklist: () =>
+                  openWorkspaceRoute('proof', selectedWorkspace.id, { proofView: 'steps' }),
+                onOpenPeople: () => openWorkspaceRoute('team', selectedWorkspace.id),
+                evidencePanel,
                 onRemoveService: packageModuleId => removeService.mutate(packageModuleId),
               }
             : undefined
@@ -663,6 +724,9 @@ export default function WorkspaceCommandPage({
                 participantList,
                 supportList,
                 disputeList,
+                packageModules: packageModuleList,
+                riskSummary: workspaceRiskSummary.data,
+                missingEvidenceCount,
                 participantForm,
                 supportForm,
                 disputeForm,
@@ -689,6 +753,11 @@ export default function WorkspaceCommandPage({
                 onDisputeResolutionChange: (id, resolution) =>
                   setDisputeResolutionById(current => ({ ...current, [id]: resolution })),
                 onOpenHub: openWorkspaceTeamHub,
+                onOpenFindings: () =>
+                  openWorkspaceRoute('proof', selectedWorkspace?.id, {
+                    proofView: assignedFindingCount ? 'findings' : 'readiness',
+                  }),
+                onOpenServices: () => openFocusedWorkspaceRoute('services'),
                 onViewChange: openWorkspaceTeamView,
                 evidencePanel,
               }
@@ -719,6 +788,10 @@ export default function WorkspaceCommandPage({
                 supportCount: supportList.length,
                 riskCount: disputeList.length,
                 missingEvidenceCount,
+                participantCount: participantList.length,
+                packageModules: packageModuleList,
+                riskSummary: workspaceRiskSummary.data,
+                serviceCount: packageModuleList.length,
                 workspaceProgress,
                 canCoordinate,
                 latestHandoff,
@@ -762,6 +835,11 @@ export default function WorkspaceCommandPage({
                     },
                   }),
                 onOpenHub: openWorkspaceHandoffHub,
+                onOpenFixAndVerify: () =>
+                  openWorkspaceRoute('proof', selectedWorkspace.id, {
+                    proofView: assignedFindingCount ? 'findings' : 'readiness',
+                  }),
+                onOpenPeople: () => openWorkspaceRoute('team', selectedWorkspace.id),
                 onViewChange: openWorkspaceHandoffView,
               }
             : undefined

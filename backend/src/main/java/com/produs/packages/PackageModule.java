@@ -1,17 +1,21 @@
 package com.produs.packages;
 
 import com.produs.catalog.ServiceModule;
+import com.produs.entity.User;
 import com.produs.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -46,6 +50,20 @@ public class PackageModule extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ModuleStatus status = ModuleStatus.PLANNED;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private User owner;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_assigned_by_id")
+    private User ownerAssignedBy;
+
+    @Column(name = "owner_assigned_at")
+    private LocalDateTime ownerAssignedAt;
+
+    @Column(name = "owner_note", columnDefinition = "TEXT")
+    private String ownerNote;
 
     public enum ModuleStatus {
         PLANNED,

@@ -18,10 +18,12 @@ import com.produs.repository.UserRepository;
 import com.produs.scanner.ScannerService;
 import com.produs.scanner.ScannerService.CheckFixesRequest;
 import com.produs.scanner.ScannerService.CheckFixesResponse;
+import com.produs.scanner.ScannerService.ScannerRiskThreadResponse;
 import com.produs.scanner.ScannerService.WorkspaceCheckProgressResponse;
 import com.produs.scanner.ScannerService.ScannerRiskSummaryResponse;
 import com.produs.scanner.ScannerRiskLifecycleService;
 import com.produs.scanner.ScannerRiskThread;
+import com.produs.scanner.ScannerRiskThreadRepository;
 import com.produs.workspace.WorkspaceServiceFinding.WorkspaceServiceFindingStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -40,6 +42,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -71,6 +74,7 @@ public class WorkspaceController {
     private final UserRepository userRepository;
     private final ScannerService scannerService;
     private final ScannerRiskLifecycleService riskLifecycleService;
+    private final ScannerRiskThreadRepository riskThreadRepository;
     private final WorkspaceServiceFindingRepository workspaceServiceFindingRepository;
 
     @GetMapping
@@ -378,6 +382,30 @@ public class WorkspaceController {
                 .toList();
     }
 
+    @PutMapping("/{workspaceId}/services/{moduleId}/owner")
+    @Transactional
+    public PackageModuleResponse assignServiceOwner(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID moduleId,
+            @Valid @RequestBody WorkspaceOwnerAssignmentRequest request
+    ) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceCoordinator(user, workspace);
+        PackageModule module = packageModuleRepository.findById(moduleId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace service not found"));
+        if (!module.getPackageInstance().getId().equals(workspace.getPackageInstance().getId())) {
+            throw new AccessDeniedException("Service is not attached to this workspace");
+        }
+        User owner = resolveWorkspaceOwnerCandidate(workspace, request.ownerUserId());
+        module.setOwner(owner);
+        module.setOwnerAssignedBy(user);
+        module.setOwnerAssignedAt(LocalDateTime.now());
+        module.setOwnerNote(normalizeOptionalText(request.note()));
+        return toPackageModuleResponse(packageModuleRepository.save(module));
+    }
+
     @PostMapping("/{workspaceId}/services/{serviceModuleId}/findings")
     @Transactional
     public WorkspaceServiceFindingsUpdateResponse includeServiceFindings(
@@ -457,6 +485,30 @@ public class WorkspaceController {
     @GetMapping("/{workspaceId}/scanner/risks/current")
     public ScannerRiskSummaryResponse scannerRisks(@AuthenticationPrincipal User user, @PathVariable UUID workspaceId) {
         return scannerService.currentWorkspaceRisks(user, workspaceId);
+    }
+
+    @PutMapping("/{workspaceId}/scanner/risks/{riskThreadId}/owner")
+    @Transactional
+    public ScannerRiskThreadResponse assignFindingOwner(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID workspaceId,
+            @PathVariable UUID riskThreadId,
+            @Valid @RequestBody WorkspaceOwnerAssignmentRequest request
+    ) {
+        ProjectWorkspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
+        requireWorkspaceCoordinator(user, workspace);
+        ScannerRiskThread risk = riskThreadRepository.findById(riskThreadId)
+                .orElseThrow(() -> new IllegalArgumentException("Workspace finding not found"));
+        if (risk.getWorkspace() == null || !risk.getWorkspace().getId().equals(workspace.getId())) {
+            throw new AccessDeniedException("Finding is not attached to this workspace");
+        }
+        User owner = resolveWorkspaceOwnerCandidate(workspace, request.ownerUserId());
+        risk.setOwner(owner);
+        risk.setOwnerAssignedBy(user);
+        risk.setOwnerAssignedAt(LocalDateTime.now());
+        risk.setOwnerNote(normalizeOptionalText(request.note()));
+        return scannerService.toScannerRiskThreadResponse(riskThreadRepository.save(risk));
     }
 
     @PostMapping("/{workspaceId}/scanner/check-fixes")
@@ -887,6 +939,28 @@ public class WorkspaceController {
         throw new IllegalArgumentException("User id or email is required");
     }
 
+    private User resolveWorkspaceOwnerCandidate(ProjectWorkspace workspace, UUID userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("Owner is required");
+        }
+        User owner = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Owner user not found"));
+        if (workspace.getOwner().getId().equals(owner.getId())) {
+            return owner;
+        }
+        participantRepository.findByWorkspaceIdAndUserIdAndActiveTrue(workspace.getId(), owner.getId())
+                .orElseThrow(() -> new AccessDeniedException("Owner must be an active workspace participant"));
+        return owner;
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.length() > 500 ? normalized.substring(0, 500) : normalized;
+    }
+
     public record WorkspaceRequest(
             UUID packageInstanceId,
             UUID productProfileId,
@@ -933,6 +1007,11 @@ public class WorkspaceController {
             String note
     ) {}
     public record WorkspaceServiceFindingExcludeRequest(String reason) {}
+    public record WorkspaceOwnerAssignmentRequest(
+            @NotNull(message = "Owner is required")
+            UUID ownerUserId,
+            String note
+    ) {}
     private record WorkspaceServiceFindingBucket(
             ServiceModule serviceModule,
             List<ScannerRiskThread> findingsAlreadyInWorkspace,

@@ -1,0 +1,90 @@
+databaseChangeLog:
+  - changeSet:
+      id: 3400
+      author: produs
+      changes:
+        - addColumn:
+            tableName: package_modules
+            columns:
+              - column: { name: owner_id, type: UUID }
+              - column: { name: owner_assigned_by_id, type: UUID }
+              - column: { name: owner_assigned_at, type: TIMESTAMP }
+              - column: { name: owner_note, type: TEXT }
+        - addForeignKeyConstraint:
+            baseTableName: package_modules
+            baseColumnNames: owner_id
+            constraintName: fk_package_modules_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: package_modules
+            baseColumnNames: owner_assigned_by_id
+            constraintName: fk_package_modules_owner_assigned_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: package_modules
+            indexName: idx_package_modules_owner
+            columns:
+              - column: { name: owner_id }
+
+  - changeSet:
+      id: 3401
+      author: produs
+      changes:
+        - addColumn:
+            tableName: scanner_risk_threads
+            columns:
+              - column: { name: owner_id, type: UUID }
+              - column: { name: owner_assigned_by_id, type: UUID }
+              - column: { name: owner_assigned_at, type: TIMESTAMP }
+              - column: { name: owner_note, type: TEXT }
+        - addForeignKeyConstraint:
+            baseTableName: scanner_risk_threads
+            baseColumnNames: owner_id
+            constraintName: fk_scanner_risk_threads_owner
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: scanner_risk_threads
+            baseColumnNames: owner_assigned_by_id
+            constraintName: fk_scanner_risk_threads_owner_assigned_by
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: scanner_risk_threads
+            indexName: idx_scanner_risk_threads_owner
+            columns:
+              - column: { name: owner_id }
+
+  - changeSet:
+      id: 3402
+      author: produs
+      changes:
+        - addColumn:
+            tableName: evidence_attachments
+            columns:
+              - column: { name: package_module_id, type: UUID }
+              - column: { name: risk_thread_id, type: UUID }
+        - addForeignKeyConstraint:
+            baseTableName: evidence_attachments
+            baseColumnNames: package_module_id
+            constraintName: fk_evidence_attachments_package_module
+            referencedTableName: package_modules
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: evidence_attachments
+            baseColumnNames: risk_thread_id
+            constraintName: fk_evidence_attachments_risk_thread
+            referencedTableName: scanner_risk_threads
+            referencedColumnNames: id
+        - createIndex:
+            tableName: evidence_attachments
+            indexName: idx_evidence_attachments_package_module
+            columns:
+              - column: { name: package_module_id }
+        - createIndex:
+            tableName: evidence_attachments
+            indexName: idx_evidence_attachments_risk_thread
+            columns:
+              - column: { name: risk_thread_id }

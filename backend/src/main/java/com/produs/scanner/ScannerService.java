@@ -3442,7 +3442,11 @@ public class ScannerService {
                 risk.getBusinessRisk(),
                 risk.getEvidenceRequired(),
                 risk.getAcceptedReason(),
-                risk.getReviewDueOn()
+                risk.getReviewDueOn(),
+                com.produs.dto.PlatformDtos.toCurrentUserSummary(risk.getOwner()),
+                com.produs.dto.PlatformDtos.toCurrentUserSummary(risk.getOwnerAssignedBy()),
+                risk.getOwnerAssignedAt(),
+                risk.getOwnerNote()
         );
     }
 
@@ -3897,7 +3901,11 @@ public class ScannerService {
             String businessRisk,
             String evidenceRequired,
             String acceptedReason,
-            LocalDate reviewDueOn
+            LocalDate reviewDueOn,
+            com.produs.dto.PlatformDtos.CurrentUserSummary owner,
+            com.produs.dto.PlatformDtos.CurrentUserSummary ownerAssignedBy,
+            LocalDateTime ownerAssignedAt,
+            String ownerNote
     ) {}
 
     public record ScanComparisonResponse(

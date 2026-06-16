@@ -7,21 +7,23 @@ import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import PlayArrowOutlined from '@mui/icons-material/PlayArrowOutlined';
 import SwapHorizOutlined from '@mui/icons-material/SwapHorizOutlined';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
-import { useQuery } from '@tanstack/react-query';
 import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { getJson } from './api';
 import { PastelChip, Surface, appleColors } from './PlatformComponents';
 import type {
   CheckFixProgressRun,
   CheckFixesResponse,
+  AttachmentScope,
   PackageModule,
   ScannerRiskState,
   ScannerRiskSummary,
   ScannerRiskThread,
   ServiceModule,
   ToolRun,
+  WorkspaceParticipant,
   WorkspaceCheckProgress,
 } from './types';
 
@@ -33,9 +35,13 @@ interface IOwnerWorkspaceFixesRiskThreadPanelProps {
   isLoading?: boolean;
   isChecking?: boolean | undefined;
   changingServiceRiskId?: string | null | undefined;
+  assigningFindingOwnerId?: string | null | undefined;
   removingRiskId?: string | null | undefined;
+  participantList?: WorkspaceParticipant[] | undefined;
   lastCheck?: CheckFixesResponse | undefined;
+  evidencePanel?: ((scopeType: AttachmentScope, scopeId: string) => ReactNode) | undefined;
   onCheckFixes: (riskIds: string[], mode?: CheckFixesResponse['mode']) => void;
+  onAssignFindingOwner?: ((riskThreadId: string, ownerUserId: string) => void) | undefined;
   onChangeRiskService?:
     | ((riskId: string, serviceModuleId: string, note?: string) => void)
     | undefined;
@@ -53,6 +59,20 @@ const activeStates: ScannerRiskState[] = [
 
 type ToolRunLabel = Pick<ToolRun, 'scanRunId' | 'status' | 'toolKey' | 'toolName'>;
 
+type ServiceFindingSectionModel = {
+  key: string;
+  title: string;
+  detail: string;
+  ownerLabel: string;
+  risks: ScannerRiskThread[];
+  accent: string;
+  includedCount: number;
+  openCount: number;
+  proofCount: number;
+  readyCount: number;
+  verifiedCount: number;
+};
+
 export default function OwnerWorkspaceFixesRiskThreadPanel({
   catalogModules = [],
   packageModules = [],
@@ -61,9 +81,13 @@ export default function OwnerWorkspaceFixesRiskThreadPanel({
   isLoading,
   isChecking,
   changingServiceRiskId,
+  assigningFindingOwnerId,
   removingRiskId,
+  participantList = [],
   lastCheck,
+  evidencePanel,
   onCheckFixes,
+  onAssignFindingOwner,
   onChangeRiskService,
   onRemoveRisk,
 }: IOwnerWorkspaceFixesRiskThreadPanelProps) {
@@ -90,10 +114,6 @@ export default function OwnerWorkspaceFixesRiskThreadPanel({
   );
   const activeRisks = risks.filter(risk => activeStates.includes(risk.currentState));
   const readyRisks = risks.filter(risk => risk.currentState === 'READY_TO_CHECK');
-  const openRisks = risks.filter(risk =>
-    ['NEW', 'STILL_OPEN', 'RETURNED', 'INCOMPLETE_CHECK'].includes(risk.currentState)
-  );
-  const proofRisks = risks.filter(risk => risk.currentState === 'NEEDS_PROOF');
   const fixedCount = risks.filter(risk => risk.currentState === 'FIXED_BY_LATEST_SCAN').length;
   const returnedCount = risks.filter(risk => risk.currentState === 'RETURNED').length;
   const decisionCount = risks.filter(risk =>
@@ -108,40 +128,18 @@ export default function OwnerWorkspaceFixesRiskThreadPanel({
     return risks.filter(risk => selected.has(risk.id));
   }, [previewRiskIds, risks]);
   const topRisk = activeRisks[0] || risks[0];
-  const groupedSections = [
-    {
-      key: 'ready',
-      title: 'Ready to check',
-      detail: 'Work or proof is ready; verify it with the smallest relevant scanner set.',
-      risks: readyRisks,
-      accent: appleColors.blue,
-    },
-    {
-      key: 'open',
-      title: 'Still needs work',
-      detail: 'Assigned risks that still need a service, fix, owner decision, or proof.',
-      risks: openRisks,
-      accent: openRisks.length ? appleColors.amber : appleColors.green,
-    },
-    {
-      key: 'proof',
-      title: 'Needs proof',
-      detail:
-        'These cannot be trusted as fixed until someone attaches evidence or chooses the right check.',
-      risks: proofRisks,
-      accent: proofRisks.length ? appleColors.purple : appleColors.green,
-    },
-    {
-      key: 'fixed',
-      title: 'Verified or decided',
-      detail:
-        'Fixed, accepted, or false-positive items stay visible without crowding current work.',
-      risks: risks.filter(risk =>
-        ['FIXED_BY_LATEST_SCAN', 'ACCEPTED_RISK', 'FALSE_POSITIVE'].includes(risk.currentState)
-      ),
-      accent: appleColors.green,
-    },
-  ].filter(section => section.risks.length > 0);
+  const serviceSections = useMemo(
+    () => buildServiceFindingSections(risks, packageModules),
+    [packageModules, risks]
+  );
+  const ownerOptions = useMemo(
+    () =>
+      participantList
+        .filter(participant => participant.active)
+        .map(participant => participant.user)
+        .filter((user, index, users) => users.findIndex(item => item.id === user.id) === index),
+    [participantList]
+  );
   const nextStep = readyCount
     ? 'Check ready fixes'
     : activeRisks.length
@@ -168,7 +166,7 @@ export default function OwnerWorkspaceFixesRiskThreadPanel({
         >
           <Box>
             <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-              <PastelChip label="Assigned findings" accent={appleColors.blue} bg="#eaf3ff" />
+              <PastelChip label="Service-owned findings" accent={appleColors.blue} bg="#eaf3ff" />
               <PastelChip
                 label={`${risks.length} assigned`}
                 accent={risks.length ? appleColors.purple : appleColors.muted}
@@ -191,11 +189,11 @@ export default function OwnerWorkspaceFixesRiskThreadPanel({
               )}
             </Stack>
             <Typography variant="h3" sx={{ mt: 0.85 }}>
-              Findings assigned to this workspace
+              Service-owned findings and checks
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.45, maxWidth: 780, lineHeight: 1.6 }}>
-              These are product scan risks that became workspace work. This view should answer what
-              matters, what changed, what service/proof is connected, and what to check next.
+              Product scan risks stay grouped under the service that owns the fix. Each finding
+              shows source proof, owner gap, proof/check state, and the next verification action.
             </Typography>
           </Box>
           <Stack
@@ -301,19 +299,29 @@ export default function OwnerWorkspaceFixesRiskThreadPanel({
 
         {isLoading ? (
           <Typography color="text.secondary">Loading assigned findings...</Typography>
-        ) : groupedSections.length ? (
+        ) : serviceSections.length ? (
           <Stack spacing={1.25}>
-            {groupedSections.map(section => (
-              <FindingStateSection
+            {serviceSections.map(section => (
+              <ServiceFindingSection
                 key={section.key}
                 accent={section.accent}
                 detail={section.detail}
+                includedCount={section.includedCount}
+                openCount={section.openCount}
+                ownerLabel={section.ownerLabel}
+                proofCount={section.proofCount}
+                readyCount={section.readyCount}
                 risks={section.risks}
+                verifiedCount={section.verifiedCount}
                 catalogModules={catalogModules}
+                assigningFindingOwnerId={assigningFindingOwnerId}
                 changingServiceRiskId={changingServiceRiskId}
+                evidencePanel={evidencePanel}
                 removingRiskId={removingRiskId}
+                ownerOptions={ownerOptions}
                 packageModules={packageModules}
                 title={section.title}
+                onAssignFindingOwner={onAssignFindingOwner}
                 onChangeRiskService={onChangeRiskService}
                 onReviewCheck={openCheckPreview}
                 onRemoveRisk={onRemoveRisk}
@@ -340,6 +348,137 @@ export default function OwnerWorkspaceFixesRiskThreadPanel({
       </Stack>
     </Surface>
   );
+}
+
+function buildServiceFindingSections(
+  risks: ScannerRiskThread[],
+  packageModules: PackageModule[]
+): ServiceFindingSectionModel[] {
+  const workspaceServiceIds = new Set(packageModules.map(module => module.serviceModule.id));
+  const risksByServiceId = new Map<string, ScannerRiskThread[]>();
+  const unassignedRisks: ScannerRiskThread[] = [];
+  const outsideWorkspaceRisks: ScannerRiskThread[] = [];
+
+  risks.forEach(risk => {
+    const serviceId = risk.recommendedModule?.id;
+    if (!serviceId) {
+      unassignedRisks.push(risk);
+      return;
+    }
+    if (!workspaceServiceIds.has(serviceId)) {
+      outsideWorkspaceRisks.push(risk);
+      return;
+    }
+    const current = risksByServiceId.get(serviceId) || [];
+    current.push(risk);
+    risksByServiceId.set(serviceId, current);
+  });
+
+  const sections = [...packageModules]
+    .sort((a, b) => a.sequenceOrder - b.sequenceOrder)
+    .map((module, index) => {
+      const serviceRisks = risksByServiceId.get(module.serviceModule.id) || [];
+      return serviceSectionModel({
+        key: module.serviceModule.id,
+        title: module.serviceModule.name,
+        detail:
+          module.serviceModule.ownerOutcome ||
+          module.rationale ||
+          'This service owns the fixes grouped below.',
+        ownerLabel: module.owner?.email || 'Needs named owner',
+        risks: serviceRisks,
+        accent: categoryPaletteAccent(index),
+      });
+    });
+
+  if (unassignedRisks.length) {
+    sections.push(
+      serviceSectionModel({
+        key: 'needs-service',
+        title: 'Needs service choice',
+        detail: 'These findings are in the workspace but do not have a service owner yet.',
+        ownerLabel: 'Needs service',
+        risks: unassignedRisks,
+        accent: appleColors.amber,
+      })
+    );
+  }
+
+  if (outsideWorkspaceRisks.length) {
+    sections.push(
+      serviceSectionModel({
+        key: 'outside-workspace-service',
+        title: 'Outside current service scope',
+        detail:
+          'These findings point to a service that is not currently selected. Add the service or change ownership.',
+        ownerLabel: 'Needs scope decision',
+        risks: outsideWorkspaceRisks,
+        accent: appleColors.red,
+      })
+    );
+  }
+
+  if (!sections.length && risks.length) {
+    sections.push(
+      serviceSectionModel({
+        key: 'workspace-findings',
+        title: 'Workspace findings',
+        detail: 'Choose services so these risks become owned productionization work.',
+        ownerLabel: 'Needs service',
+        risks,
+        accent: appleColors.amber,
+      })
+    );
+  }
+
+  return sections;
+}
+
+function serviceSectionModel({
+  accent,
+  detail,
+  key,
+  ownerLabel,
+  risks,
+  title,
+}: {
+  accent: string;
+  detail: string;
+  key: string;
+  ownerLabel: string;
+  risks: ScannerRiskThread[];
+  title: string;
+}): ServiceFindingSectionModel {
+  const verifiedCount = risks.filter(risk => risk.currentState === 'FIXED_BY_LATEST_SCAN').length;
+  const readyCount = risks.filter(risk => risk.currentState === 'READY_TO_CHECK').length;
+  const proofCount = risks.filter(risk => risk.currentState === 'NEEDS_PROOF').length;
+  const openCount = risks.filter(risk =>
+    ['NEW', 'STILL_OPEN', 'RETURNED', 'INCOMPLETE_CHECK'].includes(risk.currentState)
+  ).length;
+  return {
+    key,
+    title,
+    detail,
+    ownerLabel,
+    risks,
+    accent,
+    includedCount: risks.length,
+    openCount,
+    proofCount,
+    readyCount,
+    verifiedCount,
+  };
+}
+
+function categoryPaletteAccent(index: number) {
+  const accents = [
+    appleColors.blue,
+    appleColors.purple,
+    appleColors.cyan,
+    appleColors.green,
+    appleColors.amber,
+  ];
+  return accents[index % accents.length] || appleColors.blue;
 }
 
 function CheckProgressPanel({
@@ -493,8 +632,7 @@ function CheckProgressPanel({
 
 function CheckProgressRunCard({ run }: { run: CheckFixProgressRun }) {
   const accent = statusAccent(run.status);
-  const finishedTools =
-    run.completedTools + run.failedTools + run.canceledTools + run.skippedTools;
+  const finishedTools = run.completedTools + run.failedTools + run.canceledTools + run.skippedTools;
   const selectedCount = run.riskThreadIds.length || run.findingIds.length;
   const shownTools: ToolRunLabel[] = run.toolRuns.length
     ? run.toolRuns
@@ -521,11 +659,7 @@ function CheckProgressRunCard({ run }: { run: CheckFixProgressRun }) {
               {selectedCount === 1 ? '' : 's'}
             </Typography>
           </Box>
-          <PastelChip
-            label={formatRunStatus(run.status)}
-            accent={accent}
-            bg={`${accent}12`}
-          />
+          <PastelChip label={formatRunStatus(run.status)} accent={accent} bg={`${accent}12`} />
         </Stack>
         <Box
           sx={{
@@ -559,11 +693,7 @@ function CheckProgressRunCard({ run }: { run: CheckFixProgressRun }) {
             />
           )}
           {run.failedTools > 0 && (
-            <PastelChip
-              label={`${run.failedTools} failed`}
-              accent={appleColors.red}
-              bg="#ffe9e4"
-            />
+            <PastelChip label={`${run.failedTools} failed`} accent={appleColors.red} bg="#ffe9e4" />
           )}
         </Stack>
         <Stack direction="row" spacing={0.45} flexWrap="wrap" useFlexGap>
@@ -746,33 +876,56 @@ function VerificationPreview({
   );
 }
 
-function FindingStateSection({
+function ServiceFindingSection({
   accent,
   detail,
+  includedCount,
+  openCount,
+  ownerLabel,
+  proofCount,
+  readyCount,
   risks,
+  verifiedCount,
   catalogModules,
   changingServiceRiskId,
+  assigningFindingOwnerId,
+  evidencePanel,
   removingRiskId,
+  ownerOptions,
   packageModules,
   title,
+  onAssignFindingOwner,
   onChangeRiskService,
   onReviewCheck,
   onRemoveRisk,
 }: {
   accent: string;
   detail: string;
+  includedCount: number;
+  openCount: number;
+  ownerLabel: string;
+  proofCount: number;
+  readyCount: number;
   risks: ScannerRiskThread[];
+  verifiedCount: number;
   catalogModules: ServiceModule[];
+  assigningFindingOwnerId?: string | null | undefined;
   changingServiceRiskId?: string | null | undefined;
+  evidencePanel?: ((scopeType: AttachmentScope, scopeId: string) => ReactNode) | undefined;
   removingRiskId?: string | null | undefined;
+  ownerOptions: Array<{ id: string; email: string }>;
   packageModules: PackageModule[];
   title: string;
+  onAssignFindingOwner?: ((riskThreadId: string, ownerUserId: string) => void) | undefined;
   onChangeRiskService?:
     | ((riskId: string, serviceModuleId: string, note?: string) => void)
     | undefined;
   onReviewCheck: (riskIds?: string[]) => void;
   onRemoveRisk?: ((riskId: string) => void) | undefined;
 }) {
+  const actionableRiskIds = risks
+    .filter(risk => activeStates.includes(risk.currentState))
+    .map(risk => risk.id);
   return (
     <Box
       sx={{
@@ -796,6 +949,14 @@ function FindingStateSection({
         }}
       >
         <Box>
+          <Stack direction="row" spacing={0.6} flexWrap="wrap" useFlexGap sx={{ mb: 0.55 }}>
+            <PastelChip label="Service group" accent={accent} bg={`${accent}12`} />
+            <PastelChip
+              label={ownerLabel}
+              accent={ownerLabel.includes('Needs') ? appleColors.amber : appleColors.green}
+              bg={ownerLabel.includes('Needs') ? '#fff4dc' : '#e7f8ee'}
+            />
+          </Stack>
           <Typography variant="h4" sx={{ color: accent }}>
             {title}
           </Typography>
@@ -803,11 +964,33 @@ function FindingStateSection({
             {detail}
           </Typography>
         </Box>
-        <PastelChip
-          label={`${risks.length} finding${risks.length === 1 ? '' : 's'}`}
-          accent={accent}
-          bg={`${accent}12`}
-        />
+        <Stack
+          direction={{ xs: 'row', sm: 'column' }}
+          spacing={0.55}
+          alignItems={{ xs: 'flex-start', sm: 'flex-end' }}
+          flexWrap="wrap"
+          useFlexGap
+        >
+          <PastelChip label={`${includedCount} included`} accent={accent} bg={`${accent}12`} />
+          <PastelChip label={`${verifiedCount} verified`} accent={appleColors.green} bg="#e7f8ee" />
+          <PastelChip label={`${readyCount} ready`} accent={appleColors.blue} bg="#eaf3ff" />
+          <PastelChip
+            label={`${openCount + proofCount} need work/proof`}
+            accent={openCount + proofCount ? appleColors.amber : appleColors.green}
+            bg={openCount + proofCount ? '#fff4dc' : '#e7f8ee'}
+          />
+          {actionableRiskIds.length > 0 && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<PlayArrowOutlined />}
+              onClick={() => onReviewCheck(actionableRiskIds)}
+              sx={{ minHeight: 34 }}
+            >
+              Review service checks
+            </Button>
+          )}
+        </Stack>
       </Stack>
       <Box
         sx={{
@@ -819,19 +1002,41 @@ function FindingStateSection({
           p: 1,
         }}
       >
-        {risks.map(risk => (
-          <RiskThreadCard
-            key={risk.id}
-            risk={risk}
-            catalogModules={catalogModules}
-            isChangingService={changingServiceRiskId === risk.id}
-            isRemoving={removingRiskId === risk.id}
-            packageModules={packageModules}
-            onChangeRiskService={onChangeRiskService}
-            onReviewCheck={onReviewCheck}
-            onRemoveRisk={onRemoveRisk}
-          />
-        ))}
+        {risks.length ? (
+          risks.map(risk => (
+            <RiskThreadCard
+              key={risk.id}
+              risk={risk}
+              catalogModules={catalogModules}
+              isChangingService={changingServiceRiskId === risk.id}
+              isAssigningOwner={assigningFindingOwnerId === risk.id}
+              isRemoving={removingRiskId === risk.id}
+              evidencePanel={evidencePanel}
+              ownerOptions={ownerOptions}
+              packageModules={packageModules}
+              onAssignFindingOwner={onAssignFindingOwner}
+              onChangeRiskService={onChangeRiskService}
+              onReviewCheck={onReviewCheck}
+              onRemoveRisk={onRemoveRisk}
+            />
+          ))
+        ) : (
+          <Box
+            sx={{
+              border: '1px dashed',
+              borderColor: '#c9d8ea',
+              borderRadius: 1,
+              bgcolor: '#fff',
+              p: 1.15,
+            }}
+          >
+            <Typography variant="subtitle1">No findings included for this service yet.</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.5 }}>
+              Add or re-add findings through Work scope when scanner risks should become work for
+              this service.
+            </Typography>
+          </Box>
+        )}
       </Box>
     </Box>
   );
@@ -874,19 +1079,27 @@ function AnswerTile({
 
 function RiskThreadCard({
   catalogModules,
+  evidencePanel,
+  isAssigningOwner,
   isChangingService,
   risk,
   isRemoving,
+  ownerOptions,
   packageModules,
+  onAssignFindingOwner,
   onChangeRiskService,
   onReviewCheck,
   onRemoveRisk,
 }: {
   catalogModules: ServiceModule[];
+  evidencePanel?: ((scopeType: AttachmentScope, scopeId: string) => ReactNode) | undefined;
+  isAssigningOwner?: boolean | undefined;
   isChangingService?: boolean | undefined;
   risk: ScannerRiskThread;
   isRemoving?: boolean | undefined;
+  ownerOptions: Array<{ id: string; email: string }>;
   packageModules: PackageModule[];
+  onAssignFindingOwner?: ((riskThreadId: string, ownerUserId: string) => void) | undefined;
   onChangeRiskService?:
     | ((riskId: string, serviceModuleId: string, note?: string) => void)
     | undefined;
@@ -923,6 +1136,17 @@ function RiskThreadCard({
     risk.recommendedModule?.id &&
     risk.scannerSuggestedModule.id !== risk.recommendedModule.id;
   const canChangeService = !!onChangeRiskService && !!selectedServiceId && !isChangingService;
+  const servicePackageModule = packageModules.find(
+    module => module.serviceModule.id === risk.recommendedModule?.id
+  );
+  const inheritedOwner = risk.owner || servicePackageModule?.owner;
+  const ownerValue = risk.owner?.email
+    ? risk.owner.email
+    : servicePackageModule?.owner?.email
+      ? `${servicePackageModule.owner.email} (service owner)`
+      : risk.recommendedModule?.name
+        ? 'Needs named owner'
+        : 'Choose a service before assigning owner';
 
   return (
     <Box
@@ -988,6 +1212,7 @@ function RiskThreadCard({
                 : 'No service linked yet'
             }
           />
+          <FactLine label="Owner" value={ownerValue} />
           {scannerSuggestedDifferent && (
             <FactLine label="Scanner suggested" value={risk.scannerSuggestedModule?.name || ''} />
           )}
@@ -1003,6 +1228,33 @@ function RiskThreadCard({
             value={risk.lastSeenScanRunId ? compactId(risk.lastSeenScanRunId) : 'No baseline yet'}
           />
         </Box>
+        {onAssignFindingOwner && (
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Finding owner"
+            value={inheritedOwner?.id || ''}
+            disabled={!ownerOptions.length || !!isAssigningOwner}
+            onChange={event => onAssignFindingOwner(risk.id, event.target.value)}
+            helperText={
+              risk.owner
+                ? 'This finding has an explicit owner.'
+                : servicePackageModule?.owner
+                  ? 'Inherited from the service owner until changed here.'
+                  : 'Choose who owns this fix.'
+            }
+          >
+            <MenuItem value="" disabled>
+              Needs named owner
+            </MenuItem>
+            {ownerOptions.map(owner => (
+              <MenuItem key={owner.id} value={owner.id}>
+                {owner.email}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
         <Stack direction="row" spacing={0.6} flexWrap="wrap" useFlexGap>
           {risk.sourceTool && (
             <PastelChip label={risk.sourceTool} accent={appleColors.cyan} bg="#e4f9fd" />
@@ -1035,6 +1287,22 @@ function RiskThreadCard({
             />
           )}
         </Stack>
+        {evidencePanel && (
+          <Box
+            sx={{
+              border: '1px solid',
+              borderColor: '#dbe7f5',
+              borderRadius: 1,
+              bgcolor: '#fbfdff',
+              p: 1,
+            }}
+          >
+            <Typography variant="caption" sx={{ fontWeight: 900, color: appleColors.ink }}>
+              Finding proof
+            </Typography>
+            {evidencePanel('FINDING', risk.id)}
+          </Box>
+        )}
         {serviceEditorOpen && (
           <Box
             sx={{
@@ -1137,7 +1405,7 @@ function RiskThreadCard({
             onClick={() => onReviewCheck([risk.id])}
             sx={{ minHeight: 36 }}
           >
-            Review check
+            Check fixes
           </Button>
           {onRemoveRisk && (
             <Button
@@ -1221,7 +1489,9 @@ function uniqueValues(values: string[]) {
   return [...new Set(values.filter(Boolean))];
 }
 
-function formatDepth(depth: CheckFixProgressRun['depth'] | CheckFixesResponse['skippedTargets'][number]['depth']) {
+function formatDepth(
+  depth: CheckFixProgressRun['depth'] | CheckFixesResponse['skippedTargets'][number]['depth']
+) {
   const labels: Record<CheckFixProgressRun['depth'], string> = {
     CI_EVIDENCE: 'Uploaded proof',
     SAFE_STATIC: 'Code and repo scan',

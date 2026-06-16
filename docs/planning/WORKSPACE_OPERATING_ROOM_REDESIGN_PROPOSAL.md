@@ -479,14 +479,14 @@ Proof can attach to:
 
 Owner-facing proof states:
 
-| State | Meaning |
-| --- | --- |
-| Needs proof | Owner/team claims work happened, but no supporting evidence exists. |
-| Ready to check | Work/proof exists and scanner verification can run. |
-| Checking | Scanner or human review is in progress. |
-| Verified | Latest comparable check confirms the issue is fixed or the requirement is met. |
-| Failed check | Verification ran but issue remains or tool failed. |
-| Accepted risk | Owner intentionally accepts this risk for now. |
+| State          | Meaning                                                                        |
+| -------------- | ------------------------------------------------------------------------------ |
+| Needs proof    | Owner/team claims work happened, but no supporting evidence exists.            |
+| Ready to check | Work/proof exists and scanner verification can run.                            |
+| Checking       | Scanner or human review is in progress.                                        |
+| Verified       | Latest comparable check confirms the issue is fixed or the requirement is met. |
+| Failed check   | Verification ran but issue remains or tool failed.                             |
+| Accepted risk  | Owner intentionally accepts this risk for now.                                 |
 
 Avoid making the owner manage proof files as a separate destination.
 
@@ -527,18 +527,18 @@ Fix and verify the selected findings first.
 
 ## Route And UI Mapping
 
-Current route/card | Proposed destination
---- | ---
-Overview | Keep, but make it answer-first, not route-first.
-Plan work | Collapse into Work scope.
-Services | Rename/merge into Work scope.
-Findings and proof | Rename to Fix and verify.
-People and help | Rename to People.
-Workspace chat | Rename to Workspace discussion / decisions and keep workspace-attached.
-Steps | Collapse into service/finding checklists.
-Handoff | Keep, but make conditional/final-stage.
-Proof files metric | Replace with verified/unverified fix state.
-Acceptance checks | Rename to Ready checks or keep inside Handoff.
+| Current route/card | Proposed destination                                                    |
+| ------------------ | ----------------------------------------------------------------------- |
+| Overview           | Keep, but make it answer-first, not route-first.                        |
+| Plan work          | Collapse into Work scope.                                               |
+| Services           | Rename/merge into Work scope.                                           |
+| Findings and proof | Rename to Fix and verify.                                               |
+| People and help    | Rename to People.                                                       |
+| Workspace chat     | Rename to Workspace discussion / decisions and keep workspace-attached. |
+| Steps              | Collapse into service/finding checklists.                               |
+| Handoff            | Keep, but make conditional/final-stage.                                 |
+| Proof files metric | Replace with verified/unverified fix state.                             |
+| Acceptance checks  | Rename to Ready checks or keep inside Handoff.                          |
 
 ## Implementation Sequence
 
@@ -615,6 +615,73 @@ The UI should not require the owner to understand:
 - handoff signals.
 
 Those details can exist, but they should be nested under the practical owner questions.
+
+## Implementation Status - 2026-06-16
+
+Core north-star UI implementation is complete in the current local workspace.
+
+Implemented:
+
+- Overview is answer-first: it surfaces the current workspace state, blockers, scope, people, and a specific next action instead of leading with eight equal route cards.
+- `Plan work`, `Services`, and owner-facing `Steps` are collapsed into `Work scope`.
+- `Findings and proof` is reframed as `Fix and verify`.
+- Workspace findings are grouped under service-owned work, including source proof, service mapping, owner gap, latest baseline, proof need, and targeted `Check fixes`.
+- Services render as work lanes with why they are in scope, finding impact, state, owner gap, owner-visible output, and service checklist rows.
+- People now starts with an ownership map for services/findings, missing owners, support asks, and actions back to findings/scope.
+- Chat is kept as `Workspace discussion / decisions`, scoped to the current workspace and showing finding/service mention context.
+- Handoff is gated: when fixes/proof/ownership are not ready, it stays quiet and directs the owner back to `Fix and verify` or `People`.
+- The legacy language `Plan work`, `Workspace chat`, `Findings & proof`, top-level `Proof files`, `Acceptance checks`, and separate `Fix path` does not appear in the redesigned owner-facing workspace surfaces.
+- Named service owners are now persisted on package modules and assigned from `Work scope`.
+- Named finding owners are now persisted on scanner risk threads and assigned from `Fix and verify`.
+- Proof attachments now support contextual `SERVICE` and `FINDING` scopes, so service proof sits with the service lane and finding proof sits with the finding.
+- Handoff readiness now requires named service/finding ownership, and a ready handoff state is verified through the existing accepted-risk decision flow.
+- The AI chat/MAX dock element was intentionally left untouched in this enhancement pass.
+
+Verified locally:
+
+- Desktop overview.
+- Mobile overview.
+- Work scope service lane with finding impact.
+- Service-owned fix/verify finding.
+- People ownership map.
+- Workspace discussion / decisions with finding and service context.
+- Handoff locked/not-ready state.
+- Persisted service owner assignment.
+- Persisted finding owner assignment.
+- Service-scoped proof attachment.
+- Finding-scoped proof attachment.
+- Handoff ready state after contextual proof, explicit owners, and an accepted-risk owner decision.
+
+Evidence screenshots:
+
+- `tmp/live-verification/2026-06-16/2015-overview-desktop-workspace-north-star-final2-134136.png`
+- `tmp/live-verification/2026-06-16/2016-work-scope-service-lanes-workspace-north-star-final2-134136.png`
+- `tmp/live-verification/2026-06-16/2017-fix-and-verify-service-owned-workspace-north-star-final2-134136.png`
+- `tmp/live-verification/2026-06-16/2018-people-ownership-map-workspace-north-star-final2-134136.png`
+- `tmp/live-verification/2026-06-16/2019-discussion-decisions-context-workspace-north-star-final2-134136.png`
+- `tmp/live-verification/2026-06-16/2020-handoff-not-ready-gate-workspace-north-star-final2-134136.png`
+- `tmp/live-verification/2026-06-16/2021-overview-mobile-workspace-north-star-final2-134136.png`
+- `tmp/live-verification/2026-06-16/2030-service-owner-proof-workspace-owner-proof-1781617558488.png`
+- `tmp/live-verification/2026-06-16/2031-finding-owner-proof-workspace-owner-proof-1781617558488.png`
+- `tmp/live-verification/2026-06-16/2032-ownership-map-assigned-workspace-owner-proof-1781617558488.png`
+- `tmp/live-verification/2026-06-16/2033-handoff-ready-owner-review-workspace-owner-proof-1781617558488.png`
+
+Verification report:
+
+- `tmp/live-verification/2026-06-16/2030-workspace-owner-proof-workspace-owner-proof-1781617558488.json`
+
+Validation run:
+
+- `npx prettier --write` on touched workspace files passed.
+- `mvn -q -DskipTests compile` passed.
+- `npm run type-check` passed.
+- Targeted `next lint --file ...` on the touched workspace files passed with the existing `checkProgress` hook dependency warning in `OwnerWorkspaceFixesRiskThreadPanel.tsx`.
+- `npm run build` passed.
+- Full `npm run lint` is still blocked by unrelated existing lint/prettier debt outside this redesign.
+
+Remaining:
+
+- Deploy to live only after the normal release step is approved; this pass is verified locally, not deployed.
 
 ## North Star
 

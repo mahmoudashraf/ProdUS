@@ -24,6 +24,7 @@ import type {
   ScannerRiskSummary,
   ServiceModule,
   ShipConfidenceHistory,
+  WorkspaceParticipant,
   WorkspaceScannerReadiness,
   CheckFixesResponse,
 } from './types';
@@ -94,6 +95,7 @@ type WorkspaceCommandProofStepPanelProps = {
   catalogModules: ServiceModule[];
   milestoneRiskById: Record<string, MilestoneRisk>;
   packageModules: PackageModule[];
+  participantList: WorkspaceParticipant[];
   workspaceRiskSummary?: ScannerRiskSummary | undefined;
   milestoneForm: FormController<MilestoneFormValues>;
   deliverableForm: FormController<DeliverableFormValues>;
@@ -126,7 +128,9 @@ type WorkspaceCommandProofStepPanelProps = {
   canSubmitScannerEvidence: boolean;
   lastCheckFixes?: CheckFixesResponse | undefined;
   changingServiceRiskId?: string | null | undefined;
+  assigningFindingOwnerId?: string | null | undefined;
   removingRiskId?: string | null | undefined;
+  onAssignFindingOwner?: ((riskId: string, ownerUserId: string) => void) | undefined;
   onChangeRiskService?:
     | ((riskId: string, serviceModuleId: string, note?: string) => void)
     | undefined;
@@ -158,6 +162,7 @@ export default function WorkspaceCommandProofStepPanel({
   catalogModules,
   milestoneRiskById,
   packageModules,
+  participantList,
   workspaceRiskSummary,
   milestoneForm,
   deliverableForm,
@@ -190,7 +195,9 @@ export default function WorkspaceCommandProofStepPanel({
   canSubmitScannerEvidence,
   lastCheckFixes,
   changingServiceRiskId,
+  assigningFindingOwnerId,
   removingRiskId,
+  onAssignFindingOwner,
   onChangeRiskService,
   onCheckFixes,
   onRemoveRisk,
@@ -313,10 +320,7 @@ export default function WorkspaceCommandProofStepPanel({
   return (
     <>
       <WorkspaceBreadcrumbs
-        items={[
-          { label: 'Fix and verify', onClick: onOpenHub },
-          { label: proofViewLabels[view] },
-        ]}
+        items={[{ label: 'Fix and verify', onClick: onOpenHub }, { label: proofViewLabels[view] }]}
         backLabel="Fix and verify"
         onBack={onOpenHub}
       />
@@ -326,12 +330,16 @@ export default function WorkspaceCommandProofStepPanel({
           workspaceId={workspace.id}
           catalogModules={catalogModules}
           packageModules={packageModules}
+          participantList={participantList}
           riskSummary={workspaceRiskSummary}
           isLoading={isWorkspaceRiskLoading}
           isChecking={isCheckingFixes}
           changingServiceRiskId={changingServiceRiskId}
+          assigningFindingOwnerId={assigningFindingOwnerId}
           removingRiskId={removingRiskId}
           lastCheck={lastCheckFixes}
+          evidencePanel={evidencePanel}
+          onAssignFindingOwner={onAssignFindingOwner}
           onChangeRiskService={onChangeRiskService}
           onCheckFixes={onCheckFixes}
           onRemoveRisk={onRemoveRisk}

@@ -389,7 +389,11 @@ export interface ProductCreationActionResponse {
   createdScanSourceId?: string;
 }
 
-export type ProductShareAudience = 'PUBLIC_SUMMARY' | 'REGISTERED_VIEWERS' | 'INVITED_VIEWERS' | 'INTERNAL_ONLY';
+export type ProductShareAudience =
+  | 'PUBLIC_SUMMARY'
+  | 'REGISTERED_VIEWERS'
+  | 'INVITED_VIEWERS'
+  | 'INTERNAL_ONLY';
 
 export type ProductShareSection =
   | 'PRODUCT_SUMMARY'
@@ -748,6 +752,10 @@ export interface ScannerRiskThread extends BaseRecord {
   evidenceRequired?: string;
   acceptedReason?: string;
   reviewDueOn?: string;
+  owner?: CurrentUserSummary;
+  ownerAssignedBy?: CurrentUserSummary;
+  ownerAssignedAt?: string;
+  ownerNote?: string;
 }
 
 export interface ScannerRiskGroup {
@@ -948,7 +956,12 @@ export interface RepoSignalSummary {
   productId: string;
   workspaceId?: string;
   refreshedAt?: string;
-  sourceStatus: 'NOT_REFRESHED' | 'AUTHORIZED_SOURCE' | 'OWNER_PROVIDED_SOURCE' | 'SOURCE_UNKNOWN' | string;
+  sourceStatus:
+    | 'NOT_REFRESHED'
+    | 'AUTHORIZED_SOURCE'
+    | 'OWNER_PROVIDED_SOURCE'
+    | 'SOURCE_UNKNOWN'
+    | string;
   signals: RepoSignal[];
   detectedStack: RepoSignal[];
   scannerFacts: RepoSignal[];
@@ -1088,6 +1101,10 @@ export interface PackageModule extends BaseRecord {
   deliverables?: string;
   acceptanceCriteria?: string;
   status: 'PLANNED' | 'IN_PROGRESS' | 'REVIEW' | 'ACCEPTED' | 'BLOCKED';
+  owner?: CurrentUserSummary;
+  ownerAssignedBy?: CurrentUserSummary;
+  ownerAssignedAt?: string;
+  ownerNote?: string;
 }
 
 export interface Team extends BaseRecord {
@@ -1375,12 +1392,14 @@ export interface DisputeCase extends BaseRecord {
   resolution?: string;
 }
 
-export type AttachmentScope = 'WORKSPACE' | 'DELIVERABLE' | 'DISPUTE';
+export type AttachmentScope = 'WORKSPACE' | 'DELIVERABLE' | 'DISPUTE' | 'SERVICE' | 'FINDING';
 
 export interface EvidenceAttachment extends BaseRecord {
   workspace?: ProjectWorkspace;
   deliverable?: Deliverable;
   dispute?: DisputeCase;
+  packageModuleId?: string;
+  riskThreadId?: string;
   uploadedBy?: CurrentUserSummary;
   scopeType: AttachmentScope;
   scopeId: string;

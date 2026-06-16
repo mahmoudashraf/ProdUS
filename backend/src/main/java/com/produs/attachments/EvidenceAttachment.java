@@ -2,6 +2,8 @@ package com.produs.attachments;
 
 import com.produs.commerce.DisputeCase;
 import com.produs.entity.User;
+import com.produs.packages.PackageModule;
+import com.produs.scanner.ScannerRiskThread;
 import com.produs.shared.BaseEntity;
 import com.produs.workspace.Deliverable;
 import com.produs.workspace.ProjectWorkspace;
@@ -46,6 +48,14 @@ public class EvidenceAttachment extends BaseEntity {
     @JoinColumn(name = "dispute_id")
     private DisputeCase dispute;
 
+    @ManyToOne
+    @JoinColumn(name = "package_module_id")
+    private PackageModule packageModule;
+
+    @ManyToOne
+    @JoinColumn(name = "risk_thread_id")
+    private ScannerRiskThread riskThread;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "uploaded_by", nullable = false)
     private User uploadedBy;
@@ -77,6 +87,8 @@ public class EvidenceAttachment extends BaseEntity {
     public enum AttachmentScope {
         WORKSPACE,
         DELIVERABLE,
-        DISPUTE
+        DISPUTE,
+        SERVICE,
+        FINDING
     }
 }

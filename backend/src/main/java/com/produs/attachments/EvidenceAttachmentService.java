@@ -6,6 +6,10 @@ import com.produs.commerce.DisputeCaseRepository;
 import com.produs.entity.User;
 import com.produs.notifications.NotificationService;
 import com.produs.notifications.PlatformNotification;
+import com.produs.packages.PackageModule;
+import com.produs.packages.PackageModuleRepository;
+import com.produs.scanner.ScannerRiskThread;
+import com.produs.scanner.ScannerRiskThreadRepository;
 import com.produs.service.S3Service;
 import com.produs.teams.Team;
 import com.produs.teams.TeamMemberRepository;
@@ -36,6 +40,8 @@ public class EvidenceAttachmentService {
     private final ProjectWorkspaceRepository workspaceRepository;
     private final DeliverableRepository deliverableRepository;
     private final DisputeCaseRepository disputeRepository;
+    private final PackageModuleRepository packageModuleRepository;
+    private final ScannerRiskThreadRepository scannerRiskThreadRepository;
     private final WorkspaceParticipantRepository participantRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final S3Service s3Service;
@@ -89,6 +95,8 @@ public class EvidenceAttachmentService {
         attachment.setWorkspace(scope.workspace());
         attachment.setDeliverable(scope.deliverable());
         attachment.setDispute(scope.dispute());
+        attachment.setPackageModule(scope.packageModule());
+        attachment.setRiskThread(scope.riskThread());
         attachment.setUploadedBy(user);
         attachment.setScopeType(scopeType);
         attachment.setScopeId(scopeId);
@@ -120,7 +128,9 @@ public class EvidenceAttachmentService {
                 attachment.getScopeType(),
                 attachment.getWorkspace(),
                 attachment.getDeliverable(),
-                attachment.getDispute()
+                attachment.getDispute(),
+                attachment.getPackageModule(),
+                attachment.getRiskThread()
         ));
         return s3Service.generatePresignedDownloadUrl(attachment.getStorageKey());
     }
@@ -133,17 +143,34 @@ public class EvidenceAttachmentService {
             case WORKSPACE -> {
                 ProjectWorkspace workspace = workspaceRepository.findById(scopeId)
                         .orElseThrow(() -> new IllegalArgumentException("Workspace not found"));
-                yield new ResolvedScope(scopeType, workspace, null, null);
+                yield new ResolvedScope(scopeType, workspace, null, null, null, null);
             }
             case DELIVERABLE -> {
                 Deliverable deliverable = deliverableRepository.findById(scopeId)
                         .orElseThrow(() -> new IllegalArgumentException("Deliverable not found"));
-                yield new ResolvedScope(scopeType, deliverable.getMilestone().getWorkspace(), deliverable, null);
+                yield new ResolvedScope(scopeType, deliverable.getMilestone().getWorkspace(), deliverable, null, null, null);
             }
             case DISPUTE -> {
                 DisputeCase dispute = disputeRepository.findById(scopeId)
                         .orElseThrow(() -> new IllegalArgumentException("Dispute not found"));
-                yield new ResolvedScope(scopeType, dispute.getWorkspace(), null, dispute);
+                yield new ResolvedScope(scopeType, dispute.getWorkspace(), null, dispute, null, null);
+            }
+            case SERVICE -> {
+                PackageModule packageModule = packageModuleRepository.findById(scopeId)
+                        .orElseThrow(() -> new IllegalArgumentException("Workspace service not found"));
+                ProjectWorkspace workspace = workspaceRepository
+                        .findFirstByPackageInstanceIdOrderByCreatedAtDesc(packageModule.getPackageInstance().getId())
+                        .orElseThrow(() -> new IllegalArgumentException("Workspace service is not attached to an active workspace"));
+                yield new ResolvedScope(scopeType, workspace, null, null, packageModule, null);
+            }
+            case FINDING -> {
+                ScannerRiskThread riskThread = scannerRiskThreadRepository.findById(scopeId)
+                        .orElseThrow(() -> new IllegalArgumentException("Workspace finding not found"));
+                ProjectWorkspace workspace = riskThread.getWorkspace();
+                if (workspace == null) {
+                    throw new IllegalArgumentException("Finding is not attached to a workspace");
+                }
+                yield new ResolvedScope(scopeType, workspace, null, null, null, riskThread);
             }
         };
     }
@@ -271,6 +298,8 @@ public class EvidenceAttachmentService {
                     case WORKSPACE -> scope.workspace().getId();
                     case DELIVERABLE -> scope.deliverable().getId();
                     case DISPUTE -> scope.dispute().getId();
+                    case SERVICE -> scope.packageModule().getId();
+                    case FINDING -> scope.riskThread().getId();
                 }
         );
     }
@@ -313,6 +342,8 @@ public class EvidenceAttachmentService {
             EvidenceAttachment.AttachmentScope scopeType,
             ProjectWorkspace workspace,
             Deliverable deliverable,
-            DisputeCase dispute
+            DisputeCase dispute,
+            PackageModule packageModule,
+            ScannerRiskThread riskThread
     ) {}
 }

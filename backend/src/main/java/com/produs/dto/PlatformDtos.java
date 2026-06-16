@@ -281,7 +281,11 @@ public final class PlatformDtos {
             String rationale,
             String deliverables,
             String acceptanceCriteria,
-            PackageModule.ModuleStatus status
+            PackageModule.ModuleStatus status,
+            CurrentUserSummary owner,
+            CurrentUserSummary ownerAssignedBy,
+            LocalDateTime ownerAssignedAt,
+            String ownerNote
     ) {}
 
     public record TeamResponse(
@@ -618,6 +622,8 @@ public final class PlatformDtos {
             ProjectWorkspaceResponse workspace,
             DeliverableResponse deliverable,
             DisputeCaseResponse dispute,
+            UUID packageModuleId,
+            UUID riskThreadId,
             CurrentUserSummary uploadedBy,
             EvidenceAttachment.AttachmentScope scopeType,
             UUID scopeId,
@@ -1036,7 +1042,11 @@ public final class PlatformDtos {
                 packageModule.getRationale(),
                 packageModule.getDeliverables(),
                 packageModule.getAcceptanceCriteria(),
-                packageModule.getStatus()
+                packageModule.getStatus(),
+                toCurrentUserSummary(packageModule.getOwner()),
+                toCurrentUserSummary(packageModule.getOwnerAssignedBy()),
+                packageModule.getOwnerAssignedAt(),
+                packageModule.getOwnerNote()
         );
     }
 
@@ -1629,6 +1639,8 @@ public final class PlatformDtos {
                 toProjectWorkspaceResponse(attachment.getWorkspace()),
                 toDeliverableResponse(attachment.getDeliverable()),
                 toDisputeCaseResponse(attachment.getDispute()),
+                attachment.getPackageModule() == null ? null : attachment.getPackageModule().getId(),
+                attachment.getRiskThread() == null ? null : attachment.getRiskThread().getId(),
                 toCurrentUserSummary(attachment.getUploadedBy()),
                 attachment.getScopeType(),
                 attachment.getScopeId(),
