@@ -1,0 +1,13 @@
+{
+  "productId": "8af53790-66e0-4306-b287-b7f534c1a720",
+  "workspaceId": "72207e57-7621-42a0-8561-f3351cfa3ca4",
+  "packageModuleId": "5b624b11-2208-4fa3-87ce-bc0dbeef1971",
+  "serviceName": "API security review",
+  "serviceOwnerEmail": "owner@produs.com",
+  "screenshots": [
+    "/Users/mahmoudashraf/Downloads/Projects/ProdUS/tmp/live-verification/2026-06-16/2040-mobile-overview-current-workspace-workspace-mobile-scope-1781625242605.png",
+    "/Users/mahmoudashraf/Downloads/Projects/ProdUS/tmp/live-verification/2026-06-16/2041-mobile-work-scope-service-owner-workspace-mobile-scope-1781625242605.png",
+    "/Users/mahmoudashraf/Downloads/Projects/ProdUS/tmp/live-verification/2026-06-16/2042-mobile-people-ownership-map-workspace-mobile-scope-1781625242605.png",
+    "/Users/mahmoudashraf/Downloads/Projects/ProdUS/tmp/live-verification/2026-06-16/2043-mobile-handoff-state-workspace-mobile-scope-1781625242605.png"
+  ]
+}
