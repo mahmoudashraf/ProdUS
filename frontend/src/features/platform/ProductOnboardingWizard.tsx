@@ -8,10 +8,7 @@ import { deleteJson, getJson } from './api';
 import ProductCreationReviewPanel from './ProductCreationReviewPanel';
 import { ProductAnalysisProgress } from './ProductAnalysisProgress';
 import { ProductIntakeFrontDoor } from './ProductIntakeFrontDoor';
-import {
-  PageHeader,
-  QueryState,
-} from './PlatformComponents';
+import { PageHeader, QueryState } from './PlatformComponents';
 import {
   ProductCreationAiReviewEmpty,
   ProductCreationAnalyzeNotice,
@@ -70,7 +67,8 @@ export default function ProductOnboardingWizard() {
     queryFn: () => getJson<ProductizationCart>('/productization-cart/current'),
   });
   const removeSelectedService = useMutation({
-    mutationFn: (itemId: string) => deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
+    mutationFn: (itemId: string) =>
+      deleteJson<ProductizationCart>(`/productization-cart/services/${itemId}`),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['productization-cart'] });
     },
@@ -119,10 +117,21 @@ export default function ProductOnboardingWizard() {
       />
       <QueryState
         isLoading={createProduct.isPending || aiBusy || currentCart.isLoading}
-        error={createProduct.error || analyzeProductWithAI.error || currentCart.error || removeSelectedService.error}
+        error={
+          createProduct.error ||
+          analyzeProductWithAI.error ||
+          currentCart.error ||
+          removeSelectedService.error
+        }
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: isSetupStep ? '1fr 340px' : '1fr' }, gap: 2.5 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', xl: isSetupStep ? '1fr 340px' : '1fr' },
+          gap: 2.5,
+        }}
+      >
         <Stack spacing={2.5}>
           <ProductCreationInternalHeader step={currentStep} onBackToSetup={openSetup} />
           {isSetupStep && (
@@ -137,6 +146,7 @@ export default function ProductOnboardingWizard() {
           {currentStep === 'setup' && (
             <ProductIntakeFrontDoor
               brief={aiBrief}
+              productName={form.values.name}
               productUrl={form.values.productUrl}
               repositoryUrl={form.values.repositoryUrl}
               analysisMode={analysisMode}
@@ -150,6 +160,10 @@ export default function ProductOnboardingWizard() {
               isBusy={aiBusy}
               onBriefChange={value => {
                 setAiBrief(value);
+                resetAiAnalysis();
+              }}
+              onProductNameChange={name => {
+                form.setValue('name', name);
                 resetAiAnalysis();
               }}
               onProductUrlChange={productUrl => form.setValue('productUrl', productUrl)}
@@ -172,7 +186,13 @@ export default function ProductOnboardingWizard() {
           {analyzeProductWithAI.isPending && (
             <>
               <ProductCreationAnalyzeNotice />
-              <ProductAnalysisProgress modeLabel={fullAnalysisMode ? 'Full analysis with AI opportunities' : 'AI opportunity analysis'} />
+              <ProductAnalysisProgress
+                modeLabel={
+                  fullAnalysisMode
+                    ? 'Full analysis with AI opportunities'
+                    : 'AI opportunity analysis'
+                }
+              />
             </>
           )}
 
@@ -200,6 +220,7 @@ export default function ProductOnboardingWizard() {
                 setAiBrief(value);
                 resetAiAnalysis();
               }}
+              onProductNameChange={name => form.setValue('name', name)}
               onCreateWithAiAction={() => createProductFromAIAction.mutate()}
               onMoveServiceRecommendation={moveServiceRecommendation}
               onProductUrlChange={productUrl => form.setValue('productUrl', productUrl)}
@@ -236,7 +257,7 @@ export default function ProductOnboardingWizard() {
               onBackToProfile={() => openStep('manual')}
               onChangeServices={openServicesCatalog}
               onCreate={() => createFromReview()}
-              onRemoveService={(itemId) => removeSelectedService.mutate(itemId)}
+              onRemoveService={itemId => removeSelectedService.mutate(itemId)}
             />
           )}
         </Stack>
@@ -247,7 +268,7 @@ export default function ProductOnboardingWizard() {
               cart={currentCart.data}
               isRemovingService={removeSelectedService.isPending}
               onChangeServices={openServicesCatalog}
-              onRemoveService={(itemId) => removeSelectedService.mutate(itemId)}
+              onRemoveService={itemId => removeSelectedService.mutate(itemId)}
             />
             <ProductOnboardingSideGuidePanel />
           </Stack>

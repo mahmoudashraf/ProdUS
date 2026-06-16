@@ -28,6 +28,7 @@ export default function ProductOnboardingAnalysisContextEditor({
   onAddFiles,
   onAnalysisModeChange,
   onBriefChange,
+  onProductNameChange,
   onProductUrlChange,
   onRemoveDocument,
   onRepositoryUrlChange,
@@ -42,6 +43,7 @@ export default function ProductOnboardingAnalysisContextEditor({
   onAddFiles: (files: File[]) => void;
   onAnalysisModeChange: (mode: ProductAnalysisMode) => void;
   onBriefChange: (value: string) => void;
+  onProductNameChange: (value: string) => void;
   onProductUrlChange: (value: string) => void;
   onRemoveDocument: (index: number) => void;
   onRepositoryUrlChange: (value: string) => void;
@@ -118,11 +120,20 @@ export default function ProductOnboardingAnalysisContextEditor({
           gap: 1.5,
         }}
       >
+        <TextInput label="Product name" value={profile.name} onChange={onProductNameChange} />
         <TextInput
           label="Product or app URL"
           value={profile.productUrl}
           onChange={onProductUrlChange}
         />
+      </Box>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          gap: 1.5,
+        }}
+      >
         <TextInput
           label="Repository URL"
           value={profile.repositoryUrl}

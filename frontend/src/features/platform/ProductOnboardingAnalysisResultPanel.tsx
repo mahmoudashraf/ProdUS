@@ -36,6 +36,7 @@ export default function ProductOnboardingAnalysisResultPanel({
   onBriefChange,
   onCreateWithAiAction,
   onMoveServiceRecommendation,
+  onProductNameChange,
   onProductUrlChange,
   onRemoveDocument,
   onRepositoryUrlChange,
@@ -61,6 +62,7 @@ export default function ProductOnboardingAnalysisResultPanel({
   onBriefChange: (value: string) => void;
   onCreateWithAiAction: () => void;
   onMoveServiceRecommendation: (moduleCode: string, direction: -1 | 1) => void;
+  onProductNameChange: (value: string) => void;
   onProductUrlChange: (value: string) => void;
   onRemoveDocument: (index: number) => void;
   onRepositoryUrlChange: (value: string) => void;
@@ -128,6 +130,7 @@ export default function ProductOnboardingAnalysisResultPanel({
               onAddFiles={onAddFiles}
               onAnalysisModeChange={onAnalysisModeChange}
               onBriefChange={onBriefChange}
+              onProductNameChange={onProductNameChange}
               onProductUrlChange={onProductUrlChange}
               onRemoveDocument={onRemoveDocument}
               onRepositoryUrlChange={onRepositoryUrlChange}

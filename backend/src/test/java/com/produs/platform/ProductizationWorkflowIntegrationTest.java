@@ -126,6 +126,7 @@ class ProductizationWorkflowIntegrationTest {
         MvcResult analysisResult = mockMvc.perform(multipart("/api/products/ai-assisted/analyze")
                         .file(brief)
                         .param("ownerMessage", "Inventory Sync should become a paid operations product for retail teams.")
+                        .param("productName", "Inventory Sync Launch Desk")
                         .param("businessStage", "PROTOTYPE")
                         .param("techStack", "Next.js, Spring Boot, PostgreSQL")
                         .param("repositoryUrl", "https://github.com/example/inventory-sync")
@@ -136,7 +137,7 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.intent.status").value("READY_FOR_ACTION"))
                 .andExpect(jsonPath("$.intent.consentToken").exists())
                 .andExpect(jsonPath("$.intent.idempotencyKey").exists())
-                .andExpect(jsonPath("$.analysis.productName").exists())
+                .andExpect(jsonPath("$.analysis.productName").value("Inventory Sync Launch Desk"))
                 .andExpect(jsonPath("$.attachments", hasSize(1)))
                 .andExpect(jsonPath("$.attachments[0].fileName").value("inventory-readiness.md"))
                 .andExpect(jsonPath("$.attachments[0].contentType").value("text/markdown"))
@@ -170,6 +171,7 @@ class ProductizationWorkflowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.structuredContent.status").value("OK"))
                 .andExpect(jsonPath("$.result.structuredContent.productId").exists())
+                .andExpect(jsonPath("$.result.structuredContent.productName").value("Inventory Sync Launch Desk"))
                 .andExpect(jsonPath("$.result.structuredContent.createdByAi").value(false))
                 .andExpect(jsonPath("$.result.structuredContent.aiSourceAttachmentCount").value(1))
                 .andReturn();
@@ -177,6 +179,10 @@ class ProductizationWorkflowIntegrationTest {
         JsonNode actionBody = objectMapper.readTree(actionResult.getResponse().getContentAsString());
         String productId = actionBody.path("result").path("structuredContent").path("productId").asText();
         String attachmentId = body.path("attachments").get(0).path("id").asText();
+
+        mockMvc.perform(get("/api/products/{id}", productId).with(auth(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Inventory Sync Launch Desk"));
 
         mockMvc.perform(get("/api/product-attachments")
                         .param("productId", productId)

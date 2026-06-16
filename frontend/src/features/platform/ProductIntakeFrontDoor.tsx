@@ -1,17 +1,9 @@
 'use client';
 
 import type { ChangeEvent } from 'react';
-import {
-  ArrowForwardOutlined,
-  LockOutlined,
-} from '@mui/icons-material';
+import { ArrowForwardOutlined, LockOutlined } from '@mui/icons-material';
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
-import {
-  DotLabel,
-  PastelChip,
-  Surface,
-  appleColors,
-} from './PlatformComponents';
+import { DotLabel, PastelChip, Surface, appleColors } from './PlatformComponents';
 import {
   type IntakeDocumentItem,
   ProductIntakeDocumentsPanel,
@@ -27,6 +19,7 @@ interface AnalysisModeOption {
 
 export function ProductIntakeFrontDoor({
   brief,
+  productName,
   productUrl,
   repositoryUrl,
   analysisMode,
@@ -35,6 +28,7 @@ export function ProductIntakeFrontDoor({
   selectedDocumentCount,
   isBusy,
   onBriefChange,
+  onProductNameChange,
   onProductUrlChange,
   onRepositoryUrlChange,
   onAnalysisModeChange,
@@ -45,6 +39,7 @@ export function ProductIntakeFrontDoor({
   onManualSetup,
 }: {
   brief: string;
+  productName: string;
   productUrl: string;
   repositoryUrl: string;
   analysisMode: ProductAnalysisMode;
@@ -53,6 +48,7 @@ export function ProductIntakeFrontDoor({
   selectedDocumentCount: number;
   isBusy: boolean;
   onBriefChange: (value: string) => void;
+  onProductNameChange: (value: string) => void;
   onProductUrlChange: (value: string) => void;
   onRepositoryUrlChange: (value: string) => void;
   onAnalysisModeChange: (mode: ProductAnalysisMode) => void;
@@ -78,33 +74,48 @@ export function ProductIntakeFrontDoor({
             <Typography variant="h2" sx={{ mt: 1.25, mb: 0.75 }}>
               Let's see what it takes to make this production-ready
             </Typography>
-            <Typography color="text.secondary" sx={{ fontSize: 16, lineHeight: 1.7, maxWidth: 720 }}>
-              Tell ProdUS about the product in plain words. ProdUS checks it privately, shows what it understood, and turns the result into a launch-readiness path.
+            <Typography
+              color="text.secondary"
+              sx={{ fontSize: 16, lineHeight: 1.7, maxWidth: 720 }}
+            >
+              Tell ProdUS about the product in plain words. ProdUS checks it privately, shows what
+              it understood, and turns the result into a launch-readiness path.
             </Typography>
           </Box>
 
           <TextField
+            label="Product name"
+            value={productName}
+            onChange={event => onProductNameChange(event.target.value)}
+            fullWidth
+            placeholder="Inventory launch desk"
+            helperText="Use the name you want to see across the product workspace."
+          />
+
+          <TextField
             label="Describe your product in your own words"
             value={brief}
-            onChange={(event) => onBriefChange(event.target.value)}
+            onChange={event => onBriefChange(event.target.value)}
             multiline
             minRows={5}
             fullWidth
             placeholder="What does it do, who is it for, and what would ready mean to you?"
           />
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1.5 }}>
+          <Box
+            sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1.5 }}
+          >
             <TextField
               label="Repository URL"
               value={repositoryUrl}
-              onChange={(event) => onRepositoryUrlChange(event.target.value)}
+              onChange={event => onRepositoryUrlChange(event.target.value)}
               placeholder="github.com/you/product"
               fullWidth
             />
             <TextField
               label="Live or staging URL"
               value={productUrl}
-              onChange={(event) => onProductUrlChange(event.target.value)}
+              onChange={event => onProductUrlChange(event.target.value)}
               placeholder="https://myapp.example.com"
               fullWidth
             />
@@ -118,8 +129,14 @@ export function ProductIntakeFrontDoor({
             onToggleDocument={onToggleDocument}
           />
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
-            {analysisModeOptions.map((option) => {
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+              gap: 1,
+            }}
+          >
+            {analysisModeOptions.map(option => {
               const selected = analysisMode === option.mode;
               return (
                 <Button
@@ -143,11 +160,18 @@ export function ProductIntakeFrontDoor({
                   }}
                 >
                   <Stack spacing={0.5} alignItems="flex-start" sx={{ minWidth: 0, width: '100%' }}>
-                    <DotLabel label={selected ? 'Selected' : 'Optional'} color={selected ? option.accent : appleColors.muted} />
+                    <DotLabel
+                      label={selected ? 'Selected' : 'Optional'}
+                      color={selected ? option.accent : appleColors.muted}
+                    />
                     <Typography variant="body2" sx={{ fontWeight: 950 }}>
                       {option.title}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.45, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ lineHeight: 1.45, whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+                    >
                       {option.detail}
                     </Typography>
                   </Stack>
@@ -159,12 +183,24 @@ export function ProductIntakeFrontDoor({
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, color: 'text.secondary' }}>
             <LockOutlined sx={{ fontSize: 17 }} />
             <Typography variant="caption" sx={{ lineHeight: 1.5 }}>
-              Private by default. ProdUS only shares the files you select, uses short-lived access for AI analysis, and keeps ProdUS as the system of record.
+              Private by default. ProdUS only shares the files you select, uses short-lived access
+              for AI analysis, and keeps ProdUS as the system of record.
             </Typography>
           </Box>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2} alignItems={{ sm: 'center' }}>
-            <Button variant="contained" size="large" endIcon={<ArrowForwardOutlined />} disabled={!canAnalyze} onClick={onAnalyze} sx={{ minHeight: 48 }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.2}
+            alignItems={{ sm: 'center' }}
+          >
+            <Button
+              variant="contained"
+              size="large"
+              endIcon={<ArrowForwardOutlined />}
+              disabled={!canAnalyze}
+              onClick={onAnalyze}
+              sx={{ minHeight: 48 }}
+            >
               {isBusy ? 'Analyzing...' : 'Analyze my product'}
             </Button>
             <Button variant="text" color="inherit" onClick={onManualSetup} sx={{ minHeight: 44 }}>
