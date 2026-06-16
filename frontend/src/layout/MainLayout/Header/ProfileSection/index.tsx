@@ -1,4 +1,5 @@
-import { Avatar,
+import {
+  Avatar,
   Alert,
   Box,
   Button,
@@ -24,29 +25,22 @@ import { Avatar,
   Switch,
   TextField,
   Typography,
- } from '@mui/material';
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { IconLogout, IconSearch, IconSettings, IconUser } from '@tabler/icons-react';
+import { IconHome, IconLogout, IconSearch, IconSettings } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-
-// material-ui
-
-// third-party
 import { FormattedMessage } from 'react-intl';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 
-// project imports
+import apiClient from '@/lib/api-client';
+import { User } from '@/types/auth';
 import useAuth from 'hooks/useAuth';
 import useConfig from 'hooks/useConfig';
 import MainCard from 'ui-component/cards/MainCard';
 import Transitions from 'ui-component/extended/Transitions';
-import apiClient from '@/lib/api-client';
-import { User } from '@/types/auth';
 
 import UpgradePlanCard from './UpgradePlanCard';
-
-// assets
 
 const User1 = '/assets/images/users/user-round.svg';
 
@@ -143,7 +137,9 @@ const ProfileSection = () => {
       await refreshUser();
       setSettingsOpen(false);
     } catch (error: any) {
-      setProfileError(error?.response?.data?.message || error?.message || 'Unable to save account settings.');
+      setProfileError(
+        error?.response?.data?.message || error?.message || 'Unable to save account settings.'
+      );
     } finally {
       setProfileSaving(false);
     }
@@ -177,11 +173,13 @@ const ProfileSection = () => {
           <Avatar
             component="div"
             src={User1}
-            sx={{
-              ...theme.typography.mediumAvatar,
-              margin: '8px 0 8px 8px !important',
-              cursor: 'pointer',
-            } as any}
+            sx={
+              {
+                ...theme.typography.mediumAvatar,
+                margin: '8px 0 8px 8px !important',
+                cursor: 'pointer',
+              } as any
+            }
             ref={anchorRef}
             aria-controls={open ? 'menu-list-grow' : undefined}
             aria-haspopup="true"
@@ -233,7 +231,9 @@ const ProfileSection = () => {
                             {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.email}
                           </Typography>
                         </Stack>
-                        <Typography variant="subtitle2">{user?.role?.replaceAll('_', ' ') || 'Platform user'}</Typography>
+                        <Typography variant="subtitle2">
+                          {user?.role?.replaceAll('_', ' ') || 'Platform user'}
+                        </Typography>
                       </Stack>
                       <OutlinedInput
                         sx={{ width: '100%', pr: 1, pl: 2, my: 2 }}
@@ -345,23 +345,25 @@ const ProfileSection = () => {
                             sx={{ borderRadius: `${borderRadius}px` }}
                             selected={selectedIndex === 1}
                             onClick={(event: React.MouseEvent<HTMLDivElement>) =>
-                              handleListItemClick(event, 1, '/workspaces')
+                              handleListItemClick(
+                                event,
+                                1,
+                                '/dashboard?focus=products&clearSelectedProduct=1'
+                              )
                             }
                           >
                             <ListItemIcon>
-                              <IconUser stroke={1.5} size="20px" />
+                              <IconHome stroke={1.5} size="20px" />
                             </ListItemIcon>
                             <ListItemText
                               primary={
                                 <Grid container spacing={1} justifyContent="space-between">
                                   <Grid>
-                                    <Typography variant="body2">
-                                      <FormattedMessage id="workspaces" />
-                                    </Typography>
+                                    <Typography variant="body2">Home</Typography>
                                   </Grid>
                                   <Grid>
                                     <Chip
-                                      label="02"
+                                      label="Products"
                                       size="small"
                                       color="warning"
                                       sx={{ '& .MuiChip-label': { mt: 0.25 } }}
@@ -406,21 +408,36 @@ const ProfileSection = () => {
             <TextField
               label="First name"
               value={profileValues.firstName}
-              onChange={(event) => setProfileValues((current) => ({ ...current, firstName: event.target.value }))}
+              onChange={event =>
+                setProfileValues(current => ({ ...current, firstName: event.target.value }))
+              }
               fullWidth
             />
             <TextField
               label="Last name"
               value={profileValues.lastName}
-              onChange={(event) => setProfileValues((current) => ({ ...current, lastName: event.target.value }))}
+              onChange={event =>
+                setProfileValues(current => ({ ...current, lastName: event.target.value }))
+              }
               fullWidth
             />
-            <TextField label="Role" value={user?.role?.replaceAll('_', ' ') || ''} disabled fullWidth />
+            <TextField
+              label="Role"
+              value={user?.role?.replaceAll('_', ' ') || ''}
+              disabled
+              fullWidth
+            />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSettingsOpen(false)} disabled={profileSaving}>Cancel</Button>
-          <Button variant="contained" onClick={saveAccountSettings} disabled={profileSaving || !user}>
+          <Button onClick={() => setSettingsOpen(false)} disabled={profileSaving}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={saveAccountSettings}
+            disabled={profileSaving || !user}
+          >
             Save changes
           </Button>
         </DialogActions>
