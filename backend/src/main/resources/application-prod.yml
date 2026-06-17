@@ -48,6 +48,7 @@ app:
   scanner:
     scheduler-enabled: ${APP_SCANNER_SCHEDULER_ENABLED:true}
     worker-enabled: ${APP_SCANNER_WORKER_ENABLED:false}
+    separate-worker-enabled: ${APP_SCANNER_SEPARATE_WORKER_ENABLED:false}
     require-runtime-tool-availability: ${APP_SCANNER_REQUIRE_RUNTIME_TOOL_AVAILABILITY:true}
     runtime-image-name: ${APP_SCANNER_RUNTIME_IMAGE_NAME:produs-scanner-worker}
     runtime-image-tag: ${APP_SCANNER_RUNTIME_IMAGE_TAG:production}

@@ -16,6 +16,7 @@ import java.util.Map;
 public class ScannerProperties {
     private boolean schedulerEnabled = true;
     private boolean workerEnabled = true;
+    private boolean separateWorkerEnabled = false;
     private long pollFixedDelayMs = 10_000;
     private int maxAttempts = 1;
     private int defaultTimeoutSeconds = 300;

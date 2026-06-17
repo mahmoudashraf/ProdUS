@@ -88,10 +88,11 @@ public class AdminController {
                 "API rate limiting",
                 "API rate limit filter protects authenticated API paths and emits rate limit headers.",
                 "Enable APP_RATE_LIMIT_ENABLED and set a production limit.");
-        addGate(gates, "scanner-worker", "Scanner", scannerProperties.isWorkerEnabled() ? "PASS" : "WARN",
+        boolean scannerExecutionConfigured = scannerProperties.isWorkerEnabled() || scannerProperties.isSeparateWorkerEnabled();
+        addGate(gates, "scanner-worker", "Scanner", scannerExecutionConfigured ? "PASS" : "WARN",
                 "Scanner worker",
-                scannerProperties.isWorkerEnabled() ? "Hosted scanner worker is enabled." : "Hosted scanner worker is disabled; evidence views still work.",
-                "Enable APP_SCANNER_WORKER_ENABLED only after scanner image, isolation, and tool licensing are approved.");
+                scannerWorkerDetail(),
+                "Enable either APP_SCANNER_WORKER_ENABLED for a local worker or APP_SCANNER_SEPARATE_WORKER_ENABLED when scanner execution is delegated to the scanner-worker service.");
         addGate(gates, "scanner-tool-pack", "Scanner", requiredScannerToolsConfigured() ? "PASS" : "BLOCKED",
                 "Scanner tool pack configured",
                 "Required scanner commands are present in scanner configuration.",
@@ -167,6 +168,9 @@ public class AdminController {
     }
 
     private String scannerRuntimeToolsStatus() {
+        if (scannerProperties.isSeparateWorkerEnabled() && !scannerProperties.isWorkerEnabled()) {
+            return "PASS";
+        }
         boolean available = requiredScannerToolsExecutableAvailable();
         if (available) {
             return "PASS";
@@ -175,6 +179,9 @@ public class AdminController {
     }
 
     private String scannerRuntimeToolsDetail() {
+        if (scannerProperties.isSeparateWorkerEnabled() && !scannerProperties.isWorkerEnabled()) {
+            return "Required scanner binaries are owned by the separate scanner-worker runtime, not the API container PATH.";
+        }
         List<String> missing = scannerProperties.getRequiredToolKeys().stream()
                 .filter(key -> scannerProperties.getTools().containsKey(key))
                 .filter(key -> !scannerProcessRunner.isExecutableAvailable(executableFor(scannerProperties.getTools().get(key))))
@@ -183,6 +190,16 @@ public class AdminController {
             return "Required scanner binaries are available on the current runtime PATH.";
         }
         return "Missing scanner binaries on current runtime PATH: " + String.join(", ", missing) + ".";
+    }
+
+    private String scannerWorkerDetail() {
+        if (scannerProperties.isWorkerEnabled()) {
+            return "Hosted scanner worker is enabled in this runtime.";
+        }
+        if (scannerProperties.isSeparateWorkerEnabled()) {
+            return "Hosted scanner execution is delegated to the separate scanner-worker service; this API runtime only queues and reads scan state.";
+        }
+        return "Hosted scanner worker is disabled; evidence views still work.";
     }
 
     private boolean requiredScannerToolsExecutableAvailable() {

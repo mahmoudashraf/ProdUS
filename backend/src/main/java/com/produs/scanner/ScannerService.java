@@ -676,7 +676,10 @@ public class ScannerService {
                 .toList();
         return new ScannerAdminHealthResponse(
                 scannerProperties.isWorkerEnabled(),
+                scannerProperties.isSeparateWorkerEnabled(),
                 scannerProperties.isSchedulerEnabled(),
+                scannerExecutionMode(),
+                scannerToolAvailabilityAuthoritative(),
                 jobs.stream().filter(job -> job.getStatus() == ScannerJob.JobStatus.QUEUED).count(),
                 jobs.stream().filter(job -> job.getStatus() == ScannerJob.JobStatus.RUNNING).count(),
                 tools,
@@ -687,6 +690,20 @@ public class ScannerService {
                         .map(this::toImportRunResponse)
                         .toList()
         );
+    }
+
+    private String scannerExecutionMode() {
+        if (scannerProperties.isWorkerEnabled()) {
+            return "LOCAL_WORKER";
+        }
+        if (scannerProperties.isSeparateWorkerEnabled()) {
+            return "SEPARATE_SERVICE";
+        }
+        return "DISABLED";
+    }
+
+    private boolean scannerToolAvailabilityAuthoritative() {
+        return scannerProperties.isWorkerEnabled() || !scannerProperties.isSeparateWorkerEnabled();
     }
 
     @Transactional(readOnly = true)
@@ -3923,7 +3940,10 @@ public class ScannerService {
 
     public record ScannerAdminHealthResponse(
             boolean workerEnabled,
+            boolean separateWorkerEnabled,
             boolean schedulerEnabled,
+            String executionMode,
+            boolean toolAvailabilityAuthoritative,
             long queuedJobs,
             long runningJobs,
             List<ToolHealthResponse> tools,

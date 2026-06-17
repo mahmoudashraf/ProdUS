@@ -66,7 +66,7 @@ export default function AdminScannerOperationsPage() {
   });
 
   const health = scannerHealth.data;
-  const unavailableTools = health?.tools.filter((tool) => tool.enabled && !tool.executableAvailable) || [];
+  const unavailableTools = health?.toolAvailabilityAuthoritative ? health.tools.filter((tool) => tool.enabled && !tool.executableAvailable) : [];
   const connectorList = connectorInstallations.data || [];
   const isBusy = scannerHealth.isFetching || connectorInstallations.isFetching || rescanRun.isPending || cancelRun.isPending || retentionRun.isPending;
 
@@ -110,7 +110,7 @@ export default function AdminScannerOperationsPage() {
 
           {!activeView && (
             <>
-              <ScannerOperationsAvailabilityAlert unavailableTools={unavailableTools} />
+              <ScannerOperationsAvailabilityAlert health={health} unavailableTools={unavailableTools} />
               <ScannerOperationsMetricGrid health={health} />
               <Surface>
                 <SectionTitle title="Choose Operations Area" action={<PastelChip label="One operational task at a time" accent={appleColors.purple} />} />

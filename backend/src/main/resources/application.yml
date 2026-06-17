@@ -90,6 +90,7 @@ app:
   scanner:
     scheduler-enabled: ${APP_SCANNER_SCHEDULER_ENABLED:true}
     worker-enabled: ${APP_SCANNER_WORKER_ENABLED:true}
+    separate-worker-enabled: ${APP_SCANNER_SEPARATE_WORKER_ENABLED:false}
     poll-fixed-delay-ms: ${APP_SCANNER_POLL_FIXED_DELAY_MS:10000}
     max-attempts: ${APP_SCANNER_MAX_ATTEMPTS:1}
     default-timeout-seconds: ${APP_SCANNER_DEFAULT_TIMEOUT_SECONDS:300}

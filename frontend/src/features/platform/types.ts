@@ -999,7 +999,10 @@ export interface ScannerJobHealth extends BaseRecord {
 
 export interface ScannerAdminHealth {
   workerEnabled: boolean;
+  separateWorkerEnabled: boolean;
   schedulerEnabled: boolean;
+  executionMode: 'LOCAL_WORKER' | 'SEPARATE_SERVICE' | 'DISABLED' | string;
+  toolAvailabilityAuthoritative: boolean;
   queuedJobs: number;
   runningJobs: number;
   tools: ScannerToolHealth[];

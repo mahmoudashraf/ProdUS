@@ -14,9 +14,18 @@ import type { ScannerAdminHealth } from './types';
 
 export function ScannerOperationsAvailabilityAlert({
   unavailableTools,
+  health,
 }: {
   unavailableTools: ScannerAdminHealth['tools'];
+  health: ScannerAdminHealth;
 }) {
+  if (!health.toolAvailabilityAuthoritative) {
+    return (
+      <Alert severity="info" sx={{ borderRadius: 1 }}>
+        Scanner execution runs in the separate scanner-worker service. Tool availability is checked in that worker image, not in the API container.
+      </Alert>
+    );
+  }
   return unavailableTools.length ? (
     <Alert severity="warning" sx={{ borderRadius: 1 }}>
       {unavailableTools.length} enabled scanner executables are not available on this host. Runs using those tools will fail honestly until the scanner image or PATH is corrected.
@@ -29,9 +38,12 @@ export function ScannerOperationsAvailabilityAlert({
 }
 
 export function ScannerOperationsMetricGrid({ health }: { health: ScannerAdminHealth }) {
+  const workerValue = health.workerEnabled ? 'On' : health.separateWorkerEnabled ? 'Separate' : 'Off';
+  const workerDetail = health.workerEnabled ? 'This runtime executes jobs' : health.separateWorkerEnabled ? 'Scanner-worker service' : 'No execution worker';
+  const workerAccent = health.workerEnabled || health.separateWorkerEnabled ? appleColors.green : appleColors.red;
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.5 }}>
-      <MetricTile label="Worker" value={health.workerEnabled ? 'On' : 'Off'} detail="Execution process" accent={health.workerEnabled ? appleColors.green : appleColors.red} icon={<SecurityOutlined />} />
+      <MetricTile label="Worker" value={workerValue} detail={workerDetail} accent={workerAccent} icon={<SecurityOutlined />} />
       <MetricTile label="Scheduler" value={health.schedulerEnabled ? 'On' : 'Off'} detail="DB job polling" accent={health.schedulerEnabled ? appleColors.green : appleColors.amber} icon={<SecurityOutlined />} />
       <MetricTile label="Queued jobs" value={health.queuedJobs} detail="Waiting for worker" accent={health.queuedJobs ? appleColors.amber : appleColors.green} icon={<SecurityOutlined />} />
       <MetricTile label="Running jobs" value={health.runningJobs} detail="Currently executing" accent={health.runningJobs ? appleColors.purple : appleColors.cyan} icon={<SecurityOutlined />} />
