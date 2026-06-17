@@ -11,7 +11,16 @@ output_file="$2"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-kics scan --path "$target_dir" --report-formats sarif --output-path "$tmp_dir" --output-name kics --no-progress --silent
+kics scan \
+    --path "$target_dir" \
+    --queries-path /opt/kics/assets/queries \
+    --libraries-path /opt/kics/assets/libraries \
+    --ignore-on-exit results \
+    --report-formats sarif \
+    --output-path "$tmp_dir" \
+    --output-name kics \
+    --no-progress \
+    --silent
 status=$?
 
 sarif_file="$(find "$tmp_dir" -type f -name '*.sarif' -print -quit)"
