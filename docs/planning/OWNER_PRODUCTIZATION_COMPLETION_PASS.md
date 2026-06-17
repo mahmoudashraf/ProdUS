@@ -2073,6 +2073,61 @@ Deferred screenshot/live verification:
   - `Proof library` hub and each proof library view.
   - Mobile views for risk group and proof library focused routes.
 
+### Live-Verified: Scanner And Proof Navigation Deployment
+
+Deployment:
+
+- Code commit deployed to staging: `5b586ad37e89c715a8137352a664315397574c76`
+- Coolify deployment: `p2e7y5h8bcxo0nnv8awr907m`
+- Frontend: `https://produs-staging.46.224.145.148.sslip.io`
+- API: `https://produs-api-staging.46.224.145.148.sslip.io/api`
+
+Live verification:
+
+- Frontend health: `200`
+- API health: `200`
+- Product verified: `ProdUS Repo README Live 20260606202624`
+- Product id: `0a56637c-41b3-4b8b-9ecd-88eca3d7a237`
+- Browser verifier passed for:
+  - Scanners overview
+  - Risk groups hub
+  - Launch blockers focused view
+  - Proof library hub
+  - Saved proof focused view
+  - Connected sources focused view
+  - Source readout focused view
+  - Scanner setup hub
+  - Connect source focused view
+  - Mobile risk groups hub
+  - Mobile proof library hub
+
+Fresh screenshots:
+
+- `tmp/live-verification/2026-06-11/960-scanners-overview-live-5b586ad.png`
+- `tmp/live-verification/2026-06-11/961-risk-groups-hub-live-5b586ad.png`
+- `tmp/live-verification/2026-06-11/962-risk-group-launch-blockers-live-5b586ad.png`
+- `tmp/live-verification/2026-06-11/963-proof-library-hub-live-5b586ad.png`
+- `tmp/live-verification/2026-06-11/964-proof-library-saved-proof-live-5b586ad.png`
+- `tmp/live-verification/2026-06-11/965-proof-library-connected-sources-live-5b586ad.png`
+- `tmp/live-verification/2026-06-11/966-proof-library-source-readout-live-5b586ad.png`
+- `tmp/live-verification/2026-06-11/967-scanner-setup-hub-live-5b586ad.png`
+- `tmp/live-verification/2026-06-11/968-scanner-setup-connect-source-live-5b586ad.png`
+- `tmp/live-verification/2026-06-11/969-mobile-risk-groups-hub-live-5b586ad.png`
+- `tmp/live-verification/2026-06-11/970-mobile-proof-library-hub-live-5b586ad.png`
+
+Scanner sanity:
+
+- Tool coverage: `10/10` completed.
+- Findings: `73 total`, `73 open`, `14 high`, `28 medium`, `1 low`, `30 info`.
+- Evidence: `20` stored proof items.
+- Sources: `4` connected sources.
+- Recent runs: `3`.
+- ZAP baseline: `COMPLETED`, `10` normalized findings, `10` mapped findings, no latest error summary.
+
+Visual note for the next polish pass:
+
+- The LoomAI-owned companion dock is present on the deployed product workspace. It is fixed to the viewport and appears over lower page content in full-page screenshots, especially mobile proof-library captures. Treat that as a follow-up layout refinement for mobile, not as a blocker for this scanner/proof navigation deployment.
+
 ## Implementation Loop
 
 For each slice:
