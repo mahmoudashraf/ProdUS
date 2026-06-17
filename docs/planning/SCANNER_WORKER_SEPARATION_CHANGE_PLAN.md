@@ -2,7 +2,7 @@
 
 Date: 2026-06-17
 
-Status: implementation in progress
+Status: implemented and deployed to staging
 
 ## Decision
 
@@ -125,6 +125,25 @@ The worker should not have:
 5. Deploy scanner worker after the API backend is healthy.
 6. Verify that the API still responds quickly while scanner jobs are queued/running.
 
+## Staging Deployment Result
+
+Completed on 2026-06-17 against `origin/main` commit `f0cc4e92ae5304456426a184070b7d58664d4ee2`.
+
+Coolify services:
+
+- API backend: `produs-backend-staging` / `jk3n39yatabf8zc9sn5nknj9`
+- Scanner worker: `produs-scanner-worker-staging` / `al1npi3tcu5jusdf9qlw8ub6`
+- Frontend: `produs-frontend-staging` / `wfvdve1ezt7vixejye4bhrgl`
+
+Final staging shape:
+
+- Backend app uses `base_directory=/backend` and `dockerfile_location=/Dockerfile`.
+- Scanner worker app uses `base_directory=/backend` and `dockerfile_location=/Dockerfile.scanner`.
+- Scanner worker has no public FQDN.
+- Backend public health is `UP`.
+- Scanner worker Coolify status is `running:healthy`.
+- Frontend is deployed from the same commit.
+
 ## Repo Changes
 
 Implemented in this pass:
@@ -142,8 +161,11 @@ Local verification:
 
 ```bash
 docker compose -f docker-compose.prod.yml config
+docker compose -f docker-compose.dev.yml config
 cd backend && mvn -q -DskipTests compile
+cd backend && mvn -q -Dtest=ScannerEvidenceIntegrationTest test
 cd frontend && npm run type-check
+cd frontend && npm run build
 ```
 
 Scanner image verification:
@@ -161,6 +183,26 @@ Staging verification:
 - Admin scanner operations shows worker mode as `Separate`, not red `Off`.
 - Scanner-worker Coolify service is running from `backend/Dockerfile.scanner`.
 - Queued scanner jobs move from `QUEUED` to `RUNNING`/terminal state without enabling the API backend worker.
+
+Verified on staging:
+
+- `GET https://produs-api-staging.46.224.145.148.sslip.io/actuator/health` returned `{"status":"UP"}`.
+- Coolify API reported backend `running:healthy` from `/Dockerfile`.
+- Coolify API reported scanner worker `running:healthy` from `/Dockerfile.scanner` with no FQDN.
+- Scanner admin health reported:
+  - `schedulerEnabled=false`
+  - `workerEnabled=false`
+  - `separateWorkerEnabled=true`
+  - `executionMode=SEPARATE_SERVICE`
+  - `toolAvailabilityAuthoritative=false`
+- Coolify env checks confirmed:
+  - API has scanner scheduler and worker disabled.
+  - API has separate worker mode enabled.
+  - Scanner worker has scanner scheduler and worker enabled.
+  - Scanner worker has Liquibase disabled.
+  - Scanner worker has unrelated notification, support SLA, and safe-knowledge schedulers disabled.
+
+Local scanner image build was not run locally because Docker Desktop was not available in this shell. The remote Coolify scanner-worker deployment built and ran the scanner image successfully.
 
 ## Rollback
 
