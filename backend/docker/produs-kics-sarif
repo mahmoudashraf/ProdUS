@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+if [[ $# -ne 2 ]]; then
+    echo "Usage: produs-kics-sarif <target-dir> <output-file>" >&2
+    exit 2
+fi
+
+target_dir="$1"
+output_file="$2"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+kics scan --path "$target_dir" --report-formats sarif --output-path "$tmp_dir" --output-name kics --no-progress --silent
+status=$?
+
+sarif_file="$(find "$tmp_dir" -type f -name '*.sarif' -print -quit)"
+if [[ -n "$sarif_file" && -s "$sarif_file" ]]; then
+    cp "$sarif_file" "$output_file"
+else
+    printf '{"version":"2.1.0","runs":[]}\n' > "$output_file"
+fi
+
+exit "$status"

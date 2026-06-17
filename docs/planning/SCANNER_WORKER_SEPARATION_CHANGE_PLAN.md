@@ -155,6 +155,27 @@ Implemented in this pass:
 - Admin readiness now treats the separate worker as a valid scanner execution mode.
 - Admin scanner operations now distinguishes local worker execution from separate worker execution, so missing scanner binaries in the API image are not shown as false failures.
 
+## Expanded Free Scanner Pack
+
+Follow-up implementation on 2026-06-17 keeps scanner expansion inside the private scanner-worker service.
+
+Worker-hosted tools now include:
+
+- Repository safety: `gitleaks`, `trufflehog`, `osv-scanner`, `semgrep`, `opengrep`, `bearer`, `trivy-fs`
+- IaC and deployment files: `checkov`, `hadolint`, `kics`, `kube-linter`
+- Container/image checks: `syft`, `grype`, `trivy-image`
+- Runtime URL checks: `lighthouse`, `zap-baseline`, `testssl`, `nuclei-safe`
+
+The API backend still uses the normal `backend/Dockerfile`; these binaries are not added to the public API image.
+
+Worker-side target gates skip non-applicable tools cleanly:
+
+- Dockerfile-only scanner: `hadolint`
+- Source-code scanners: `semgrep`, `opengrep`, `bearer`
+- IaC scanners: `checkov`, `kics`
+- Kubernetes scanner: `kube-linter`
+- Runtime URL scanners: `lighthouse`, `zap-baseline`, `testssl`, `nuclei-safe`
+
 ## Verification
 
 Local verification:
@@ -174,6 +195,12 @@ Scanner image verification:
 cd backend
 DOCKER_CONFIG=/tmp/produs-docker-config DOCKER_BUILDKIT=0 docker build -f Dockerfile.scanner -t produs-scanner-worker:local .
 docker run --rm --entrypoint sh produs-scanner-worker:local -lc 'gitleaks version && semgrep --version && osv-scanner --version && trivy --version && checkov --version'
+```
+
+Expanded worker image verification should also include:
+
+```bash
+docker run --rm --entrypoint sh produs-scanner-worker:local -lc 'trufflehog --version && opengrep --version && bearer version && hadolint --version && kics version && kube-linter version && testssl.sh --version && nuclei -version'
 ```
 
 Staging verification:

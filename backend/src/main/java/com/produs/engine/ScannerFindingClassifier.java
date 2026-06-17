@@ -18,7 +18,7 @@ public class ScannerFindingClassifier {
                 safe(finding.getAffectedComponent())
         ));
 
-        if (contains(signal, "gitleaks", "secret", "api key", "access token", "private key", "password", "credential", "env var")) {
+        if (contains(signal, "gitleaks", "trufflehog", "secret", "api key", "access token", "private key", "password", "credential", "env var")) {
             return classification(
                     "SECRET_EXPOSURE",
                     "Security and secrets",
@@ -27,6 +27,17 @@ public class ScannerFindingClassifier {
                     "Rotate or invalidate exposed credentials, move secrets into approved storage, and attach a clean scanner rerun.",
                     "Secrets wording or scanner source matched credential exposure signals.",
                     0.94
+            );
+        }
+        if (contains(signal, "bearer", "personal data", "pii", "privacy", "sensitive data", "data leak", "third party", "gdpr", "cookie", "tracking")) {
+            return classification(
+                    "DATA_PRIVACY_RISK",
+                    "Data privacy and handling",
+                    "security.data_privacy_review",
+                    "Sensitive data handling gaps can create customer trust, sales review, or privacy readiness blockers.",
+                    "Attach data-flow notes, third-party sharing review, sensitive-field handling proof, and owner risk decision.",
+                    "Privacy or sensitive-data scanner terms matched.",
+                    0.84
             );
         }
         if (contains(signal, "jwt", "session", "oauth", "login", "authentication", "authorization", "rbac", "role", "privilege")) {
@@ -40,7 +51,7 @@ public class ScannerFindingClassifier {
                     0.86
             );
         }
-        if (contains(signal, "trivy", "container", "docker", "image", "runtime", "base image", "kubernetes", "helm")) {
+        if (contains(signal, "trivy", "hadolint", "testssl", "nuclei", "container", "docker", "image", "runtime", "base image", "kubernetes", "helm", "tls", "ssl", "certificate", "cipher")) {
             return classification(
                     "DEPLOYMENT_RUNTIME_RISK",
                     "Deployment runtime",
@@ -62,7 +73,7 @@ public class ScannerFindingClassifier {
                     0.9
             );
         }
-        if (contains(signal, "semgrep", "injection", "xss", "csrf", "ssrf", "deserialization", "rate limit", "tenant", "webhook", "api security")) {
+        if (contains(signal, "semgrep", "opengrep", "nuclei", "injection", "xss", "csrf", "ssrf", "deserialization", "rate limit", "tenant", "webhook", "api security", "security header", "cors")) {
             return classification(
                     "API_SECURITY",
                     "API and integration security",
@@ -73,7 +84,7 @@ public class ScannerFindingClassifier {
                     0.84
             );
         }
-        if (contains(signal, "checkov", "terraform", "iam", "s3", "bucket", "public", "security group", "iac", "network", "cloudformation")) {
+        if (contains(signal, "checkov", "kics", "kube linter", "terraform", "iam", "s3", "bucket", "public", "security group", "iac", "network", "cloudformation")) {
             return classification(
                     "INFRASTRUCTURE_EXPOSURE",
                     "Cloud and infrastructure",

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+if [[ $# -ne 2 ]]; then
+    echo "Usage: produs-bearer-sarif <target-dir> <output-file>" >&2
+    exit 2
+fi
+
+target_dir="$1"
+output_file="$2"
+
+bearer scan "$target_dir" --format sarif --output "$output_file" --hide-progress-bar
+status=$?
+
+if [[ ! -s "$output_file" ]]; then
+    printf '{"version":"2.1.0","runs":[]}\n' > "$output_file"
+fi
+
+exit "$status"

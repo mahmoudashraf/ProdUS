@@ -19,6 +19,13 @@ ARG TRIVY_VERSION=0.70.0
 ARG SYFT_VERSION=1.18.1
 ARG GRYPE_VERSION=0.85.0
 ARG HADOLINT_VERSION=2.12.0
+ARG TRUFFLEHOG_VERSION=3.95.5
+ARG BEARER_VERSION=2.0.2
+ARG KICS_VERSION=2.1.20
+ARG NUCLEI_VERSION=3.9.0
+ARG KUBE_LINTER_VERSION=0.8.3
+ARG TESTSSL_VERSION=3.2.3
+ARG OPENGREP_VERSION=1.22.0
 ARG NODE_VERSION=20.18.1
 ARG SEMGREP_VERSION=1.106.0
 ARG CHECKOV_VERSION=3.2.337
@@ -41,6 +48,7 @@ RUN apt-get update \
         gnupg \
         jq \
         libxtst6 \
+        openssl \
         procps \
         python-is-python3 \
         python3 \
@@ -70,6 +78,28 @@ RUN apt-get update \
         | tar -xz -C /usr/local/bin grype \
     && curl -fsSL "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-x86_64" -o /usr/local/bin/hadolint \
     && chmod 0755 /usr/local/bin/hadolint \
+    && curl -fsSL "https://github.com/trufflesecurity/trufflehog/releases/download/v${TRUFFLEHOG_VERSION}/trufflehog_${TRUFFLEHOG_VERSION}_linux_amd64.tar.gz" \
+        | tar -xz -C /usr/local/bin trufflehog \
+    && curl -fsSL "https://github.com/Bearer/bearer/releases/download/v${BEARER_VERSION}/bearer_${BEARER_VERSION}_linux_amd64.tar.gz" \
+        | tar -xz -C /usr/local/bin bearer \
+    && mkdir -p /tmp/kics \
+    && curl -fsSL "https://github.com/Checkmarx/kics/releases/download/v${KICS_VERSION}/kics_${KICS_VERSION}_linux_amd64.tar.gz" \
+        | tar -xz -C /tmp/kics \
+    && find /tmp/kics -type f -name kics -exec mv {} /usr/local/bin/kics \; \
+    && chmod 0755 /usr/local/bin/kics \
+    && curl -fsSL "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_amd64.zip" -o /tmp/nuclei.zip \
+    && unzip -q /tmp/nuclei.zip -d /tmp/nuclei \
+    && mv /tmp/nuclei/nuclei /usr/local/bin/nuclei \
+    && chmod 0755 /usr/local/bin/nuclei \
+    && curl -fsSL "https://github.com/stackrox/kube-linter/releases/download/v${KUBE_LINTER_VERSION}/kube-linter-linux.tar.gz" \
+        | tar -xz -C /usr/local/bin kube-linter \
+    && chmod 0755 /usr/local/bin/kube-linter \
+    && mkdir -p /opt/testssl \
+    && curl -fsSL "https://github.com/testssl/testssl.sh/archive/refs/tags/v${TESTSSL_VERSION}.tar.gz" \
+        | tar -xz -C /opt/testssl --strip-components=1 \
+    && ln -s /opt/testssl/testssl.sh /usr/local/bin/testssl.sh \
+    && curl -fsSL "https://github.com/opengrep/opengrep/releases/download/v${OPENGREP_VERSION}/opengrep_manylinux_x86" -o /usr/local/bin/opengrep \
+    && chmod 0755 /usr/local/bin/opengrep \
     && ln -s /opt/zap /zap \
     && chmod 0755 /opt/zap/zap-baseline.py /opt/zap/zap.sh \
     && ln -s /opt/zap/zap-baseline.py /usr/local/bin/zap-baseline.py \
@@ -83,7 +113,26 @@ RUN apt-get update \
 
 COPY docker/produs-zap-baseline /usr/local/bin/produs-zap-baseline
 COPY docker/produs-checkov-json /usr/local/bin/produs-checkov-json
-RUN chmod 0755 /usr/local/bin/produs-zap-baseline /usr/local/bin/produs-checkov-json
+COPY docker/produs-hadolint-json /usr/local/bin/produs-hadolint-json
+COPY docker/produs-trufflehog-json /usr/local/bin/produs-trufflehog-json
+COPY docker/produs-bearer-sarif /usr/local/bin/produs-bearer-sarif
+COPY docker/produs-kics-sarif /usr/local/bin/produs-kics-sarif
+COPY docker/produs-kube-linter-sarif /usr/local/bin/produs-kube-linter-sarif
+COPY docker/produs-testssl-json /usr/local/bin/produs-testssl-json
+COPY docker/produs-nuclei-safe-json /usr/local/bin/produs-nuclei-safe-json
+COPY docker/opengrep-rules /opt/produs/opengrep-rules
+COPY docker/nuclei-safe-templates /opt/produs/nuclei-safe-templates
+RUN chmod 0755 \
+        /usr/local/bin/produs-zap-baseline \
+        /usr/local/bin/produs-checkov-json \
+        /usr/local/bin/produs-hadolint-json \
+        /usr/local/bin/produs-trufflehog-json \
+        /usr/local/bin/produs-bearer-sarif \
+        /usr/local/bin/produs-kics-sarif \
+        /usr/local/bin/produs-kube-linter-sarif \
+        /usr/local/bin/produs-testssl-json \
+        /usr/local/bin/produs-nuclei-safe-json \
+    && chown -R produs:produs /opt/produs
 
 ENV HOME=/home/produs \
     XDG_CACHE_HOME=/var/lib/produs/scanner/cache \

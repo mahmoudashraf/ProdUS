@@ -1,0 +1,29 @@
+id: produs-safe-security-headers
+
+info:
+  name: ProdUS safe security header baseline
+  author: produs
+  severity: low
+  description: Checks whether owner-authorized runtime URLs expose common browser security headers.
+  tags: exposure,headers,produs-safe
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+    redirects: true
+    max-redirects: 2
+    matchers-condition: or
+    matchers:
+      - type: dsl
+        name: missing-content-security-policy
+        dsl:
+          - "!contains(to_lower(all_headers), 'content-security-policy:')"
+      - type: dsl
+        name: missing-x-frame-options
+        dsl:
+          - "!contains(to_lower(all_headers), 'x-frame-options:')"
+      - type: dsl
+        name: missing-hsts
+        dsl:
+          - "contains(to_lower(BaseURL), 'https://') && !contains(to_lower(all_headers), 'strict-transport-security:')"

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+if [[ $# -ne 2 ]]; then
+    echo "Usage: produs-testssl-json <runtime-url> <output-file>" >&2
+    exit 2
+fi
+
+runtime_url="$1"
+output_file="$2"
+
+testssl.sh --jsonfile-pretty "$output_file" --warnings batch --fast --parallel 2 "$runtime_url"
+status=$?
+
+if [[ ! -s "$output_file" ]]; then
+    printf '[]\n' > "$output_file"
+fi
+
+exit "$status"

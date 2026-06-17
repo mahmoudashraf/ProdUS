@@ -1,0 +1,40 @@
+rules:
+  - id: produs.javascript-dangerous-eval
+    message: Dynamic code execution can turn user input into executable code. Review this before launch.
+    severity: WARNING
+    languages:
+      - javascript
+      - typescript
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: new Function(...)
+    metadata:
+      category: security
+      produs_readiness_area: API and integration security
+  - id: produs.express-open-cors
+    message: This route appears to allow every origin. Confirm the production CORS policy before launch.
+    severity: WARNING
+    languages:
+      - javascript
+      - typescript
+    patterns:
+      - pattern-either:
+          - pattern: |
+              cors({ origin: "*" })
+          - pattern: |
+              $APP.use(cors())
+    metadata:
+      category: security
+      produs_readiness_area: API and integration security
+  - id: produs.python-debug-server
+    message: Debug mode should not be enabled in a launch or customer-facing environment.
+    severity: WARNING
+    languages:
+      - python
+    pattern-either:
+      - pattern: app.run(..., debug=True, ...)
+      - pattern: $APP.debug = True
+    metadata:
+      category: security
+      produs_readiness_area: Deployment runtime

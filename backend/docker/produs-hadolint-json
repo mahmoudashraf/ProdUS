@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+if [[ $# -ne 2 ]]; then
+    echo "Usage: produs-hadolint-json <target-dir> <output-file>" >&2
+    exit 2
+fi
+
+target_dir="$1"
+output_file="$2"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+mapfile -d '' dockerfiles < <(
+    find "$target_dir" \
+        -path '*/.git' -prune -o \
+        -path '*/node_modules' -prune -o \
+        -type f \( -iname 'Dockerfile' -o -iname '*.Dockerfile' \) -print0
+)
+
+if [[ ${#dockerfiles[@]} -eq 0 ]]; then
+    printf '[]\n' > "$output_file"
+    exit 0
+fi
+
+status=0
+index=0
+for dockerfile in "${dockerfiles[@]}"; do
+    index=$((index + 1))
+    raw="$tmp_dir/hadolint-${index}.json"
+    hadolint -f json "$dockerfile" > "$raw"
+    command_status=$?
+    if [[ $command_status -ne 0 ]]; then
+        status=$command_status
+    fi
+    jq --arg file "$dockerfile" 'map(.file = (.file // $file))' "$raw" > "$tmp_dir/normalized-${index}.json"
+done
+
+jq -s 'add' "$tmp_dir"/normalized-*.json > "$output_file"
+exit "$status"

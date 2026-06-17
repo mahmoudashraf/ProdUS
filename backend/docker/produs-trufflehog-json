@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+if [[ $# -ne 2 ]]; then
+    echo "Usage: produs-trufflehog-json <target-dir> <output-file>" >&2
+    exit 2
+fi
+
+target_dir="$1"
+output_file="$2"
+jsonl_file="${output_file}.jsonl"
+
+rm -f "$jsonl_file"
+
+trufflehog filesystem "$target_dir" --json --no-update --no-verification > "$jsonl_file"
+status=$?
+
+if [[ -s "$jsonl_file" ]]; then
+    jq -s '.' "$jsonl_file" > "$output_file"
+else
+    printf '[]\n' > "$output_file"
+fi
+
+exit "$status"

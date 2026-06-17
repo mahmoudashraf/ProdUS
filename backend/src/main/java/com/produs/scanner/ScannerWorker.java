@@ -126,6 +126,16 @@ public class ScannerWorker {
             scannerService.markToolSkipped(toolRun.getId(), "No IaC files were found for this product source.");
             return;
         }
+        if (tool.isRequiresKubernetes() && !containsKubernetesFiles(target)) {
+            scannerService.markToolSkipped(toolRun.getId(), "No Kubernetes manifests or Helm charts were found for this product source.");
+            return;
+        }
+        if (tool.getRequiredPathGlobs() != null
+                && !tool.getRequiredPathGlobs().isEmpty()
+                && !containsRequiredPaths(target, tool.getRequiredPathGlobs())) {
+            scannerService.markToolSkipped(toolRun.getId(), "No files matched this scanner's target patterns.");
+            return;
+        }
         scannerService.markToolRunning(toolRun.getId(), resolveVersion(tool));
         Path output = jobRoot.resolve("outputs").resolve(key + ".json");
         try {
@@ -275,6 +285,79 @@ public class ScannerWorker {
                             || name.equals("serverless.yml")
                             || name.equals("serverless.yaml"));
         } catch (IOException ex) {
+            return false;
+        }
+    }
+
+    private boolean containsRequiredPaths(Path target, List<String> globs) {
+        if (target == null || !Files.exists(target) || globs == null || globs.isEmpty()) {
+            return false;
+        }
+        try (var stream = Files.walk(target, 8)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .anyMatch(path -> pathMatches(target.relativize(path), globs));
+        } catch (IOException ex) {
+            return false;
+        }
+    }
+
+    private boolean pathMatches(Path relativePath, List<String> globs) {
+        String normalized = relativePath.toString().replace(java.io.File.separatorChar, '/');
+        String fileName = relativePath.getFileName() == null ? normalized : relativePath.getFileName().toString();
+        for (String glob : globs) {
+            if (glob == null || glob.isBlank()) {
+                continue;
+            }
+            String normalizedGlob = glob.replace('\\', '/');
+            if (normalizedGlob.equals(fileName) || normalizedGlob.equals(normalized)) {
+                return true;
+            }
+            if (normalizedGlob.startsWith("**/*.") && fileName.endsWith(normalizedGlob.substring(4))) {
+                return true;
+            }
+            try {
+                if (java.nio.file.FileSystems.getDefault().getPathMatcher("glob:" + normalizedGlob).matches(Path.of(normalized))) {
+                    return true;
+                }
+            } catch (IllegalArgumentException ignored) {
+                // Ignore invalid custom glob patterns; the scanner can still run if another pattern matches.
+            }
+        }
+        return false;
+    }
+
+    private boolean containsKubernetesFiles(Path target) {
+        if (target == null || !Files.exists(target)) {
+            return false;
+        }
+        try (var stream = Files.walk(target, 8)) {
+            return stream.anyMatch(path -> {
+                String name = path.getFileName() == null ? "" : path.getFileName().toString().toLowerCase(Locale.ROOT);
+                if (Files.isDirectory(path)) {
+                    return name.equals("k8s") || name.equals("kubernetes") || name.equals("helm");
+                }
+                if (!Files.isRegularFile(path)) {
+                    return false;
+                }
+                if (name.equals("chart.yaml") || name.equals("kustomization.yaml") || name.equals("kustomization.yml")) {
+                    return true;
+                }
+                return (name.endsWith(".yaml") || name.endsWith(".yml")) && looksLikeKubernetesManifest(path);
+            });
+        } catch (IOException ex) {
+            return false;
+        }
+    }
+
+    private boolean looksLikeKubernetesManifest(Path path) {
+        try {
+            if (Files.size(path) > 512_000) {
+                return false;
+            }
+            String content = Files.readString(path, StandardCharsets.UTF_8).toLowerCase(Locale.ROOT);
+            return content.contains("apiversion:") && content.contains("kind:");
+        } catch (IOException | RuntimeException ex) {
             return false;
         }
     }

@@ -1853,8 +1853,14 @@ public class ScannerService {
         if (tool.contains("gitleaks")) {
             return parseGitleaks(root, fallbackToolName);
         }
-        if (tool.contains("semgrep")) {
+        if (tool.contains("trufflehog")) {
+            return parseTrufflehog(root, fallbackToolName);
+        }
+        if (tool.contains("semgrep") || tool.contains("opengrep")) {
             return parseSemgrep(root, fallbackToolName);
+        }
+        if (tool.contains("hadolint")) {
+            return parseHadolint(root, fallbackToolName);
         }
         if (tool.contains("osv")) {
             return parseOsv(root, fallbackToolName);
@@ -1873,6 +1879,12 @@ public class ScannerService {
         }
         if (tool.contains("zap")) {
             return parseZap(root, fallbackToolName);
+        }
+        if (tool.contains("testssl")) {
+            return parseTestssl(root, fallbackToolName);
+        }
+        if (tool.contains("nuclei")) {
+            return parseNuclei(root, fallbackToolName);
         }
         return List.of();
     }
@@ -1897,6 +1909,40 @@ public class ScannerService {
         return findings;
     }
 
+    private List<ParsedFinding> parseTrufflehog(JsonNode root, String toolName) {
+        JsonNode array = root.isArray() ? root : firstArray(root, "findings", "results");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!array.isArray()) return findings;
+        for (JsonNode node : array) {
+            String detector = firstText(node, "DetectorName", "DetectorType", "detector_name", "detector_type");
+            String verified = firstText(node, "Verified", "verified");
+            String severity = "true".equalsIgnoreCase(defaultString(verified, "")) ? "high" : "medium";
+            findings.add(new ParsedFinding(
+                    toolName,
+                    defaultString(detector, firstText(node, "SourceName", "source_name")),
+                    defaultString(detector, "Potential secret detected"),
+                    "TruffleHog detected a potential credential. The raw secret is intentionally not stored in ProdUS.",
+                    severity,
+                    trufflehogLocation(node),
+                    "TruffleHog secret detection"
+            ));
+        }
+        return findings;
+    }
+
+    private String trufflehogLocation(JsonNode node) {
+        JsonNode data = node.path("SourceMetadata").path("Data");
+        String filesystem = firstText(data.path("Filesystem"), "file", "File", "path", "Path");
+        if (!isBlank(filesystem)) {
+            return filesystem;
+        }
+        String git = firstText(data.path("Git"), "file", "File", "commit", "Commit", "repository", "Repository");
+        if (!isBlank(git)) {
+            return git;
+        }
+        return firstText(node, "SourceName", "source_name");
+    }
+
     private List<ParsedFinding> parseSemgrep(JsonNode root, String toolName) {
         JsonNode results = firstArray(root, "results");
         List<ParsedFinding> findings = new ArrayList<>();
@@ -1915,6 +1961,26 @@ public class ScannerService {
                     severity,
                     location(path, line),
                     "Semgrep static analysis result"
+            ));
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseHadolint(JsonNode root, String toolName) {
+        JsonNode array = root.isArray() ? root : firstArray(root, "findings", "results", "issues");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!array.isArray()) return findings;
+        for (JsonNode node : array) {
+            String file = firstText(node, "file", "File", "path", "Path");
+            String line = firstText(node, "line", "Line");
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(node, "code", "ruleId", "rule"),
+                    defaultString(firstText(node, "message", "title"), "Dockerfile readiness finding"),
+                    defaultString(firstText(node, "message", "description"), "Hadolint reported a Dockerfile readiness issue."),
+                    firstText(node, "level", "severity"),
+                    location(file, line),
+                    "Hadolint Dockerfile policy result"
             ));
         }
         return findings;
@@ -2077,6 +2143,65 @@ public class ScannerService {
                         "OWASP ZAP baseline alert"
                 ));
             }
+        }
+        return findings;
+    }
+
+    private List<ParsedFinding> parseTestssl(JsonNode root, String toolName) {
+        JsonNode array = root.isArray() ? root : firstArray(root, "findings", "results", "issues");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!array.isArray()) return findings;
+        for (JsonNode node : array) {
+            String finding = firstText(node, "finding", "message", "title", "description");
+            String severity = firstText(node, "severity", "risk", "level");
+            if (!actionableTestsslFinding(severity, finding)) {
+                continue;
+            }
+            findings.add(new ParsedFinding(
+                    toolName,
+                    firstText(node, "id", "cve", "cwe", "finding"),
+                    defaultString(firstText(node, "id", "finding"), "HTTPS/TLS readiness finding"),
+                    defaultString(finding, "testssl.sh reported an HTTPS/TLS readiness issue."),
+                    severity,
+                    defaultString(firstText(node, "ip", "port", "host"), firstText(node, "id")),
+                    "testssl.sh HTTPS/TLS baseline result"
+            ));
+        }
+        return findings;
+    }
+
+    private boolean actionableTestsslFinding(String severity, String finding) {
+        String severityText = defaultString(severity, "").toLowerCase(Locale.ROOT);
+        String findingText = defaultString(finding, "").toLowerCase(Locale.ROOT);
+        if (severityText.contains("critical") || severityText.contains("high") || severityText.contains("medium") || severityText.contains("low")) {
+            return true;
+        }
+        return findingText.contains("not ok")
+                || findingText.contains("vulnerable")
+                || findingText.contains("expired")
+                || findingText.contains("weak")
+                || findingText.contains("offered")
+                || findingText.contains("missing")
+                || findingText.contains("insecure");
+    }
+
+    private List<ParsedFinding> parseNuclei(JsonNode root, String toolName) {
+        JsonNode array = root.isArray() ? root : firstArray(root, "findings", "results", "issues");
+        List<ParsedFinding> findings = new ArrayList<>();
+        if (!array.isArray()) return findings;
+        for (JsonNode node : array) {
+            JsonNode info = node.path("info");
+            String templateId = firstText(node, "template-id", "templateID", "template");
+            String name = firstText(info, "name", "description");
+            findings.add(new ParsedFinding(
+                    toolName,
+                    defaultString(templateId, firstText(node, "matcher-name", "type")),
+                    defaultString(name, defaultString(templateId, "Runtime baseline finding")),
+                    defaultString(firstText(info, "description", "name"), "Nuclei safe baseline reported a runtime finding."),
+                    firstText(info, "severity"),
+                    defaultString(firstText(node, "matched-at", "host", "ip"), firstText(node, "url")),
+                    "Nuclei curated safe-template result"
+            ));
         }
         return findings;
     }
@@ -2463,10 +2588,36 @@ public class ScannerService {
 
     private List<String> selectedToolKeys(List<String> requested, ScanRun.ScanDepth depth) {
         List<String> defaults = switch (depth) {
-            case SAFE_STATIC -> List.of("gitleaks", "osv-scanner", "semgrep", "trivy-fs", "checkov");
+            case SAFE_STATIC -> List.of(
+                    "gitleaks",
+                    "trufflehog",
+                    "osv-scanner",
+                    "semgrep",
+                    "opengrep",
+                    "bearer",
+                    "trivy-fs",
+                    "checkov",
+                    "hadolint",
+                    "kics",
+                    "kube-linter"
+            );
             case DEPENDENCY_CONTAINER -> List.of("syft", "grype", "trivy-image");
-            case RUNTIME_BASELINE -> List.of("lighthouse", "zap-baseline");
-            case DEEP_REVIEW -> List.of("gitleaks", "osv-scanner", "semgrep", "trivy-fs", "checkov", "syft", "grype");
+            case RUNTIME_BASELINE -> List.of("lighthouse", "zap-baseline", "testssl", "nuclei-safe");
+            case DEEP_REVIEW -> List.of(
+                    "gitleaks",
+                    "trufflehog",
+                    "osv-scanner",
+                    "semgrep",
+                    "opengrep",
+                    "bearer",
+                    "trivy-fs",
+                    "checkov",
+                    "hadolint",
+                    "kics",
+                    "kube-linter",
+                    "syft",
+                    "grype"
+            );
             case CI_EVIDENCE -> List.of();
         };
         List<String> keys = requested == null || requested.isEmpty() ? defaults : requested;

@@ -95,8 +95,8 @@ public class AdminController {
                 "Enable either APP_SCANNER_WORKER_ENABLED for a local worker or APP_SCANNER_SEPARATE_WORKER_ENABLED when scanner execution is delegated to the scanner-worker service.");
         addGate(gates, "scanner-tool-pack", "Scanner", requiredScannerToolsConfigured() ? "PASS" : "BLOCKED",
                 "Scanner tool pack configured",
-                "Required scanner commands are present in scanner configuration.",
-                "Configure gitleaks, semgrep, osv-scanner, and trivy-fs command templates.");
+                "Required scanner command templates are present in scanner configuration.",
+                "Configure the approved free scanner tool pack command templates before enabling hosted scans.");
         addGate(gates, "scanner-runtime-tools", "Scanner", scannerRuntimeToolsStatus(),
                 "Scanner runtime executable availability",
                 scannerRuntimeToolsDetail(),

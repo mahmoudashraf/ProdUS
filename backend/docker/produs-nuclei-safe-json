@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+if [[ $# -ne 2 ]]; then
+    echo "Usage: produs-nuclei-safe-json <runtime-url> <output-file>" >&2
+    exit 2
+fi
+
+runtime_url="$1"
+output_file="$2"
+jsonl_file="${output_file}.jsonl"
+
+rm -f "$jsonl_file"
+
+nuclei -u "$runtime_url" \
+    -t /opt/produs/nuclei-safe-templates \
+    -jsonl \
+    -o "$jsonl_file" \
+    -silent \
+    -duc \
+    -rate-limit 5 \
+    -retries 1 \
+    -timeout 5
+status=$?
+
+if [[ -s "$jsonl_file" ]]; then
+    jq -s '.' "$jsonl_file" > "$output_file"
+else
+    printf '[]\n' > "$output_file"
+fi
+
+exit "$status"

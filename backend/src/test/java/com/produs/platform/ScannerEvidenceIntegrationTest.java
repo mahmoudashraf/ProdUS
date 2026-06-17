@@ -618,15 +618,23 @@ class ScannerEvidenceIntegrationTest {
         fullSuite.get("queuedToolKeys").forEach(node -> queuedTools.add(node.asText()));
         org.assertj.core.api.Assertions.assertThat(queuedTools).containsExactlyInAnyOrder(
                 "gitleaks",
+                "trufflehog",
                 "osv-scanner",
                 "semgrep",
+                "opengrep",
+                "bearer",
                 "trivy-fs",
                 "checkov",
+                "hadolint",
+                "kics",
+                "kube-linter",
                 "syft",
                 "grype",
                 "trivy-image",
                 "lighthouse",
-                "zap-baseline"
+                "zap-baseline",
+                "testssl",
+                "nuclei-safe"
         );
         org.assertj.core.api.Assertions.assertThat(fullSuite.get("skippedTargets")).isEmpty();
 
@@ -634,7 +642,7 @@ class ScannerEvidenceIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
         JsonNode summary = objectMapper.readTree(summaryResult.getResponse().getContentAsString());
-        org.assertj.core.api.Assertions.assertThat(summary.get("toolCoverage")).hasSize(10);
+        org.assertj.core.api.Assertions.assertThat(summary.get("toolCoverage")).hasSize(18);
         org.assertj.core.api.Assertions.assertThat(coverageFor(summary, "gitleaks").get("latestStatus").asText()).isEqualTo("QUEUED");
         org.assertj.core.api.Assertions.assertThat(coverageFor(summary, "syft").get("latestStatus").asText()).isEqualTo("QUEUED");
         org.assertj.core.api.Assertions.assertThat(coverageFor(summary, "lighthouse").get("latestStatus").asText()).isEqualTo("QUEUED");

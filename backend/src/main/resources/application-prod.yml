@@ -52,6 +52,7 @@ app:
     require-runtime-tool-availability: ${APP_SCANNER_REQUIRE_RUNTIME_TOOL_AVAILABILITY:true}
     runtime-image-name: ${APP_SCANNER_RUNTIME_IMAGE_NAME:produs-scanner-worker}
     runtime-image-tag: ${APP_SCANNER_RUNTIME_IMAGE_TAG:production}
+    required-tool-keys: ${APP_SCANNER_REQUIRED_TOOL_KEYS:gitleaks,trufflehog,osv-scanner,semgrep,opengrep,bearer,trivy-fs,checkov,hadolint,kics,kube-linter,syft,grype,trivy-image,lighthouse,zap-baseline,testssl,nuclei-safe}
     storage:
       raw-artifact-retention-days: ${APP_SCANNER_RAW_ARTIFACT_RETENTION_DAYS:90}
       import-payload-retention-days: ${APP_SCANNER_IMPORT_PAYLOAD_RETENTION_DAYS:90}

@@ -1156,6 +1156,8 @@ public class LoomAIIntegrationService {
                 "Target type: " + nullToEmpty(tool.getTargetType()),
                 "Output format: " + nullToEmpty(tool.getOutputFormat()),
                 "Infrastructure-as-code required: " + tool.isRequiresIac(),
+                "Kubernetes files required: " + tool.isRequiresKubernetes(),
+                "Required file patterns: " + (tool.getRequiredPathGlobs() == null ? "" : String.join(", ", tool.getRequiredPathGlobs())),
                 "Timeout seconds: " + tool.getTimeoutSeconds()
         );
     }
@@ -1164,15 +1166,23 @@ public class LoomAIIntegrationService {
         String displayName = nullToEmpty(tool.getDisplayName()).isBlank() ? key : tool.getDisplayName();
         return switch (key) {
             case "gitleaks" -> "Gitleaks identifies exposed credentials and sensitive tokens in source repositories before production access is granted.";
+            case "trufflehog" -> "TruffleHog gives a second secrets check for exposed credentials without validating secrets against external providers by default.";
             case "osv-scanner" -> "OSV-Scanner identifies vulnerable open-source dependencies and package ecosystem risks.";
             case "semgrep" -> "Semgrep performs static code analysis for insecure patterns, framework misuse, and code quality risks.";
+            case "opengrep" -> "OpenGrep runs ProdUS-owned launch-readiness code rules without relying on vendor-hosted rule packs.";
+            case "bearer" -> "Bearer reviews repository code for sensitive-data handling, privacy, and security risks.";
             case "trivy-fs" -> "Trivy filesystem scanning reviews application dependencies, operating-system packages, and configuration risk in a repository.";
             case "checkov" -> "Checkov reviews infrastructure-as-code for cloud, Kubernetes, and policy misconfigurations.";
+            case "hadolint" -> "Hadolint reviews Dockerfiles for container hygiene, reproducibility, and launch-hardening gaps.";
+            case "kics" -> "KICS reviews infrastructure-as-code and deployment manifests for misconfiguration risk.";
+            case "kube-linter" -> "KubeLinter reviews Kubernetes and Helm manifests when the product source includes Kubernetes files.";
             case "syft" -> "Syft generates software bills of materials for container images and application artifacts.";
             case "grype" -> "Grype analyzes software bills of materials and container images for known vulnerabilities.";
             case "trivy-image" -> "Trivy image scanning reviews container images for vulnerable packages and misconfiguration signals.";
             case "lighthouse" -> "Lighthouse measures runtime web performance, accessibility, best-practice, and SEO readiness signals.";
             case "zap-baseline" -> "OWASP ZAP Baseline performs passive web application security checks against a runtime URL.";
+            case "testssl" -> "testssl.sh checks owner-authorized runtime URLs for HTTPS certificate, protocol, and cipher readiness.";
+            case "nuclei-safe" -> "Nuclei safe baseline runs only curated low-impact runtime templates against owner-authorized URLs.";
             default -> displayName + " is a configured ProdUS scanner tool used to produce normalized product evidence.";
         };
     }
