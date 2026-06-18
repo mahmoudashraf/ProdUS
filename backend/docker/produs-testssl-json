@@ -9,7 +9,7 @@ fi
 runtime_url="$1"
 output_file="$2"
 
-testssl.sh --jsonfile-pretty "$output_file" --warnings batch --fast --parallel 2 "$runtime_url"
+testssl.sh --jsonfile-pretty "$output_file" --warnings batch --fast "$runtime_url"
 status=$?
 
 if [[ ! -s "$output_file" ]]; then

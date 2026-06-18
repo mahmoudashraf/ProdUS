@@ -90,7 +90,7 @@ RUN apt-get update \
     && chmod 0755 /usr/local/bin/kics \
     && mkdir -p /opt/kics \
     && curl -fsSL "https://github.com/Checkmarx/kics/archive/refs/tags/v${KICS_VERSION}.tar.gz" \
-        | tar -xz -C /opt/kics --strip-components=2 "kics-${KICS_VERSION}/assets" \
+        | tar -xz -C /opt/kics --strip-components=1 "kics-${KICS_VERSION}/assets" \
     && curl -fsSL "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_amd64.zip" -o /tmp/nuclei.zip \
     && unzip -q /tmp/nuclei.zip -d /tmp/nuclei \
     && mv /tmp/nuclei/nuclei /usr/local/bin/nuclei \
