@@ -6,7 +6,18 @@ Audience: ProdUS backend, frontend, platform operations, MCP, scanner, and LoomA
 
 Status: staging LoomAI deployment is live and verified. ProdUS should integrate through the standardized backend-mediated private runtime contract. The Platform consumer bridge remains useful for operator smoke tests and fallback comparison, but it is not the target application path.
 
-Latest LoomAI-side status, verified 2026-06-02:
+Latest LoomAI-side status, verified 2026-06-28:
+
+- Production Platform consumer `produs-staging` is now assigned to managed-vector runtime deployment `dep-f6abfa06`, production release `rel-86dbe0ab`, version `ver-269b9769`, target profile `dtp-coolify-production`.
+- The previous Qdrant-backed production runtime `dep-53f9ca56` / release `rel-4ed2ffc9` remains rollback-reserved. ProdUS should not hardcode either deployment id; use assignment discovery.
+- Assignment discovery through the existing backend-only handoff URL returns `externalIntegrationReady=true`, `privateRuntimeAudience=produs-staging`, `privateRuntimeAudienceMode=CONSUMER_ID`, and `cacheTtlSeconds=300`.
+- The active runtime uses Zilliz/Milvus managed vector storage. Vectorization run `vrn-f459d3ff` processed `198`, succeeded `198`, failed `0`, and the indexing overview is `IN_SYNC`.
+- LoomAI smoke passed for `API security review`: provider request id `rag-8c8b788b-2aac-409b-a2b4-bfdcf00c5b3b`, `sourcesCount=5`, top source `service-module:api-security-review`.
+- LoomAI smoke passed for security hardening packages: provider request id `rag-156ae1be-96ca-4e73-ac73-0d76fe9bd8bf`, `sourcesCount=3`, top source `package-template:security-hardening`.
+- Runtime, connector, and vectorization runner liveness endpoints are `UP`. Runtime aggregate readiness currently returns HTTP `503`; this is a LoomAI readiness cleanup item, not the ProdUS integration path.
+- The public consumer bridge path may return Thinker-disabled for this deployment. ProdUS should use backend-mediated private runtime assignment discovery and signed assertions.
+
+Historical LoomAI-side status, verified 2026-06-02:
 
 - 2026-06-02 production-Coolify shift-left update: LoomAI exported staging deployment `dep-7706fafb` with sealed secrets through the Platform deployment export API, reimported it on the production Platform/Coolify server after the private-runtime audience clone fix, published imported deployment version `ver-a9f46201`, and applied it through release `rel-7aa6f229`.
 - Imported production-server staging runtime deployment is `dep-53f9ca56`.
@@ -69,7 +80,7 @@ Current contract alignment:
 Required ProdUS changes after the default-pack transition:
 
 - Keep the existing backend-mediated private runtime auth path. No browser runtime secret, Coolify token, Platform key, MCP key, or provider key should be added to ProdUS frontend code.
-- Keep the existing LoomAI base URL and endpoint paths unless LoomAI explicitly rotates the deployment. The current staging runtime base URL remains `http://dep-7706fafb.46.224.145.148.sslip.io`.
+- Keep the existing backend-mediated assignment discovery path. The currently resolved production-hosted staging runtime is `http://dep-f6abfa06.46.225.162.106.sslip.io`, but ProdUS should treat that URL as assignment output, not hardcoded configuration.
 - Use `mode=thinker` for read-only analysis, productization guidance, indexed-knowledge answers, page helpers, and project-creation analysis.
 - Use `mode=executor` only for governed action execution flows where ProdUS has intentionally prepared the action UX, authorization, consent, idempotency, and audit path.
 - Stop sending `support_assistant`, `support_deep`, `support_operator`, or `thinker_deep` for this deployment. Those are not the ProdUS default-pack contract.
@@ -98,8 +109,8 @@ Current non-secret response shape:
 ```json
 {
   "consumerId": "produs-staging",
-  "deploymentId": "dep-53f9ca56",
-  "runtimeBaseUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io",
+  "deploymentId": "dep-f6abfa06",
+  "runtimeBaseUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io",
   "runtimeAuthMode": "PRIVATE_RUNTIME_SIGNED_ASSERTION",
   "preferredIntegrationMode": "BACKEND_MEDIATED_PRIVATE_RUNTIME",
   "privateRuntimeIssuer": "produs-staging-backend",
@@ -109,11 +120,11 @@ Current non-secret response shape:
   "assignmentRevision": "<changes-when-assignment-material-changes>",
   "cacheTtlSeconds": 300,
   "endpoints": {
-    "chatQueryUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/query",
-    "queryOnceUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/query-once",
-    "suggestionsUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/suggestions",
-    "authContextUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/auth-context",
-    "healthUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/actuator/health"
+    "chatQueryUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io/api/chat/me/query",
+    "queryOnceUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io/api/chat/me/query-once",
+    "suggestionsUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io/api/chat/me/suggestions",
+    "authContextUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io/api/chat/me/auth-context",
+    "healthUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io/actuator/health"
   }
 }
 ```
@@ -152,8 +163,8 @@ Current non-secret response shape:
 ```json
 {
   "consumerId": "produs-staging",
-  "deploymentId": "dep-53f9ca56",
-  "runtimeBaseUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io",
+  "deploymentId": "dep-f6abfa06",
+  "runtimeBaseUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io",
   "runtimeAuthMode": "PRIVATE_RUNTIME_SIGNED_ASSERTION",
   "preferredIntegrationMode": "BACKEND_MEDIATED_PRIVATE_RUNTIME",
   "privateRuntimeIssuer": "produs-staging-backend",
@@ -162,12 +173,12 @@ Current non-secret response shape:
   "externalIntegrationReady": true,
   "cacheTtlSeconds": 300,
   "endpoints": {
-    "chatQueryUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/query",
-    "queryOnceUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/query-once",
-    "suggestionsUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/suggestions",
-    "conversationsUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/conversations",
-    "authContextUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/api/chat/me/auth-context",
-    "healthUrl": "http://dep-53f9ca56.46.225.162.106.sslip.io/actuator/health"
+    "chatQueryUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io/api/chat/me/query",
+    "queryOnceUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io/api/chat/me/query-once",
+    "suggestionsUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io/api/chat/me/suggestions",
+    "conversationsUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io/api/chat/me/conversations",
+    "authContextUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io/api/chat/me/auth-context",
+    "healthUrl": "http://dep-f6abfa06.46.225.162.106.sslip.io/actuator/health"
   }
 }
 ```
