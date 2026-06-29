@@ -6,15 +6,15 @@ Audience: ProdUS backend, frontend, platform operations, MCP, scanner, and LoomA
 
 Status: staging LoomAI deployment is live and verified. ProdUS should integrate through the standardized backend-mediated private runtime contract. The Platform consumer bridge remains useful for operator smoke tests and fallback comparison, but it is not the target application path.
 
-Latest LoomAI-side status, verified 2026-06-28:
+Latest LoomAI-side status, verified 2026-06-29:
 
 - Production Platform consumer `produs-staging` is now assigned to managed-vector runtime deployment `dep-f6abfa06`, production release `rel-86dbe0ab`, version `ver-269b9769`, target profile `dtp-coolify-production`.
 - The previous Qdrant-backed production runtime `dep-53f9ca56` / release `rel-4ed2ffc9` remains rollback-reserved. ProdUS should not hardcode either deployment id; use assignment discovery.
-- Assignment discovery through the existing backend-only handoff URL returns `externalIntegrationReady=true`, `privateRuntimeAudience=produs-staging`, `privateRuntimeAudienceMode=CONSUMER_ID`, and `cacheTtlSeconds=300`.
+- Assignment discovery through both the existing backend-only sslip handoff URL and `https://api.loomai.pro/api/public/consumers/produs-staging/runtime-assignment` returns `deploymentId=dep-f6abfa06`, `externalIntegrationReady=true`, `privateRuntimeAudience=produs-staging`, `privateRuntimeAudienceMode=CONSUMER_ID`, and `cacheTtlSeconds=300`.
 - The active runtime uses Zilliz/Milvus managed vector storage. Vectorization run `vrn-f459d3ff` processed `198`, succeeded `198`, failed `0`, and the indexing overview is `IN_SYNC`.
 - LoomAI smoke passed for `API security review`: provider request id `rag-8c8b788b-2aac-409b-a2b4-bfdcf00c5b3b`, `sourcesCount=5`, top source `service-module:api-security-review`.
 - LoomAI smoke passed for security hardening packages: provider request id `rag-156ae1be-96ca-4e73-ac73-0d76fe9bd8bf`, `sourcesCount=3`, top source `package-template:security-hardening`.
-- Runtime, connector, and vectorization runner liveness endpoints are `UP`. Runtime aggregate readiness currently returns HTTP `503`; this is a LoomAI readiness cleanup item, not the ProdUS integration path.
+- Runtime, connector, and vectorization runner health endpoints are `UP`; runtime aggregate `/actuator/health` now returns HTTP `200` / `UP`.
 - The public consumer bridge path may return Thinker-disabled for this deployment. ProdUS should use backend-mediated private runtime assignment discovery and signed assertions.
 
 Historical LoomAI-side status, verified 2026-06-02:
